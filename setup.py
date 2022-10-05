@@ -31,10 +31,15 @@ def parse_version():
         raise RuntimeError("Failed to parse version information")
     return version_string
 
+version = os.getenv("garden_version")
+if version is None:
+    version = "0.1a1"
+else:
+    version = version.split("/")[-1]
 
 setup(
     name="garden",
-    version=parse_version(),
+    version=version,
     packages=find_namespace_packages(include=["garden"]),
     description="Garden: a collection of tools to simplify access to scientific AI advances.",
     install_requires=REQUIRES,
