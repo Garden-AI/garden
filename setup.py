@@ -17,29 +17,22 @@ DEV_REQUIRES = TEST_REQUIRES + [
     "pre-commit",
 ]
 
-def parse_version():
-    # single source of truth for package version
-    version_string = ""
-    version_pattern = re.compile(r'__version__ = "([^"]*)"')
-    with open(os.path.join("garden", "version.py")) as f:
-        for line in f:
-            match = version_pattern.match(line)
-            if match:
-                version_string = match.group(1)
-                break
-    if not version_string:
-        raise RuntimeError("Failed to parse version information")
-    return version_string
-
+# This will be set in GitHub as part of the release
 version = os.getenv("garden_version")
 if version is None:
     version = "0.1a1"
 else:
     version = version.split("/")[-1]
 
+# Use the readme as the long description.
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name="garden",
     version=version,
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     packages=find_namespace_packages(include=["garden"]),
     description="Garden: a collection of tools to simplify access to scientific AI advances.",
     install_requires=REQUIRES,
