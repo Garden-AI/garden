@@ -1,1 +1,1 @@
-# garden-sdk
+# Garden
