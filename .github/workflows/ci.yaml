@@ -1,0 +1,35 @@
+name: tests
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]  
+    name: build
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache : 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          pip install pytest-cov~=2.12.1
+          pip install jsonschema
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are any-flake8 comments
+          flake8 garden
+      - name: Test with pytest
+        run: |
+          pytest -s tests
