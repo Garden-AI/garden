@@ -1,6 +1,5 @@
 
 import os
-import re
 
 from setuptools import find_namespace_packages, setup
 
@@ -34,13 +33,13 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_namespace_packages(include=["garden"]),
-    description="Garden: a collection of tools to simplify access to scientific AI advances.",
+    description="Garden: tools to simplify access to scientific AI advances.",
     install_requires=REQUIRES,
     extras_require={
         "dev": DEV_REQUIRES,
         "test": TEST_REQUIRES
     },
-    python_requires=">=3.8",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
