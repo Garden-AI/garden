@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "garden"
+version = "0.1.0"
+description = "Garden: tools to simplify access to scientific AI advances."
+authors = ["Your Name <you@example.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+requests = "^2.20.0"
+globus-sdk = "^3.12.0"
+
+[tool.poetry.group.test]
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.2.0"
+pytest-mock = "^3.10.0"
+coverage = "^6.5.0"
+codecov = "^2.1.12"
+flake8 = "^5.0.4"
+mypy = "^0.981"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
