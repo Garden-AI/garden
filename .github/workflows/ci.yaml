@@ -1,9 +1,12 @@
 name: tests
 on:
-  pull_request:
+  push:
     branches:
-      - dev
-      - main
+      - "*"
+    tags:
+      - "*"
+  pull_request:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,22 +18,29 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache : 'pip'
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.2.2
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install flake8 pytest
-          pip install pytest-cov~=2.12.1
-          pip install jsonschema
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          poetry config virtualenvs.create false && \
+          poetry install --no-root --no-interaction --no-ansi --with=test
+
       - name: Lint with flake8
         run: |
           # stop the build if there are any-flake8 comments
-          flake8 garden
+          flake8
+      - name: Perform Type Checking With mypy
+        run: |
+          mypy .
       - name: Test with pytest
         run: |
-          pytest -s tests
+          python -m coverage run -m pytest -r sx
+          codecov --token=${{ secrets.CODECOV_TOKEN }}
+      - name: Check for vulnerable libraries with safety
+        run: |
+          safety check

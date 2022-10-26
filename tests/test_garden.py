@@ -1,4 +1,4 @@
-from garden import GardenClient
+from garden_ai import GardenClient
 
 
 def test_client():
