@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "garden"
+name = "garden-ai"
 version = "0.1.0"
 description = "Garden: tools to simplify access to scientific AI advances."
 authors = ["Your Name <you@example.com>"]
