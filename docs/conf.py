@@ -8,7 +8,7 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../garden_ai'))
+sys.path.insert(0, os.path.abspath('..'))
 
 project = 'Garden'
 copyright = '2022, Garden Development Team'
