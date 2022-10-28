@@ -15,6 +15,9 @@ class GardenClient:
     Main class for interacting with the Garden service
     Holds helper operations for performing common tasks
     with the Garden service.
+
+    Will authenticate with GlobusAuth, storing generated keys in the users .garden
+    directory
     """
 
     def __init__(self, auth_client: AuthClient = None):
