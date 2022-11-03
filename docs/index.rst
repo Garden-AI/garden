@@ -5,12 +5,15 @@
 
 Garden
 ==================================
+
+
 This work was supported by the National Science Foundation under NSF Award Number: 2209892 "Frameworks: Garden: A FAIR Framework for Publishing and Applying AI Models for Translational Research in Science, Engineering, Education, and Industry".
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   quickstart
    modules
 
 
