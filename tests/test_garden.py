@@ -1,8 +1,10 @@
 import pytest
 
 from garden_ai import GardenClient
-from globus_sdk import AuthClient, OAuthTokenResponse
+from globus_sdk import AuthClient, OAuthTokenResponse, AuthAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+
+from garden_ai.garden import AuthException
 
 
 @pytest.fixture
@@ -84,3 +86,29 @@ def test_client_previous_tokens_stored(mocker, mock_authorizer_tuple, token, moc
                                                    on_refresh=mock_keystore.on_refresh)
 
     assert gc.authorizer == mock_authorizer
+
+
+def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_keystore):
+    mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
+    # Mocks for KeyStore
+    mock_keystore.file_exists.return_value = False
+
+    # Mocks for Login Flow
+    mock_auth_client = mocker.MagicMock(AuthClient)
+    mock_auth_client.oauth2_get_authorize_url = mocker.Mock(
+        return_value="https://globus.auth.garden")
+    mock_auth_client.oauth2_start_flow = mocker.Mock()
+    mocker.patch("garden_ai.garden.input").return_value = "my token"
+
+    mock_token_response = mocker.MagicMock(OAuthTokenResponse)
+    mock_token_response.by_resource_server = {"groups.api.globus.org": token}
+    mock_token_response.status_code = 'X'
+    mock_token_response.request = mocker.Mock()
+    mock_token_response.request.headers = {"Authorization": "Yougotit"}
+    mock_token_response.request._underlying_response = mocker.Mock()
+    mock_token_response.url = "http://foo.bar.baz"
+    mock_auth_client.oauth2_exchange_code_for_tokens.side_effect = AuthAPIError(
+        r=mock_token_response)
+    # Call the Garden constructor and expect an auth exception
+    with pytest.raises(AuthException):
+        GardenClient(auth_client=mock_auth_client)
