@@ -1,13 +1,17 @@
 import logging
 import os
-import sys
 from pathlib import Path
 
 from globus_sdk import GroupsClient, RefreshTokenAuthorizer, NativeAppAuthClient, \
     AuthClient, AuthAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
+
 logger = logging.getLogger()
+
+
+class AuthException(Exception):
+    pass
 
 
 class GardenClient:
@@ -18,6 +22,9 @@ class GardenClient:
 
     Will authenticate with GlobusAuth, storing generated keys in the users .garden
     directory
+
+    Raises:
+         AuthException: if the user cannot authenticate
     """
 
     def __init__(self, auth_client: AuthClient = None):
@@ -54,7 +61,7 @@ class GardenClient:
             response = self._do_login_flow()
 
             if not response:
-                sys.exit(-1)
+                raise AuthException
 
             # now store the tokens and pull out the Groups tokens
             self.auth_key_store.store(response)
