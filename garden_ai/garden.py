@@ -4,8 +4,11 @@ from pathlib import Path
 
 from globus_sdk import GroupsClient, RefreshTokenAuthorizer, NativeAppAuthClient, \
     AuthClient, AuthAPIError
+from typing import List
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
+from garden_ai.model import Garden
+from pydantic import ValidationError
 
 logger = logging.getLogger()
 
@@ -79,3 +82,87 @@ class GardenClient:
             on_refresh=self.auth_key_store.on_refresh,
         )
         return authorizer
+
+    def create_garden(self, creators: List[str] = [], title: str = "", **kwargs):
+        """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
+
+        Up to user preference, metadata (e.g. `title="My Garden"` or
+        `version="1.0.0"`) can be provided here as kwargs.
+
+        This might be useful if, for example, one wanted to build a Garden starting
+        from an already-existing Garden or pre-populated dict of template
+        metadata. Otherwise, the user is free to incrementally populate or
+        replace even the Garden object's required fields (e.g. `pea_garden.title
+        = "Experiments on Plant Hybridization"`) at any time -- field validation
+        is still performed.
+
+        Parameters
+        ----------
+        creators : List[str]
+            The personal names of main researchers/authors involved in
+            cultivating the Garden. Names should be formatted "Family, Given",
+            e.g. `creators=["Mendel, Gregor"]`. Affiliations/institutional
+            relationships should be added via the Garden object helper method
+            `add_affiliation`, e.g.  `pea_garden.add_affiliation({"Mendel,
+            Gregor": "St Thomas' Abbey"})`. (NOTE: add_affiliation not yet implemented)
+
+        title : str
+            An official name or title for the Garden. This attribute must be set
+            in order to register a DOI.
+
+        **kwargs :
+            Metadata for the new Garden object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the
+            appropriate type and validated per the Garden metadata spec.
+
+        Examples
+        --------
+            gc = GardenClient()
+            pea_garden = gc.create_garden(
+                creators=["Mendel, Gregor"],
+                title="Experiments on Plant Hybridization",
+                subjects=["Peas"]
+            )
+            pea_garden.year = 1863
+            pea_garden.subjects += ["Genetics"] # (didn't have the word for it earlier)
+        """
+        data = dict(kwargs)
+        if creators:
+            data["creators"] = creators
+        if title:
+            data["title"] = title
+        return Garden(**data)
+
+    def register_metadata(self, garden: Garden, out_dir=None):
+        """Make a Garden object's metadata discoverable.
+
+        This will perform validation on the metadata fields and (if successful)
+        write the metadata to a `"metadata.json"` file in the current working directory.
+
+        Parameters
+        ----------
+        garden : Garden
+            A Garden object with user's ready-to-publish metadata. Users might
+            want to invoke `to_do()` method on their Garden, or see `Garden`
+            docstring for explanation of any unset required/recommended fields.
+
+        out_dir : Union[PathLike, str]
+            Directory in which a copy of the Garden's metadata is written on
+            successful registration. Defaults to current working directory.
+
+        Raises
+        ------
+        ValidationError
+
+        """
+        out_dir = Path(out_dir) if out_dir else Path.cwd()
+        out_dir /= "metadata.json"
+        try:
+            garden.request_doi()
+            garden.validate()
+        except ValidationError as e:
+            logger.error(e)
+            raise
+        else:
+            with open(out_dir, "w+") as f:
+                f.write(garden.json())
