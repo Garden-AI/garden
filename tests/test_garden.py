@@ -1,7 +1,7 @@
 import pytest
 from garden_ai import GardenClient
 from garden_ai.garden import AuthException
-from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse
+from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse, SearchClient
 
 
 def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_keystore):
@@ -17,22 +17,26 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
     mock_auth_client.oauth2_start_flow = mocker.Mock()
     mocker.patch("garden_ai.garden.input").return_value = "my token"
 
+    mock_search_client = mocker.MagicMock(SearchClient)
+
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
-    mock_token_response.by_resource_server = {"groups.api.globus.org": token}
+    mock_token_response.by_resource_server = {"groups.api.globus.org": token,
+                                              "search.api.globus.org": token}
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
         return_value=mock_token_response
     )
 
     # Call the Garden constructor
-    gc = GardenClient(auth_client=mock_auth_client)
+    gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
 
     assert gc.auth_key_store == mock_keystore
     mock_auth_client.oauth2_exchange_code_for_tokens.assert_called_with("my token")
 
     mock_auth_client.oauth2_start_flow.assert_called_with(
-        refresh_tokens=True,
-        requested_scopes="urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships",
-    )
+        requested_scopes=[
+           'urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships',
+           'urn:globus:auth:scope:search.api.globus.org:ingest'],
+        refresh_tokens=True)
 
     mock_keystore.store.assert_called_with(mock_token_response)
     mock_authorizer_constructor.assert_called_with(
