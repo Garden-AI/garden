@@ -2,8 +2,13 @@ import logging
 import os
 from pathlib import Path
 
-from globus_sdk import GroupsClient, RefreshTokenAuthorizer, NativeAppAuthClient, \
-    AuthClient, AuthAPIError
+from globus_sdk import (
+    GroupsClient,
+    RefreshTokenAuthorizer,
+    NativeAppAuthClient,
+    AuthClient,
+    AuthAPIError,
+)
 from typing import List
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
@@ -33,12 +38,16 @@ class GardenClient:
     def __init__(self, auth_client: AuthClient = None):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
-        self.auth_key_store = SimpleJSONFileAdapter(os.path.join(key_store_path, "tokens.json"))
-        self.client_id = os.environ.get("GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539")
+        self.auth_key_store = SimpleJSONFileAdapter(
+            os.path.join(key_store_path, "tokens.json")
+        )
+        self.client_id = os.environ.get(
+            "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
+        )
 
-        self.auth_client = NativeAppAuthClient(self.client_id) \
-            if not auth_client\
-            else auth_client
+        self.auth_client = (
+            NativeAppAuthClient(self.client_id) if not auth_client else auth_client
+        )
 
         self.authorizer = self._authenticate()
 
@@ -83,7 +92,7 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, creators: List[str] = [], title: str = "", **kwargs):
+    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs):
         """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
 
         Up to user preference, metadata (e.g. `title="My Garden"` or
@@ -98,10 +107,10 @@ class GardenClient:
 
         Parameters
         ----------
-        creators : List[str]
+        authors : List[str]
             The personal names of main researchers/authors involved in
             cultivating the Garden. Names should be formatted "Family, Given",
-            e.g. `creators=["Mendel, Gregor"]`. Affiliations/institutional
+            e.g. `authors=["Mendel, Gregor"]`. Affiliations/institutional
             relationships should be added via the Garden object helper method
             `add_affiliation`, e.g.  `pea_garden.add_affiliation({"Mendel,
             Gregor": "St Thomas' Abbey"})`. (NOTE: add_affiliation not yet implemented)
@@ -119,7 +128,7 @@ class GardenClient:
         --------
             gc = GardenClient()
             pea_garden = gc.create_garden(
-                creators=["Mendel, Gregor"],
+                authors=["Mendel, Gregor"],
                 title="Experiments on Plant Hybridization",
                 subjects=["Peas"]
             )
@@ -127,8 +136,8 @@ class GardenClient:
             pea_garden.subjects += ["Genetics"] # (didn't have the word for it earlier)
         """
         data = dict(kwargs)
-        if creators:
-            data["creators"] = creators
+        if authors:
+            data["authors"] = authors
         if title:
             data["title"] = title
         return Garden(**data)
