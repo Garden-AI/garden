@@ -129,3 +129,5 @@ dmypy.json
 .pyre/
 .idea/
 /.dir-locals.el
+/.DS_Store
+/.github/.DS_Store

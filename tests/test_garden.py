@@ -1,11 +1,12 @@
 import pytest
 
-from garden_ai import GardenClient
+from garden_ai import GardenClient, Garden, Pipeline, step
 from globus_sdk import AuthClient, OAuthTokenResponse, AuthAPIError
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
 from garden_ai.garden import AuthException
 from pydantic import ValidationError
+from typing import Union
 
 
 @pytest.fixture
@@ -236,3 +237,126 @@ def test_register_metadata(garden_client, garden_required_fields_only, tmp_path)
     with open(tmp_path / "metadata.json", "r") as f:
         json_contents = f.read()
         assert json_contents == garden.json()
+
+
+def test_step_wrapper():
+    # well-annotated callables are accepted; poorly annotated callables are not
+    @step
+    def well_annotated(a: int, b: str, g: Garden) -> tuple[int, str, Garden]:
+        pass
+
+    assert isinstance(well_annotated, step)
+
+    with pytest.raises(ValidationError):
+
+        @step
+        def incomplete_annotated(a: int, b: None, g) -> int:
+            pass
+
+
+def test_pipeline_compose_union():
+    # check that pipelines can correctly compose tricky functions, which may be
+    # annotated like typing.Union *or* like (A | B)
+    @step
+    def wants_int_or_str(arg: int | str) -> str | int:
+        pass
+
+    @step
+    def wants_int_or_str_old_syntax(arg: Union[int, str]) -> Union[str, int]:
+        pass
+
+    @step
+    def str_only(arg: str) -> str:
+        pass
+
+    good = Pipeline(
+        authors=["mendel"],
+        title="good pipeline",
+        steps=[str_only, wants_int_or_str],
+    )
+
+    also_good = Pipeline(
+        authors=["mendel"],
+        title="good pipeline",
+        steps=[str_only, wants_int_or_str_old_syntax],
+    )
+
+    union_order_doesnt_matter = Pipeline(
+        authors=["mendel"],
+        title="good pipeline",
+        steps=[wants_int_or_str, wants_int_or_str],
+    )
+
+    union_syntax_doesnt_matter = Pipeline(
+        authors=["mendel"],
+        title="good pipeline",
+        steps=[wants_int_or_str, wants_int_or_str_old_syntax],
+    )
+
+    with pytest.raises(ValidationError):
+        union_str_does_not_subtype_str = Pipeline(
+            authors=["mendel"],
+            title="bad pipeline",
+            steps=[wants_int_or_str, str_only],
+        )
+
+    with pytest.raises(ValidationError):
+        old_union_str_does_not_subtype_str = Pipeline(
+            authors=["mendel"],
+            title="bad pipeline",
+            steps=[wants_int_or_str_old_syntax, str_only],
+        )
+    return
+
+
+def test_pipeline_compose_tuple():
+    # check that pipelines can correctly compose tricky
+    # functions which may or may not expect a plain tuple
+    # to be treated as *args
+    @step
+    def returns_tuple(a: int, b: str) -> tuple[int, str]:
+        pass
+
+    @step
+    def wants_tuple_as_tuple(t: tuple[int, str]) -> int:
+        pass
+
+    @step
+    def wants_tuple_as_args(x: int, y: str) -> str:
+        pass
+
+    @step
+    def wants_flipped_tuple_as_args(arg1: str, arg2: int) -> float:
+        pass
+
+    good = Pipeline(
+        authors=["mendel"],
+        title="good pipeline",
+        steps=[returns_tuple, wants_tuple_as_tuple],
+    )
+
+    with pytest.raises(ValidationError):
+        bad = Pipeline(
+            authors=["mendel"],
+            title="backwards pipeline",
+            steps=[wants_tuple_as_tuple, returns_tuple],
+        )
+
+    ugly = Pipeline(
+        authors=["mendel"],
+        title="ugly (using *args) but allowed pipeline",
+        steps=[returns_tuple, wants_tuple_as_args],
+    )
+    with pytest.raises(ValidationError):
+        ugly_and_bad = Pipeline(
+            authors=["mendel"],
+            title="ugly (using *args) and disallowed pipeline",
+            steps=[returns_tuple, wants_flipped_tuple_as_args],
+        )
+
+
+def test_authors_are_contributors():
+    # TODO
+    # verify that adding a pipeline with new authors
+    # updates the garden's 'contributors' field
+    pass
