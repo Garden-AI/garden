@@ -174,9 +174,6 @@ class Pipeline:
     steps: tuple[step, ...]
     # note: tuple vs list decision; a list of authors is conceptually more mutable than
     # the list of steps ought to be, but maybe we should just use tuples everywhere?
-    #
-    # _garden: Garden = Field(None)
-    # ^^ do we want to have a pointer to the owning garden?
 
     class Config:
         validate_assignment = True
@@ -331,6 +328,8 @@ class Garden(BaseModel):
     tags: List[str] = Field(default_factory=list, unique_items=True)
     description: str = Field(None)
     version: str = "0.0.1"  # TODO: enforce semver for this?
+
+    pipelines: list[Pipeline] = Field(default_factory=list)
 
     # field(s) for which we might want to ''disable'' mutation
     garden_id: UUID = Field(default_factory=uuid4, allow_mutation=False)
