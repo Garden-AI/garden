@@ -12,7 +12,7 @@ from globus_sdk import (
 from typing import List
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
-from garden_ai.pydantic_models import Garden
+from garden_ai.models import Garden
 from pydantic import ValidationError
 
 logger = logging.getLogger()

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import logging
@@ -11,21 +9,30 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, ValidationError, validator
 from pydantic.dataclasses import dataclass
+from pydantic.json import pydantic_encoder
+
 
 from garden_ai.utils import safe_compose
 
 logger = logging.getLogger()
 
 
-@dataclass
-class step:
-    """The `step` decorator wraps a callable to be used as a single step in a `Pipeline`.
+class DataClassConfig:
+    # pydantic dataclasses read their config via decorator argument, not as
+    # nested class (like BaseModels do)
+    validate_assignment = True
+    underscore_attrs_are_private = True
 
-    IMPORTANT: When included in a `Pipeline`, all `step`s will be checked for
-    composability with respect to their argument-and return-type annotations.
-    This requires that the decorated function has complete argument- and
-    return-type annotations; a `step` will fail to initialize with an exception
-    if this condition is not met. Note that there is (currently) no
+
+@dataclass(config=DataClassConfig)
+class Step:
+    """The `Step` class (via the `@step` decorator) wraps a callable for use as a single step in a `Pipeline`.
+
+    **IMPORTANT**: When included in a `Pipeline`, all `Step`s will be checked
+    for composability with respect to their argument- and return-type
+    annotations.  This requires that the decorated function has complete
+    argument- and return-type annotations; a `Step` will fail to initialize with
+    an exception if this condition is not met. Note that there is (currently) no
     type-checking at runtime; annotations are taken in good faith.
 
     See "Notes" below for additional discussion on composing steps with multiple
@@ -34,26 +41,42 @@ class step:
     Attributes
     ----------
     func: Callable
-        `func` is whatever gets called when this `step` is reached in its
+        `func` is whatever should be called when this `Step` is reached in its
         `Pipeline`, and is passed the output of the previous step (if one
         exists) as argument(s).  Typically a plain python function, but a
         callable object with a sufficiently-annotated `__call__` magic method is
-        also acceptable. When `step` is used as a decorator, `func` is the
-        decorated function. To be composable as a step, the following are
+        also acceptable. When the `@step` decorator is used, `func` will be the
+        decorated function. To be composable as a Step, the following are
         *required*:
-            1. For all but the first step in a pipeline, `func` must only
+            1. For all but the first Step in a pipeline, `func` must only
                require positional arguments, each of which must be annotated
-            2. For any but the last step in a pipeline, `func` must return
-               either a single object (if subsequent step has a single
-               positional arg) or a tuple (if subsequent step has multiple
+            2. For any but the last Step in a pipeline, `func` must return
+               either a single object (if subsequent Step has a single
+               positional arg) or a tuple (if subsequent Step has multiple
                positional args)
         This ought to be a `pure function<https://en.wikipedia.org/wiki/Pure_function>`_, or as close to one as possible.
 
     title: str
-        An official name or title for the step. Currently, `func.__name__` is used as a default.
+        An official name or title for the Step. Currently, `func.__name__` is
+        used as a default.
 
-    authors: List[str]
-        The main researchers involved in producing the step, for citation and discoverability
+    description: str
+        A human-readable description of the step. Currently, `func.__doc__` is
+        used as a default.
+
+    input_info: str
+        Human-readable description of the input data and/or relevant
+        characteristics that *should* hold true for this step's input (e.g.
+        dimensions of a matrix or column names of a dataframe).
+
+    output_info: str
+        Human-readable description of the output data and/or relevant
+        characteristics that *will* hold true for this step's output (e.g.
+        dimensions of a matrix or column names of a dataframe).
+
+
+    authors: list[str]
+        The main researchers involved in producing the Step, for citation and discoverability
         purposes. Behavior of this is currently TBD:
             - Do we want authorship to propagate to/from steps to pipelines/gardens?
             - Do we want authorship to propagate as a "contributor"? How far should it go?
@@ -69,7 +92,7 @@ class step:
 
     Notes
     -----
-    We require annotations because we need `step`s to be composable functions in
+    We require annotations because we need `Step`s to be composable functions in
     their respective `Pipeline`s. However, due to python's highly flexible
     `*args` syntax, function composition is inherently ambiguous -- e.g. if we
     wish to compose `f` with `g`, and `g` returns a tuple of values, should that tuple be passed to `f`
@@ -79,17 +102,20 @@ class step:
     To resolve this ambiguity, we could either (a) restrict the set of acceptable
     callables to be only those with a single argument and a single return value, or
     (b) rely on thorough function annotations to disambiguate. While best practices
-    are likely to stick to single-input-single-output `step`s, we currently try
+    are likely to stick to single-input-single-output `Step`s, we currently try
     to support (b) by composing steps together differently if `g` seems to be
     returning an "argument tuple" for `f` as follows:
         - `g` must have annotations indicating the types within the tuple, e.g. `def g(...) -> tuple[str, int, pd.DataFrame]`
         - `f` must have exactly those argument annotations, e.g. `def f(x: str, y: int, z: pd.DataFrame) -> ...`
-        - if both are true, compose by unpacking like `f(*g(*args))`, otherwise `f(g(*args))` like any other step.
+        - if both are true, compose by unpacking like `f(*g(*args))`, otherwise `f(g(*args))` like any other Step.
     """
 
     func: Callable
     title: str = Field(None)
     authors: list[str] = Field(default_factory=list)
+    description: str = Field(None)
+    input_info: str = Field(None)
+    output_info: str = Field(None)
     uuid: UUID = Field(default_factory=uuid4)
 
     def __post_init_post_parse__(self):
@@ -99,15 +125,15 @@ class step:
         # (also handy for signature/annotations)
         update_wrapper(self, self.func)
         self.title = self.title or self.__name__
+        self.description = self.description or self.__doc__
         self.__signature__ = signature(self.func)
         return
 
     def __call__(self, *args, **kwargs):
-        # keep it simple; just pass input the underlying callable.
-        # (i.e. assume they really mean it when they annotate their types -
-        # though if we were going to do it anywhere, here's where we'd add logic
-        # to check that the types are what we expected them to be at runtime
-        # see: pydantic validate_arguments for inspiration)
+        # keep it simple: just pass input the underlying callable.
+        # (though if we were going to do it anywhere, here's where we'd add
+        # logic to check that the types are what we expected them to be at
+        # runtime. see also: pydantic validate_arguments for inspiration)
         return self.func(*args, **kwargs)
 
     @validator("func")
@@ -132,51 +158,63 @@ class step:
     def register(self):
         """NOT IMPLEMENTED
 
-        This method could be used to "register" the step with funcx
+        This method could be used to "register" the Step with funcx
         """
-        pass
-
-    class Config:
-        """
-        Configure pydantic per-model settings.
-
-        We disable validate_all so that pydantic ignores temporarily-illegal defaults
-        We enable validate_assignment to make validation occur naturally even after object construction
-        """
-
-        validate_all = False  # (this is the default)
-        validate_assignment = True  # validators invoked (only?) on assignment
+        raise NotImplemented
 
 
-# end class step
+def step(func: Callable = None, /, **kwargs):
+    """Helper: provide decorator interface/syntax sugar for Steps."""
+    # note:
+    # while the Step class itself can also be used as a decorator to create a
+    # basically identical object, it's not possible to also pass kwargs like a
+    # title or author to the Step constructor without something like this.
+    # e.g. we need this helper in order for the following
+    #     @step(title="baby step", authors=["baby"])
+    #     def baby_step_func(arg: A) -> T: pass
+    # to desugar to:
+    #     baby_step_func = Step(func=baby_step_func, title="baby step", authors=["baby"])
+
+    if func:
+        return Step(func=func, **kwargs)
+
+    else:
+
+        def wrapper(f):
+            return Step(func=f, **kwargs)
+
+        return wrapper
 
 
-@dataclass
+# this may not be useful for most IDEs, but in a repl/notebook, `help(step)`
+# should report the more detailed docstring.
+# TODO does this mess with sphinx?
+step.__doc__ = Step.__doc__
+
+
+@dataclass(config=DataClassConfig)
 class Pipeline:
     """
     The `Pipeline` class represents a sequence of steps
     that form a pipeline. It has a list of authors, a title,
     and a list of steps. The __call__ method can be used
-    to execute the pipeline by calling each step in order
-    with the output of the previous step as the input to the
-    next step. The register method can be used to register
-    each step in the pipeline.
+    to execute the pipeline by calling each Step in order
+    with the output of the previous Step as the input to the
+    next Step. The register method can be used to register
+    each Step in the pipeline.
 
     Args:
     authors (List[str]): A list of the authors of the pipeline.
     title (str): The title of the pipeline.
-    steps (List[step]): A list of the steps in the pipeline.
+    steps (List[Step]): A list of the steps in the pipeline.
 
     """
 
     title: str
     authors: list[str]
-    steps: tuple[step, ...]
+    steps: tuple[Step, ...]
     # note: tuple vs list decision; a list of authors is conceptually more mutable than
     # the list of steps ought to be, but maybe we should just use tuples everywhere?
-
-    class Config:
-        validate_assignment = True
 
     @validator("steps")
     def check_steps_composable(cls, steps):
@@ -190,15 +228,10 @@ class Pipeline:
         return steps
 
     def register_pipeline(self):
-        """register this `Pipeline`'s complete step composition as a funcx function
-
-        (should probably just call self._compose_steps and register the result as a new function)
-        Examples
-        --------
-        FIXME: Add docs.
-
+        """register this `Pipeline`'s complete Step composition as a funcx function
+        TODO
         """
-        return
+        raise NotImplemented
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         # note that we set __call__ manually (below), once pydantic validation is finished
@@ -207,7 +240,7 @@ class Pipeline:
     def __post_init_post_parse__(self):
         """Build a single composite function from this pipeline's steps.
 
-        I think it seems reasonable for the default to compose each step
+        I think it seems reasonable for the default to compose each Step
         together like this so that the entire pipeline can be run as the same
         funcx function, but we might want to think about how/why we might let
         users opt out of this behavior in certain cases.
@@ -218,10 +251,7 @@ class Pipeline:
         return
 
     def register(self):
-        # NOT IMPLEMENTED
-        # This method can be used to "register" functions
-        for step in self.steps:
-            step.register()
+        raise NotImplemented
 
 
 class Garden(BaseModel):
@@ -313,9 +343,11 @@ class Garden(BaseModel):
         """
 
         validate_all = False  # (this is the default)
-        validate_assignment = True  # validators invoked (only?) on assignment
+        validate_assignment = True  # validators invoked on assignment
         underscore_attrs_are_private = True
 
+    # note: default_factory=lambda:None allows us to have fields which are None by
+    # default, but not automatically considered optional by pydantic
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     title: str = Field(default_factory=lambda: None)
     resourceTypeGeneral: str = "Other"  # (or: model, software, service, interactive?)
@@ -374,7 +406,7 @@ class Garden(BaseModel):
                     f"{name} is required to register a new doi, but has not been set."
                 )
                 return
-        # TODO this should eventuelly hit the datacite api
+        # TODO this should eventually hit the datacite api
 
         self.doi = self._doi_prefix + "/fake-doi"
         return self.doi
@@ -402,6 +434,24 @@ class Garden(BaseModel):
                     f"{name} is not a required attribute, but is strongly recommended and has not been set."
                 )
 
+    def json(self):
+        def garden_json_encoder(obj):
+            """workaround: pydantic supports custom encoders for all but built-in types.
+
+            In our case, this means we can't specify how to serialize
+            `function`s in pydantic config; there is an open PR to fix this,
+            https://github.com/pydantic/pydantic/pull/2745, but it's been in
+            limbo for over a year so this is the least-hacky option in the
+            meantime.
+            """
+            if isinstance(obj, type(lambda: None)):
+                # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
+                return f"{obj.__name__}: {signature(obj)}"
+            else:
+                return pydantic_encoder(obj)
+
+        return super().json(encoder=garden_json_encoder)
+
     def validate(self):
         """Perform validation on all fields, even fields which are still defaults.
 
@@ -424,8 +474,7 @@ class Garden(BaseModel):
         )
 
         # NOTE: pydantic won't see this, as it's neither construction nor assignment
-        MC_LOVIN = None         # (clearly, this is not a valid name)
-        pea_garden.authors.append(MCLOVIN)
+        pea_garden.authors.append(None)         # no complaints
 
         # checks all fields, even those smuggled in without triggering validation.
         pea_garden.validate()

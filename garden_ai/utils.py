@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 from inspect import Signature, signature
 from itertools import zip_longest
 from types import UnionType
@@ -18,22 +16,23 @@ def issubtype(a: type, b: type) -> bool:
         return True
     if a is None or b is None:
         return False
-    a_orig, a_args = get_origin(a), get_args(a)
-    b_orig, b_args = get_origin(b), get_args(b)
+    # e.g. if a is `Union[x,y]`, then a_origin is `Union` and a_args is `(x, y)`
+    a_origin, a_args = get_origin(a), get_args(a)
+    b_origin, b_args = get_origin(b), get_args(b)
     if a_args == b_args == ():
         # case 1: no args
         # (i.e. rules out anything fancy enough for square brackets)
         return issubclass(a, b)
 
-    elif b_orig is Union or isinstance(b, UnionType):
+    elif b_origin is Union or isinstance(b, UnionType):
         # case 2: b is a union of some types, possibly including a
         # (either Union[a, _] or (a | _) -style)
         # note that typing.Union cannot be used with isinstance(), but
         # types.UnionType can be.
-        if a_orig is Union or isinstance(a, UnionType):
+        if a_origin is Union or isinstance(a, UnionType):
             # both are unions, so must have *all* the same args
             return all(issubtype(x, y) for (x, y) in zip_longest(a_args, b_args))
-        elif a_orig is None:
+        elif a_origin is None:
             # builtin `issubclass` treats union types how you'd expect for
             # literally this case only, might as well use it
             return issubclass(a, b)
@@ -41,9 +40,9 @@ def issubtype(a: type, b: type) -> bool:
             # a is a complex but non-union type, so *must* subtype one of b_args
             return any(issubtype(a, t) for t in b_args)
 
-    elif issubclass(a_orig or a, b_orig or b):
+    elif issubclass(a_origin or a, b_origin or b):
         # the little `or`s are here because of the following fun fact:
-        # get_origin(Tuple) == get_origin(Tuple[x]) == get_origin(tuple[x]) == tuple
+        # get_origin(tuple[x]) == get_origin(Tuple[x]) == get_origin(Tuple) == tuple
         # ... get_origin(tuple) is None.
         # I'm sure there's a very wise reason for this
         return all(issubtype(x, y) for (x, y) in zip(a_args, b_args))
@@ -73,10 +72,11 @@ def safe_compose(f, g):
     g : Callable
         like `f`, `g` can be any callable which:
             1. Has complete argument and return type annotations.
-            2. Returns a single python object of the appropriate type,
-                when `f` expects a single argument.
-            3. Returns a tuple with appropriately-typed elements,
-                when `f` expects multiple arguments.
+            2. When `f` expects a single argument, returns a single python
+                object of the appropriate type.
+            3. When `f` expects multiple arguments, returns a tuple with
+                appropriately-typed elements.
+
     Raises
     ------
     TypeError
@@ -146,5 +146,5 @@ def safe_compose(f, g):
         parameters=g_sig.parameters.values(),
         return_annotation=f_sig.return_annotation,
     )
-    f_of_g.__name__ = f.__name__ + "_composed_with_" + g.__name__
+    f_of_g.__name__ = f.__name__ + "_COMPOSED_WITH_" + g.__name__
     return f_of_g

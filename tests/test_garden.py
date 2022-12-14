@@ -1,12 +1,11 @@
-import pytest
-
-from garden_ai import GardenClient, Garden, Pipeline, step
-from globus_sdk import AuthClient, OAuthTokenResponse, AuthAPIError
-from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-
-from garden_ai.garden import AuthException
-from pydantic import ValidationError
 from typing import Union
+
+import pytest
+from garden_ai import Garden, GardenClient, Pipeline, Step, step
+from garden_ai.garden import AuthException
+from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse
+from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -245,7 +244,7 @@ def test_step_wrapper():
     def well_annotated(a: int, b: str, g: Garden) -> tuple[int, str, Garden]:
         pass
 
-    assert isinstance(well_annotated, step)
+    assert isinstance(well_annotated, Step)
 
     with pytest.raises(ValidationError):
 
