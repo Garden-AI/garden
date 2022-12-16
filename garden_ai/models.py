@@ -17,14 +17,14 @@ from garden_ai.utils import safe_compose
 logger = logging.getLogger()
 
 
-class DataClassConfig:
+class DataclassConfig:
     # pydantic dataclasses read their config via decorator argument, not as
     # nested class (like BaseModels do)
     validate_assignment = True
     underscore_attrs_are_private = True
 
 
-@dataclass(config=DataClassConfig)
+@dataclass(config=DataclassConfig)
 class Step:
     """The `Step` class (via the `@step` decorator) wraps a callable for use as a single step in a `Pipeline`.
 
@@ -113,6 +113,7 @@ class Step:
     func: Callable
     title: str = Field(None)
     authors: list[str] = Field(default_factory=list)
+    contributors: list[str] = Field(default_factory=list)
     description: str = Field(None)
     input_info: str = Field(None)
     output_info: str = Field(None)
@@ -150,7 +151,7 @@ class Step:
                 )
         if sig.return_annotation in {Signature.empty, None}:
             raise TypeError(
-                f"{f.__name__}'s definition is missing a return annotation, or returns None."
+                f"{f.__name__}'s definition is missing a return annotation, or returns None.\n"
                 "See also: https://peps.python.org/pep-0484/#type-definition-syntax"
             )
         return f
@@ -160,28 +161,24 @@ class Step:
 
         This method could be used to "register" the Step with funcx
         """
-        raise NotImplemented
+        raise NotImplementedError
 
 
 def step(func: Callable = None, /, **kwargs):
-    """Helper: provide decorator interface/syntax sugar for Steps."""
+    """Helper: provide decorator interface/syntax sugar for `Step`s."""
     # note:
-    # while the Step class itself can also be used as a decorator to create a
-    # basically identical object, it's not possible to also pass kwargs like a
-    # title or author to the Step constructor without something like this.
-    # e.g. we need this helper in order for the following
-    #     @step(title="baby step", authors=["baby"])
-    #     def baby_step_func(arg: A) -> T: pass
-    # to desugar to:
-    #     baby_step_func = Step(func=baby_step_func, title="baby step", authors=["baby"])
-
-    if func:
-        return Step(func=func, **kwargs)
+    # while the Step class itself could also be used as a decorator to create a
+    # basically identical object, it's not possible to also pass kwargs (like a
+    # title or author) to the Step constructor without something like this.
+    if func is not None:
+        data = {**kwargs, "func": func}
+        return Step(**data)
 
     else:
 
         def wrapper(f):
-            return Step(func=f, **kwargs)
+            data = {**kwargs, "func": f}
+            return Step(**data)
 
         return wrapper
 
@@ -192,7 +189,7 @@ def step(func: Callable = None, /, **kwargs):
 step.__doc__ = Step.__doc__
 
 
-@dataclass(config=DataClassConfig)
+@dataclass(config=DataclassConfig)
 class Pipeline:
     """
     The `Pipeline` class represents a sequence of steps
@@ -210,11 +207,25 @@ class Pipeline:
 
     """
 
-    title: str
-    authors: list[str]
-    steps: tuple[Step, ...]
+    title: str = Field(...)
+    authors: list[str] = Field(...)
+    steps: tuple[Step, ...] = Field(...)
+    contributors: list[str] = Field(default_factory=list, unique_items=True)
+    doi: str = Field(default_factory=lambda: None)
     # note: tuple vs list decision; a list of authors is conceptually more mutable than
     # the list of steps ought to be, but maybe we should just use tuples everywhere?
+
+    def _composed_steps(*args, **kwargs):
+        """"This method intentionally left blank"
+
+        We define this as a stub here, instead setting it as an attribute in
+        `__post_init_post_parse__`, which is the earliest point after we
+        validate that the steps are composable that we could modify the Pipeline
+        object.
+        This indirection is only necessary because `__call__` itself is looked
+        up at the class level, so can't be set dynamically for different instances.
+        """
+        raise NotImplementedError
 
     @validator("steps")
     def check_steps_composable(cls, steps):
@@ -231,11 +242,10 @@ class Pipeline:
         """register this `Pipeline`'s complete Step composition as a funcx function
         TODO
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        # note that we set __call__ manually (below), once pydantic validation is finished
-        pass
+        return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):
         """Build a single composite function from this pipeline's steps.
@@ -245,13 +255,22 @@ class Pipeline:
         funcx function, but we might want to think about how/why we might let
         users opt out of this behavior in certain cases.
         """
-        all_steps = reduce(safe_compose, reversed(self.steps))
-        self.__call__ = all_steps
-        self.__signature__ = signature(all_steps)
+        self._composed_steps = reduce(safe_compose, reversed(self.steps))
+        self.__signature__ = signature(self._composed_steps)
+        self._sync_author_metadata()
+        return
+
+    def _sync_author_metadata(self):
+        known_authors = set(self.authors)
+        known_contributors = set(self.contributors)
+        for step in self.steps:
+            new_contributors = set(step.authors) | set(step.contributors)
+            known_contributors |= new_contributors - known_authors
+        self.contributors = list(known_contributors)
         return
 
     def register(self):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class Garden(BaseModel):
@@ -346,16 +365,17 @@ class Garden(BaseModel):
         validate_assignment = True  # validators invoked on assignment
         underscore_attrs_are_private = True
 
+    authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
+    contributors: List[str] = Field(default_factory=list, unique_items=True)
+
     # note: default_factory=lambda:None allows us to have fields which are None by
     # default, but not automatically considered optional by pydantic
-    authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     title: str = Field(default_factory=lambda: None)
+    doi: str = Field(default_factory=lambda: None)
+
     resourceTypeGeneral: str = "Other"  # (or: model, software, service, interactive?)
     publisher: str = "Garden"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
-
-    doi: str = Field(default_factory=lambda: None)
-
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     description: str = Field(None)
@@ -365,31 +385,6 @@ class Garden(BaseModel):
 
     # field(s) for which we might want to ''disable'' mutation
     garden_id: UUID = Field(default_factory=uuid4, allow_mutation=False)
-
-    @validator("authors", each_item=True)
-    def valid_name(cls, author_name: str):
-        """''Validate''a single `author` string by returning it unchanged.
-
-        This currently might even do *less* than pydantic would have otherwise
-        done for the field, but this is probably where we'd want to put the logic to
-        handle input strings as authors vs as institutions/etc as input.
-
-        Parameters
-        ----------
-        cls : Garden
-            Garden instance whose `authors` attribute has been modified
-        author_name : str
-            single author name to validate (not list of authors)
-
-        Raises
-        ---------
-        This should (eventually) raise a `ValueError`, `TypeError`, or `AssertionError`, per pydantic docs
-        """
-
-        # invoked per-author, not list of authors
-        # todo: validate with name parser lib?
-        # todo: institution vs personal name?
-        return str(author_name)
 
     @validator("year")
     def valid_year(cls, year):
@@ -484,7 +479,25 @@ class Garden(BaseModel):
         #   none is not an allowed value (type=type_error.none.not_allowed)
         """
         try:
+            self._sync_author_metadata()
             _ = self.__init__(**self.dict())
         except ValidationError as err:
             logger.error(err)
             raise
+
+    def _sync_author_metadata(self):
+        """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata.
+
+        We'll probably want to tweak the behavior of this at some point once we
+        tease out what we really want `contributor` to entail, but for now this
+        seems like a sane default.
+        """
+        known_contributors = set(self.contributors)
+        # garden contributors don't need to duplicate garden authors unless they've been explicitly added
+        known_authors = set(self.authors) - known_contributors
+        for pipe in self.pipelines:
+            pipe._sync_author_metadata()
+            new_contributors = set(pipe.authors) | set(pipe.contributors)
+            known_contributors |= new_contributors - known_authors
+
+        self.contributors = list(known_contributors)

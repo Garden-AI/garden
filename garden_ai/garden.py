@@ -143,10 +143,10 @@ class GardenClient:
         return Garden(**data)
 
     def register_metadata(self, garden: Garden, out_dir=None):
-        """Make a Garden object's metadata discoverable.
+        """Make a `Garden` object's metadata discoverable, writing metadata.json to `out_dir`.
 
         This will perform validation on the metadata fields and (if successful)
-        write the metadata to a `"metadata.json"` file in the current working directory.
+        write the metadata to a `"metadata.json"` file.
 
         Parameters
         ----------
