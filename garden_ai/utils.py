@@ -45,7 +45,7 @@ def issubtype(a: type, b: type) -> bool:
         # get_origin(tuple[x]) == get_origin(Tuple[x]) == get_origin(Tuple) == tuple
         # ... get_origin(tuple) is None.
         # I'm sure there's a very wise reason for this
-        return all(issubtype(x, y) for (x, y) in zip(a_args, b_args))
+        return all(issubtype(x, y) for x, y in zip(a_args, b_args))
 
     return False
 

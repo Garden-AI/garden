@@ -434,10 +434,10 @@ class Garden(BaseModel):
             """workaround: pydantic supports custom encoders for all but built-in types.
 
             In our case, this means we can't specify how to serialize
-            `function`s in pydantic config; there is an open PR to fix this,
-            https://github.com/pydantic/pydantic/pull/2745, but it's been in
-            limbo for over a year so this is the least-hacky option in the
-            meantime.
+            `function`s (like in every Step) in pydantic; there is an open PR to
+            fix this - https://github.com/pydantic/pydantic/pull/2745 - but it's
+            been in limbo for over a year, so this is the least-hacky option in
+            the meantime.
             """
             if isinstance(obj, type(lambda: None)):
                 # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
