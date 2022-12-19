@@ -4,13 +4,12 @@ import logging
 from datetime import datetime
 from functools import reduce, update_wrapper
 from inspect import Parameter, Signature, signature
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Optional, Tuple, cast
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, ValidationError, validator
 from pydantic.dataclasses import dataclass
 from pydantic.json import pydantic_encoder
-
 
 from garden_ai.utils import safe_compose
 
@@ -75,7 +74,7 @@ class Step:
         dimensions of a matrix or column names of a dataframe).
 
 
-    authors: list[str]
+    authors: List[str]
         The main researchers involved in producing the Step, for citation and discoverability
         purposes. Behavior of this is currently TBD:
             - Do we want authorship to propagate to/from steps to pipelines/gardens?
@@ -111,12 +110,12 @@ class Step:
     """
 
     func: Callable
-    title: str = Field(None)
-    authors: list[str] = Field(default_factory=list)
-    contributors: list[str] = Field(default_factory=list)
-    description: str = Field(None)
-    input_info: str = Field(None)
-    output_info: str = Field(None)
+    authors: List[str] = Field(default_factory=list)
+    contributors: List[str] = Field(default_factory=list)
+    title: Optional[str] = Field(None)
+    description: Optional[str] = Field(None)
+    input_info: Optional[str] = Field(None)
+    output_info: Optional[str] = Field(None)
     uuid: UUID = Field(default_factory=uuid4)
 
     def __post_init_post_parse__(self):
@@ -146,7 +145,7 @@ class Step:
             if p.annotation is Parameter.empty:
                 raise TypeError(
                     f"Parameter {p} is missing an annotation in {f.__name__}'s definition. "
-                    "Please double check that the argument list is fully annotated. "
+                    "Please double check that the argument list is fully annotated.\n"
                     "See also: https://peps.python.org/pep-0484/#type-definition-syntax"
                 )
         if sig.return_annotation in {Signature.empty, None}:
@@ -164,7 +163,7 @@ class Step:
         raise NotImplementedError
 
 
-def step(func: Callable = None, /, **kwargs):
+def step(func: Callable = None, **kwargs):
     """Helper: provide decorator interface/syntax sugar for `Step`s."""
     # note:
     # while the Step class itself could also be used as a decorator to create a
@@ -172,7 +171,7 @@ def step(func: Callable = None, /, **kwargs):
     # title or author) to the Step constructor without something like this.
     if func is not None:
         data = {**kwargs, "func": func}
-        return Step(**data)
+        return Step(**data)  # type: ignore
 
     else:
 
@@ -208,15 +207,15 @@ class Pipeline:
     """
 
     title: str = Field(...)
-    authors: list[str] = Field(...)
-    steps: tuple[Step, ...] = Field(...)
-    contributors: list[str] = Field(default_factory=list, unique_items=True)
-    doi: str = Field(default_factory=lambda: None)
+    authors: List[str] = Field(...)
+    steps: Tuple[Step, ...] = Field(...)
+    contributors: List[str] = Field(default_factory=list, unique_items=True)
+    doi: str = cast(str, Field(default_factory=lambda: None))
     # note: tuple vs list decision; a list of authors is conceptually more mutable than
     # the list of steps ought to be, but maybe we should just use tuples everywhere?
 
     def _composed_steps(*args, **kwargs):
-        """"This method intentionally left blank"
+        """ "This method intentionally left blank"
 
         We define this as a stub here, instead setting it as an attribute in
         `__post_init_post_parse__`, which is the earliest point after we
@@ -294,7 +293,7 @@ class Garden(BaseModel):
         A brief summary of the Garden and/or its purpose, to aid discovery by
         other Gardeners.
 
-    pipelines: list[Pipeline]
+    pipelines: List[Pipeline]
         TODO
 
     Optional Attributes
@@ -370,18 +369,20 @@ class Garden(BaseModel):
 
     # note: default_factory=lambda:None allows us to have fields which are None by
     # default, but not automatically considered optional by pydantic
-    title: str = Field(default_factory=lambda: None)
-    doi: str = Field(default_factory=lambda: None)
+    title: str = cast(str, Field(default_factory=lambda: None))
+    doi: str = cast(str, Field(default_factory=lambda: None))
+    # ^ casts here to appease mypy
+
+    description: Optional[str] = Field(None)
 
     resourceTypeGeneral: str = "Other"  # (or: model, software, service, interactive?)
     publisher: str = "Garden"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    description: str = Field(None)
     version: str = "0.0.1"  # TODO: enforce semver for this?
 
-    pipelines: list[Pipeline] = Field(default_factory=list)
+    pipelines: List[Pipeline] = Field(default_factory=list)
 
     # field(s) for which we might want to ''disable'' mutation
     garden_id: UUID = Field(default_factory=uuid4, allow_mutation=False)

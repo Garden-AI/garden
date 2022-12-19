@@ -1,7 +1,9 @@
-from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from garden_ai import GardenClient, Garden, step, Pipeline
-from globus_sdk import AuthClient, OAuthTokenResponse
+from typing import List
+
 import pytest
+from garden_ai import Garden, GardenClient, Pipeline, step
+from globus_sdk import AuthClient, OAuthTokenResponse
+from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
 
 @pytest.fixture
@@ -91,14 +93,14 @@ def garden_no_fields(garden_client):
 def pipeline_toy_example():
     # define a step using the decorator
     @step(authors=["Sister Constance"])
-    def split_peas(ps: list) -> list[tuple]:
+    def split_peas(ps: List) -> List[tuple]:
         return [(p / 2, p / 2) for p in ps]
 
     class Soup:
         ...
 
     @step(authors=["Friar Hugo"])
-    def make_soup(splits: list[tuple]) -> Soup:
+    def make_soup(splits: List[tuple]) -> Soup:
         return Soup()
 
     @step(authors=["Abbot Mortimer"], input_info="a spoonful of Soup object")

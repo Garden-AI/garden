@@ -1,7 +1,9 @@
+import sys
+from typing import Tuple, Union
+
 import pytest
 from garden_ai import Garden, Pipeline, Step, step
 from pydantic import ValidationError
-from typing import Union
 
 
 def test_create_empty_garden(garden_client):
@@ -59,7 +61,7 @@ def test_register_metadata(garden_client, garden_title_authors_doi_only, tmp_pat
 def test_step_wrapper():
     # well-annotated callables are accepted; poorly annotated callables are not
     @step
-    def well_annotated(a: int, b: str, g: Garden) -> tuple[int, str, Garden]:
+    def well_annotated(a: int, b: str, g: Garden) -> Tuple[int, str, Garden]:
         pass
 
     assert isinstance(well_annotated, Step)
@@ -71,6 +73,7 @@ def test_step_wrapper():
             pass
 
 
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
 def test_pipeline_compose_union():
     # check that pipelines can correctly compose tricky functions, which may be
     # annotated like typing.Union *or* like (A | B)
@@ -131,11 +134,11 @@ def test_pipeline_compose_tuple():
     # functions which may or may not expect a plain tuple
     # to be treated as *args
     @step
-    def returns_tuple(a: int, b: str) -> tuple[int, str]:
+    def returns_tuple(a: int, b: str) -> Tuple[int, str]:
         pass
 
     @step
-    def wants_tuple_as_tuple(t: tuple[int, str]) -> int:
+    def wants_tuple_as_tuple(t: Tuple[int, str]) -> int:
         pass
 
     @step
@@ -146,26 +149,26 @@ def test_pipeline_compose_tuple():
     def wants_flipped_tuple_as_args(arg1: str, arg2: int) -> float:
         pass
 
-    good = Pipeline(  # noqa: F841ipeline
+    good = Pipeline(  # noqa: F841
         authors=["mendel"],
         title="good pipeline",
         steps=[returns_tuple, wants_tuple_as_tuple],
     )
 
     with pytest.raises(ValidationError):
-        bad = Pipeline(  # noqa: F841ipeline
+        bad = Pipeline(  # noqa: F841
             authors=["mendel"],
             title="backwards pipeline",
             steps=[wants_tuple_as_tuple, returns_tuple],
         )
 
-    ugly = Pipeline(  # noqa: F841ipeline
+    ugly = Pipeline(  # noqa: F841
         authors=["mendel"],
         title="ugly (using *args) but allowed pipeline",
         steps=[returns_tuple, wants_tuple_as_args],
     )
     with pytest.raises(ValidationError):
-        ugly_and_bad = Pipeline(  # noqa: F841ipeline
+        ugly_and_bad = Pipeline(  # noqa: F841
             authors=["mendel"],
             title="ugly (using *args) and disallowed pipeline",
             steps=[returns_tuple, wants_flipped_tuple_as_args],
@@ -181,7 +184,9 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
             assert contributor in pipe.contributors
 
 
-def test_pipeline_authors_are_garden_contributors(garden_all_fields, pipeline_toy_example):
+def test_pipeline_authors_are_garden_contributors(
+    garden_all_fields, pipeline_toy_example
+):
     # verify that adding a pipeline with new authors
     # updates the garden's 'contributors' field
     garden, pipe = garden_all_fields, pipeline_toy_example
