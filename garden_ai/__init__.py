@@ -1,6 +1,4 @@
-
 from .garden import GardenClient
-from .model import Garden
+from .models import Garden, Pipeline, Step, step
 
-
-__all__ = ["GardenClient", "Garden"]
+__all__ = ["GardenClient", "Garden", "Pipeline", "Step", "step"]
