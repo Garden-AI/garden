@@ -72,6 +72,7 @@ def garden_all_fields(garden_client):
     pea_garden.version = "0.0.1"
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
     pea_garden.doi = pea_garden._doi_prefix + "/fake-doi"
+    assert pea_garden.pipelines is not None
     return pea_garden
 
 

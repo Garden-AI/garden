@@ -190,7 +190,7 @@ def test_pipeline_authors_are_garden_contributors(
     # verify that adding a pipeline with new authors
     # updates the garden's 'contributors' field
     garden, pipe = garden_all_fields, pipeline_toy_example
-    garden.pipelines += [pipe]
+    garden.add_new_pipeline(pipe.title, pipe.steps, authors=pipe.authors)
 
     known_authors = [a for a in garden.authors]
     known_contributors = [c for c in garden.contributors]

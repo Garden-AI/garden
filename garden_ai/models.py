@@ -211,6 +211,7 @@ class Pipeline:
     steps: Tuple[Step, ...] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = cast(str, Field(default_factory=lambda: None))
+    uuid: UUID = Field(default_factory=uuid4)
     # note: tuple vs list decision; a list of authors is conceptually more mutable than
     # the list of steps ought to be, but maybe we should just use tuples everywhere?
 
@@ -502,3 +503,23 @@ class Garden(BaseModel):
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
+
+    def add_new_pipeline(
+        self, title: str, steps: List[Step], authors: List[str] = None, **kwargs
+    ):
+        """Create a new Pipeline object and add it to this Garden's list of pipelines.
+        (arguments have the same meaning as counterparts in `Pipeline` constructor)
+        """
+        kwargs.update(
+            authors=authors if authors else self.authors,
+            title=title,
+            steps=tuple(steps),
+        )
+        pipe = Pipeline(**kwargs)
+        self.pipelines += [pipe]
+        return
+
+    def remove_pipeline(self, to_remove: Pipeline):
+        """Removes a given Pipeline object from this Garden, if present."""
+        self.pipelines = [p for p in self.pipelines if p.uuid != to_remove.uuid]
+        return
