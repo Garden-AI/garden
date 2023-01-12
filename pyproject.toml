@@ -22,6 +22,7 @@ coverage = "^6.5.0"
 codecov = "^2.1.12"
 flake8 = "^5.0.4"
 mypy = "^0.981"
+types-requests = "^2.20.0"
 safety = "^2.3.1"
 
 
@@ -36,3 +37,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+markers = [
+        "integration: deselect with '-m \"not integration\"' to run unit tests only."
+]

@@ -63,28 +63,11 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token):
 
 
 @pytest.fixture
-def garden_all_fields(garden_client):
-    client = garden_client
-    pea_garden: Garden = client.create_garden(
-        authors=["Mendel, Gregor"],
-        title="Experiments on Plant Hybridization",
-        contributors=["St. Thomas Abbey"],
-    )
-    pea_garden.year = "1863"
-    pea_garden.language = "en"
-    pea_garden.version = "0.0.1"
-    pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
-    pea_garden.doi = pea_garden._doi_prefix + "/fake-doi"
-    assert pea_garden.pipelines is not None
-    return pea_garden
-
-
-@pytest.fixture
 def garden_title_authors_doi_only(garden_client):
     pea_garden = garden_client.create_garden(
         authors=["Mendel, Gregor"], title="Experiments on Plant Hybridization"
     )
-    pea_garden.doi = pea_garden._doi_prefix + "/fake-doi"
+    pea_garden.doi = "10.26311/fake-doi"
     return pea_garden
 
 
@@ -124,6 +107,19 @@ def pipeline_toy_example():
     return pea_edibility_pipeline
 
 
-def pipeline_sklearn_example():
-    # TODO
-    pass
+@pytest.fixture
+def garden_all_fields(garden_client, pipeline_toy_example):
+    client = garden_client
+    pea_garden: Garden = client.create_garden(
+        authors=["Mendel, Gregor"],
+        title="Experiments on Plant Hybridization",
+        contributors=["St. Thomas Abbey"],
+    )
+    pea_garden.year = "1863"
+    pea_garden.language = "en"
+    pea_garden.version = "0.0.1"
+    pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
+    pea_garden.doi = "10.26311/fake-doi"
+    pea_garden.pipelines += [pipeline_toy_example]
+    pea_garden.validate()
+    return pea_garden

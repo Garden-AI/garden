@@ -180,17 +180,17 @@ class GardenClient:
         return Garden(**data)
 
     def register_metadata(self, garden: Garden, out_dir=None):
-        """Make a `Garden` object's metadata discoverable, writing metadata.json to `out_dir`.
+        """Make a `Garden` object's metadata (and any pipelines' metadata) discoverable; mint DOIs via DataCite.
 
         This will perform validation on the metadata fields and (if successful)
-        write the metadata to a `"metadata.json"` file.
+        write all of the Garden's (including its pipelines) metadata to a
+        `"metadata.json"` file.
 
         Parameters
         ----------
         garden : Garden
-            A Garden object with user's ready-to-publish metadata. Users might
-            want to invoke `to_do()` method on their Garden, or see `Garden`
-            docstring for explanation of any unset required/recommended fields.
+            A Garden object with user's ready-to-publish metadata. See `Garden`
+            docstring for explanation of fields.
 
         out_dir : Union[PathLike, str]
             Directory in which a copy of the Garden's metadata is written on
@@ -204,6 +204,8 @@ class GardenClient:
         out_dir = Path(out_dir) if out_dir else Path.cwd()
         out_dir /= "metadata.json"
         try:
+            for p in garden.pipelines:
+                p.request_doi()
             garden.request_doi()
             garden.validate()
         except ValidationError as e:
