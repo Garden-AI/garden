@@ -204,11 +204,11 @@ class DescriptionType(str, Enum):
 
 
 class Longitude(BaseModel):
-    __root__: confloat(ge=-180.0, le=180.0)
+    __root__: confloat(ge=-180.0, le=180.0)  # type: ignore
 
 
 class Latitude(BaseModel):
-    __root__: confloat(ge=-90.0, le=90.0)
+    __root__: confloat(ge=-90.0, le=90.0)  # type: ignore
 
 
 class FunderIdentifierType(str, Enum):
@@ -312,7 +312,7 @@ class DataciteSchema(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    # modified: identifiers,
+    # tweaked identifiers, no longer requires at least one. (only change from generated code)
     types: Types
     identifiers: List[Identifier] = Field(default_factory=list, unique_items=True)
     creators: List[Creator] = Field(..., min_items=1, unique_items=True)

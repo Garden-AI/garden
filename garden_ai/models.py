@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
 from functools import reduce, update_wrapper
@@ -9,9 +10,18 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, ValidationError, validator
 from pydantic.dataclasses import dataclass
-from pydantic.json import pydantic_encoder
 
-from garden_ai.utils import mint_doi, safe_compose
+from garden_ai.datacite import (
+    Creator,
+    DataciteSchema,
+    Description,
+    Contributor,
+    RelatedIdentifier,
+    Title,
+    Types,
+)
+from garden_ai.utils import garden_json_encoder, safe_compose, mint_doi
+
 
 logger = logging.getLogger()
 
@@ -284,15 +294,39 @@ class Pipeline:
             logger.info("existing DOI found, no DOI generated.")
             return self.doi
         self._sync_author_metadata()  # just in case
-        self.doi = mint_doi(
-            self.title,
-            self.authors,
-            self.contributors,
-            self.year,
-            description=self.description,
-            resourceType="AI/ML Pipeline",
-        )
+        self.doi = mint_doi(self.datacite_json())
         return self.doi
+
+    def json(self) -> str:
+        return json.dumps(self, default=garden_json_encoder)
+
+    def datacite_json(self) -> str:
+        """Parse this `Pipeline`s metadata into a DataCite-schema-compliant JSON string.
+
+        Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+
+        The JSON returned by this method would be the "attributes" part of a DataCite request body.
+        """
+        self._sync_author_metadata()
+        return DataciteSchema(
+            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            contributors=[
+                Contributor(name=name, contributorType="Other")
+                for name in self.contributors
+            ],
+            descriptions=[
+                Description(
+                    description=self.description
+                    or ", then ".join(s.func.__name__ for s in (self.steps)),
+                    descriptionType="Other",
+                )
+            ],
+        ).json()
 
 
 class Garden(BaseModel):
@@ -386,24 +420,18 @@ class Garden(BaseModel):
 
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-
     # note: default_factory=lambda:None allows us to have fields which are None by
     # default, but not automatically considered optional by pydantic
     title: str = cast(str, Field(default_factory=lambda: None))
     doi: str = cast(str, Field(default_factory=lambda: None))
     # ^ casts here to appease mypy
-
     description: Optional[str] = Field(None)
-
     publisher: str = "Garden"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"  # TODO: enforce semver for this?
-
     pipelines: List[Pipeline] = Field(default_factory=list)
-
-    # field(s) for which we might want to ''disable'' mutation
     garden_id: UUID = Field(default_factory=uuid4, allow_mutation=False)
 
     @validator("year")
@@ -435,33 +463,48 @@ class Garden(BaseModel):
                 return
 
         self._sync_author_metadata()
-        self.doi = mint_doi(
-            self.title,
-            self.authors,
-            self.contributors,
-            self.year,
-            description=self.description,
-            resourceType="AI/ML Garden",
-        )
+        self.doi = mint_doi(self.datacite_json())
         return self.doi
 
     def json(self):
-        def garden_json_encoder(obj):
-            """workaround: pydantic supports custom encoders for all but built-in types.
-
-            In our case, this means we can't specify how to serialize
-            `function`s (like in every Step) in pydantic; there is an open PR to
-            fix this - https://github.com/pydantic/pydantic/pull/2745 - but it's
-            been in limbo for over a year, so this is the least-hacky option in
-            the meantime.
-            """
-            if isinstance(obj, type(lambda: None)):
-                # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
-                return f"{obj.__name__}: {signature(obj)}"
-            else:
-                return pydantic_encoder(obj)
-
         return super().json(encoder=garden_json_encoder)
+
+    def datacite_json(self) -> str:
+        """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
+
+        Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+
+        The JSON returned by this method would be the "attributes" part of a DataCite request body.
+        """
+        self._sync_author_metadata()
+        return DataciteSchema(
+            types=Types(resourceType="AI/ML Garden", resourceTypeGeneral="Software"),
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            contributors=[
+                Contributor(name=name, contributorType="Other")
+                for name in self.contributors
+            ],
+            language=self.language,
+            relatedIdentifiers=[
+                RelatedIdentifier(
+                    relatedIdentifier=p.doi,
+                    relatedIdentifierType="DOI",
+                    relationType="HasPart",
+                )
+                for p in self.pipelines
+                if p.doi
+            ],
+            version=self.version,
+            descriptions=[
+                Description(description=self.description, descriptionType="Other")
+            ]
+            if self.description
+            else None,
+        ).json()
 
     def validate(self):
         """Perform validation on all fields, even fields which are still defaults.
