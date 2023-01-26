@@ -1,10 +1,9 @@
-import os
 import logging
 from inspect import Signature, signature
 from itertools import zip_longest
-from typing import List, Union
+from typing import Union
 
-import requests
+from pydantic.json import pydantic_encoder
 from typing_extensions import get_args, get_origin
 
 logger = logging.getLogger()
@@ -203,103 +202,17 @@ def safe_compose(f, g):
     return f_of_g
 
 
-def mint_doi(
-    title: str,
-    authors: List[str],
-    contributors: List[str],
-    year: str,
-    description: str = "",
-    publisher: str = "thegardens.ai",
-    resourceType: str = "AI/ML",
-    test: bool = True,
-):
-    """Request a "findable" DOI from DataCite
+def garden_json_encoder(obj):
+    """workaround: pydantic supports custom encoders for all but built-in types.
 
-    Note that this expects environment variables 'DATACITE_REPOSITORY_ID', 'DATACITE_PASSWORD' and
-    'DOI_PREFIX' to be set correctly in order to authenticate with DataCite.
-
-    Parameters
-    ----------
-    title : str
-        Title that should appear in citation
-    authors : list[str]
-    contributors: list[str]
-    year : str
-        YYYY
-    description: str
-        free-text description of the Digital Object being made Identifiable
-    publisher : str
-        "Garden" seems like a sane default?
-    resourceType : str
-        "AI/ML" by default -- this is allowed to be free text by DataCite but is advised to be kept short
-    test : bool
-        Whether to hit the DataCite 'test' API or the real one - currently only the former should be
-        used as it's the only one implemented.
-
-    Raises
-    ------
-    HTTPError
-        if one is encountered by `requests.Response.raise_for_status`
-
-    NotImplementedError
-        if given `test=False`
+    In our case, this means we can't specify how to serialize
+    `function`s (like in every Step) in pydantic; there is an open PR to
+    fix this - https://github.com/pydantic/pydantic/pull/2745 - but it's
+    been in limbo for over a year, so this is the least-hacky option in
+    the meantime.
     """
-    if not test:
-        datacite_url = "https://api.datacite.org/dois"
-        prefix = "10.26311"
-        raise NotImplementedError
+    if isinstance(obj, type(lambda: None)):
+        # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
+        return f"{obj.__name__}: {signature(obj)}"
     else:
-        datacite_url = "https://api.test.datacite.org/dois"
-        prefix = "10.23677"
-
-    header = {"Content-Type": "application/vnd.api+json"}
-    payload = {
-        "data": {
-            "type": "dois",
-            "attributes": {
-                "event": "publish",
-                "prefix": prefix,
-                "creators": [{"name": author_name} for author_name in authors],
-                "contributors": [
-                    {"name": contrib_name, "contributorType": "Other"}
-                    for contrib_name in contributors
-                ],
-                "descriptions": [
-                    {"description": description, "descriptionType": "Other"}
-                ],
-                "titles": [{"title": title}],
-                "publisher": publisher,
-                "publicationYear": year,
-                "types": {
-                    "resourceTypeGeneral": "Software",
-                    "resourceType": resourceType,
-                },
-                "url": "http://thegardens.ai",
-                "schemaVersion": "http://datacite.org/schema/kernel-4",
-            },
-        }
-    }
-
-    try:
-        DATACITE_REPOSITORY_ID = os.environ["DATACITE_REPOSITORY_ID"]
-        DATACITE_PASSWORD = os.environ["DATACITE_PASSWORD"]
-    except KeyError:
-        logger.error(
-            (
-                "expected environment variables 'DATACITE_REPOSITORY_ID' and 'DATACITE_PASSWORD' "
-                "to be set in order to register for a DOI with DataCite. No DOI has been generated."
-            )
-        )
-        return None
-    else:
-        logger.info(f"Minting DOI for '{title}' with DataCite")
-
-        r = requests.post(
-            datacite_url,
-            headers=header,
-            json=payload,
-            auth=(DATACITE_REPOSITORY_ID, DATACITE_PASSWORD),
-        )
-        r.raise_for_status()
-        doi = r.json()["data"]["attributes"]["doi"]
-        return doi
+        return pydantic_encoder(obj)
