@@ -43,8 +43,8 @@ def test_register_metadata(garden_client, garden_title_authors_doi_only, tmp_pat
     gc = garden_client
     garden = garden_title_authors_doi_only
     gc.register_metadata(garden, tmp_path)
-    assert (tmp_path / "metadata.json").exists()
-    with open(tmp_path / "metadata.json", "r") as f:
+    assert (tmp_path / "garden.json").exists()
+    with open(tmp_path / "garden.json", "r") as f:
         json_contents = f.read()
         assert json_contents == garden.json()
 

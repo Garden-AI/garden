@@ -1,11 +1,9 @@
-import json
 import logging
-import os
 from inspect import Signature, signature
 from itertools import zip_longest
 from typing import Union
-
 import requests
+
 from pydantic.json import pydantic_encoder
 from typing_extensions import get_args, get_origin
 
@@ -221,67 +219,17 @@ def garden_json_encoder(obj):
         return pydantic_encoder(obj)
 
 
-def mint_doi(metadata: str, test: bool = True):
-    """Request a "findable" DOI from DataCite
+def request_to_curl(req: requests.Request) -> str:
+    """(For debugging) build a cURL command equivalent to the given `Request` object.
 
-    Note that this expects environment variables 'DATACITE_REPOSITORY_ID', 'DATACITE_PASSWORD' and
-    'DOI_PREFIX' to be set correctly in order to authenticate with DataCite.
 
-    Parameters
-    ----------
-    metadata : str
-        DataCite-schema compliant JSON, like the kind received from `{Garden, Pipeline}.datacite_json()`.
-    test : bool
-        Whether to hit the DataCite 'test' API or the real one - currently only the former should be
-        used as it's the only one implemented.
-    Raises
-    ------
-    HTTPError
-        if one is encountered by `requests.Response.raise_for_status`
-
-    NotImplementedError
-        if given `test=False`
+    Example:
+    --------
+    res = requests.post(...)
+    logger.debug(request_to_curl(res.request))
     """
-    if not test:
-        datacite_url = "https://api.datacite.org/dois"
-        prefix = "10.26311"
-        raise NotImplementedError
-    else:
-        datacite_url = "https://api.test.datacite.org/dois"
-        prefix = "10.23677"
-
-    attributes = json.loads(metadata)
-    attributes["event"] = "publish"  # asks to make DOI findable
-    attributes["prefix"] = prefix
-    attributes["url"] = "http://thegardens.ai"
-
-    header = {"Content-Type": "application/vnd.api+json"}
-    payload = {
-        "data": {
-            "type": "dois",
-            "attributes": attributes,
-        }
-    }
-
-    try:
-        DATACITE_REPOSITORY_ID = os.environ["DATACITE_REPOSITORY_ID"]
-        DATACITE_PASSWORD = os.environ["DATACITE_PASSWORD"]
-    except KeyError:
-        logger.error(
-            (
-                "expected environment variables 'DATACITE_REPOSITORY_ID' and 'DATACITE_PASSWORD' "
-                "to be set in order to register for a DOI with DataCite. No DOI has been generated."
-            )
-        )
-        return None
-    else:
-        logger.info("Minting DOI with DataCite")
-        r = requests.post(
-            datacite_url,
-            headers=header,
-            json=payload,
-            auth=(DATACITE_REPOSITORY_ID, DATACITE_PASSWORD),
-        )
-        r.raise_for_status()
-        doi = r.json()["data"]["attributes"]["doi"]
-        return doi
+    method = req.method
+    uri = req.url
+    data = req.body
+    headers = " -H ".join(f'"{k}: {v}"' for k, v in req.headers.items())
+    return f"curl -X {method} -H {headers} -d '{data}' '{uri}'"

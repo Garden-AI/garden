@@ -12,16 +12,15 @@ from pydantic import BaseModel, Field, ValidationError, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai.datacite import (
+    Contributor,
     Creator,
     DataciteSchema,
     Description,
-    Contributor,
     RelatedIdentifier,
     Title,
     Types,
 )
-from garden_ai.utils import garden_json_encoder, safe_compose, mint_doi
-
+from garden_ai.utils import garden_json_encoder, safe_compose
 
 logger = logging.getLogger()
 
@@ -278,27 +277,8 @@ class Pipeline:
         """
         raise NotImplementedError
 
-    def request_doi(self, force=False):
-        """Create and register a findable doi for this Pipeline via DataCite.
-
-        If a doi already exists for this `Pipeline`, it is simply returned, unless
-        `force=True` (default False)
-
-        If no doi exists and this `Pipeline`'s metadata is complete enough to do so,
-        one will be generated and registered via DataCite.
-
-        Otherwise, log an error and return without making a request.
-        """
-
-        if self.doi and not force:
-            logger.info("existing DOI found, no DOI generated.")
-            return self.doi
-        self._sync_author_metadata()  # just in case
-        self.doi = mint_doi(self.datacite_json())
-        return self.doi
-
-    def json(self) -> str:
-        return json.dumps(self, default=garden_json_encoder)
+    def json(self, **kwargs) -> str:
+        return json.dumps(self, default=garden_json_encoder, **kwargs)
 
     def datacite_json(self) -> str:
         """Parse this `Pipeline`s metadata into a DataCite-schema-compliant JSON string.
@@ -440,34 +420,9 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def request_doi(self, force=False):
-        """Create and register a findable doi for this Garden via DataCite.
-
-        If a doi already exists for this `Garden`, it is simply returned, unless
-        `force=True`.
-
-        If no doi exists and this `Garden`'s metadata is complete enough to do so,
-        one will be generated and registered via DataCite.
-
-        Otherwise, log an error and return without making a request.
-        """
-
-        if self.doi and not force:
-            logger.info("existing DOI found, no DOI generated.")
-            return self.doi
-        for field_name in self.__doi_required__:
-            if not self.__getattribute__(field_name):
-                logger.error(
-                    f"{field_name} is required by DataCite to register a new doi, but has not been set."
-                )
-                return
-
-        self._sync_author_metadata()
-        self.doi = mint_doi(self.datacite_json())
-        return self.doi
-
-    def json(self):
-        return super().json(encoder=garden_json_encoder)
+    def json(self, **kwargs):
+        kwargs.update(encoder=garden_json_encoder)
+        return super().json(**kwargs)
 
     def datacite_json(self) -> str:
         """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
