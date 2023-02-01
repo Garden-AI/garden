@@ -38,11 +38,8 @@ jobs:
         run: |
           mypy .
       - name: Test with pytest
-        env:
-          DATACITE_REPOSITORY_ID: ${{ secrets.DATACITE_TEST_REPOSITORY }}
-          DATACITE_PASSWORD: ${{ secrets.DATACITE_TEST_PASSWORD }}
         run: |
-          python -m coverage run -m pytest -r sx
+          python -m coverage run -m pytest -m "not integration" -r sx
           codecov --token=${{ secrets.CODECOV_TOKEN }}
       - name: Check for vulnerable libraries with safety
         run: |

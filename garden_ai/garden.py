@@ -2,23 +2,19 @@ import json
 import logging
 import os
 import time
-import json
 from pathlib import Path
 from typing import List, Union
 
 import requests
 from globus_sdk import (
-    GroupsClient,
-    SearchClient,
-    RefreshTokenAuthorizer,
-    NativeAppAuthClient,
-    AuthClient,
     AuthAPIError,
     AuthClient,
     GroupsClient,
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
+    SearchClient,
 )
+from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from pydantic import ValidationError
 
@@ -34,8 +30,8 @@ class AuthException(Exception):
     pass
 
 
-GARDEN_AUTH_SCOPE = (
-    "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all"
+GardenScopes = ScopeBuilder(
+    "0948a6b0-a622-4078-b0a4-bfd6d77d65cf", known_url_scopes=["action_all"]
 )
 
 
@@ -51,6 +47,8 @@ class GardenClient:
     Raises:
          AuthException: if the user cannot authenticate
     """
+
+    scopes = GardenScopes
 
     def __init__(
         self, auth_client: AuthClient = None, search_client: SearchClient = None
@@ -75,13 +73,14 @@ class GardenClient:
             if not search_client
             else search_client
         )
+        self.garden_authorizer = self._create_garden_authorizer()
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
-                GARDEN_AUTH_SCOPE,
+                GardenClient.scopes.action_all,  # "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all"
             ],
             refresh_tokens=True,
         )
@@ -110,6 +109,33 @@ class GardenClient:
         else:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(SearchClient.resource_server)
+        # construct the RefreshTokenAuthorizer which writes back to storage on refresh
+        authorizer = RefreshTokenAuthorizer(
+            tokens["refresh_token"],
+            self.auth_client,
+            access_token=tokens["access_token"],
+            expires_at=tokens["expires_at_seconds"],
+            on_refresh=self.auth_key_store.on_refresh,
+        )
+        return authorizer
+
+    def _create_garden_authorizer(self):
+        if not self.auth_key_store.file_exists():
+            # do a login flow, getting back initial tokens
+            response = self._do_login_flow()
+
+            if not response:
+                raise AuthException
+
+            # now store the tokens and pull out the Groups tokens
+            self.auth_key_store.store(response)
+
+            tokens = response.by_resource_server[GardenClient.scopes.resource_server]
+        else:
+            # otherwise, we already did login; load the tokens from that file
+            tokens = self.auth_key_store.get_token_data(
+                GardenClient.scopes.resource_server
+            )
 
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         authorizer = RefreshTokenAuthorizer(
@@ -230,8 +256,9 @@ class GardenClient:
             return obj.doi
 
         logger.info("Requesting DOI")
+        endpoint = os.environ.get("GARDEN_ENDPOINT", "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod")
         try:
-            url = f"{os.environ['GARDEN_ENDPOINT']}/doi"
+            url = f"{endpoint}/doi"
         except KeyError:
             logger.error(
                 "Expected environment variable GARDEN_ENDPOINT to be set. No DOI has been generated."
@@ -240,7 +267,7 @@ class GardenClient:
 
         header = {
             "Content-Type": "application/vnd.api+json",
-            "Authorization": self.authorizer.get_authorization_header(),
+            "Authorization": self.garden_authorizer.get_authorization_header(),
         }
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url="https://thegardens.ai")
@@ -310,7 +337,6 @@ class GardenClient:
             "visible_to": visibility,
             "content": json.loads(garden.json()),
         }
-        print(gmeta_ingest)
 
         publish_result = self.search_client.create_entry(
             GARDEN_INDEX_UUID, gmeta_ingest

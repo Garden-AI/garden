@@ -51,8 +51,11 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token):
     mock_search_client = mocker.MagicMock(SearchClient)
 
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
-    mock_token_response.by_resource_server = {"groups.api.globus.org": token,
-                                              "search.api.globus.org": token}
+    mock_token_response.by_resource_server = {
+        "groups.api.globus.org": token,
+        "search.api.globus.org": token,
+        "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
+    }
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
         return_value=mock_token_response
     )

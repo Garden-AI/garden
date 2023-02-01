@@ -219,17 +219,24 @@ def garden_json_encoder(obj):
         return pydantic_encoder(obj)
 
 
-def request_to_curl(req: requests.Request) -> str:
-    """(For debugging) build a cURL command equivalent to the given `Request` object.
+def requests_to_curl(response: requests.Response) -> str:
+    """Given a `Response` object, build a cURL command equivalent to the request which prompted it.
 
+    Useful for debugging with e.g. Postman (or cURL, of course).
 
     Example:
     --------
     res = requests.post(...)
-    logger.debug(request_to_curl(res.request))
+    print(requests_to_curl(res))
     """
-    method = req.method
-    uri = req.url
-    data = req.body
-    headers = " -H ".join(f'"{k}: {v}"' for k, v in req.headers.items())
-    return f"curl -X {method} -H {headers} -d '{data}' '{uri}'"
+    request = response.request
+    method = request.method
+    uri = request.url
+    headers = " -H ".join(f'"{k}: {v}"' for k, v in request.headers.items())
+    if request.body is None:
+        return f"curl -X {method} -H {headers} {uri}"
+    if isinstance(request.body, bytes):
+        data: str = request.body.decode()
+    else:
+        data = request.body
+    return f"curl -X {method} -H {headers} -d '{data}' {uri}"
