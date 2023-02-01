@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import json
 from pathlib import Path
 
 from globus_sdk import (
@@ -13,7 +14,6 @@ from globus_sdk import (
 )
 from typing import List
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from copy import deepcopy
 
 from garden_ai.models import Garden
 from pydantic import ValidationError
@@ -213,7 +213,7 @@ class GardenClient:
             with open(out_dir, "w+") as f:
                 f.write(garden.json())
 
-    def publish_garden(self, garden_id=None, garden_doc=None, visibility='Public'):
+    def publish_garden(self, garden=None, visibility='Public'):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
         # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
         # and returns the Task document:
@@ -223,10 +223,11 @@ class GardenClient:
         if isinstance(visibility, str):
             visibility = [visibility]
 
-        gmeta_ingest = {"subject": garden_id,
+        gmeta_ingest = {"subject": str(garden.garden_id),
                         "visible_to": visibility,
-                        "content": deepcopy(garden_doc)
+                        "content": json.loads(garden.json())
                         }
+        print(gmeta_ingest)
 
         publish_result = self.search_client.create_entry(GARDEN_INDEX_UUID, gmeta_ingest)
 
