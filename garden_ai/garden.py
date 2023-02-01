@@ -1,9 +1,12 @@
 import logging
 import os
+import time
+import json
 from pathlib import Path
 
 from globus_sdk import (
     GroupsClient,
+    SearchClient,
     RefreshTokenAuthorizer,
     NativeAppAuthClient,
     AuthClient,
@@ -14,6 +17,10 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 
 from garden_ai.models import Garden
 from pydantic import ValidationError
+
+
+# garden-dev index
+GARDEN_INDEX_UUID = '58e4df29-4492-4e7d-9317-b27eba62a911'
 
 logger = logging.getLogger()
 
@@ -35,7 +42,7 @@ class GardenClient:
          AuthException: if the user cannot authenticate
     """
 
-    def __init__(self, auth_client: AuthClient = None):
+    def __init__(self, auth_client: AuthClient = None, search_client: SearchClient = None):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
         self.auth_key_store = SimpleJSONFileAdapter(
@@ -50,10 +57,15 @@ class GardenClient:
         )
 
         self.authorizer = self._authenticate()
+        self.searchauthorizer = self._create_search_authorizer()
+        self.search_client = (
+           SearchClient(authorizer=self.searchauthorizer) if not search_client else search_client
+        )
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
-            requested_scopes=GroupsClient.scopes.view_my_groups_and_memberships,
+            requested_scopes=[GroupsClient.scopes.view_my_groups_and_memberships,
+                              SearchClient.scopes.ingest],
             refresh_tokens=True,
         )
         authorize_url = self.auth_client.oauth2_get_authorize_url()
@@ -66,6 +78,31 @@ class GardenClient:
         except AuthAPIError:
             logger.fatal("Invalid Globus auth token received. Exiting")
             return None
+
+    def _create_search_authorizer(self):
+        if not self.auth_key_store.file_exists():
+            # do a login flow, getting back initial tokens
+            response = self._do_login_flow()
+
+            if not response:
+                raise AuthException
+
+            # now store the tokens and pull out the Groups tokens
+            self.auth_key_store.store(response)
+            tokens = response.by_resource_server[SearchClient.resource_server]
+        else:
+            # otherwise, we already did login; load the tokens from that file
+            tokens = self.auth_key_store.get_token_data(SearchClient.resource_server)
+
+        # construct the RefreshTokenAuthorizer which writes back to storage on refresh
+        authorizer = RefreshTokenAuthorizer(
+            tokens["refresh_token"],
+            self.auth_client,
+            access_token=tokens["access_token"],
+            expires_at=tokens["expires_at_seconds"],
+            on_refresh=self.auth_key_store.on_refresh,
+        )
+        return authorizer
 
     def _authenticate(self):
         if not self.auth_key_store.file_exists():
@@ -175,3 +212,27 @@ class GardenClient:
         else:
             with open(out_dir, "w+") as f:
                 f.write(garden.json())
+
+    def publish_garden(self, garden=None, visibility='Public'):
+        # Takes a garden_id UUID as a subject, and a garden_doc dict, and
+        # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
+        # and returns the Task document:
+        # https://docs.globus.org/api/search/reference/get_task/#task
+
+        # Sanity check visibility--if it is a string, make it a list of strings
+        if isinstance(visibility, str):
+            visibility = [visibility]
+
+        gmeta_ingest = {"subject": str(garden.garden_id),
+                        "visible_to": visibility,
+                        "content": json.loads(garden.json())
+                        }
+        print(gmeta_ingest)
+
+        publish_result = self.search_client.create_entry(GARDEN_INDEX_UUID, gmeta_ingest)
+
+        task_result = self.search_client.get_task(publish_result['task_id'])
+        while not task_result['state'] in {'FAILED', 'SUCCESS'}:
+            time.sleep(5)
+            task_result = self.search_client.get_task(publish_result['task_id'])
+        return task_result

@@ -75,5 +75,8 @@ pea_garden.pipelines += [pea_edibility_pipeline]
 # writes complete metadata.json to current working directory
 client.register_metadata(pea_garden)
 
+# publishes metadata to search index
+result = client.publish_garden(pea_garden, ['public'])
+
 # propagates any authors of steps/pipelines as "contributors"
 assert "Sister Constance" in pea_garden.contributors
