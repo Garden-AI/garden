@@ -18,7 +18,8 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from pydantic import ValidationError
 
-from garden_ai.models import Garden, Pipeline
+from garden_ai.gardens import Garden
+from garden_ai.pipelines import Pipeline
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
@@ -76,6 +77,7 @@ class GardenClient:
         self.garden_authorizer = self._create_garden_authorizer()
 
     def _do_login_flow(self):
+        print(GardenClient.scopes.action_all)
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
                 GroupsClient.scopes.view_my_groups_and_memberships,

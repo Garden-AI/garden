@@ -1,6 +1,6 @@
 import pytest
 from garden_ai import GardenClient
-from garden_ai.garden import AuthException
+from garden_ai.client import AuthException
 from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse, SearchClient
 
 
