@@ -1,8 +1,13 @@
+import logging
 from inspect import Signature, signature
 from itertools import zip_longest
 from typing import Union
+import requests
 
+from pydantic.json import pydantic_encoder
 from typing_extensions import get_args, get_origin
+
+logger = logging.getLogger()
 
 try:  # noqa C901 (mccabe exceeded due to try/except)
     from types import UnionType  # type: ignore
@@ -196,3 +201,42 @@ def safe_compose(f, g):
     )
     f_of_g.__name__ = f.__name__ + "_COMPOSED_WITH_" + g.__name__
     return f_of_g
+
+
+def garden_json_encoder(obj):
+    """workaround: pydantic supports custom encoders for all but built-in types.
+
+    In our case, this means we can't specify how to serialize
+    `function`s (like in every Step) in pydantic; there is an open PR to
+    fix this - https://github.com/pydantic/pydantic/pull/2745 - but it's
+    been in limbo for over a year, so this is the least-hacky option in
+    the meantime.
+    """
+    if isinstance(obj, type(lambda: None)):
+        # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
+        return f"{obj.__name__}: {signature(obj)}"
+    else:
+        return pydantic_encoder(obj)
+
+
+def requests_to_curl(response: requests.Response) -> str:
+    """Given a `Response` object, build a cURL command equivalent to the request which prompted it.
+
+    Useful for debugging with e.g. Postman (or cURL, of course).
+
+    Example:
+    --------
+    res = requests.post(...)
+    print(requests_to_curl(res))
+    """
+    request = response.request
+    method = request.method
+    uri = request.url
+    headers = " -H ".join(f'"{k}: {v}"' for k, v in request.headers.items())
+    if request.body is None:
+        return f"curl -X {method} -H {headers} {uri}"
+    if isinstance(request.body, bytes):
+        data: str = request.body.decode()
+    else:
+        data = request.body
+    return f"curl -X {method} -H {headers} -d '{data}' {uri}"

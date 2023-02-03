@@ -39,7 +39,7 @@ jobs:
           mypy .
       - name: Test with pytest
         run: |
-          python -m coverage run -m pytest -r sx
+          python -m coverage run -m pytest -m "not integration" -r sx
           codecov --token=${{ secrets.CODECOV_TOKEN }}
       - name: Check for vulnerable libraries with safety
         run: |

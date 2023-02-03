@@ -34,17 +34,8 @@ def test_validate_required_only(garden_no_fields):
     assert not garden.doi
     with pytest.raises(ValidationError):
         garden.validate()
-    garden.doi = garden._doi_prefix + "/fake-doi"
+    garden.doi = "10.26311/fake-doi"
     garden.validate()
-
-
-def test_auto_doi(garden_no_fields):
-    garden = garden_no_fields
-    assert not garden.doi
-    garden.authors = ["Mendel, Gregor"]
-    garden.title = "Experiments on Plant Hybridization"
-    garden.request_doi()
-    assert garden.doi
 
 
 def test_register_metadata(garden_client, garden_title_authors_doi_only, tmp_path):
@@ -52,8 +43,8 @@ def test_register_metadata(garden_client, garden_title_authors_doi_only, tmp_pat
     gc = garden_client
     garden = garden_title_authors_doi_only
     gc.register_metadata(garden, tmp_path)
-    assert (tmp_path / "metadata.json").exists()
-    with open(tmp_path / "metadata.json", "r") as f:
+    assert (tmp_path / "garden.json").exists()
+    with open(tmp_path / "garden.json", "r") as f:
         json_contents = f.read()
         assert json_contents == garden.json()
 

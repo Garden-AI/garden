@@ -1,32 +1,38 @@
+import json
 import logging
 import os
 import time
-import json
 from pathlib import Path
+from typing import List, Union
 
+import requests
 from globus_sdk import (
-    GroupsClient,
-    SearchClient,
-    RefreshTokenAuthorizer,
-    NativeAppAuthClient,
-    AuthClient,
     AuthAPIError,
+    AuthClient,
+    GroupsClient,
+    NativeAppAuthClient,
+    RefreshTokenAuthorizer,
+    SearchClient,
 )
-from typing import List
+from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-
-from garden_ai.models import Garden
 from pydantic import ValidationError
 
+from garden_ai.models import Garden, Pipeline
 
 # garden-dev index
-GARDEN_INDEX_UUID = '58e4df29-4492-4e7d-9317-b27eba62a911'
+GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
 
 logger = logging.getLogger()
 
 
 class AuthException(Exception):
     pass
+
+
+GardenScopes = ScopeBuilder(
+    "0948a6b0-a622-4078-b0a4-bfd6d77d65cf", known_url_scopes=["action_all"]
+)
 
 
 class GardenClient:
@@ -42,7 +48,11 @@ class GardenClient:
          AuthException: if the user cannot authenticate
     """
 
-    def __init__(self, auth_client: AuthClient = None, search_client: SearchClient = None):
+    scopes = GardenScopes
+
+    def __init__(
+        self, auth_client: AuthClient = None, search_client: SearchClient = None
+    ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
         self.auth_key_store = SimpleJSONFileAdapter(
@@ -59,13 +69,19 @@ class GardenClient:
         self.authorizer = self._authenticate()
         self.searchauthorizer = self._create_search_authorizer()
         self.search_client = (
-           SearchClient(authorizer=self.searchauthorizer) if not search_client else search_client
+            SearchClient(authorizer=self.searchauthorizer)
+            if not search_client
+            else search_client
         )
+        self.garden_authorizer = self._create_garden_authorizer()
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
-            requested_scopes=[GroupsClient.scopes.view_my_groups_and_memberships,
-                              SearchClient.scopes.ingest],
+            requested_scopes=[
+                GroupsClient.scopes.view_my_groups_and_memberships,
+                SearchClient.scopes.ingest,
+                GardenClient.scopes.action_all,  # "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all"
+            ],
             refresh_tokens=True,
         )
         authorize_url = self.auth_client.oauth2_get_authorize_url()
@@ -93,6 +109,33 @@ class GardenClient:
         else:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(SearchClient.resource_server)
+        # construct the RefreshTokenAuthorizer which writes back to storage on refresh
+        authorizer = RefreshTokenAuthorizer(
+            tokens["refresh_token"],
+            self.auth_client,
+            access_token=tokens["access_token"],
+            expires_at=tokens["expires_at_seconds"],
+            on_refresh=self.auth_key_store.on_refresh,
+        )
+        return authorizer
+
+    def _create_garden_authorizer(self):
+        if not self.auth_key_store.file_exists():
+            # do a login flow, getting back initial tokens
+            response = self._do_login_flow()
+
+            if not response:
+                raise AuthException
+
+            # now store the tokens and pull out the Groups tokens
+            self.auth_key_store.store(response)
+
+            tokens = response.by_resource_server[GardenClient.scopes.resource_server]
+        else:
+            # otherwise, we already did login; load the tokens from that file
+            tokens = self.auth_key_store.get_token_data(
+                GardenClient.scopes.resource_server
+            )
 
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         authorizer = RefreshTokenAuthorizer(
@@ -179,18 +222,83 @@ class GardenClient:
             data["title"] = title
         return Garden(**data)
 
+    def _mint_doi(
+        self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
+    ) -> str:
+        """Register a new "findable" doi with DataCite via Garden backend.
+
+        Expects environment variable GARDEN_ENDPOINT to be set (not including `/doi`).
+
+        Parameters
+        ----------
+        obj : Union[Garden, Pipeline]
+            the Pipeline or Garden object wanting a new DOI.
+        force : bool
+            Mint a new DOI even if one exists (note that old ones stay
+            "findable" forever - see
+            https://support.datacite.org/docs/best-practices-for-datacite-members)
+        test : bool
+            toggle which garden backend endpoint to hit; we do not yet have a
+            test endpoint so test=True raises NotImplementedError.
+
+        Raises
+        ------
+        NotImplementedError
+            see `test`
+
+        """
+        if not test:
+            raise NotImplementedError
+        elif obj.doi and not force:
+            logger.info(
+                "existing DOI found, not requesting new DOI. Pass `force=true` to override this behavior."
+            )
+            return obj.doi
+
+        logger.info("Requesting DOI")
+        endpoint = os.environ.get("GARDEN_ENDPOINT", "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod")
+        try:
+            url = f"{endpoint}/doi"
+        except KeyError:
+            logger.error(
+                "Expected environment variable GARDEN_ENDPOINT to be set. No DOI has been generated."
+            )
+            raise
+
+        header = {
+            "Content-Type": "application/vnd.api+json",
+            "Authorization": self.garden_authorizer.get_authorization_header(),
+        }
+        metadata = json.loads(obj.datacite_json())
+        metadata.update(event="publish", url="https://thegardens.ai")
+        payload = {"data": {"type": "dois", "attributes": metadata}}
+        r = requests.post(
+            url,
+            headers=header,
+            json=payload,
+        )
+
+        try:
+            r.raise_for_status()
+            doi = json.loads(r.json())["body"]["doi"]
+        except requests.HTTPError:
+            logger.error(f"{r.json()}")
+            raise
+        else:
+            return doi
+
     def register_metadata(self, garden: Garden, out_dir=None):
-        """Make a `Garden` object's metadata discoverable, writing metadata.json to `out_dir`.
+        """Make a `Garden` object's metadata (and any pipelines' metadata) discoverable; mint DOIs via DataCite.
 
         This will perform validation on the metadata fields and (if successful)
-        write the metadata to a `"metadata.json"` file.
+        write all of the Garden's (including its pipelines) metadata to a
+        `"metadata.json"` file.
 
         Parameters
         ----------
         garden : Garden
-            A Garden object with user's ready-to-publish metadata. Users might
-            want to invoke `to_do()` method on their Garden, or see `Garden`
-            docstring for explanation of any unset required/recommended fields.
+            A Garden object with user's ready-to-publish metadata. See `Garden`
+            docstring for explanation of fields.
 
         out_dir : Union[PathLike, str]
             Directory in which a copy of the Garden's metadata is written on
@@ -202,18 +310,19 @@ class GardenClient:
 
         """
         out_dir = Path(out_dir) if out_dir else Path.cwd()
-        out_dir /= "metadata.json"
         try:
-            garden.request_doi()
+            for p in garden.pipelines:
+                self._mint_doi(p)
+            self._mint_doi(garden)
             garden.validate()
         except ValidationError as e:
             logger.error(e)
             raise
         else:
-            with open(out_dir, "w+") as f:
+            with open(out_dir / "garden.json", "w+") as f:
                 f.write(garden.json())
 
-    def publish_garden(self, garden=None, visibility='Public'):
+    def publish_garden(self, garden=None, visibility="Public"):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
         # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
         # and returns the Task document:
@@ -223,16 +332,18 @@ class GardenClient:
         if isinstance(visibility, str):
             visibility = [visibility]
 
-        gmeta_ingest = {"subject": str(garden.garden_id),
-                        "visible_to": visibility,
-                        "content": json.loads(garden.json())
-                        }
-        print(gmeta_ingest)
+        gmeta_ingest = {
+            "subject": str(garden.garden_id),
+            "visible_to": visibility,
+            "content": json.loads(garden.json()),
+        }
 
-        publish_result = self.search_client.create_entry(GARDEN_INDEX_UUID, gmeta_ingest)
+        publish_result = self.search_client.create_entry(
+            GARDEN_INDEX_UUID, gmeta_ingest
+        )
 
-        task_result = self.search_client.get_task(publish_result['task_id'])
-        while not task_result['state'] in {'FAILED', 'SUCCESS'}:
+        task_result = self.search_client.get_task(publish_result["task_id"])
+        while not task_result["state"] in {"FAILED", "SUCCESS"}:
             time.sleep(5)
-            task_result = self.search_client.get_task(publish_result['task_id'])
+            task_result = self.search_client.get_task(publish_result["task_id"])
         return task_result

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
 from functools import reduce, update_wrapper
@@ -9,9 +10,17 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, ValidationError, validator
 from pydantic.dataclasses import dataclass
-from pydantic.json import pydantic_encoder
 
-from garden_ai.utils import safe_compose
+from garden_ai.datacite import (
+    Contributor,
+    Creator,
+    DataciteSchema,
+    Description,
+    RelatedIdentifier,
+    Title,
+    Types,
+)
+from garden_ai.utils import garden_json_encoder, safe_compose
 
 logger = logging.getLogger()
 
@@ -76,10 +85,7 @@ class Step:
 
     authors: List[str]
         The main researchers involved in producing the Step, for citation and discoverability
-        purposes. Behavior of this is currently TBD:
-            - Do we want authorship to propagate to/from steps to pipelines/gardens?
-            - Do we want authorship to propagate as a "contributor"? How far should it go?
-            - Do steps need contributors?
+        purposes.
     uuid: UUID
         short for "uuid"
 
@@ -116,10 +122,10 @@ class Step:
     description: Optional[str] = Field(None)
     input_info: Optional[str] = Field(None)
     output_info: Optional[str] = Field(None)
-    uuid: UUID = Field(default_factory=uuid4)
+    uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
 
     def __post_init_post_parse__(self):
-        # like __post_init__, but called after pydantic validation
+        # like __post_init__, but called after pydantic validation.
         # copies e.g. __doc__ and __name__ from
         # the underlying callable to this object
         # (also handy for signature/annotations)
@@ -140,7 +146,7 @@ class Step:
     def has_annotations(cls, f: Callable):
         sig = signature(f)
         # check that any positional arguments have annotations
-        # maybe: warn about kwargs if any?
+        # maybe: warn about kwargs if there are any?
         for p in sig.parameters.values():
             if p.annotation is Parameter.empty:
                 raise TypeError(
@@ -191,13 +197,9 @@ step.__doc__ = Step.__doc__
 @dataclass(config=DataclassConfig)
 class Pipeline:
     """
-    The `Pipeline` class represents a sequence of steps
-    that form a pipeline. It has a list of authors, a title,
-    and a list of steps. The __call__ method can be used
-    to execute the pipeline by calling each Step in order
-    with the output of the previous Step as the input to the
-    next Step. The register method can be used to register
-    each Step in the pipeline.
+    The `Pipeline` class represents a sequence of callable "steps" that form a pipeline.
+
+    It has a list of authors, a title, and a list of steps.
 
     Args:
     authors (List[str]): A list of the authors of the pipeline.
@@ -211,14 +213,14 @@ class Pipeline:
     steps: Tuple[Step, ...] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = cast(str, Field(default_factory=lambda: None))
-    uuid: UUID = Field(default_factory=uuid4)
-    # note: tuple vs list decision; a list of authors is conceptually more mutable than
-    # the list of steps ought to be, but maybe we should just use tuples everywhere?
+    uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
+    year: str = Field(default_factory=lambda: str(datetime.now().year))
+    description: Optional[str] = Field(None)
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
 
-        We define this as a stub here, instead setting it as an attribute in
+        We define this as a stub here, later setting it as an attribute in
         `__post_init_post_parse__`, which is the earliest point after we
         validate that the steps are composable that we could modify the Pipeline
         object.
@@ -238,11 +240,11 @@ class Pipeline:
             raise
         return steps
 
-    def register_pipeline(self):
-        """register this `Pipeline`'s complete Step composition as a funcx function
-        TODO
-        """
-        raise NotImplementedError
+    @validator("year")
+    def valid_year(cls, year):
+        if len(str(year)) != 4:
+            raise ValueError("year must be formatted `YYYY`")
+        return str(year)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self._composed_steps(*args, **kwargs)
@@ -270,7 +272,41 @@ class Pipeline:
         return
 
     def register(self):
+        """register this `Pipeline`'s complete Step composition as a funcx function
+        TODO
+        """
         raise NotImplementedError
+
+    def json(self, **kwargs) -> str:
+        return json.dumps(self, default=garden_json_encoder, **kwargs)
+
+    def datacite_json(self) -> str:
+        """Parse this `Pipeline`s metadata into a DataCite-schema-compliant JSON string.
+
+        Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+
+        The JSON returned by this method would be the "attributes" part of a DataCite request body.
+        """
+        self._sync_author_metadata()
+        return DataciteSchema(
+            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            contributors=[
+                Contributor(name=name, contributorType="Other")
+                for name in self.contributors
+            ],
+            descriptions=[
+                Description(
+                    description=self.description
+                    or ", then ".join(s.func.__name__ for s in (self.steps)),
+                    descriptionType="Other",
+                )
+            ],
+        ).json()
 
 
 class Garden(BaseModel):
@@ -333,9 +369,9 @@ class Garden(BaseModel):
     --------
     Mendel's work was ignored by the scientific community during his lifetime,
     presumably due to the lack of a working DOI.
-    To remedy this, if the doi field is unset when registering the
-    garden, we could just build one for the user with the datacite api.
-    This could also eventually be exposed as a `register_doi()` method.
+    To remedy this, if the `doi` field is unset when registering the garden, we
+    build one for the user with the datacite api (see the `request_doi()`
+    method).
     """
 
     #
@@ -344,14 +380,11 @@ class Garden(BaseModel):
 
     # fields required for the DataCite rest api to generate a findable DOI
     __doi_required__: List[str] = [
-        "_doi_prefix",
         "authors",
         "title",
         "publisher",
         "year",
-        "resourceTypeGeneral",
     ]
-    _doi_prefix = "10.26311"
 
     class Config:
         """
@@ -367,25 +400,18 @@ class Garden(BaseModel):
 
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-
     # note: default_factory=lambda:None allows us to have fields which are None by
     # default, but not automatically considered optional by pydantic
     title: str = cast(str, Field(default_factory=lambda: None))
     doi: str = cast(str, Field(default_factory=lambda: None))
     # ^ casts here to appease mypy
-
     description: Optional[str] = Field(None)
-
-    resourceTypeGeneral: str = "Other"  # (or: model, software, service, interactive?)
     publisher: str = "Garden"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"  # TODO: enforce semver for this?
-
     pipelines: List[Pipeline] = Field(default_factory=list)
-
-    # field(s) for which we might want to ''disable'' mutation
     garden_id: UUID = Field(default_factory=uuid4, allow_mutation=False)
 
     @validator("year")
@@ -394,60 +420,46 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def request_doi(self):
-        if self.doi:
-            return self.doi
-        for name in self.__doi_required__:
-            if not self.__getattribute__(name):
-                logger.error(
-                    f"{name} is required to register a new doi, but has not been set."
-                )
-                return
-        # TODO this should eventually hit the datacite api
+    def json(self, **kwargs):
+        kwargs.update(encoder=garden_json_encoder)
+        return super().json(**kwargs)
 
-        self.doi = self._doi_prefix + "/fake-doi"
-        return self.doi
+    def datacite_json(self) -> str:
+        """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
 
-    def to_do(self):
-        """Log errors and warnings for unset required and recommended fields, respectively.
+        Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
 
-        Does not raise any exceptions, unlike `validate()`.
-
-        I think it seems useful to have a friendlier way to inform the user
-        about missing fields with more granularity than `validate()`, which
-        doesn't care about our not-required-but-recommended distinctions.
-
-        This is a proof-of-concept convenience function as much as anything, and
-        I would't be surprised if we move this behavior somewhere else or decide
-        it's redundant.
+        The JSON returned by this method would be the "attributes" part of a DataCite request body.
         """
-
-        for name in self.__required__:
-            if not self.__getattribute__(name):
-                logger.error(f"{name} is a required attribute, but has not been set.")
-        for name in self.__recommended__:
-            if not self.__getattribute__(name):
-                logger.warning(
-                    f"{name} is not a required attribute, but is strongly recommended and has not been set."
+        self._sync_author_metadata()
+        return DataciteSchema(
+            types=Types(resourceType="AI/ML Garden", resourceTypeGeneral="Software"),
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            contributors=[
+                Contributor(name=name, contributorType="Other")
+                for name in self.contributors
+            ],
+            language=self.language,
+            relatedIdentifiers=[
+                RelatedIdentifier(
+                    relatedIdentifier=p.doi,
+                    relatedIdentifierType="DOI",
+                    relationType="HasPart",
                 )
-
-    def json(self):
-        def garden_json_encoder(obj):
-            """workaround: pydantic supports custom encoders for all but built-in types.
-
-            In our case, this means we can't specify how to serialize
-            `function`s (like in every Step) in pydantic; there is an open PR to
-            fix this - https://github.com/pydantic/pydantic/pull/2745 - but it's
-            been in limbo for over a year, so this is the least-hacky option in
-            the meantime.
-            """
-            if isinstance(obj, type(lambda: None)):
-                # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
-                return f"{obj.__name__}: {signature(obj)}"
-            else:
-                return pydantic_encoder(obj)
-
-        return super().json(encoder=garden_json_encoder)
+                for p in self.pipelines
+                if p.doi
+            ],
+            version=self.version,
+            descriptions=[
+                Description(description=self.description, descriptionType="Other")
+            ]
+            if self.description
+            else None,
+        ).json()
 
     def validate(self):
         """Perform validation on all fields, even fields which are still defaults.
@@ -503,12 +515,19 @@ class Garden(BaseModel):
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
+        return
 
     def add_new_pipeline(
         self, title: str, steps: List[Step], authors: List[str] = None, **kwargs
     ):
         """Create a new Pipeline object and add it to this Garden's list of pipelines.
-        (arguments have the same meaning as counterparts in `Pipeline` constructor)
+
+        Arguments (along with any further `kwargs`, e.g. `description`) have the
+        same meaning as in `Pipeline` constructor.
+
+        If not provided, the `authors` field of the pipeline will be set to this
+        garden's `authors` attribute.
+
         """
         kwargs.update(
             authors=authors if authors else self.authors,
