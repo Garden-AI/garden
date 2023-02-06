@@ -3,14 +3,24 @@ from __future__ import annotations
 import logging
 from functools import reduce
 from inspect import signature
-from typing import Any, List, Tuple, cast
+from typing import Any, List, Tuple, cast, Optional
 from uuid import UUID, uuid4
+from datetime import datetime
 
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai.steps import DataclassConfig, Step
 from garden_ai.utils import safe_compose
+from garden_ai.datacite import (
+    Contributor,
+    Creator,
+    DataciteSchema,
+    Description,
+    Title,
+    Types,
+)
+
 
 logger = logging.getLogger()
 
@@ -39,8 +49,9 @@ class Pipeline:
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = cast(str, Field(default_factory=lambda: None))
     uuid: UUID = Field(default_factory=uuid4)
-    # note: tuple vs list decision; a list of authors is conceptually more mutable than
-    # the list of steps ought to be, but maybe we should just use tuples everywhere?
+    description: Optional[str] = Field(None)
+    version: str = "0.0.1"
+    year: str = Field(default_factory=lambda: str(datetime.now().year))
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
@@ -98,3 +109,30 @@ class Pipeline:
 
     def register(self):
         raise NotImplementedError
+
+    def datacite_json(self):
+        """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
+
+        Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+
+        The JSON returned by this method would be the "attributes" part of a DataCite request body.
+        """
+        self._sync_author_metadata()
+        return DataciteSchema(
+            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            contributors=[
+                Contributor(name=name, contributorType="Other")
+                for name in self.contributors
+            ],
+            version=self.version,
+            descriptions=[
+                Description(description=self.description, descriptionType="Other")
+            ]
+            if self.description
+            else None,
+        ).json()

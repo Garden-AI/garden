@@ -77,7 +77,6 @@ class GardenClient:
         self.garden_authorizer = self._create_garden_authorizer()
 
     def _do_login_flow(self):
-        print(GardenClient.scopes.action_all)
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
                 GroupsClient.scopes.view_my_groups_and_memberships,
