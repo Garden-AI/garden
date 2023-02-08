@@ -33,11 +33,26 @@ def help_info():
     pass
 
 
-def is_valid_directory(directory: Path) -> Path:
+def setup_directory(directory: Path) -> Path:
     """
-    validate the string optionally provided by the user as a directory for the
-    garden.  should return the value if successful
+    Validate the directory provided by the user, scaffolding with "pipelines/" and
+    "models/" subdirectories if possible (i.e. directory does not yet exist or
+    exists but is empty).
     """
+    if directory.exists():
+        if list(directory.iterdir()):
+            logger.fatal("Directory must be empty if it already exists.")
+            raise typer.Exit(code=1)
+
+    (directory / "models").mkdir(parents=True)
+    (directory / "pipelines").mkdir(parents=True)
+
+    with open(directory / "models" / ".gitignore", "w") as f_out:
+        f_out.write("# TODO\n")
+
+    with open(directory / "README.md", "w") as f_out:
+        f_out.write("# TODO\n")
+
     return directory
 
 
@@ -88,11 +103,12 @@ GardenClient._do_login_flow = cli_do_login_flow
 def create(
     directory: Path = typer.Argument(
         pathlib.Path.cwd(),  # default to current directory
-        callback=is_valid_directory,  # TODO
+        callback=setup_directory,  # TODO
         dir_okay=True,
         file_okay=False,
         writable=True,
         readable=True,
+        resolve_path=True,
     ),
     authors: List[str] = typer.Option(
         None,
