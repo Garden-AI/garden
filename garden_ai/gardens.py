@@ -88,18 +88,6 @@ class Garden(BaseModel):
     method).
     """
 
-    #
-    __required__: List[str] = ["authors", "title", "doi"]
-    __recommended__: List[str] = ["description", "tags", "version"]
-
-    # fields required for the DataCite rest api to generate a findable DOI
-    __doi_required__: List[str] = [
-        "authors",
-        "title",
-        "publisher",
-        "year",
-    ]
-
     class Config:
         """
         Configure pydantic per-model settings.

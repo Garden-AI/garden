@@ -1,3 +1,3 @@
 from .app.garden import app
 
-app()
+app(prog_name="garden")
