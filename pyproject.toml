@@ -44,5 +44,6 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 markers = [
-        "integration: deselect with '-m \"not integration\"' to run unit tests only."
+        "integration: deselect with '-m \"not integration\"' to run unit tests only.",
+        "cli: deselect with '-m \"not cli\"' to disable CLI tests."
 ]
