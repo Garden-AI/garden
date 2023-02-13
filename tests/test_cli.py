@@ -1,10 +1,8 @@
 import pytest
 import sys
-from garden_ai.app.main import app
+from garden_ai.app.garden import app
 from garden_ai.client import GardenClient
 from typer.testing import CliRunner
-from garden_ai.app.garden import app
-from garden_ai.gardens import Garden
 
 runner = CliRunner()
 
@@ -12,11 +10,8 @@ runner = CliRunner()
 @pytest.mark.cli
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="can't inspect call args by name with 3.7")
 def test_garden_create(garden_all_fields, tmp_path, mocker):
-    # patch just the create_garden method
-    mocker.patch(
-        "garden_ai.app.garden.GardenClient",
-        create_garden=lambda _, **kwargs: Garden(**kwargs),
-    )
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.create.GardenClient").return_value = mock_client
 
     command = [
         "create",
@@ -32,8 +27,6 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
         command += ["--author", name]
     for name in garden_all_fields.contributors:
         command += ["--contributor", name]
-    # mocker.patch("garden_ai.app.garden.typer.launch").return_value = 0
-    # mocker.patch("garden_ai.app.garden.rich.prompt.input").return_value = "MyToken"
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 

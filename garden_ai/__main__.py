@@ -1,3 +1,3 @@
-from .app.garden import app
+from .app.main import app
 
 app(prog_name="garden")

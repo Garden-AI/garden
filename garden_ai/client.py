@@ -332,7 +332,7 @@ class GardenClient:
             logger.error(e)
             raise
         else:
-            with open(out_dir / "garden.json", "w+") as f:
+            with open(out_dir / f"{garden.garden_id}.json", "w+") as f:
                 f.write(garden.json())
 
     def publish_garden(self, garden=None, visibility="Public"):

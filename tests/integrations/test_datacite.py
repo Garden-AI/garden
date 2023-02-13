@@ -7,7 +7,7 @@ def test_auto_doi_garden(garden_client, garden_no_fields):
     assert not garden.doi
     garden.authors = ["pytest"]
     garden.title = "DOI request test (Garden)"
-    garden_client._mint_doi(garden)
+    garden.doi = garden_client._mint_doi(garden)
     assert garden.doi
 
 

@@ -14,7 +14,7 @@ pydantic = "^1.10.2"
 typer = {extras = ["all"], version = "^0.7.0"}
 
 [tool.poetry.scripts]
-garden = "garden_ai.app.garden:app"
+garden = "garden_ai.app.main:app"
 
 [tool.poetry.group.test]
 optional=true
