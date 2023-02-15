@@ -183,7 +183,7 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs):
+    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs) -> Garden:
         """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
 
         Up to user preference, metadata (e.g. `title="My Garden"` or

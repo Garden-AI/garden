@@ -1,5 +1,4 @@
 import logging
-import pathlib
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -12,20 +11,22 @@ from rich.prompt import Prompt
 logger = logging.getLogger()
 
 LOCAL_STORAGE = Path("~/.garden/db/").expanduser()
-LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
+(LOCAL_STORAGE / "gardens").mkdir(parents=True, exist_ok=True)
+(LOCAL_STORAGE / "pipelines").mkdir(parents=True, exist_ok=True)
 
 
-def setup_directory(directory: Path) -> Path:
+def setup_directory(directory: Optional[Path]) -> Optional[Path]:
     """
     Validate the directory provided by the user, scaffolding with "pipelines/" and
     "models/" subdirectories if possible (i.e. directory does not yet exist or
     exists but is empty).
     """
+    if directory is None:
+        return None
+
     if directory.exists():
         if list(directory.iterdir()):
-            logger.fatal(
-                "Directory (default: current dir) must be empty if it already exists."
-            )
+            logger.fatal("Directory must be empty if it already exists.")
             raise typer.Exit(code=1)
 
     (directory / "models").mkdir(parents=True)
@@ -48,13 +49,17 @@ def validate_name(name: str) -> str:
 # @app.callback()
 def create_garden(
     directory: Path = typer.Argument(
-        pathlib.Path.cwd(),  # default to current directory
-        callback=setup_directory,  # TODO
+        None,
+        callback=setup_directory,
         dir_okay=True,
         file_okay=False,
         writable=True,
         readable=True,
         resolve_path=True,
+        help=(
+            "(Optional) if specified, this generates a directory with subfolders to help organize the new Garden. "
+            "This is most likely to be useful if you want to track your Garden/Pipeline development with GitHub."
+        ),
     ),
     authors: List[str] = typer.Option(
         None,
@@ -155,12 +160,13 @@ def create_garden(
         year=year,
         description=description,
         contributors=contributors,
+        tags=tags,
     )
 
-    client.register_metadata(garden, LOCAL_STORAGE)
+    client.register_metadata(garden, out_dir=LOCAL_STORAGE / "gardens")
 
     if verbose:
-        with open(LOCAL_STORAGE / f"{garden.garden_id}.json", "r") as f_in:
+        with open(LOCAL_STORAGE / "gardens" / f"{garden.garden_id}.json", "r") as f_in:
             metadata = f_in.read()
             rich.print_json(metadata)
     return
