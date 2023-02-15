@@ -1,5 +1,5 @@
 import sys
-from typing import Tuple, Union
+from typing import Tuple, Union, Any
 
 import pytest
 from garden_ai import Garden, Pipeline, Step, step
@@ -58,9 +58,18 @@ def test_step_wrapper():
     assert isinstance(well_annotated, Step)
 
     with pytest.raises(ValidationError):
-
         @step
         def incomplete_annotated(a: int, b: None, g) -> int:
+            pass
+
+    with pytest.raises(ValidationError):
+        @step
+        def any_return_annotated(a: int) -> Any:
+            pass
+
+    with pytest.raises(ValidationError):
+        @step
+        def any_arg_annotated(a: Any) -> object:
             pass
 
 

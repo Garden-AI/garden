@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import typing
 from functools import update_wrapper
 from inspect import Parameter, Signature, signature
 from typing import Callable, List, Optional
@@ -149,6 +150,29 @@ class Step:
             raise TypeError(
                 f"{f.__name__}'s definition is missing a return annotation, or returns None.\n"
                 "See also: https://peps.python.org/pep-0484/#type-definition-syntax"
+            )
+        return f
+
+    @validator("func")
+    def uses_Any(cls, f: Callable):
+        sig = signature(f)
+        # check that any positional arguments have annotations
+        for p in sig.parameters.values():
+            if p.annotation is typing.Any:
+                raise TypeError(
+                    f"In {f.__name__}'s definition, found `Any` annotating parameter {p}, \n "
+                    "which would prevent us from verifying that steps would compose together correctly\n"
+                    "before being published as a Pipeline. Please try again with a more descriptive type hint.\n"
+                    "We use `beartype` to resolve type hints -- for a full list of supported annotations \n "
+                    "(including 3rd party type hints, like `numpy.typing`), see:\nhttps://github.com/beartype/beartype#compliance"
+                )
+        if sig.return_annotation is typing.Any:
+            raise TypeError(
+                f"In {f.__name__}'s definition, found `Any` as the return annotation, \n "
+                "which would prevent us from verifying that steps would compose together correctly\n"
+                "before being published as a Pipeline. Please try again with a more descriptive type hint.\n"
+                "We use `beartype` to resolve type hints -- for a full list of supported annotations \n "
+                "(including 3rd party type hints, like `numpy.typing`), see:\nhttps://github.com/beartype/beartype#compliance"
             )
         return f
 
