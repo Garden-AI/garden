@@ -177,9 +177,3 @@ def step(func: Callable = None, **kwargs):
             return Step(**data)
 
         return wrapper
-
-
-# this may not be useful for most IDEs, but in a repl/notebook, `help(step)`
-# should report the more detailed docstring.
-# TODO does this mess with sphinx?
-step.__doc__ = Step.__doc__
