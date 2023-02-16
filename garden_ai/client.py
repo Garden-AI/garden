@@ -5,6 +5,10 @@ import time
 from pathlib import Path
 from typing import List, Union
 
+from rich import print
+from rich.prompt import Prompt
+import typer
+
 import requests
 from globus_sdk import (
     AuthAPIError,
@@ -18,7 +22,8 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from pydantic import ValidationError
 
-from garden_ai.models import Garden, Pipeline
+from garden_ai.gardens import Garden
+from garden_ai.pipelines import Pipeline
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
@@ -85,8 +90,14 @@ class GardenClient:
             refresh_tokens=True,
         )
         authorize_url = self.auth_client.oauth2_get_authorize_url()
-        print(f"Please go to this URL and login:\n\n{authorize_url}\n")
-        auth_code = input("Please enter the code here: ").strip()
+
+        print(
+            f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
+        )
+        time.sleep(2)
+        typer.launch(authorize_url)
+
+        auth_code = Prompt.ask("Please enter the code here ").strip()
 
         try:
             tokens = self.auth_client.oauth2_exchange_code_for_tokens(auth_code)
@@ -172,7 +183,7 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs):
+    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs) -> Garden:
         """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
 
         Up to user preference, metadata (e.g. `title="My Garden"` or
@@ -256,7 +267,10 @@ class GardenClient:
             return obj.doi
 
         logger.info("Requesting DOI")
-        endpoint = os.environ.get("GARDEN_ENDPOINT", "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod")
+        endpoint = os.environ.get(
+            "GARDEN_ENDPOINT",
+            "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
+        )
         try:
             url = f"{endpoint}/doi"
         except KeyError:
@@ -277,12 +291,11 @@ class GardenClient:
             headers=header,
             json=payload,
         )
-
         try:
             r.raise_for_status()
-            doi = json.loads(r.json())["body"]["doi"]
+            doi = r.json()["doi"]
         except requests.HTTPError:
-            logger.error(f"{r.json()}")
+            logger.error(f"{r.text}")
             raise
         else:
             return doi
@@ -312,14 +325,14 @@ class GardenClient:
         out_dir = Path(out_dir) if out_dir else Path.cwd()
         try:
             for p in garden.pipelines:
-                self._mint_doi(p)
-            self._mint_doi(garden)
+                p.doi = self._mint_doi(p)
+            garden.doi = self._mint_doi(garden)
             garden.validate()
         except ValidationError as e:
             logger.error(e)
             raise
         else:
-            with open(out_dir / "garden.json", "w+") as f:
+            with open(out_dir / f"{garden.garden_id}.json", "w+") as f:
                 f.write(garden.json())
 
     def publish_garden(self, garden=None, visibility="Public"):

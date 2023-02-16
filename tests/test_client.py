@@ -1,6 +1,6 @@
 import pytest
 from garden_ai import GardenClient
-from garden_ai.garden import AuthException
+from garden_ai.client import AuthException
 from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse, SearchClient
 
 
@@ -15,7 +15,8 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
         return_value="https://globus.auth.garden"
     )
     mock_auth_client.oauth2_start_flow = mocker.Mock()
-    mocker.patch("garden_ai.garden.input").return_value = "my token"
+    mocker.patch("garden_ai.client.Prompt.ask").return_value = "my token"
+    mocker.patch("garden_ai.client.typer.launch")
 
     mock_search_client = mocker.MagicMock(SearchClient)
 
@@ -93,7 +94,8 @@ def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_ke
         return_value="https://globus.auth.garden"
     )
     mock_auth_client.oauth2_start_flow = mocker.Mock()
-    mocker.patch("garden_ai.garden.input").return_value = "my token"
+    mocker.patch("garden_ai.client.Prompt.ask").return_value = "my token"
+    mocker.patch("garden_ai.client.typer.launch")
 
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
     mock_token_response.by_resource_server = {"groups.api.globus.org": token}

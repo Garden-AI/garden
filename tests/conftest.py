@@ -10,7 +10,7 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 def mock_authorizer_tuple(mocker):
     mock_authorizer = mocker.Mock()
     mock_authorizer_constructor = mocker.patch(
-        "garden_ai.garden.RefreshTokenAuthorizer", return_value=mock_authorizer
+        "garden_ai.client.RefreshTokenAuthorizer", return_value=mock_authorizer
     )
     return mock_authorizer_constructor, mock_authorizer
 
@@ -27,13 +27,13 @@ def token():
 @pytest.fixture
 def mock_keystore(mocker):
     mock_keystore = mocker.MagicMock(SimpleJSONFileAdapter)
-    mocker.patch("garden_ai.garden.SimpleJSONFileAdapter").return_value = mock_keystore
+    mocker.patch("garden_ai.client.SimpleJSONFileAdapter").return_value = mock_keystore
     return mock_keystore
 
 
 @pytest.fixture
 def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token):
-    # blindly stolen from test_garden.py test
+    # blindly stolen from test_client.py test
 
     # mocker, mock_authorizer_tuple, token, mock_keystore
     mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
@@ -46,8 +46,9 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token):
         return_value="https://globus.auth.garden"
     )
     mock_auth_client.oauth2_start_flow = mocker.Mock()
-    mocker.patch("garden_ai.garden.input").return_value = "my token"
-
+    # mocker.patch("garden_ai.client.input").return_value = "my token"
+    mocker.patch("garden_ai.client.Prompt.ask").return_value = "my token"
+    mocker.patch("garden_ai.client.typer.launch")
     mock_search_client = mocker.MagicMock(SearchClient)
 
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
@@ -66,8 +67,8 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token):
 
 
 @pytest.fixture
-def garden_title_authors_doi_only(garden_client):
-    pea_garden = garden_client.create_garden(
+def garden_title_authors_doi_only():
+    pea_garden = Garden(
         authors=["Mendel, Gregor"], title="Experiments on Plant Hybridization"
     )
     pea_garden.doi = "10.26311/fake-doi"
@@ -75,8 +76,8 @@ def garden_title_authors_doi_only(garden_client):
 
 
 @pytest.fixture
-def garden_no_fields(garden_client):
-    return garden_client.create_garden()
+def garden_no_fields():
+    return Garden()
 
 
 @pytest.fixture
@@ -111,9 +112,8 @@ def pipeline_toy_example():
 
 
 @pytest.fixture
-def garden_all_fields(garden_client, pipeline_toy_example):
-    client = garden_client
-    pea_garden: Garden = client.create_garden(
+def garden_all_fields(pipeline_toy_example):
+    pea_garden = Garden(
         authors=["Mendel, Gregor"],
         title="Experiments on Plant Hybridization",
         contributors=["St. Thomas Abbey"],
