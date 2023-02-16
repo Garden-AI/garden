@@ -98,6 +98,7 @@ class Pipeline:
         self._sync_author_metadata()
         return
 
+    @validator("steps")
     def _sync_author_metadata(self):
         known_authors = set(self.authors)
         known_contributors = set(self.contributors)

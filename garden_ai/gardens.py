@@ -200,7 +200,8 @@ class Garden(BaseModel):
         except ValidationError as err:
             logger.error(err)
             raise
-
+    
+    @validator("pipelines")
     def _sync_author_metadata(self):
         """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata.
 
