@@ -24,10 +24,9 @@ def setup_directory(directory: Optional[Path]) -> Optional[Path]:
     if directory is None:
         return None
 
-    if directory.exists():
-        if list(directory.iterdir()):
-            logger.fatal("Directory must be empty if it already exists.")
-            raise typer.Exit(code=1)
+    if directory.exists() and any(directory.iterdir()):
+        logger.fatal("Directory must be empty if it already exists.")
+        raise typer.Exit(code=1)
 
     (directory / "models").mkdir(parents=True)
     (directory / "pipelines").mkdir(parents=True)
@@ -58,7 +57,7 @@ def create_garden(
         resolve_path=True,
         help=(
             "(Optional) if specified, this generates a directory with subfolders to help organize the new Garden. "
-            "This is most likely to be useful if you want to track your Garden/Pipeline development with GitHub."
+            "This is likely to be useful if you want to track your Garden/Pipeline development with GitHub."
         ),
     ),
     authors: List[str] = typer.Option(
