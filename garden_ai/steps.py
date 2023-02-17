@@ -4,12 +4,12 @@ import logging
 import typing
 from functools import update_wrapper
 from inspect import Parameter, Signature, signature
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
-
+from typing_extensions import get_type_hints
 
 logger = logging.getLogger()
 
@@ -130,6 +130,12 @@ class Step:
         self.title = self.title or self.__name__
         self.description = self.description or self.__doc__
         self.__signature__ = signature(self.func)
+        input_hints: Dict = get_type_hints(self.func, include_extras=True)
+        return_hint = input_hints.pop("return")
+        if self.input_info is None:
+            self.input_info = str(input_hints)
+        if self.output_info is None:
+            self.output_info = str({"return": return_hint})
         return
 
     def __call__(self, *args, **kwargs):

@@ -58,19 +58,47 @@ def test_step_wrapper():
     assert isinstance(well_annotated, Step)
 
     with pytest.raises(ValidationError):
+
         @step
-        def incomplete_annotated(a: int, b: None, g) -> int:
+        def incomplete_annotated(a: int, b: str, g) -> int:
             pass
 
-    with pytest.raises(ValidationError):
-        @step
-        def any_return_annotated(a: int) -> Any:
-            pass
+
+def test_step_disallow_anys():
 
     with pytest.raises(ValidationError):
+
         @step
         def any_arg_annotated(a: Any) -> object:
             pass
+
+    with pytest.raises(ValidationError):
+
+        @step
+        def any_return_annotated(a: object) -> Any:
+            pass
+
+
+def test_auto_input_output_metadata():
+    @step
+    def well_annotated(a: int, b: str, g: Garden) -> Tuple[int, str, Garden]:
+        pass
+
+    assert (
+        well_annotated.input_info
+        == "{'a': <class 'int'>, 'b': <class 'str'>, 'g': <class 'garden_ai.gardens.Garden'>}"
+    )
+    assert (
+        well_annotated.output_info
+        == "{'return': typing.Tuple[int, str, garden_ai.gardens.Garden]}"
+    )
+
+    @step(input_info="This step LOVES accepting arguments", output_info="it also returns important results")
+    def lovingly_annotated(a: int, b: str, g: Garden) -> Tuple[int, str, Garden]:
+        pass
+
+    assert lovingly_annotated.input_info == "This step LOVES accepting arguments"
+    assert lovingly_annotated.output_info == "it also returns important results"
 
 
 @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
