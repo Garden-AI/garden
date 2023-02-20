@@ -4,8 +4,11 @@ from itertools import zip_longest
 
 import beartype.door
 import requests
+from beartype.typing import get_args, get_origin
 from pydantic.json import pydantic_encoder
-from typing_extensions import get_args, get_origin
+from typing_extensions import TypeAlias
+
+JSON: TypeAlias = str
 
 logger = logging.getLogger()
 issubtype = beartype.door.is_subhint

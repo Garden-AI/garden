@@ -15,7 +15,7 @@ typer = {extras = ["all"], version = "^0.7.0"}
 beartype = "^0.12.0"
 
 [tool.poetry.scripts]
-garden = "garden_ai.app.main:app"
+garden-ai = "garden_ai.app.main:app"
 
 [tool.poetry.group.test]
 optional=true
