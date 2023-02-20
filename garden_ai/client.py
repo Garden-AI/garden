@@ -3,13 +3,11 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Union
-
-from rich import print
-from rich.prompt import Prompt
-import typer
+from typing import Dict, List, Union
+from uuid import UUID
 
 import requests
+import typer
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -21,12 +19,18 @@ from globus_sdk import (
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from pydantic import ValidationError
+from rich import print
+from rich.prompt import Prompt
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
+from garden_ai.utils import JSON
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
+
+LOCAL_STORAGE = Path("~/.garden/db").expanduser()
+LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger()
 
@@ -183,7 +187,9 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs) -> Garden:
+    def create_garden(
+        self, authors: List[str] = [], title: str = "", **kwargs
+    ) -> Garden:
         """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
 
         Up to user preference, metadata (e.g. `title="My Garden"` or
@@ -332,8 +338,70 @@ class GardenClient:
             logger.error(e)
             raise
         else:
-            with open(out_dir / f"{garden.garden_id}.json", "w+") as f:
+            with open(out_dir / f"{garden.uuid}.json", "w+") as f:
                 f.write(garden.json())
+
+    def get_local(self, uuid: UUID) -> JSON:
+        """Helper: fetch a record from 'local database'
+
+        Find entry with key matching ``uuid`` and return the associated metadata
+        extracted from ``~/.garden/db/data.json``
+
+        Parameters
+        ----------
+        uuid : UUID
+            The uuid corresponding to the desired Garden or Pipeline.
+
+        Returns
+        -------
+        JSON
+            JSON string corresponding to the metadata of the object with the given uuid.
+        """
+        with open(LOCAL_STORAGE / "data.json", "r+") as f:
+            raw_contents = f.read()
+            if raw_contents:
+                data: Dict[str, Dict] = json.loads(raw_contents)
+            else:
+                logger.error("Local storage is empty; could not find by uuid.")
+                raise KeyError
+        try:
+            result = data[str(uuid)]
+        except KeyError:
+            logger.error(f"No local entry found with uuid: {uuid}.")
+            raise
+        else:
+            return json.dumps(result)
+
+    def put_local(self, obj: Union[Garden, Pipeline]) -> None:
+        """Helper: write a record to 'local database' for a given Garden or Pipeline.
+
+        Overwrites any existing entry with the same ``uuid`` in
+        ``~/.garden/db/data.json``.
+
+        Parameters
+        ----------
+        obj : Union[Garden, Pipeline]
+            The object to json-serialize and write/update in the local database.
+            a TypeError will be raised if not a Garden or Pipeline.
+
+        """
+        data = {}
+        # read existing entries into memory, if any
+        if (LOCAL_STORAGE / "data.json").exists():
+            with open(LOCAL_STORAGE / "data.json", "r+") as f:
+                raw_data = f.read()
+                if raw_data:
+                    data = json.loads(raw_data)
+
+        if not isinstance(obj, (Garden, Pipeline)):
+            raise TypeError(f"Expected Garden or Pipeline object, got: {type(obj)}.")
+
+        with open(LOCAL_STORAGE / "data.json", "w+") as f:
+            key, val = str(obj.uuid), obj.json()
+            data[key] = json.loads(val)
+            contents = json.dumps(data)
+            f.write(contents)
+        return
 
     def publish_garden(self, garden=None, visibility="Public"):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
@@ -346,7 +414,7 @@ class GardenClient:
             visibility = [visibility]
 
         gmeta_ingest = {
-            "subject": str(garden.garden_id),
+            "subject": str(garden.uuid),
             "visible_to": visibility,
             "content": json.loads(garden.json()),
         }

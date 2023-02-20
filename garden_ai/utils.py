@@ -3,10 +3,15 @@ from inspect import Signature, signature
 from itertools import zip_longest
 
 import beartype.door
+from beartype.typing import TypeAlias, get_args, get_origin
 import requests
-from beartype.typing import get_args, get_origin
+import sys
+
+if sys.version_info < (3, 9):
+    from typing_extensions import TypeAlias, get_args, get_origin
+else:
+    from beartype.typing import TypeAlias, get_args, get_origin
 from pydantic.json import pydantic_encoder
-from typing_extensions import TypeAlias
 
 JSON: TypeAlias = str
 

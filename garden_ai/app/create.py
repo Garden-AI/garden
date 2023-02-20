@@ -5,14 +5,10 @@ from typing import List, Optional
 
 import rich
 import typer
-from garden_ai.client import GardenClient
+from garden_ai.client import GardenClient, LOCAL_STORAGE
 from rich.prompt import Prompt
 
 logger = logging.getLogger()
-
-LOCAL_STORAGE = Path("~/.garden/db/").expanduser()
-(LOCAL_STORAGE / "gardens").mkdir(parents=True, exist_ok=True)
-(LOCAL_STORAGE / "pipelines").mkdir(parents=True, exist_ok=True)
 
 
 def setup_directory(directory: Optional[Path]) -> Optional[Path]:
@@ -165,7 +161,7 @@ def create_garden(
     client.register_metadata(garden, out_dir=LOCAL_STORAGE / "gardens")
 
     if verbose:
-        with open(LOCAL_STORAGE / "gardens" / f"{garden.garden_id}.json", "r") as f_in:
+        with open(LOCAL_STORAGE / "gardens" / f"{garden.uuid}.json", "r") as f_in:
             metadata = f_in.read()
             rich.print_json(metadata)
     return

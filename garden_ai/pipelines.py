@@ -1,26 +1,20 @@
 from __future__ import annotations
 
+import json
 import logging
+from datetime import datetime
 from functools import reduce
 from inspect import signature
-from typing import Any, List, Tuple, cast, Optional
+from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID, uuid4
-from datetime import datetime
 
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
+from garden_ai.datacite import (Contributor, Creator, DataciteSchema,
+                                Description, Title, Types)
 from garden_ai.steps import DataclassConfig, Step
-from garden_ai.utils import safe_compose
-from garden_ai.datacite import (
-    Contributor,
-    Creator,
-    DataciteSchema,
-    Description,
-    Title,
-    Types,
-)
-
+from garden_ai.utils import safe_compose, garden_json_encoder
 
 logger = logging.getLogger()
 
@@ -109,6 +103,9 @@ class Pipeline:
 
     def register(self):
         raise NotImplementedError
+
+    def json(self):
+        return json.dumps(self, default=garden_json_encoder)
 
     def datacite_json(self):
         """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
