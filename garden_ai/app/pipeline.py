@@ -5,10 +5,12 @@ from typing import List, Optional
 
 import rich
 import typer
-from garden_ai.client import GardenClient, LOCAL_STORAGE
+from garden_ai.client import GardenClient
 from rich.prompt import Prompt
 
 logger = logging.getLogger()
+
+pipeline_app = typer.Typer(name="pipeline", no_args_is_help=True)
 
 
 def setup_directory(directory: Optional[Path]) -> Optional[Path]:
@@ -40,9 +42,15 @@ def validate_name(name: str) -> str:
     """(this will probably eventually use some 3rd party name parsing library)"""
     return name.strip() if name else ""
 
+@pipeline_app.callback()
+def garden():
+    """
+    sub-commands for creating and manipulating Gardens
+    """
+    pass
 
-# @app.callback()
-def create_garden(
+@pipeline_app.command(no_args_is_help=True)
+def create(
     directory: Path = typer.Argument(
         None,
         callback=setup_directory,
@@ -56,6 +64,14 @@ def create_garden(
             "This is likely to be useful if you want to track your Garden/Pipeline development with GitHub."
         ),
     ),
+    title: str = typer.Option(
+        ...,
+        "-t",
+        "--title",
+        prompt="Please enter a title for your Garden",
+        help="Provide an official title (as it should appear in citations)",
+        rich_help_panel="Required",
+    ),
     authors: List[str] = typer.Option(
         None,
         "-a",
@@ -66,14 +82,6 @@ def create_garden(
         ),
         rich_help_panel="Required",
         prompt=False,  # NOTE: automatic prompting won't play nice with list values
-    ),
-    title: str = typer.Option(
-        ...,
-        "-t",
-        "--title",
-        prompt="Please enter a title for your Garden",
-        help="Provide an official title (as it should appear in citations)",
-        rich_help_panel="Required",
     ),
     year: str = typer.Option(
         str(datetime.now().year),  # default to current year
@@ -158,10 +166,9 @@ def create_garden(
         tags=tags,
     )
 
-    client.register_metadata(garden, out_dir=LOCAL_STORAGE / "gardens")
+    client.put_local(garden)
 
     if verbose:
-        with open(LOCAL_STORAGE / "gardens" / f"{garden.uuid}.json", "r") as f_in:
-            metadata = f_in.read()
-            rich.print_json(metadata)
+        metadata = client.get_local(garden.uuid)
+        rich.print_json(metadata)
     return

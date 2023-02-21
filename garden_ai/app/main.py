@@ -1,16 +1,15 @@
 import logging
 import typer
-import garden_ai.app.create as create
-
+from garden_ai.app.garden import garden_app
+from garden_ai.app.pipeline import pipeline_app
 logger = logging.getLogger()
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
+
 
 # nb: subcommands are mini typer apps in their own right
-# app.add_typer(create.app, name="create")
-#
-app.command(name="create", no_args_is_help=True)(create.create_garden)
-
+app.add_typer(garden_app)
+app.add_typer(pipeline_app)
 
 @app.callback()
 def help_info():
@@ -19,5 +18,4 @@ def help_info():
 
     I'm some help text!
     """
-    # TODO this is where --version, --verbose etc logic should go
     pass

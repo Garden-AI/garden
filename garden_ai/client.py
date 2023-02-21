@@ -3,7 +3,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 from uuid import UUID
 
 import requests
@@ -60,7 +60,7 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-        self, auth_client: AuthClient = None, search_client: SearchClient = None
+        self, auth_client: Optional[AuthClient] = None, search_client: Optional[SearchClient] = None
     ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
@@ -89,7 +89,7 @@ class GardenClient:
             requested_scopes=[
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
-                GardenClient.scopes.action_all,  # "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all"
+                GardenClient.scopes.action_all,
             ],
             refresh_tokens=True,
         )
@@ -172,10 +172,10 @@ class GardenClient:
 
             # now store the tokens and pull out the Groups tokens
             self.auth_key_store.store(response)
-            tokens = response.by_resource_server[GroupsClient.resource_server]
+            tokens = response.by_resource_server[GroupsClient.resource_server] # type: ignore
         else:
             # otherwise, we already did login; load the tokens from that file
-            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server)
+            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server) # type: ignore
 
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         authorizer = RefreshTokenAuthorizer(

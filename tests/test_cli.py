@@ -11,9 +11,10 @@ runner = CliRunner()
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="mocked call_args.kwargs breaks under 3.7")
 def test_garden_create(garden_all_fields, tmp_path, mocker):
     mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.create.GardenClient").return_value = mock_client
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
 
     command = [
+        "garden",
         "create",
         str(tmp_path / "pea_directory"),
         "--title",
@@ -34,4 +35,4 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     kwargs = mock_client.create_garden.call_args.kwargs
     for key in kwargs:
         assert kwargs[key] == getattr(garden_all_fields, key)
-    mock_client.register_metadata.assert_called_once()
+    mock_client.put_local.assert_called_once()
