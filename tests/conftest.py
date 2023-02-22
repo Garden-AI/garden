@@ -101,9 +101,10 @@ def pipeline_toy_example():
     rate_soup.contributors += ["Friar Hugo", "Sister Constance"]
 
     pea_edibility_pipeline = Pipeline(
-        title="Concept: a pipeline for soup",
+        title="Pea Edibility Pipeline",
         steps=[split_peas, make_soup, rate_soup],
         authors=["Brian Jacques"],
+        description="A pipeline for perfectly-reproducible soup ratings."
     )
 
     # the complete pipeline is now also callable by itself

@@ -60,7 +60,9 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-        self, auth_client: Optional[AuthClient] = None, search_client: Optional[SearchClient] = None
+        self,
+        auth_client: Optional[AuthClient] = None,
+        search_client: Optional[SearchClient] = None,
     ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
@@ -172,10 +174,10 @@ class GardenClient:
 
             # now store the tokens and pull out the Groups tokens
             self.auth_key_store.store(response)
-            tokens = response.by_resource_server[GroupsClient.resource_server] # type: ignore
+            tokens = response.by_resource_server[GroupsClient.resource_server]  # type: ignore
         else:
             # otherwise, we already did login; load the tokens from that file
-            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server) # type: ignore
+            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server)  # type: ignore
 
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         authorizer = RefreshTokenAuthorizer(
@@ -238,6 +240,16 @@ class GardenClient:
         if title:
             data["title"] = title
         return Garden(**data)
+
+    def create_pipeline(
+        self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
+    ) -> Pipeline:
+        data = dict(kwargs)
+        if authors:
+            data["authors"] = authors
+        if title:
+            data["title"] = title
+        return Pipeline(**data)
 
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True

@@ -1,11 +1,14 @@
 import logging
+import re
 from datetime import datetime
+from keyword import iskeyword
 from pathlib import Path
 from typing import List, Optional
 
 import rich
 import typer
-from garden_ai.client import GardenClient
+from garden_ai import GardenClient, Pipeline, step
+from rich import print
 from rich.prompt import Prompt
 
 logger = logging.getLogger()
@@ -13,72 +16,87 @@ logger = logging.getLogger()
 pipeline_app = typer.Typer(name="pipeline", no_args_is_help=True)
 
 
-def setup_directory(directory: Optional[Path]) -> Optional[Path]:
-    """
-    Validate the directory provided by the user, scaffolding with "pipelines/" and
-    "models/" subdirectories if possible (i.e. directory does not yet exist or
-    exists but is empty).
-    """
-    if directory is None:
-        return None
+def validate_identifier(name: str) -> str:
+    """Clean the name provided for use as a pipeline's python identifier."""
+    orig = name
+    # Remove invalid characters, replacing with _
+    name = re.sub("[^0-9a-zA-Z_]", "_", name)
 
-    if directory.exists() and any(directory.iterdir()):
-        logger.fatal("Directory must be empty if it already exists.")
-        raise typer.Exit(code=1)
+    # Remove leading characters until we find a letter
+    name = re.sub("^[^a-zA-Z]+", "", name)
 
-    (directory / "models").mkdir(parents=True)
-    (directory / "pipelines").mkdir(parents=True)
+    # Remove doubled/trailing underscores
+    name = re.sub("__+", "_", name).rstrip("_")
 
-    with open(directory / "models" / ".gitignore", "w") as f_out:
-        f_out.write("# TODO\n")
+    if not name:
+        # name consisted only of invalid characters
+        raise typer.BadParameter(
+            "Invalid shortname. This argument should contain a valid python identifier"
+            "(i.e. something usable as a variable name)."
+        )
 
-    with open(directory / "README.md", "w") as f_out:
-        f_out.write("# TODO\n")
+    # truncate
+    name = name[:50]
 
-    return directory
+    if iskeyword(name):
+        name += "_"
+
+    if name != orig:
+        print(f"Generated valid shortname {name} from {orig}.")
+
+    return name
 
 
 def validate_name(name: str) -> str:
     """(this will probably eventually use some 3rd party name parsing library)"""
     return name.strip() if name else ""
 
+
 @pipeline_app.callback()
-def garden():
+def pipeline():
     """
-    sub-commands for creating and manipulating Gardens
+    sub-commands for creating and manipulating Pipelines
     """
     pass
 
+
 @pipeline_app.command(no_args_is_help=True)
 def create(
-    directory: Path = typer.Argument(
+    shortname: str = typer.Argument(
         None,
-        callback=setup_directory,
+        help=(
+            "A valid python identifier (i.e. variable name) for the new pipeline. "
+            "If not provided, one will be generated from your pipeline's title. "
+            "a [shortname].py file will be templated for your pipeline code. "
+        ),
+    ),
+    directory: Path = typer.Option(
+        Path.cwd(),
         dir_okay=True,
         file_okay=False,
         writable=True,
         readable=True,
         resolve_path=True,
         help=(
-            "(Optional) if specified, this generates a directory with subfolders to help organize the new Garden. "
-            "This is likely to be useful if you want to track your Garden/Pipeline development with GitHub."
+            "(Optional) if specified, target directory in which to generate the templated [shortname].py file. "
+            "Defaults to current directory."
         ),
     ),
     title: str = typer.Option(
         ...,
         "-t",
         "--title",
-        prompt="Please enter a title for your Garden",
-        help="Provide an official title (as it should appear in citations)",
+        help=("Provide an official title (as it should appear in citations). "),
         rich_help_panel="Required",
+        prompt="Please enter an official title for your Pipeline (as it should appear in citations)",
     ),
     authors: List[str] = typer.Option(
         None,
         "-a",
         "--author",
         help=(
-            "Name an author of this Garden. Repeat this to indicate multiple authors: "
-            "`garden create ... --author='Mendel, Gregor' --author 'Other-Author, Anne' ...` (order is preserved)."
+            "Name an author of this Pipeline. At least one author is required. Repeat this to indicate multiple: "
+            "`garden-ai pipeline create ... --author='Mendel, Gregor' --author 'Other, Anne' ...` (order is preserved)."
         ),
         rich_help_panel="Required",
         prompt=False,  # NOTE: automatic prompting won't play nice with list values
@@ -89,35 +107,38 @@ def create(
         "--year",
         rich_help_panel="Required",
     ),
+    description: Optional[str] = typer.Option(
+        None,
+        "--description",
+        help=("A brief summary of the Pipeline and/or its purpose, to aid discovery."),
+        rich_help_panel="Recommended",
+    ),
     contributors: List[str] = typer.Option(
         None,
         "-c",
         "--contributor",
         help=(
-            "Acknowledge a contributor in this Garden. Repeat to indicate multiple (like --author). "
-        ),
-        rich_help_panel="Recommended",
-    ),
-    description: Optional[str] = typer.Option(
-        None,
-        "-d",
-        "--description",
-        help=(
-            "A brief summary of the Garden and/or its purpose, to aid discovery by other Gardeners."
+            "Acknowledge a contributor to this Pipeline. Repeat to indicate multiple (like --author). "
         ),
         rich_help_panel="Recommended",
     ),
     tags: List[str] = typer.Option(
         None,
         "--tag",
-        help="Add a tag, keyword, key phrase or other classification pertaining to the Garden.",
+        help=(
+            "Add a tag, keyword, key phrase or other classification pertaining to the Pipeline. "
+            "Repeat to indicate multiple (like --author). "
+        ),
         rich_help_panel="Recommended",
     ),
     verbose: bool = typer.Option(
-        False, help="If true, pretty-print Garden's metadata when created."
+        False, help="If true, pretty-print Pipeline's metadata when created."
     ),
 ):
-    """Create a new Garden"""
+    """Scaffold a new pipeline"""
+
+    shortname = validate_identifier(shortname or title)
+
     while not authors:
         # repeatedly prompt for at least one author until one is given
         name = validate_name(Prompt.ask("Please enter at least one author (required)"))
@@ -135,40 +156,32 @@ def create(
             else:
                 break
 
-    if not contributors:
-        name = validate_name(
-            Prompt.ask("Acknowledge a contributor? (leave blank to skip)")
-        )
-        if name:
-            contributors = [name]
-            while True:
-                name = validate_name(
-                    Prompt.ask("Add another contributor? (leave blank to finish)")
-                )
-                if name:
-                    authors += [name]
-                else:
-                    break
-
     if not description:
         description = Prompt.ask(
-            "Provide a brief description of this Garden, to aid in discovery (leave blank to skip)"
+            "Provide a brief description of this Pipeline, to aid in discovery (leave blank to skip)"
         )
 
     client = GardenClient()
 
-    garden = client.create_garden(
-        authors=authors,
+    @step
+    def dummy_step(arg: object) -> object:
+        """description of a dumb step"""
+        return arg
+
+    pipeline = client.create_pipeline(
         title=title,
-        year=year,
-        description=description,
+        authors=authors,
         contributors=contributors,
+        steps=[dummy_step],  # type: ignore
         tags=tags,
+        description=description,
+        year=year,
     )
 
-    client.put_local(garden)
+    client.put_local(pipeline)
 
     if verbose:
-        metadata = client.get_local(garden.uuid)
+        metadata = client.get_local(pipeline.uuid)
         rich.print_json(metadata)
+
     return

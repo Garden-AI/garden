@@ -65,7 +65,6 @@ def test_step_wrapper():
 
 
 def test_step_disallow_anys():
-
     with pytest.raises(ValidationError):
 
         @step
@@ -93,7 +92,10 @@ def test_auto_input_output_metadata():
         == "{'return': typing.Tuple[int, str, garden_ai.gardens.Garden]}"
     )
 
-    @step(input_info="This step LOVES accepting arguments", output_info="it also returns important results")
+    @step(
+        input_info="This step LOVES accepting arguments",
+        output_info="it also returns important results",
+    )
     def lovingly_annotated(a: int, b: str, g: Garden) -> Tuple[int, str, Garden]:
         pass
 
