@@ -178,6 +178,19 @@ def create(
         year=year,
     )
 
+    # template file
+    out_dir = Path(directory / shortname)
+    if out_dir.exists():
+        logger.fatal(f"Error: {directory / shortname} already exists.")
+        raise typer.Exit(code=1)
+    else:
+        out_dir.mkdir(parents=True)
+        out_file = out_dir / f"pipeline.py"
+        contents = template_pipeline(shortname, pipeline)
+        with open(out_file, "w") as f:
+            f.write(contents)
+        print(f"Wrote to {out_file}.")
+
     client.put_local(pipeline)
 
     if verbose:

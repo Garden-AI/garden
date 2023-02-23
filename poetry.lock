@@ -566,7 +566,7 @@ files = [
 name = "jinja2"
 version = "3.1.2"
 description = "A very fast and expressive template engine."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -584,7 +584,7 @@ i18n = ["Babel (>=2.7)"]
 name = "markupsafe"
 version = "2.1.2"
 description = "Safely add untrusted strings to HTML/XML markup."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -1430,4 +1430,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "19c2feeae2725c5a984c30d35d156a5fee292b980ea3e50c912e1647027dd1c1"
+content-hash = "b63d35dd17f0618740ff27a6cdf67d4af589d31e88f9b3cf4ce679f612498044"
