@@ -1,106 +1,14 @@
 import logging
 from inspect import Signature, signature
 from itertools import zip_longest
-from typing import Union
-import requests
 
+import beartype.door
+import requests
 from pydantic.json import pydantic_encoder
 from typing_extensions import get_args, get_origin
 
 logger = logging.getLogger()
-
-try:  # noqa C901 (mccabe exceeded due to try/except)
-    from types import UnionType  # type: ignore
-except ImportError:
-
-    def issubtype(a: type, b: type) -> bool:
-        """Helper: report whether `a` is a subtype of `b`.
-
-        This is defined slightly differently for versions which do not know about
-        `types.UnionType` (the `type(A | B)` special type)
-        """
-        if a == b:
-            return True
-        if a is None or b is None:
-            return False
-        # e.g. if a is `Union[x,y]`, then a_origin is `Union` and a_args is `(x, y)`
-        a_origin, a_args = get_origin(a), get_args(a)
-        b_origin, b_args = get_origin(b), get_args(b)
-        if a_args == b_args == ():
-            # case 1: no args
-            # (i.e. rules out anything fancy enough for square brackets)
-            return issubclass(a, b)
-
-        elif b_origin is Union:
-            # case 2: b is a union of types, which are the contents of b_args
-            if a_origin is Union:
-                # both are unions, so must have *all* the same args
-                return all(issubtype(x, y) for (x, y) in zip_longest(a_args, b_args))
-            elif a_origin is None:
-                # builtin `issubclass` treats union types how you'd expect for
-                # literally this case only, might as well use it
-                return issubclass(a, b)
-            else:
-                # a is a complex but non-union type, so *must* subtype one of b_args
-                return any(issubtype(a, t) for t in b_args)
-
-        elif issubclass(a_origin or a, b_origin or b):
-            # Case 3: other complex types, e.g. List[str] subtypes Sequence[str]
-            # the little `or`s are here because of the following fun fact:
-            # get_origin(tuple[x]) == get_origin(Tuple[x]) == get_origin(Tuple) == tuple
-            # ... get_origin(tuple) is None.
-            # I'm sure there's a very wise reason for this
-            return all(issubtype(x, y) for x, y in zip(a_args, b_args))
-
-        return False
-
-else:
-
-    def issubtype(a: type, b: type) -> bool:
-        """Helper: report whether `a` is a subtype of `b`.
-
-        This works for many cases, e.g. `issubtype(X, X | Y) == True` or
-        `issubtype(Union[X,Y], Union[X,Y,Z])`, which are inconsistent and/or
-        exceptions in the analogous `issubclass` or `isinstance` builtins.
-
-        """
-        if a == b:
-            return True
-        if a is None or b is None:
-            return False
-        # e.g. if a is `Union[x,y]`, then a_origin is `Union` and a_args is `(x, y)`
-        a_origin, a_args = get_origin(a), get_args(a)
-        b_origin, b_args = get_origin(b), get_args(b)
-        if a_args == b_args == ():
-            # case 1: no args; simple types
-            return issubclass(a, b)
-
-        elif b_origin is Union or isinstance(b, UnionType):
-            # case 2: b is a union of some types, possibly including a
-            # (either Union[a, _] or (a | _) -style)
-            # note that typing.Union cannot be used with isinstance(), but
-            # types.UnionType can be.
-            if a_origin is Union or isinstance(a, UnionType):
-                # both are unions, so must have *all* the same args
-                return all(issubtype(x, y) for (x, y) in zip_longest(a_args, b_args))
-            elif a_origin is None:
-                # a is a simple type, so `issubclass(a, Union[a, ...])` will report True
-                # `issubclass` handles union types how you'd expect for
-                # literally this case only, might as well use it
-                return issubclass(a, b)
-            else:
-                # a is a complex but non-union type, so *must* subtype one of b_args
-                return any(issubtype(a, t) for t in b_args)
-
-        elif issubclass(a_origin or a, b_origin or b):
-            # Case 3: other complex types, e.g. List[str] subtypes Sequence[str]
-            # the little `or`s are here because of the following fun fact:
-            # get_origin(tuple[x]) == get_origin(Tuple[x]) == get_origin(Tuple) == tuple
-            # ... get_origin(tuple) is None.
-            # I'm sure there's a very wise reason for this
-            return all(issubtype(x, y) for x, y in zip(a_args, b_args))
-
-        return False
+issubtype = beartype.door.is_subhint
 
 
 # for contrast: unsafe_compose = lambda f,g: lambda *args,**kwargs: f(g(*args, **kwargs))
@@ -147,7 +55,7 @@ def safe_compose(f, g):
         # case 1: g returns a tuple which, *if unpacked*, may align with f's annotations
         # for example:
         # g defined like `def g(...) -> tuple[A, B, C]: ...`, and
-        # f defined like `def f(a: A, b: B, c:C) -> ...`
+        # f defined like `def f(a: A, b: B, c: C) -> ...`
         g_returns: tuple = get_args(g_out)
         if all(
             issubtype(output_type, input_type)
