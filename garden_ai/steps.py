@@ -135,7 +135,7 @@ class Step:
         if self.input_info is None:
             self.input_info = str(input_hints)
         if self.output_info is None:
-            self.output_info = str({"return": return_hint})
+            self.output_info = f"return: {return_hint}"
         return
 
     def __call__(self, *args, **kwargs):
@@ -207,3 +207,11 @@ def step(func: Callable = None, **kwargs):
             return Step(**data)
 
         return wrapper
+
+def inference_step(model_id: str = "", **kwargs):
+    """(NOT IMPLEMENTED) Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s."""
+
+    def wrapper(f: Callable):
+        raise NotImplementedError
+
+    return wrapper

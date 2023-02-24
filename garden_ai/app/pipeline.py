@@ -5,6 +5,7 @@ from keyword import iskeyword
 from pathlib import Path
 from typing import List, Optional
 
+import jinja2
 import rich
 import typer
 from garden_ai import GardenClient, Pipeline, step
@@ -35,14 +36,14 @@ def validate_identifier(name: str) -> str:
             "(i.e. something usable as a variable name)."
         )
 
-    # truncate
+    # truncate to sane length, though not strictly necessary
     name = name[:50]
 
     if iskeyword(name):
         name += "_"
 
     if name != orig:
-        print(f"Generated valid shortname {name} from {orig}.")
+        print(f'Generated valid shortname "{name}" from "{orig}".')
 
     return name
 
@@ -50,6 +51,13 @@ def validate_identifier(name: str) -> str:
 def validate_name(name: str) -> str:
     """(this will probably eventually use some 3rd party name parsing library)"""
     return name.strip() if name else ""
+
+
+def template_pipeline(shortname: str, pipeline: Pipeline) -> str:
+    """populate jinja2 template with starter code for creating a pipeline"""
+    env = jinja2.Environment(loader=jinja2.PackageLoader("garden_ai"))
+    template = env.get_template("pipeline")
+    return template.render(shortname=shortname, pipeline=pipeline)
 
 
 @pipeline_app.callback()
@@ -165,7 +173,7 @@ def create(
 
     @step
     def dummy_step(arg: object) -> object:
-        """description of a dumb step"""
+        """placeholder"""
         return arg
 
     pipeline = client.create_pipeline(
@@ -189,10 +197,9 @@ def create(
         contents = template_pipeline(shortname, pipeline)
         with open(out_file, "w") as f:
             f.write(contents)
-        print(f"Wrote to {out_file}.")
+        print(f"Wrote to {out_file}.n")
 
     client.put_local(pipeline)
-
     if verbose:
         metadata = client.get_local(pipeline.uuid)
         rich.print_json(metadata)

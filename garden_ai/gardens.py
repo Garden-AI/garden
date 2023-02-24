@@ -141,7 +141,7 @@ class Garden(BaseModel):
         The JSON returned by this method would be the "attributes" part of a DataCite request body.
         """
         self._sync_author_metadata()
-        return DataciteSchema(
+        return DataciteSchema(  # type: ignore
             types=Types(resourceType="AI/ML Garden", resourceTypeGeneral="Software"),
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],
