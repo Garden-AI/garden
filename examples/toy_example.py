@@ -38,6 +38,8 @@ func
     make_soup's definition is missing a return annotation, or returns None.
 See also: https://peps.python.org/pep-0484/#type-definition-syntax (type=type_error)
 """
+
+
 # Solution: non-builtin classes/ type annotations are supported
 class Soup:  # noqa
     def __init__(self, ingredients):
@@ -76,7 +78,7 @@ pea_garden.pipelines += [pea_edibility_pipeline]
 client.register_metadata(pea_garden)
 
 # publishes metadata to search index
-result = client.publish_garden(pea_garden, ['public'])
+result = client.publish_garden(pea_garden, ["public"])
 
 # propagates any authors of steps/pipelines as "contributors"
 assert "Sister Constance" in pea_garden.contributors

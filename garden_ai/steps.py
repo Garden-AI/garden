@@ -208,6 +208,7 @@ def step(func: Callable = None, **kwargs):
 
         return wrapper
 
+
 def inference_step(model_id: str = "", **kwargs):
     """(NOT IMPLEMENTED) Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s."""
 

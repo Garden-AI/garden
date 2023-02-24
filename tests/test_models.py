@@ -89,7 +89,7 @@ def test_auto_input_output_metadata():
     )
     assert (
         well_annotated.output_info
-        == "{'return': typing.Tuple[int, str, garden_ai.gardens.Garden]}"
+        == "return: typing.Tuple[int, str, garden_ai.gardens.Garden]"
     )
 
     @step(

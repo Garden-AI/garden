@@ -42,12 +42,14 @@ def validate_name(name: str) -> str:
     """(this will probably eventually use some 3rd party name parsing library)"""
     return name.strip() if name else ""
 
+
 @garden_app.callback()
 def garden():
     """
     sub-commands for creating and manipulating Gardens
     """
     pass
+
 
 @garden_app.command(no_args_is_help=True)
 def create(

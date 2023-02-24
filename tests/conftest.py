@@ -104,7 +104,7 @@ def pipeline_toy_example():
         title="Pea Edibility Pipeline",
         steps=[split_peas, make_soup, rate_soup],
         authors=["Brian Jacques"],
-        description="A pipeline for perfectly-reproducible soup ratings."
+        description="A pipeline for perfectly-reproducible soup ratings.",
     )
 
     # the complete pipeline is now also callable by itself
