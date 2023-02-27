@@ -17,7 +17,7 @@ logger = logging.getLogger()
 pipeline_app = typer.Typer(name="pipeline", no_args_is_help=True)
 
 
-def validate_identifier(name: str) -> str:
+def clean_identifier(name: str) -> str:
     """Clean the name provided for use as a pipeline's python identifier."""
     orig = name
     # Remove invalid characters, replacing with _
@@ -48,7 +48,7 @@ def validate_identifier(name: str) -> str:
     return name
 
 
-def validate_name(name: str) -> str:
+def parse_full_name(name: str) -> str:
     """(this will probably eventually use some 3rd party name parsing library)"""
     return name.strip() if name else ""
 
@@ -145,18 +145,18 @@ def create(
 ):
     """Scaffold a new pipeline"""
 
-    shortname = validate_identifier(shortname or title)
+    shortname = clean_identifier(shortname or title)
 
     while not authors:
         # repeatedly prompt for at least one author until one is given
-        name = validate_name(Prompt.ask("Please enter at least one author (required)"))
+        name = parse_full_name(Prompt.ask("Please enter at least one author (required)"))
         if not name:
             continue
 
         authors = [name]
         # prompt for additional authors until one is *not* given
         while True:
-            name = validate_name(
+            name = parse_full_name(
                 Prompt.ask("Add another author? (leave blank to finish)")
             )
             if name:
