@@ -168,9 +168,9 @@ def create(
         tags=tags,
     )
 
-    client.put_local(garden)
+    client.put_local_garden(garden)
 
     if verbose:
-        metadata = client.get_local(garden.uuid)
+        metadata = client.get_local_garden(garden.uuid)
         rich.print_json(metadata)
     return

@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 import string
 import random
 from keyword import iskeyword
-from garden_ai.app.pipeline import validate_identifier
+from garden_ai.app.pipeline import clean_identifier
 
 runner = CliRunner()
 
@@ -41,7 +41,7 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     kwargs = mock_client.create_garden.call_args.kwargs
     for key in kwargs:
         assert kwargs[key] == getattr(garden_all_fields, key)
-    mock_client.put_local.assert_called_once()
+    mock_client.put_local_garden.assert_called_once()
 
 
 @pytest.mark.skipif(
@@ -74,11 +74,9 @@ def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
     for key in kwargs:
         assert kwargs[key] == getattr(pipeline_toy_example, key)
 
-    mock_client.put_local.assert_called_once()
 
-
-def test_validate_identifier():
+def test_clean_identifier():
     possible_name = "".join(random.choices(string.printable, k=50))
-    valid_name = validate_identifier(possible_name)
+    valid_name = clean_identifier(possible_name)
     assert valid_name.isidentifier()
-    assert not iskeyword(validate_identifier("import"))
+    assert not iskeyword(clean_identifier("import"))

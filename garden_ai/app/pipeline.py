@@ -197,11 +197,11 @@ def create(
         contents = template_pipeline(shortname, pipeline)
         with open(out_file, "w") as f:
             f.write(contents)
-        print(f"Wrote to {out_file}.n")
+        print(f"Wrote to {out_file}.")
 
-    client.put_local(pipeline)
     if verbose:
-        metadata = client.get_local(pipeline.uuid)
+        client.put_local_pipeline(pipeline)
+        metadata = client.get_local_pipeline(pipeline.uuid)
         rich.print_json(metadata)
 
     return

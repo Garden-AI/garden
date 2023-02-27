@@ -60,9 +60,3 @@ ALL_STEPS = (
     tags= {{ pipeline.tags }},
     uuid="{{ pipeline.uuid }}",  # WARNING: DO NOT EDIT UUID
 )
-
-# run this file as a script to sync local storage
-if __name__ == "__main__":
-    from garden_ai import GardenClient
-    gc = GardenClient()
-    gc.put_local({{ shortname }})

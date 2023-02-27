@@ -116,8 +116,8 @@ def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path
     # mock to replace "~/.garden/db"
     mocker.patch("garden_ai.client.LOCAL_STORAGE", new=tmp_path)
     uuid = garden_all_fields.uuid
-    garden_client.put_local(garden_all_fields)
-    record = garden_client.get_local(uuid)
+    garden_client.put_local_garden(garden_all_fields)
+    record = garden_client.get_local_garden(uuid)
     assert record == garden_all_fields.json()
 
 
@@ -125,8 +125,8 @@ def test_local_storage_pipeline(mocker, garden_client, pipeline_toy_example, tmp
     # mock to replace "~/.garden/db"
     mocker.patch("garden_ai.client.LOCAL_STORAGE", new=tmp_path)
     uuid = pipeline_toy_example.uuid
-    garden_client.put_local(pipeline_toy_example)
-    record = garden_client.get_local(uuid)
+    garden_client.put_local_pipeline(pipeline_toy_example)
+    record = garden_client.get_local_pipeline(uuid)
     assert record == pipeline_toy_example.json()
 
 
@@ -136,12 +136,11 @@ def test_local_storage_keyerror(mocker, garden_client, garden_all_fields, tmp_pa
     mocker.patch("garden_ai.client.LOCAL_STORAGE", new=tmp_path)
     pipeline, *_ = garden_all_fields.pipelines
     # put the pipeline, not garden (hence db is nonempty)
-    garden_client.put_local(pipeline)
+    garden_client.put_local_pipeline(pipeline)
 
-    with pytest.raises(KeyError):
-        # can't find the garden
-        garden_client.get_local(garden_all_fields.uuid)
+    # can't find the garden
+    assert garden_client.get_local_garden(garden_all_fields.uuid) is None
 
     # can find the pipeline
-    record = garden_client.get_local(pipeline.uuid)
+    record = garden_client.get_local_pipeline(pipeline.uuid)
     assert record == pipeline.json()
