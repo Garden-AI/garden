@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
+from datetime import datetime
 from functools import reduce
 from inspect import signature
-from typing import Any, List, Tuple, cast, Optional
+from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID, uuid4
-from datetime import datetime
 
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
-from garden_ai.steps import DataclassConfig, Step
-from garden_ai.utils import safe_compose
 from garden_ai.datacite import (
     Contributor,
     Creator,
@@ -20,7 +19,8 @@ from garden_ai.datacite import (
     Title,
     Types,
 )
-
+from garden_ai.steps import DataclassConfig, Step
+from garden_ai.utils import safe_compose, garden_json_encoder
 
 logger = logging.getLogger()
 
@@ -52,6 +52,7 @@ class Pipeline:
     description: Optional[str] = Field(None)
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
+    tags: List[str] = Field(default_factory=list, unique_items=True)
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
@@ -76,8 +77,8 @@ class Pipeline:
             raise
         return steps
 
-    def register_pipeline(self):
-        """register this `Pipeline`'s complete Step composition as a funcx function
+    def register(self):
+        """register this Pipeline's complete Step composition as a funcx function
         TODO
         """
         raise NotImplementedError
@@ -107,11 +108,11 @@ class Pipeline:
         self.contributors = list(known_contributors)
         return
 
-    def register(self):
-        raise NotImplementedError
+    def json(self):
+        return json.dumps(self, default=garden_json_encoder)
 
     def datacite_json(self):
-        """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
+        """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string.
 
         Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
         https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
@@ -120,18 +121,18 @@ class Pipeline:
         """
         self._sync_author_metadata()
         return DataciteSchema(
-            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),
+            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],
             publisher="thegardens.ai",
             publicationYear=self.year,
             contributors=[
-                Contributor(name=name, contributorType="Other")
+                Contributor(name=name, contributorType="Other")  # type: ignore
                 for name in self.contributors
             ],
             version=self.version,
             descriptions=[
-                Description(description=self.description, descriptionType="Other")
+                Description(description=self.description, descriptionType="Other")  # type: ignore
             ]
             if self.description
             else None,

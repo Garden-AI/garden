@@ -40,7 +40,7 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
         refresh_tokens=True,
         requested_scopes=[
             "urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships",
-            'urn:globus:auth:scope:search.api.globus.org:ingest',
+            "urn:globus:auth:scope:search.api.globus.org:ingest",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all",
         ],
     )
@@ -110,3 +110,37 @@ def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_ke
     # Call the Garden constructor and expect an auth exception
     with pytest.raises(AuthException):
         GardenClient(auth_client=mock_auth_client)
+
+
+def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path):
+    # mock to replace "~/.garden/db"
+    mocker.patch("garden_ai.client.LOCAL_STORAGE", new=tmp_path)
+    uuid = garden_all_fields.uuid
+    garden_client.put_local_garden(garden_all_fields)
+    record = garden_client.get_local_garden(uuid)
+    assert record == garden_all_fields.json()
+
+
+def test_local_storage_pipeline(mocker, garden_client, pipeline_toy_example, tmp_path):
+    # mock to replace "~/.garden/db"
+    mocker.patch("garden_ai.client.LOCAL_STORAGE", new=tmp_path)
+    uuid = pipeline_toy_example.uuid
+    garden_client.put_local_pipeline(pipeline_toy_example)
+    record = garden_client.get_local_pipeline(uuid)
+    assert record == pipeline_toy_example.json()
+
+
+def test_local_storage_keyerror(mocker, garden_client, garden_all_fields, tmp_path):
+    # mock to replace "~/.garden/db"
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    mocker.patch("garden_ai.client.LOCAL_STORAGE", new=tmp_path)
+    pipeline, *_ = garden_all_fields.pipelines
+    # put the pipeline, not garden (hence db is nonempty)
+    garden_client.put_local_pipeline(pipeline)
+
+    # can't find the garden
+    assert garden_client.get_local_garden(garden_all_fields.uuid) is None
+
+    # can find the pipeline
+    record = garden_client.get_local_pipeline(pipeline.uuid)
+    assert record == pipeline.json()

@@ -1,0 +1,62 @@
+## THIS FILE WAS AUTOMATICALLY GENERATED ##
+from garden_ai import Pipeline, step
+from garden_ai.steps import inference_step
+import typing
+
+##################################### STEPS #####################################
+"""
+Brief notes on steps (see docs for more detail):
+
+    - any python callable can be made into a step by decorating it with `@step`.
+    - the callable MUST have valid type-hints for all arguments and return type.
+    - these type-hints are used to verify that the steps can be composed in a pipeline.
+    - steps also extract metadata from the callable, like `description` or
+        `output_info` from the callable's docstring or return annotation,
+        respectively.
+    - "specialized steps" like `@run_inference` are the best way to fetch a model
+        from our model registry for use in a pipeline.
+    - don't use `Any` or `None` in step annotations. If a step is indeed general enough to
+        accept or return any python object, prefer `object` as the annotation.
+"""
+
+# example step using the decorator:
+@step
+def preprocessing_step(input_data: object) -> object:
+    """ """
+    # TODO
+    pass
+
+
+# metadata can also be manually specified with kwargs
+@step(input_info=..., authors=...)
+def another_step(data: object) -> object:
+    # TODO
+    pass
+
+
+# specialized model-specific decorator:
+# pulls a model from the garden mlflow instance and run inference
+@inference_step(model_id=..., version=...)
+def run_inference(arg: object, model: object) -> object:
+    pass
+
+# steps will be composed in order by the pipeline below
+ALL_STEPS = (
+    preprocessing_step,
+    another_step,
+    run_inference,
+)
+
+################################### PIPELINE ####################################
+
+{{ shortname }} = Pipeline(
+    title="{{ pipeline.title }}",
+    steps=ALL_STEPS,
+    authors={{ pipeline.authors }},
+    contributors={{ pipeline.contributors }},
+    description="{{ pipeline.description }}",
+    version="{{ pipeline.version }}",
+    year={{ pipeline.year }},
+    tags= {{ pipeline.tags }},
+    uuid="{{ pipeline.uuid }}",  # WARNING: DO NOT EDIT UUID
+)

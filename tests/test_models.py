@@ -43,8 +43,8 @@ def test_register_metadata(garden_client, garden_title_authors_doi_only, tmp_pat
     gc = garden_client
     garden = garden_title_authors_doi_only
     gc.register_metadata(garden, tmp_path)
-    assert (tmp_path / f"{garden.garden_id}.json").exists()
-    with open(tmp_path / f"{garden.garden_id}.json", "r") as f:
+    assert (tmp_path / f"{garden.uuid}.json").exists()
+    with open(tmp_path / f"{garden.uuid}.json", "r") as f:
         json_contents = f.read()
         assert json_contents == garden.json()
 
@@ -65,7 +65,6 @@ def test_step_wrapper():
 
 
 def test_step_disallow_anys():
-
     with pytest.raises(ValidationError):
 
         @step
@@ -90,10 +89,13 @@ def test_auto_input_output_metadata():
     )
     assert (
         well_annotated.output_info
-        == "{'return': typing.Tuple[int, str, garden_ai.gardens.Garden]}"
+        == "return: typing.Tuple[int, str, garden_ai.gardens.Garden]"
     )
 
-    @step(input_info="This step LOVES accepting arguments", output_info="it also returns important results")
+    @step(
+        input_info="This step LOVES accepting arguments",
+        output_info="it also returns important results",
+    )
     def lovingly_annotated(a: int, b: str, g: Garden) -> Tuple[int, str, Garden]:
         pass
 

@@ -3,13 +3,11 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Union
-
-from rich import print
-from rich.prompt import Prompt
-import typer
+from typing import Dict, List, Union, Optional
+from uuid import UUID
 
 import requests
+import typer
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -21,12 +19,18 @@ from globus_sdk import (
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from pydantic import ValidationError
+from rich import print
+from rich.prompt import Prompt
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
+from garden_ai.utils import JSON
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
+
+LOCAL_STORAGE = Path("~/.garden").expanduser()
+LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger()
 
@@ -56,7 +60,9 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-        self, auth_client: AuthClient = None, search_client: SearchClient = None
+        self,
+        auth_client: Optional[AuthClient] = None,
+        search_client: Optional[SearchClient] = None,
     ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
@@ -85,7 +91,7 @@ class GardenClient:
             requested_scopes=[
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
-                GardenClient.scopes.action_all,  # "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all"
+                GardenClient.scopes.action_all,
             ],
             refresh_tokens=True,
         )
@@ -168,10 +174,10 @@ class GardenClient:
 
             # now store the tokens and pull out the Groups tokens
             self.auth_key_store.store(response)
-            tokens = response.by_resource_server[GroupsClient.resource_server]
+            tokens = response.by_resource_server[GroupsClient.resource_server]  # type: ignore
         else:
             # otherwise, we already did login; load the tokens from that file
-            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server)
+            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server)  # type: ignore
 
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         authorizer = RefreshTokenAuthorizer(
@@ -183,7 +189,9 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, authors: List[str] = [], title: str = "", **kwargs) -> Garden:
+    def create_garden(
+        self, authors: List[str] = [], title: str = "", **kwargs
+    ) -> Garden:
         """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
 
         Up to user preference, metadata (e.g. `title="My Garden"` or
@@ -232,6 +240,16 @@ class GardenClient:
         if title:
             data["title"] = title
         return Garden(**data)
+
+    def create_pipeline(
+        self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
+    ) -> Pipeline:
+        data = dict(kwargs)
+        if authors:
+            data["authors"] = authors
+        if title:
+            data["title"] = title
+        return Pipeline(**data)
 
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
@@ -301,7 +319,13 @@ class GardenClient:
             return doi
 
     def register_metadata(self, garden: Garden, out_dir=None):
-        """Make a `Garden` object's metadata (and any pipelines' metadata) discoverable; mint DOIs via DataCite.
+        """
+        NOTE: this is mostly vestigial until we're at the point of implementing
+        ``$ garden-ai {garden, pipeline, model(?)} register`` and know what should be
+        here instead.
+
+        Make a `Garden` object's metadata (and any pipelines' metadata)
+        discoverable; mint DOIs via DataCite.
 
         This will perform validation on the metadata fields and (if successful)
         write all of the Garden's (including its pipelines) metadata to a
@@ -332,8 +356,143 @@ class GardenClient:
             logger.error(e)
             raise
         else:
-            with open(out_dir / f"{garden.garden_id}.json", "w+") as f:
+            with open(out_dir / f"{garden.uuid}.json", "w+") as f:
                 f.write(garden.json())
+
+    def _read_local_db(self) -> Dict:
+        """Helper: load JSON contents of local storage and return as a dict."""
+        data = {}
+        # read existing entries into memory, if any
+        if (LOCAL_STORAGE / "data.json").exists():
+            with open(LOCAL_STORAGE / "data.json", "r+") as f:
+                raw_data = f.read()
+                if raw_data:
+                    data = json.loads(raw_data)
+        return data
+
+    def _write_local_db(self, data: Dict) -> None:
+        """Helper: JSON-serialize and write ``contents`` to ~/.garden/data.json."""
+        contents = json.dumps(data)
+        with open(LOCAL_STORAGE / "data.json", "w+") as f:
+            f.write(contents)
+        return
+
+    def put_local_garden(self, garden: Garden) -> None:
+        """Helper: write a record to 'local database' for a given Garden
+
+        Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+
+        Parameters
+        ----------
+        garden : Garden
+            The object to json-serialize and write/update in the local database.
+            a TypeError will be raised if not a Garden.
+
+        """
+        if not isinstance(garden, Garden):
+            raise TypeError(f"Expected Garden object, got: {type(garden)}.")
+        data = self._read_local_db()
+
+        key, val = str(garden.uuid), json.loads(garden.json())
+        local_gardens = data.get("gardens", {})
+        local_gardens[key] = val
+        data["gardens"] = local_gardens
+
+        self._write_local_db(data)
+        return
+
+    def get_local_garden(self, uuid: Union[UUID, str]) -> Optional[JSON]:
+        """Helper: fetch a record from 'local database'
+
+        Find entry with key matching ``uuid`` and return the associated metadata
+        extracted from ``~/.garden/db/data.json``
+
+        Parameters
+        ----------
+        uuid : UUID
+            The uuid corresponding to the desired Garden or Pipeline.
+
+        Returns
+        -------
+        Optional[JSON]
+            If successful, the JSON string corresponding to the metadata of the
+            object with the given uuid.
+        """
+        data = self._read_local_db()
+
+        uuid = str(uuid)
+        local_gardens = data.get("gardens", {})
+        if local_gardens and uuid in local_gardens:
+            return json.dumps(local_gardens[uuid])
+        else:
+            logger.error(f"No garden found locally with uuid: {uuid}.")
+            return None
+
+    def put_local_pipeline(self, pipeline: Pipeline) -> None:
+        """Helper: write a record to 'local database' for a given Pipeline.
+
+        Overwrites any existing entry with the same ``uuid``.
+
+        Parameters
+        ----------
+        pipeline : Pipeline
+            The object to json-serialize and write/update in the local database.
+            a TypeError will be raised if not a Pipeline.
+
+        """
+        if not isinstance(pipeline, Pipeline):
+            raise TypeError(f"Expected pipeline object, got: {type(pipeline)}.")
+        data = {}
+        # read existing entries into memory, if any
+        if (LOCAL_STORAGE / "data.json").exists():
+            with open(LOCAL_STORAGE / "data.json", "r+") as f:
+                raw_data = f.read()
+                if raw_data:
+                    data = json.loads(raw_data)
+
+        # update data['pipelines'], leaving data['gardens'] etc unmodified
+        pipelines = data.get("pipelines", {})
+        key, val = str(pipeline.uuid), pipeline.json()
+        pipelines[key] = json.loads(val)
+        data["pipelines"] = pipelines
+        contents = json.dumps(data)
+
+        with open(LOCAL_STORAGE / "data.json", "w+") as f:
+            f.write(contents)
+        return
+
+    def get_local_pipeline(self, uuid: Union[UUID, str]) -> Optional[JSON]:
+        """Helper: fetch a pipeline record from 'local database', if one exists.
+
+        Find entry with key matching ``uuid`` and return the associated metadata
+        extracted from ``~/.garden/db/data.json``
+
+        Parameters
+        ----------
+        uuid : UUID
+            The uuid corresponding to the desired Pipeline.
+
+        Returns
+        -------
+        Optional[JSON]
+            If successful, the JSON string corresponding to the metadata of the
+            object with the given uuid.
+        """
+        uuid = str(uuid)
+        with open(LOCAL_STORAGE / "data.json", "r+") as f:
+            raw_contents = f.read()
+            if raw_contents:
+                data: Dict[str, Dict] = json.loads(raw_contents)
+            else:
+                logger.error("Local storage is empty; could not find by uuid.")
+                return None
+
+        if "pipelines" in data and uuid in data["pipelines"]:
+            result = data["pipelines"][uuid]
+            return json.dumps(result)
+        else:
+            logger.error(f"No pipeline found locally with uuid: {uuid}.")
+            return None
 
     def publish_garden(self, garden=None, visibility="Public"):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
@@ -346,7 +505,7 @@ class GardenClient:
             visibility = [visibility]
 
         gmeta_ingest = {
-            "subject": str(garden.garden_id),
+            "subject": str(garden.uuid),
             "visible_to": visibility,
             "content": json.loads(garden.json()),
         }
