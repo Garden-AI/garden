@@ -359,11 +359,28 @@ class GardenClient:
             with open(out_dir / f"{garden.uuid}.json", "w+") as f:
                 f.write(garden.json())
 
-    def put_local_garden(self, garden: Garden) -> None:
-        """Helper: write a record to 'local database' for a given Garden or Pipeline.
+    def _read_local_db(self) -> Dict:
+        """Helper: load JSON contents of local storage and return as a dict."""
+        data = {}
+        # read existing entries into memory, if any
+        if (LOCAL_STORAGE / "data.json").exists():
+            with open(LOCAL_STORAGE / "data.json", "r+") as f:
+                raw_data = f.read()
+                if raw_data:
+                    data = json.loads(raw_data)
+        return data
 
-        Overwrites any existing entry with the same ``uuid`` in
-        ``~/.garden/db/data.json``.
+    def _write_local_db(self, data: Dict) -> None:
+        """Helper: JSON-serialize and write ``contents`` to ~/.garden/data.json."""
+        contents = json.dumps(data)
+        with open(LOCAL_STORAGE / "data.json", "w+") as f:
+            f.write(contents)
+        return
+
+    def put_local_garden(self, garden: Garden) -> None:
+        """Helper: write a record to 'local database' for a given Garden
+
+        Overwrites any existing entry with the same uuid in ~/.garden/data.json.
 
         Parameters
         ----------
@@ -374,23 +391,14 @@ class GardenClient:
         """
         if not isinstance(garden, Garden):
             raise TypeError(f"Expected Garden object, got: {type(garden)}.")
-        data = {}
-        # read existing entries into memory, if any
-        if (LOCAL_STORAGE / "data.json").exists():
-            with open(LOCAL_STORAGE / "data.json", "r+") as f:
-                raw_data = f.read()
-                if raw_data:
-                    data = json.loads(raw_data)
+        data = self._read_local_db()
 
-        # update data['gardens'], leaving data['pipelines'] etc unmodified
-        gardens = data.get("gardens", {})
-        key, val = str(garden.uuid), garden.json()
-        gardens[key] = json.loads(val)
-        data["gardens"] = gardens
-        contents = json.dumps(data)
+        key, val = str(garden.uuid), json.loads(garden.json())
+        local_gardens = data.get("gardens", {})
+        local_gardens[key] = val
+        data["gardens"] = local_gardens
 
-        with open(LOCAL_STORAGE / "data.json", "w+") as f:
-            f.write(contents)
+        self._write_local_db(data)
         return
 
     def get_local_garden(self, uuid: Union[UUID, str]) -> Optional[JSON]:
@@ -410,18 +418,12 @@ class GardenClient:
             If successful, the JSON string corresponding to the metadata of the
             object with the given uuid.
         """
-        uuid = str(uuid)
-        with open(LOCAL_STORAGE / "data.json", "r+") as f:
-            raw_contents = f.read()
-            if raw_contents:
-                data: Dict[str, Dict] = json.loads(raw_contents)
-            else:
-                logger.error("Local storage is empty; could not find by uuid.")
-                return None
+        data = self._read_local_db()
 
-        if "gardens" in data and uuid in data["gardens"]:
-            result = data["gardens"][uuid]
-            return json.dumps(result)
+        uuid = str(uuid)
+        local_gardens = data.get("gardens", {})
+        if local_gardens and uuid in local_gardens:
+            return json.dumps(local_gardens[uuid])
         else:
             logger.error(f"No garden found locally with uuid: {uuid}.")
             return None

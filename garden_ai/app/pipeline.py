@@ -149,7 +149,9 @@ def create(
 
     while not authors:
         # repeatedly prompt for at least one author until one is given
-        name = parse_full_name(Prompt.ask("Please enter at least one author (required)"))
+        name = parse_full_name(
+            Prompt.ask("Please enter at least one author (required)")
+        )
         if not name:
             continue
 
