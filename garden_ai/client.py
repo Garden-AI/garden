@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Union, Optional
 from uuid import UUID
+import functools
 
 import requests
 import typer
@@ -24,8 +25,7 @@ from rich.prompt import Prompt
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils import JSON
-from garden_ai.utilz.auth import extract_email_from_globus_jwt
+from garden_ai.utils import JSON, extract_email_from_globus_jwt
 from garden_ai.mlmodel import upload_model, ModelUploadException
 
 # garden-dev index
@@ -48,20 +48,6 @@ class AuthException(Exception):
 GardenScopes = ScopeBuilder(
     "0948a6b0-a622-4078-b0a4-bfd6d77d65cf", known_url_scopes=["action_all"]
 )
-
-# TODO: replace this with our database.json
-class IDTokenManager:
-    def __init__(self, file_name):
-        self.file_path = file_name
-
-    def set_id_token(self, token):
-        with open(self.file_path, "w") as file:
-            file.write(token)
-
-    def get_id_token(self):
-        with open(self.file_path, "r") as file:
-            return file.read()
-
 
 
 class GardenClient:
@@ -87,7 +73,6 @@ class GardenClient:
         self.auth_key_store = SimpleJSONFileAdapter(
             os.path.join(key_store_path, "tokens.json")
         )
-        self.id_token_store = IDTokenManager(os.path.join(key_store_path, "id_token.txt"))
         self.client_id = os.environ.get(
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
@@ -104,6 +89,22 @@ class GardenClient:
             else search_client
         )
         self.garden_authorizer = self._create_authorizer(GardenClient.scopes.resource_server)
+
+        # set up mlflow env vars
+        self._existing_mlflow_token = os.environ.get('MLFLOW_TRACKING_TOKEN')
+        self._existing_mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI')
+        os.environ['MLFLOW_TRACKING_TOKEN'] = self.garden_authorizer.access_token
+        os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
+
+    def __del__(self):
+        if self._existing_mlflow_token:
+            os.environ['MLFLOW_TRACKING_TOKEN'] = self._existing_mlflow_token
+        else:
+            del os.environ['MLFLOW_TRACKING_TOKEN']
+        if self._existing_mlflow_uri:
+            os.environ['MLFLOW_TRACKING_URI'] = self._existing_mlflow_uri
+        else:
+            del os.environ['MLFLOW_TRACKING_URI']
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -146,7 +147,7 @@ class GardenClient:
             tokens = response.by_resource_server[resource_server]
 
             email = extract_email_from_globus_jwt(response.data['id_token'])
-            self.id_token_store.set_id_token(email)
+            self._store_user_email(email)
         else:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(resource_server)
@@ -223,23 +224,10 @@ class GardenClient:
         return Pipeline(**data)
 
     def log_model(self, model_path: str, model_name: str, extra_pip_requirements: list[str] = None) -> str:
-        # TODO: put the env var stuff in some global initialization or make an ML Flow context manager
-        _existing_mlflow_token = os.environ.get('MLFLOW_TRACKING_TOKEN')
-        _existing_mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI')
-        os.environ['MLFLOW_TRACKING_TOKEN'] = self.garden_authorizer.access_token
-        os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
-
-        email = self.id_token_store.get_id_token()
-        try:
-            full_model_name = upload_model(model_path, model_name, email, extra_pip_requirements=extra_pip_requirements)
-            print(full_model_name)
-        except ModelUploadException as e:
-            print(e)
-        finally:
-            del os.environ['MLFLOW_TRACKING_TOKEN']  # = _existing_mlflow_token
-            del os.environ['MLFLOW_TRACKING_URI']  # = _existing_mlflow_uri
-
-        return model_name
+        email = self._get_user_email()
+        full_model_name = upload_model(model_path, model_name, email, extra_pip_requirements=extra_pip_requirements)
+        print(full_model_name)
+        return full_model_name
 
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
@@ -356,6 +344,15 @@ class GardenClient:
         with open(LOCAL_STORAGE / "data.json", "w+") as f:
             f.write(contents)
         return
+
+    def _store_user_email(self, email: str) -> None:
+        data = self._read_local_db()
+        data['user_email'] = email
+        self._write_local_db(data)
+
+    def _get_user_email(self) -> str:
+        data = self._read_local_db()
+        return data.get('user_email')
 
     def put_local_garden(self, garden: Garden) -> None:
         """Helper: write a record to 'local database' for a given Garden

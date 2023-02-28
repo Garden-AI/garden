@@ -8,7 +8,7 @@ class ModelUploadException(Exception):
 
 
 def upload_model(model_path: str, model_name: str, user_email: str, extra_pip_requirements: list[str] = None):
-    full_model_name = f'{user_email}/{model_name}'
+    full_model_name = f'{user_email}-{model_name}'
     try:
         f = open(model_path, 'rb')
     except IOError as e:
