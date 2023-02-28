@@ -108,6 +108,8 @@ class GardenClient:
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
+                AuthClient.scopes.openid,
+                AuthClient.scopes.email,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
                 GardenClient.scopes.action_all,

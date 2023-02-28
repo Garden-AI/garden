@@ -54,7 +54,7 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
         on_refresh=mock_keystore.on_refresh,
     )
 
-    assert gc.authorizer == mock_authorizer
+    assert gc.groups_authorizer == mock_authorizer
 
 
 def test_client_previous_tokens_stored(
@@ -80,7 +80,7 @@ def test_client_previous_tokens_stored(
         on_refresh=mock_keystore.on_refresh,
     )
 
-    assert gc.authorizer == mock_authorizer
+    assert gc.groups_authorizer == mock_authorizer
 
 
 def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_keystore):
