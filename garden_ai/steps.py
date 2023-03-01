@@ -147,7 +147,8 @@ class Step:
         sig = signature(f)
         # check that any positional arguments have annotations
         for p in sig.parameters.values():
-            if p.annotation is Parameter.empty:
+            if p.annotation is Parameter.empty is p.default:
+                # fine to skip annotation if there's a default we can use to infer type
                 raise TypeError(
                     f"Parameter {p} is missing an annotation in {f.__name__}'s definition. "
                     "Please double check that the argument list is fully annotated.\n"
