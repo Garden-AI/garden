@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import typing
-from functools import update_wrapper
+from functools import update_wrapper, wraps
 from inspect import Parameter, Signature, signature
 from typing import Callable, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -10,6 +10,8 @@ from uuid import UUID, uuid4
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
+
+from garden_ai.models import Model
 
 logger = logging.getLogger()
 
@@ -210,10 +212,30 @@ def step(func: Callable = None, **kwargs):
         return wrapper
 
 
-def inference_step(model_id: str = "", **kwargs):
-    """(NOT IMPLEMENTED) Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s."""
+def inference_step(model_uri: str, **kwargs):
+    """Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s.
+
+    Example:
+    --------
+    ```python
+    @inference_step(model_uri="models:/my-model/my-version")
+    def my_step(data: pd.DataFrame) -> MyResultType:
+        pass  # NOTE: leave the function body empty
+
+    ## equivalent to:
+
+    def my_step(data: MyDataType) -> MyResultType:
+        model = garden_ai.Model("models:/my-model/my-version")
+        return model.predict(data)
+    ```
+    """
 
     def wrapper(f: Callable):
-        raise NotImplementedError
+        @wraps(f)  # make sure we aren't losing signature info
+        def boilerplate(*args, **_kwargs):
+            model = Model(model_uri)
+            return model.predict(*args)
+
+        return step(boilerplate)
 
     return wrapper
