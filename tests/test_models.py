@@ -1,13 +1,12 @@
 import sys
 from collections import namedtuple
-from typing import Any, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import pytest
-from mlflow.pyfunc import PyFuncModel
-from pydantic import ValidationError
-
 from garden_ai import Garden, Pipeline, Step, mlmodel, step
 from garden_ai.models import Model
+from mlflow.pyfunc import PyFuncModel
+from pydantic import ValidationError
 
 
 def test_create_empty_garden(garden_client):
@@ -261,7 +260,38 @@ def test_upload_model(mocker, tmp_path):
     )
 
 
-def test_model_caching(mocker):
+def test_step_compose_ignores_defaults():
+    # check that pipelines can correctly compose tricky
+    # functions which may or may not expect a plain tuple
+    # to be treated as *args
+    @step
+    def returns_tuple(a: int, b: str) -> Tuple[int, str]:
+        pass
+
+    @step
+    def wants_tuple_ignoring_default(arg1: Tuple[int, str], x: List = []) -> float:
+        pass
+
+    @step
+    def wants_tuple_as_args_ignoring_default(
+        arg1: int, arg2: str, x: List = []
+    ) -> float:
+        pass
+
+    good = Pipeline(  # noqa: F841
+        authors=["mendel"],
+        title="composes tuple-as-tuple w/ default",
+        steps=[returns_tuple, wants_tuple_ignoring_default],
+    )
+
+    ugly = Pipeline(  # noqa: F841
+        authors=["mendel"],
+        title="composes tuple-as-*args w/ default",
+        steps=[returns_tuple, wants_tuple_as_args_ignoring_default],
+    )
+
+
+def test_Model_caching(mocker):
     mock_model_cached = mocker.MagicMock(PyFuncModel)
     mock_model_redownload = mocker.MagicMock(PyFuncModel)
     mocker.patch(
