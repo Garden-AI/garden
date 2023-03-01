@@ -1,10 +1,9 @@
 from functools import lru_cache
-
-from mlflow.pyfunc import PyFuncModel, load_model
+import mlflow.pyfunc  # type: ignore
 
 
 @lru_cache
-def Model(model_uri: str) -> PyFuncModel:
+def Model(model_uri: str) -> mlflow.pyfunc.PyFuncModel:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
     Tip: for large models, using this as a "default argument" in a ``@step``-decorated
@@ -37,4 +36,6 @@ def Model(model_uri: str) -> PyFuncModel:
     this might implement smarter caching behavior, but for now the preferred usage is
     to use this function as a default value for some keyword argument.
     """
-    return load_model(model_uri=model_uri, suppress_warnings=False, dst_path=None)
+    return mlflow.pyfunc.load_model(
+        model_uri=model_uri, suppress_warnings=False, dst_path=None
+    )
