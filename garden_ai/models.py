@@ -1,9 +1,9 @@
-from functools import cache
+from functools import lru_cache
 
 from mlflow.pyfunc import PyFuncModel, load_model
 
 
-@cache
+@lru_cache
 def Model(model_uri: str) -> PyFuncModel:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
