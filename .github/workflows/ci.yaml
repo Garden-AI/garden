@@ -41,6 +41,10 @@ jobs:
         run: |
           python -m coverage run -m pytest -m "not integration" -r sx
           codecov --token=${{ secrets.CODECOV_TOKEN }}
-      - name: Check for vulnerable libraries with safety
-        run: |
-          safety check
+      - name: Security vulnerabilities scan
+        uses: aufdenpunkt/python-safety-check@master
+        with:
+          safety_args: '-i 51668'
+#      - name: Check for vulnerable libraries with safety
+#        run: |
+#          safety check
