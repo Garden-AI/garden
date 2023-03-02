@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 from typing import Dict, List, Union, Optional
 from uuid import UUID
-import functools
 
 import requests
 import typer
@@ -26,7 +25,7 @@ from rich.prompt import Prompt
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
 from garden_ai.utils import JSON, extract_email_from_globus_jwt
-from garden_ai.mlmodel import upload_model, ModelUploadException
+from garden_ai.mlmodel import upload_model
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
