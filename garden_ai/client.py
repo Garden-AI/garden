@@ -90,20 +90,25 @@ class GardenClient:
         )
         self.garden_authorizer = self._create_authorizer(GardenClient.scopes.resource_server)
 
-        # set up mlflow env vars
-        self._existing_mlflow_token = os.environ.get('MLFLOW_TRACKING_TOKEN')
-        self._existing_mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI')
-        os.environ['MLFLOW_TRACKING_TOKEN'] = self.garden_authorizer.access_token
-        os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
+        self._set_up_mlflow_env(self.garden_authorizer.access_token)
 
     def __del__(self):
-        if self._existing_mlflow_token:
+        self._tear_down_mlflow_env()
+
+    def _set_up_mlflow_env(self, garden_access_token: str):
+        self._existing_mlflow_token = os.environ.get('MLFLOW_TRACKING_TOKEN')
+        self._existing_mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI')
+        os.environ['MLFLOW_TRACKING_TOKEN'] = garden_access_token
+        os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
+
+    def _tear_down_mlflow_env(self):
+        if hasattr(self, '_existing_mlflow_token') and self._existing_mlflow_token:
             os.environ['MLFLOW_TRACKING_TOKEN'] = self._existing_mlflow_token
-        else:
+        elif os.environ.get('MLFLOW_TRACKING_TOKEN'):
             del os.environ['MLFLOW_TRACKING_TOKEN']
-        if self._existing_mlflow_uri:
+        if hasattr(self, '_existing_mlflow_uri') and self._existing_mlflow_uri:
             os.environ['MLFLOW_TRACKING_URI'] = self._existing_mlflow_uri
-        else:
+        elif os.environ.get('MLFLOW_TRACKING_URI'):
             del os.environ['MLFLOW_TRACKING_URI']
 
     def _do_login_flow(self):

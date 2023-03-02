@@ -162,6 +162,7 @@ def requests_to_curl(response: requests.Response) -> str:
 
 def extract_email_from_globus_jwt(jwt: str) -> str:
     try:
+        # jwts are three base64 encoded segments delimited by periods.
         _, payload_b64, _ = jwt.split(".")
         payload = json.loads(base64.b64decode(payload_b64 + "===").decode("utf-8"))
     except Exception as e:
