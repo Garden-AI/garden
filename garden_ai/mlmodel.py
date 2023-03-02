@@ -1,5 +1,5 @@
 import pickle
-import mlflow
+import mlflow  # type: ignore
 from typing import List
 
 
