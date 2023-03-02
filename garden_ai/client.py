@@ -227,7 +227,7 @@ class GardenClient:
             data["title"] = title
         return Pipeline(**data)
 
-    def log_model(self, model_path: str, model_name: str, extra_pip_requirements: list[str] = None) -> str:
+    def log_model(self, model_path: str, model_name: str, extra_pip_requirements: List[str] = None) -> str:
         email = self._get_user_email()
         full_model_name = upload_model(model_path, model_name, email, extra_pip_requirements=extra_pip_requirements)
         print(full_model_name)
@@ -356,7 +356,11 @@ class GardenClient:
 
     def _get_user_email(self) -> str:
         data = self._read_local_db()
-        return data.get('user_email')
+        maybe_email = data.get('user_email')
+        if maybe_email:
+            return str(maybe_email)
+        else:
+            return 'unknown'
 
     def put_local_garden(self, garden: Garden) -> None:
         """Helper: write a record to 'local database' for a given Garden
