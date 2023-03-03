@@ -1,8 +1,9 @@
 import sys
 from typing import Tuple, Union, Any
+from collections import namedtuple
 
 import pytest
-from garden_ai import Garden, Pipeline, Step, step
+from garden_ai import Garden, Pipeline, Step, step, mlmodel
 from pydantic import ValidationError
 
 
@@ -231,3 +232,23 @@ def test_pipeline_authors_are_garden_contributors(
     assert set(known_contributors) <= set(garden.contributors)
     # 'contributors' at any pipeline level should propagate to garden
     assert set(pipe.contributors) <= set(garden.contributors)
+
+
+def test_upload_model(mocker, tmp_path):
+    model_name = 'test_model'
+    user_email = 'will@test.com'
+    model_dir_path = tmp_path / "models"
+
+    model_dir_path.mkdir(parents=True, exist_ok=True)
+    model_path = model_dir_path / "model.pkl"
+    model_path.write_text('abcd')
+
+    MLFlowVersionResponse = namedtuple('MLFlowVersionResponse', 'version')
+    versions_response = [MLFlowVersionResponse('1'), MLFlowVersionResponse('0')]
+
+    mocker.patch('pickle.load').return_value = 'a deserialized model'
+    mocker.patch('mlflow.sklearn.log_model')
+    mocker.patch('mlflow.tracking.MlflowClient.get_latest_versions').return_value = versions_response
+
+    full_model_name = 'will@test.com-test_model/1'
+    assert mlmodel.upload_model(str(model_path), model_name, user_email) == full_model_name

@@ -24,10 +24,15 @@ from rich.prompt import Prompt
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils import JSON
+from garden_ai.utils import JSON, extract_email_from_globus_jwt
+from garden_ai.mlmodel import upload_model
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
+GARDEN_ENDPOINT = os.environ.get(
+    "GARDEN_ENDPOINT",
+    "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
+)
 
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
@@ -60,9 +65,7 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-        self,
-        auth_client: Optional[AuthClient] = None,
-        search_client: Optional[SearchClient] = None,
+            self, auth_client: AuthClient = None, search_client: SearchClient = None
     ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
@@ -77,18 +80,26 @@ class GardenClient:
             NativeAppAuthClient(self.client_id) if not auth_client else auth_client
         )
 
-        self.authorizer = self._authenticate()
-        self.searchauthorizer = self._create_search_authorizer()
+        self.groups_authorizer = self._create_authorizer(GroupsClient.scopes.resource_server)
+        self.search_authorizer = self._create_authorizer(SearchClient.scopes.resource_server)
         self.search_client = (
-            SearchClient(authorizer=self.searchauthorizer)
+            SearchClient(authorizer=self.search_authorizer)
             if not search_client
             else search_client
         )
-        self.garden_authorizer = self._create_garden_authorizer()
+        self.garden_authorizer = self._create_authorizer(GardenClient.scopes.resource_server)
+
+        self._set_up_mlflow_env()
+
+    def _set_up_mlflow_env(self):
+        os.environ['MLFLOW_TRACKING_TOKEN'] = self.garden_authorizer.access_token
+        os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
+                AuthClient.scopes.openid,
+                AuthClient.scopes.email,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
                 GardenClient.scopes.action_all,
@@ -112,7 +123,7 @@ class GardenClient:
             logger.fatal("Invalid Globus auth token received. Exiting")
             return None
 
-    def _create_search_authorizer(self):
+    def _create_authorizer(self, resource_server: str):
         if not self.auth_key_store.file_exists():
             # do a login flow, getting back initial tokens
             response = self._do_login_flow()
@@ -122,63 +133,13 @@ class GardenClient:
 
             # now store the tokens and pull out the Groups tokens
             self.auth_key_store.store(response)
-            tokens = response.by_resource_server[SearchClient.resource_server]
+            tokens = response.by_resource_server[resource_server]
+
+            email = extract_email_from_globus_jwt(response.data['id_token'])
+            self._store_user_email(email)
         else:
             # otherwise, we already did login; load the tokens from that file
-            tokens = self.auth_key_store.get_token_data(SearchClient.resource_server)
-        # construct the RefreshTokenAuthorizer which writes back to storage on refresh
-        authorizer = RefreshTokenAuthorizer(
-            tokens["refresh_token"],
-            self.auth_client,
-            access_token=tokens["access_token"],
-            expires_at=tokens["expires_at_seconds"],
-            on_refresh=self.auth_key_store.on_refresh,
-        )
-        return authorizer
-
-    def _create_garden_authorizer(self):
-        if not self.auth_key_store.file_exists():
-            # do a login flow, getting back initial tokens
-            response = self._do_login_flow()
-
-            if not response:
-                raise AuthException
-
-            # now store the tokens and pull out the Groups tokens
-            self.auth_key_store.store(response)
-
-            tokens = response.by_resource_server[GardenClient.scopes.resource_server]
-        else:
-            # otherwise, we already did login; load the tokens from that file
-            tokens = self.auth_key_store.get_token_data(
-                GardenClient.scopes.resource_server
-            )
-
-        # construct the RefreshTokenAuthorizer which writes back to storage on refresh
-        authorizer = RefreshTokenAuthorizer(
-            tokens["refresh_token"],
-            self.auth_client,
-            access_token=tokens["access_token"],
-            expires_at=tokens["expires_at_seconds"],
-            on_refresh=self.auth_key_store.on_refresh,
-        )
-        return authorizer
-
-    def _authenticate(self):
-        if not self.auth_key_store.file_exists():
-            # do a login flow, getting back initial tokens
-            response = self._do_login_flow()
-
-            if not response:
-                raise AuthException
-
-            # now store the tokens and pull out the Groups tokens
-            self.auth_key_store.store(response)
-            tokens = response.by_resource_server[GroupsClient.resource_server]  # type: ignore
-        else:
-            # otherwise, we already did login; load the tokens from that file
-            tokens = self.auth_key_store.get_token_data(GroupsClient.resource_server)  # type: ignore
-
+            tokens = self.auth_key_store.get_token_data(resource_server)
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         authorizer = RefreshTokenAuthorizer(
             tokens["refresh_token"],
@@ -251,6 +212,11 @@ class GardenClient:
             data["title"] = title
         return Pipeline(**data)
 
+    def log_model(self, model_path: str, model_name: str, extra_pip_requirements: List[str] = None) -> str:
+        email = self._get_user_email()
+        full_model_name = upload_model(model_path, model_name, email, extra_pip_requirements=extra_pip_requirements)
+        return full_model_name
+
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
     ) -> str:
@@ -285,17 +251,7 @@ class GardenClient:
             return obj.doi
 
         logger.info("Requesting DOI")
-        endpoint = os.environ.get(
-            "GARDEN_ENDPOINT",
-            "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
-        )
-        try:
-            url = f"{endpoint}/doi"
-        except KeyError:
-            logger.error(
-                "Expected environment variable GARDEN_ENDPOINT to be set. No DOI has been generated."
-            )
-            raise
+        url = f"{GARDEN_ENDPOINT}/doi"
 
         header = {
             "Content-Type": "application/vnd.api+json",
@@ -376,6 +332,16 @@ class GardenClient:
         with open(LOCAL_STORAGE / "data.json", "w+") as f:
             f.write(contents)
         return
+
+    def _store_user_email(self, email: str) -> None:
+        data = self._read_local_db()
+        data['user_email'] = email
+        self._write_local_db(data)
+
+    def _get_user_email(self) -> str:
+        data = self._read_local_db()
+        maybe_email = data.get('user_email')
+        return str(maybe_email) if maybe_email else 'unknown'
 
     def put_local_garden(self, garden: Garden) -> None:
         """Helper: write a record to 'local database' for a given Garden

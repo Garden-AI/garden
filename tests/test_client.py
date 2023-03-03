@@ -4,7 +4,7 @@ from garden_ai.client import AuthException
 from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse, SearchClient
 
 
-def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_keystore):
+def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_keystore, identity_jwt):
     mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
     # Mocks for KeyStore
     mock_keystore.file_exists.return_value = False
@@ -26,6 +26,7 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
         "search.api.globus.org": token,
         "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
     }
+    mock_token_response.data = {'id_token': identity_jwt}
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
         return_value=mock_token_response
     )
@@ -39,6 +40,8 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
     mock_auth_client.oauth2_start_flow.assert_called_with(
         refresh_tokens=True,
         requested_scopes=[
+            "openid",
+            "email",
             "urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships",
             "urn:globus:auth:scope:search.api.globus.org:ingest",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all",
@@ -54,7 +57,7 @@ def test_client_no_previous_tokens(mocker, mock_authorizer_tuple, token, mock_ke
         on_refresh=mock_keystore.on_refresh,
     )
 
-    assert gc.authorizer == mock_authorizer
+    assert gc.groups_authorizer == mock_authorizer
 
 
 def test_client_previous_tokens_stored(
@@ -80,10 +83,10 @@ def test_client_previous_tokens_stored(
         on_refresh=mock_keystore.on_refresh,
     )
 
-    assert gc.authorizer == mock_authorizer
+    assert gc.groups_authorizer == mock_authorizer
 
 
-def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_keystore):
+def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_keystore, identity_jwt):
     mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
     # Mocks for KeyStore
     mock_keystore.file_exists.return_value = False
@@ -98,6 +101,7 @@ def test_client_invalid_auth_token(mocker, mock_authorizer_tuple, token, mock_ke
     mocker.patch("garden_ai.client.typer.launch")
 
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
+    mock_token_response.data = {'id_token': identity_jwt}
     mock_token_response.by_resource_server = {"groups.api.globus.org": token}
     mock_token_response.status_code = "X"
     mock_token_response.request = mocker.Mock()
