@@ -65,7 +65,7 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-            self, auth_client: AuthClient = None, search_client: SearchClient = None
+        self, auth_client: AuthClient = None, search_client: SearchClient = None
     ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
@@ -80,20 +80,26 @@ class GardenClient:
             NativeAppAuthClient(self.client_id) if not auth_client else auth_client
         )
 
-        self.groups_authorizer = self._create_authorizer(GroupsClient.scopes.resource_server)
-        self.search_authorizer = self._create_authorizer(SearchClient.scopes.resource_server)
+        self.groups_authorizer = self._create_authorizer(
+            GroupsClient.scopes.resource_server
+        )
+        self.search_authorizer = self._create_authorizer(
+            SearchClient.scopes.resource_server
+        )
         self.search_client = (
             SearchClient(authorizer=self.search_authorizer)
             if not search_client
             else search_client
         )
-        self.garden_authorizer = self._create_authorizer(GardenClient.scopes.resource_server)
+        self.garden_authorizer = self._create_authorizer(
+            GardenClient.scopes.resource_server
+        )
 
         self._set_up_mlflow_env()
 
     def _set_up_mlflow_env(self):
-        os.environ['MLFLOW_TRACKING_TOKEN'] = self.garden_authorizer.access_token
-        os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
+        os.environ["MLFLOW_TRACKING_TOKEN"] = self.garden_authorizer.access_token
+        os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -135,7 +141,7 @@ class GardenClient:
             self.auth_key_store.store(response)
             tokens = response.by_resource_server[resource_server]
 
-            email = extract_email_from_globus_jwt(response.data['id_token'])
+            email = extract_email_from_globus_jwt(response.data["id_token"])
             self._store_user_email(email)
         else:
             # otherwise, we already did login; load the tokens from that file
@@ -212,9 +218,13 @@ class GardenClient:
             data["title"] = title
         return Pipeline(**data)
 
-    def log_model(self, model_path: str, model_name: str, extra_pip_requirements: List[str] = None) -> str:
+    def log_model(
+        self, model_path: str, model_name: str, extra_pip_requirements: List[str] = None
+    ) -> str:
         email = self._get_user_email()
-        full_model_name = upload_model(model_path, model_name, email, extra_pip_requirements=extra_pip_requirements)
+        full_model_name = upload_model(
+            model_path, model_name, email, extra_pip_requirements=extra_pip_requirements
+        )
         return full_model_name
 
     def _mint_doi(
@@ -335,13 +345,13 @@ class GardenClient:
 
     def _store_user_email(self, email: str) -> None:
         data = self._read_local_db()
-        data['user_email'] = email
+        data["user_email"] = email
         self._write_local_db(data)
 
     def _get_user_email(self) -> str:
         data = self._read_local_db()
-        maybe_email = data.get('user_email')
-        return str(maybe_email) if maybe_email else 'unknown'
+        maybe_email = data.get("user_email")
+        return str(maybe_email) if maybe_email else "unknown"
 
     def put_local_garden(self, garden: Garden) -> None:
         """Helper: write a record to 'local database' for a given Garden
