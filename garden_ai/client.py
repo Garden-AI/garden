@@ -89,26 +89,11 @@ class GardenClient:
         )
         self.garden_authorizer = self._create_authorizer(GardenClient.scopes.resource_server)
 
-        self._set_up_mlflow_env(self.garden_authorizer.access_token)
+        self._set_up_mlflow_env()
 
-    def __del__(self):
-        self._tear_down_mlflow_env()
-
-    def _set_up_mlflow_env(self, garden_access_token: str):
-        self._existing_mlflow_token = os.environ.get('MLFLOW_TRACKING_TOKEN')
-        self._existing_mlflow_uri = os.environ.get('MLFLOW_TRACKING_URI')
-        os.environ['MLFLOW_TRACKING_TOKEN'] = garden_access_token
+    def _set_up_mlflow_env(self):
+        os.environ['MLFLOW_TRACKING_TOKEN'] = self.garden_authorizer.access_token
         os.environ['MLFLOW_TRACKING_URI'] = GARDEN_ENDPOINT + '/mlflow'
-
-    def _tear_down_mlflow_env(self):
-        if hasattr(self, '_existing_mlflow_token') and self._existing_mlflow_token:
-            os.environ['MLFLOW_TRACKING_TOKEN'] = self._existing_mlflow_token
-        elif os.environ.get('MLFLOW_TRACKING_TOKEN'):
-            del os.environ['MLFLOW_TRACKING_TOKEN']
-        if hasattr(self, '_existing_mlflow_uri') and self._existing_mlflow_uri:
-            os.environ['MLFLOW_TRACKING_URI'] = self._existing_mlflow_uri
-        elif os.environ.get('MLFLOW_TRACKING_URI'):
-            del os.environ['MLFLOW_TRACKING_URI']
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -230,7 +215,6 @@ class GardenClient:
     def log_model(self, model_path: str, model_name: str, extra_pip_requirements: List[str] = None) -> str:
         email = self._get_user_email()
         full_model_name = upload_model(model_path, model_name, email, extra_pip_requirements=extra_pip_requirements)
-        print(full_model_name)
         return full_model_name
 
     def _mint_doi(
@@ -357,10 +341,7 @@ class GardenClient:
     def _get_user_email(self) -> str:
         data = self._read_local_db()
         maybe_email = data.get('user_email')
-        if maybe_email:
-            return str(maybe_email)
-        else:
-            return 'unknown'
+        return str(maybe_email) if maybe_email else 'unknown'
 
     def put_local_garden(self, garden: Garden) -> None:
         """Helper: write a record to 'local database' for a given Garden
