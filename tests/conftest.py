@@ -67,7 +67,7 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     mock_search_client = mocker.MagicMock(SearchClient)
 
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
-    mock_token_response.data = {'id_token': identity_jwt}
+    mock_token_response.data = {"id_token": identity_jwt}
     mock_token_response.by_resource_server = {
         "groups.api.globus.org": token,
         "search.api.globus.org": token,
