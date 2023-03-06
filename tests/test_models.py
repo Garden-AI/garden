@@ -1,4 +1,5 @@
 import sys
+import os
 from typing import Tuple, Union, Any
 from collections import namedtuple
 
@@ -242,6 +243,9 @@ def test_upload_model(mocker, tmp_path):
     model_dir_path.mkdir(parents=True, exist_ok=True)
     model_path = model_dir_path / "model.pkl"
     model_path.write_text("abcd")
+
+    # Prevents ML Flow from creating directory in /tests
+    os.environ["MLFLOW_TRACKING_URI"] = str(tmp_path)
 
     MLFlowVersionResponse = namedtuple("MLFlowVersionResponse", "version")
     versions_response = [MLFlowVersionResponse("1"), MLFlowVersionResponse("0")]
