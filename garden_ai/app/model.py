@@ -10,7 +10,7 @@ model_app = typer.Typer(name="model", no_args_is_help=True)
 
 
 @model_app.callback()
-def pipeline():
+def model():
     """
     sub-commands for managing machine learning models
     """
@@ -20,11 +20,11 @@ def pipeline():
 @model_app.command(no_args_is_help=True)
 def register(
     name: str = typer.Argument(
-        None,
+        ...,
         help=("The name of your model"),
     ),
     model_path: Path = typer.Argument(
-        None,
+        ...,
         dir_okay=False,
         file_okay=True,
         writable=True,
@@ -41,6 +41,8 @@ def register(
     ),
     extra_pip_requirements: Optional[List[str]] = typer.Option(
         None,
+        "--extra-pip-requirements",
+        "-r",
         help=(
             "Additonal package requirmeents. Add multiple like "
             '--extra_pip_requirements "torch=1.3.1" --extra_pip_requirements "pandas<=1.5.0"'
