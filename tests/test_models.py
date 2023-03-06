@@ -1,10 +1,12 @@
 import sys
-from typing import Tuple, Union, Any
 from collections import namedtuple
+from typing import Any, List, Tuple, Union
 
 import pytest
-from garden_ai import Garden, Pipeline, Step, step, mlmodel
+from mlflow.pyfunc import PyFuncModel  # type: ignore
 from pydantic import ValidationError
+
+from garden_ai import Garden, Model, Pipeline, Step, mlmodel, step
 
 
 def test_create_empty_garden(garden_client):
@@ -255,4 +257,76 @@ def test_upload_model(mocker, tmp_path):
     full_model_name = "will@test.com-test_model/1"
     assert (
         mlmodel.upload_model(str(model_path), model_name, user_email) == full_model_name
+    )
+
+
+def test_step_compose_ignores_defaults():
+    # check that pipelines can correctly compose tricky
+    # functions which may or may not expect a plain tuple
+    # to be treated as *args
+    @step
+    def returns_tuple(a: int, b: str) -> Tuple[int, str]:
+        pass
+
+    @step
+    def wants_tuple_ignoring_default(arg1: Tuple[int, str], x: List = []) -> float:
+        pass
+
+    @step
+    def wants_tuple_as_args_ignoring_default(
+        arg1: int, arg2: str, x: List = []
+    ) -> float:
+        pass
+
+    good = Pipeline(  # noqa: F841
+        authors=["mendel"],
+        title="composes tuple-as-tuple w/ default",
+        steps=[returns_tuple, wants_tuple_ignoring_default],
+    )
+
+    ugly = Pipeline(  # noqa: F841
+        authors=["mendel"],
+        title="composes tuple-as-*args w/ default",
+        steps=[returns_tuple, wants_tuple_as_args_ignoring_default],
+    )
+
+
+def test_model_download_caching(mocker):
+    mock_model_cached = mocker.MagicMock(PyFuncModel)
+    mock_model_redownload = mocker.MagicMock(PyFuncModel)
+    mocker.patch(
+        "garden_ai.mlmodel.load_model",
+        side_effect=[mock_model_cached, mock_model_redownload],
+    )
+    # patches mlflow function; anywhere our code uses a model
+    # it should see the exact same model, never the second one
+    model_full_name = "email@addr.ess-fake-model/fake-version"
+
+    @step
+    def uses_model_in_body(arg: object) -> object:
+        """"""
+        fn_body_model = Model(model_full_name)  # this is cached from declaration below
+        assert fn_body_model is mock_model_cached
+        # mock_download.assert_called_once()
+        return fn_body_model
+
+    @step
+    def uses_model_in_default(
+        arg: object,
+        default_arg_model: object = Model(
+            model_full_name
+        ),  # ^ this should be only actual call to mock_download
+    ) -> object:
+        assert default_arg_model is mock_model_cached is arg
+        # mock_download.assert_called_once()
+        return arg
+
+    returns_its_model_pipeline = Pipeline(
+        title="title",
+        authors=["me"],
+        steps=[uses_model_in_body, uses_model_in_default],
+    )
+
+    assert (
+        returns_its_model_pipeline(0) is mock_model_cached is not mock_model_redownload
     )
