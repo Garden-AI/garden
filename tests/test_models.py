@@ -291,7 +291,7 @@ def test_step_compose_ignores_defaults():
     )
 
 
-def test_Model_caching(mocker):
+def test_model_download_caching(mocker):
     mock_model_cached = mocker.MagicMock(PyFuncModel)
     mock_model_redownload = mocker.MagicMock(PyFuncModel)
     mocker.patch(
