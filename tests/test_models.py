@@ -300,12 +300,12 @@ def test_model_download_caching(mocker):
     )
     # patches mlflow function; anywhere our code uses a model
     # it should see the exact same model, never the second one
-    uri = "models:/fake-model/fake-version"
+    model_full_name = "email@addr.ess-fake-model/fake-version"
 
     @step
     def uses_model_in_body(arg: object) -> object:
         """"""
-        fn_body_model = Model(uri)  # this is cached from declaration below
+        fn_body_model = Model(model_full_name)  # this is cached from declaration below
         assert fn_body_model is mock_model_cached
         # mock_download.assert_called_once()
         return fn_body_model
@@ -314,7 +314,7 @@ def test_model_download_caching(mocker):
     def uses_model_in_default(
         arg: object,
         default_arg_model: object = Model(
-            uri
+            model_full_name
         ),  # ^ this should be only actual call to mock_download
     ) -> object:
         assert default_arg_model is mock_model_cached is arg
