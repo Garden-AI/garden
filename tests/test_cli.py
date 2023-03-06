@@ -1,5 +1,4 @@
 import pytest
-import sys
 from garden_ai.app.main import app
 from garden_ai.client import GardenClient
 from typer.testing import CliRunner
@@ -12,9 +11,6 @@ runner = CliRunner()
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(
-    sys.version_info < (3, 8), reason="mocked call_args.kwargs breaks pre-3.8"
-)
 def test_garden_create(garden_all_fields, tmp_path, mocker):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
@@ -44,9 +40,6 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     mock_client.put_local_garden.assert_called_once()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 8), reason="mocked call_args.kwargs breaks pre-3.8"
-)
 def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.pipeline.GardenClient").return_value = mock_client
@@ -73,6 +66,30 @@ def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
     del kwargs["steps"]  # different steps on purpose -- can't get a function from cli
     for key in kwargs:
         assert kwargs[key] == getattr(pipeline_toy_example, key)
+
+
+@pytest.mark.cli
+def test_model_upload(mocker):
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.model.GardenClient").return_value = mock_client
+    command = [
+        "model",
+        "register",
+        "unit-test-model",
+        "/Users/will/fake-file.pkl",
+        "sklearn",
+        "--extra-pip-requirements",
+        "torch==1.13.1",
+        "--extra-pip-requirements",
+        "pandas<=1.5.0",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    args = mock_client.log_model.call_args.args
+    assert args[0] == "/Users/will/fake-file.pkl"
+    assert args[1] == "unit-test-model"
+    assert args[2] == ["torch==1.13.1", "pandas<=1.5.0"]
 
 
 def test_clean_identifier():
