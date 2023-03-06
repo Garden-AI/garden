@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import typing
-from functools import update_wrapper
+from functools import update_wrapper, wraps
 from inspect import Parameter, Signature, signature
 from typing import Callable, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -10,6 +10,8 @@ from uuid import UUID, uuid4
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
+
+from garden_ai.mlmodel import Model
 
 logger = logging.getLogger()
 
@@ -147,7 +149,8 @@ class Step:
         sig = signature(f)
         # check that any positional arguments have annotations
         for p in sig.parameters.values():
-            if p.annotation is Parameter.empty:
+            if p.annotation is Parameter.empty is p.default:
+                # fine to skip annotation if there's a default we can use to infer type
                 raise TypeError(
                     f"Parameter {p} is missing an annotation in {f.__name__}'s definition. "
                     "Please double check that the argument list is fully annotated.\n"
@@ -209,10 +212,30 @@ def step(func: Callable = None, **kwargs):
         return wrapper
 
 
-def inference_step(model_id: str = "", **kwargs):
-    """(NOT IMPLEMENTED) Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s."""
+def inference_step(model_uri: str, **kwargs):
+    """Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s.
+
+    Example:
+    --------
+    ```python
+    @inference_step(model_uri="models:/my-model/my-version")
+    def my_step(data: pd.DataFrame) -> MyResultType:
+        pass  # NOTE: leave the function body empty
+
+    ## equivalent to:
+
+    def my_step(data: MyDataType) -> MyResultType:
+        model = garden_ai.Model("models:/my-model/my-version")
+        return model.predict(data)
+    ```
+    """
 
     def wrapper(f: Callable):
-        raise NotImplementedError
+        @wraps(f)  # make sure we aren't losing signature info
+        def boilerplate(*args, **_kwargs):
+            model = Model(model_uri)
+            return model.predict(*args)
+
+        return step(boilerplate)
 
     return wrapper

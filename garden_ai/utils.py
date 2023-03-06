@@ -1,6 +1,6 @@
 import logging
 import sys
-from inspect import Signature, signature
+from inspect import Signature, signature, Parameter
 from itertools import zip_longest
 import json
 import base64
@@ -25,6 +25,8 @@ issubtype = beartype.door.is_subhint
 # for contrast: unsafe_compose = lambda f,g: lambda *args,**kwargs: f(g(*args, **kwargs))
 def safe_compose(f, g):
     """Helper: compose function `f` with function `g`, provided their annotations indicate compatibility.
+
+    Arguments with defaults are ignored.
 
     This is smart enough to figure out whether `g`'s result is meant as an
     `*args` tuple for `f`, or if it's meant as a plain return value (which might
@@ -59,7 +61,9 @@ def safe_compose(f, g):
     f_sig: Signature = signature(f)
     g_sig: Signature = signature(g)
 
-    f_in = tuple(p.annotation for p in f_sig.parameters.values())
+    f_in = tuple(
+        p.annotation for p in f_sig.parameters.values() if p.default is Parameter.empty
+    )
     g_out = g_sig.return_annotation
 
     if get_origin(g_out) is tuple and len(f_in) > 1:
