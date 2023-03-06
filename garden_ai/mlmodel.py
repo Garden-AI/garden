@@ -17,7 +17,7 @@ def upload_model(
     model_name: str,
     user_email: str,
     extra_pip_requirements: List[str] = None,
-):
+) -> str:
     full_model_name = f"{user_email}-{model_name}"
     try:
         with open(model_path, "rb") as f:

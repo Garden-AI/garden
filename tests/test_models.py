@@ -4,7 +4,7 @@ from typing import Any, List, Tuple, Union
 
 import pytest
 from garden_ai import Garden, Pipeline, Step, mlmodel, step
-from garden_ai.models import Model
+from garden_ai import Model
 from mlflow.pyfunc import PyFuncModel
 from pydantic import ValidationError
 
@@ -295,7 +295,7 @@ def test_model_download_caching(mocker):
     mock_model_cached = mocker.MagicMock(PyFuncModel)
     mock_model_redownload = mocker.MagicMock(PyFuncModel)
     mocker.patch(
-        "garden_ai.models.load_model",
+        "garden_ai.mlmodel.load_model",
         side_effect=[mock_model_cached, mock_model_redownload],
     )
     # patches mlflow function; anywhere our code uses a model

@@ -11,7 +11,7 @@ from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
-from garden_ai.models import Model
+from garden_ai.mlmodel import Model
 
 logger = logging.getLogger()
 
