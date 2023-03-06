@@ -3,10 +3,10 @@ from collections import namedtuple
 from typing import Any, List, Tuple, Union
 
 import pytest
-from garden_ai import Garden, Pipeline, Step, mlmodel, step
-from garden_ai import Model
-from mlflow.pyfunc import PyFuncModel
+from mlflow.pyfunc import PyFuncModel  # type: ignore
 from pydantic import ValidationError
+
+from garden_ai import Garden, Model, Pipeline, Step, mlmodel, step
 
 
 def test_create_empty_garden(garden_client):

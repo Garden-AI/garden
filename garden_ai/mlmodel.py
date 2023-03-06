@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import List
 
 import mlflow  # type: ignore
-from mlflow.pyfunc import load_model
+from mlflow.pyfunc import load_model  # type: ignore
 
 
 class ModelUploadException(Exception):
