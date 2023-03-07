@@ -10,8 +10,8 @@ assignees: ''
 _Short description_
 
 # Assumptions:
-1. 
-2. 
+1.
+2.
 
 # Acceptance Criteria
 Given..., when..., then...
