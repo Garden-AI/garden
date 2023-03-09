@@ -12,8 +12,8 @@ def do_not_set_mlflow_env_variables():
 @pytest.fixture
 def toy_sklearn_model():
     # import sklearn
-    from sklearn import tree
-    from sklearn.datasets import load_wine
+    from sklearn import tree  # type: ignore
+    from sklearn.datasets import load_wine  # type: ignore
 
     wine = load_wine()
     sk_model = tree.DecisionTreeClassifier().fit(wine.data, wine.target)
