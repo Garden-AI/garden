@@ -27,6 +27,11 @@ from garden_ai.pipelines import Pipeline
 from garden_ai.utils import JSON, extract_email_from_globus_jwt
 from garden_ai.mlmodel import upload_model
 
+from garden_ai.mlflow_bandaid.binary_header_provider import (
+    BinaryContentTypeHeaderProvider,
+)
+from mlflow.tracking.request_header.registry import _request_header_provider_registry  # type: ignore
+
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
 GARDEN_ENDPOINT = os.environ.get(
@@ -100,6 +105,7 @@ class GardenClient:
     def _set_up_mlflow_env(self):
         os.environ["MLFLOW_TRACKING_TOKEN"] = self.garden_authorizer.access_token
         os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
+        _request_header_provider_registry.register(BinaryContentTypeHeaderProvider)
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
