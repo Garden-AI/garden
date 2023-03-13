@@ -45,6 +45,5 @@ jobs:
           python -m coverage run -m pytest -m "not integration" -r sx
           codecov --token=${{ secrets.CODECOV_TOKEN }}
       - name: Check for vulnerable libraries with safety
-        # Context on skipped vulnerability report. (It is very minor) https://github.com/sqlalchemy/sqlalchemy/pull/8563#issuecomment-1381987276
         run: |
-          safety check -i 51668
+          safety check
