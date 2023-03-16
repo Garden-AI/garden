@@ -1,3 +1,4 @@
+import pathlib
 import pickle
 from functools import lru_cache
 from typing import List
@@ -105,4 +106,7 @@ def Model(model_full_name: str) -> mlflow.pyfunc.PyFuncModel:
     to use this function as a default value for some keyword argument.
     """
     model_uri = f"models:/{model_full_name}"
-    return load_model(model_uri=model_uri, suppress_warnings=False, dst_path=None)
+    local_store = pathlib.Path("~/.garden/mlflow").expanduser()
+    local_store.mkdir(parents=True, exist_ok=True)
+    # don't clutter the user's current directory with mystery mlflow directories
+    return load_model(model_uri=model_uri, suppress_warnings=True, dst_path=local_store)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import pathlib
 from datetime import datetime
 from functools import reduce
 from inspect import signature
@@ -53,6 +54,7 @@ class Pipeline:
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
+    requirements_file: pathlib.Path
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
@@ -76,6 +78,13 @@ class Pipeline:
             logger.error(e)
             raise
         return steps
+
+    @validator("requirements_file")
+    def check_exists(cls, req_file):
+        req_file = pathlib.Path(req_file)
+        if not req_file.exists():
+            raise ValueError(f"Could not find {req_file}.")
+        return req_file
 
     def register(self):
         """register this Pipeline's complete Step composition as a funcx function
