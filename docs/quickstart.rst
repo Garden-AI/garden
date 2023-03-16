@@ -16,7 +16,7 @@ If you have it, we recommend installing the CLI with `pipx`_.::
 
 You should then be able to see the following: ::
 
-    $ garden create --help
+    $ garden-ai garden create --help
 
     Usage: garden create [OPTIONS] [DIRECTORY]
 
@@ -73,7 +73,7 @@ which you can paste in your terminal window. This will generate credentials in
 your home directory, so you shouldn't need to repeat this step as the same user
 on the same computer. Here's what that might look like: ::
 
-    $ garden create --title=...  # etc
+    $ garden-ai garden create --title=...  # etc
 
     Authenticating with Globus in your default web browser:
 
