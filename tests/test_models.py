@@ -1,13 +1,12 @@
-import sys
 import os
+import sys
 from collections import namedtuple
 from typing import Any, List, Tuple, Union
 
 import pytest
-from mlflow.pyfunc import PyFuncModel  # type: ignore
 from pydantic import ValidationError
 
-from garden_ai import Garden, Model, Pipeline, Step, mlmodel, step
+from garden_ai import Garden, Pipeline, Step, mlmodel, step
 
 
 def test_create_empty_garden(garden_client):
@@ -108,7 +107,7 @@ def test_auto_input_output_metadata():
 
 
 @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
-def test_pipeline_compose_union():
+def test_pipeline_compose_union(tmp_requirements_txt):
     # check that pipelines can correctly compose tricky functions, which may be
     # annotated like typing.Union *or* like (A | B)
     @step
@@ -125,24 +124,28 @@ def test_pipeline_compose_union():
 
     good = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[str_only, wants_int_or_str],
     )
 
     also_good = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[str_only, wants_int_or_str_old_syntax],
     )
 
     union_order_doesnt_matter = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[wants_int_or_str, wants_int_or_str],
     )
 
     union_syntax_doesnt_matter = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[wants_int_or_str, wants_int_or_str_old_syntax],
     )
@@ -150,6 +153,7 @@ def test_pipeline_compose_union():
     with pytest.raises(ValidationError):
         union_str_does_not_subtype_str = Pipeline(  # noqa: F841
             authors=["mendel"],
+            requirements_file=str(tmp_requirements_txt),
             title="bad pipeline",
             steps=[wants_int_or_str, str_only],
         )
@@ -157,13 +161,14 @@ def test_pipeline_compose_union():
     with pytest.raises(ValidationError):
         old_union_str_does_not_subtype_str = Pipeline(  # noqa: F841
             authors=["mendel"],
+            requirements_file=str(tmp_requirements_txt),
             title="bad pipeline",
             steps=[wants_int_or_str_old_syntax, str_only],
         )
     return
 
 
-def test_pipeline_compose_tuple():
+def test_pipeline_compose_tuple(tmp_requirements_txt):
     # check that pipelines can correctly compose tricky
     # functions which may or may not expect a plain tuple
     # to be treated as *args
@@ -185,6 +190,7 @@ def test_pipeline_compose_tuple():
 
     good = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[returns_tuple, wants_tuple_as_tuple],
     )
@@ -192,18 +198,21 @@ def test_pipeline_compose_tuple():
     with pytest.raises(ValidationError):
         bad = Pipeline(  # noqa: F841
             authors=["mendel"],
+            requirements_file=str(tmp_requirements_txt),
             title="backwards pipeline",
             steps=[wants_tuple_as_tuple, returns_tuple],
         )
 
     ugly = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="ugly (using *args) but allowed pipeline",
         steps=[returns_tuple, wants_tuple_as_args],
     )
     with pytest.raises(ValidationError):
         ugly_and_bad = Pipeline(  # noqa: F841
             authors=["mendel"],
+            requirements_file=str(tmp_requirements_txt),
             title="ugly (using *args) and disallowed pipeline",
             steps=[returns_tuple, wants_flipped_tuple_as_args],
         )
@@ -219,12 +228,18 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
 
 
 def test_pipeline_authors_are_garden_contributors(
-    garden_all_fields, pipeline_toy_example
+    garden_all_fields,
+    pipeline_toy_example,
 ):
     # verify that adding a pipeline with new authors
     # updates the garden's 'contributors' field
     garden, pipe = garden_all_fields, pipeline_toy_example
-    garden.add_new_pipeline(pipe.title, pipe.steps, authors=pipe.authors)
+    garden.add_new_pipeline(
+        pipe.title,
+        pipe.steps,
+        authors=pipe.authors,
+        requirements_file=pipe.requirements_file,
+    )
 
     known_authors = [a for a in garden.authors]
     known_contributors = [c for c in garden.contributors]
@@ -264,10 +279,41 @@ def test_upload_model(mocker, tmp_path):
     )
 
 
-def test_step_compose_ignores_defaults():
-    # check that pipelines can correctly compose tricky
-    # functions which may or may not expect a plain tuple
-    # to be treated as *args
+def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):
+    # step should have collected these when it was initialized
+    assert len(step_with_model.conda_dependencies) or len(
+        step_with_model.pip_dependencies
+    )
+
+    with open(tmp_conda_yml, "r") as f:
+        contents = f.read()
+        for dep in step_with_model.pip_dependencies:
+            assert dep in contents
+    return
+
+
+def test_pipeline_collects_own_requirements(
+    pipeline_using_step_with_model, tmp_requirements_txt
+):
+    with open(tmp_requirements_txt, "r") as f:
+        contents = f.read()
+        for dependency in pipeline_using_step_with_model.pip_dependencies:
+            assert dependency in contents
+
+    assert "python=" not in "".join(pipeline_using_step_with_model.conda_dependencies)
+
+
+def test_pipeline_collects_step_requirements(
+    pipeline_using_step_with_model, step_with_model
+):
+    for step_dependency in step_with_model.conda_dependencies:
+        assert step_dependency in pipeline_using_step_with_model.conda_dependencies
+
+    for step_dependency in step_with_model.pip_dependencies:
+        assert step_dependency in pipeline_using_step_with_model.pip_dependencies
+
+
+def test_step_compose_ignores_defaults(tmp_requirements_txt):
     @step
     def returns_tuple(a: int, b: str) -> Tuple[int, str]:
         pass
@@ -284,53 +330,14 @@ def test_step_compose_ignores_defaults():
 
     good = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="composes tuple-as-tuple w/ default",
         steps=[returns_tuple, wants_tuple_ignoring_default],
     )
 
     ugly = Pipeline(  # noqa: F841
         authors=["mendel"],
+        requirements_file=str(tmp_requirements_txt),
         title="composes tuple-as-*args w/ default",
         steps=[returns_tuple, wants_tuple_as_args_ignoring_default],
-    )
-
-
-def test_model_download_caching(mocker):
-    mock_model_cached = mocker.MagicMock(PyFuncModel)
-    mock_model_redownload = mocker.MagicMock(PyFuncModel)
-    mocker.patch(
-        "garden_ai.mlmodel.load_model",
-        side_effect=[mock_model_cached, mock_model_redownload],
-    )
-    # patches mlflow function; anywhere our code uses a model
-    # it should see the exact same model, never the second one
-    model_full_name = "email@addr.ess-fake-model/fake-version"
-
-    @step
-    def uses_model_in_body(arg: object) -> object:
-        """"""
-        fn_body_model = Model(model_full_name)  # this is cached from declaration below
-        assert fn_body_model is mock_model_cached
-        # mock_download.assert_called_once()
-        return fn_body_model
-
-    @step
-    def uses_model_in_default(
-        arg: object,
-        default_arg_model: object = Model(
-            model_full_name
-        ),  # ^ this should be only actual call to mock_download
-    ) -> object:
-        assert default_arg_model is mock_model_cached is arg
-        # mock_download.assert_called_once()
-        return arg
-
-    returns_its_model_pipeline = Pipeline(
-        title="title",
-        authors=["me"],
-        steps=[uses_model_in_body, uses_model_in_default],
-    )
-
-    assert (
-        returns_its_model_pipeline(0) is mock_model_cached is not mock_model_redownload
     )

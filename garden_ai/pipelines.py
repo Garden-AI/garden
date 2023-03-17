@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
+import sys
 from datetime import datetime
 from functools import reduce
 from inspect import signature
 from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID, uuid4
 
+import dparse  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
@@ -21,7 +23,7 @@ from garden_ai.datacite import (
     Types,
 )
 from garden_ai.steps import DataclassConfig, Step
-from garden_ai.utils import safe_compose, garden_json_encoder
+from garden_ai.utils import garden_json_encoder, read_conda_deps, safe_compose
 
 logger = logging.getLogger()
 
@@ -29,7 +31,7 @@ logger = logging.getLogger()
 @dataclass(config=DataclassConfig)
 class Pipeline:
     """
-    The `Pipeline` class represents a sequence of steps
+    The ``Pipeline`` class represents a sequence of steps
     that form a pipeline. It has a list of authors, a title,
     and a list of steps. The __call__ method can be used
     to execute the pipeline by calling each Step in order
@@ -54,7 +56,10 @@ class Pipeline:
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    requirements_file: pathlib.Path
+    requirements_file: str = "./requirements.txt"
+    python_version: Optional[str] = Field(None)
+    pip_dependencies: List[str] = Field(default_factory=list)
+    conda_dependencies: List[str] = Field(default_factory=list)
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
@@ -83,8 +88,65 @@ class Pipeline:
     def check_exists(cls, req_file):
         req_file = pathlib.Path(req_file)
         if not req_file.exists():
-            raise ValueError(f"Could not find {req_file}.")
+            raise ValueError(f"Could not find {req_file}. Please make sure it exists.")
+        return str(req_file)
+
+    @validator("requirements_file")
+    def check_extension(cls, req_file):
+        if not req_file.endswith((".txt", ".yml", ".yaml")):
+            raise ValueError(
+                "Did not recognize requirements file extension. Try"
+                "again with a standard requirements.txt or conda"
+                "environment.yml/yaml."
+            )
         return req_file
+
+    def _collect_requirements(self):
+        """collect requirements to pass to funcx container service.
+
+        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies``
+        """
+
+        # mapping of python-version-witness: python-version (for warning msg)
+        py_versions = {
+            "system": ".".join(map(str, sys.version_info[:3])),
+            "pipeline": self.python_version,
+        }
+        if self.requirements_file.endswith((".yml", ".yaml")):
+            py_version, conda_deps, pip_deps = read_conda_deps(self.requirements_file)
+            if py_version:
+                py_versions["pipeline"] = py_version
+            self.conda_dependencies += conda_deps
+            self.pip_dependencies += pip_deps
+
+        elif self.requirements_file.endswith(".txt"):
+            with open(self.requirements_file, "r") as f:
+                contents = f.read()
+                parsed = dparse.parse(
+                    contents, path=self.requirements_file, resolve=True
+                ).serialize()
+                deps = [d["line"] for d in parsed["dependencies"]]
+                deps.extend(d["line"] for d in parsed["resolved_dependencies"])
+                self.pip_dependencies += deps
+
+        for step in self.steps:
+            self.conda_dependencies += step.conda_dependencies
+            self.pip_dependencies += step.pip_dependencies
+            py_versions[step.__name__] = step.python_version
+
+        self.python_version = py_versions["pipeline"] or py_versions["system"]
+        self.conda_dependencies = list(set(self.conda_dependencies))
+        self.pip_dependencies = list(set(self.pip_dependencies))
+
+        if len(set(py_versions[k] for k in py_versions if py_versions[k])) > 1:
+            logger.warning(
+                "Found multiple python versions specified across this"
+                f"pipeline's dependencies: {py_versions}. {self.python_version} "
+                "will be used by default. This version can be set explicitly via "
+                "the `python_version` keyword argument in the `Pipeline` "
+                "constructor."
+            )
+        return
 
     def register(self):
         """register this Pipeline's complete Step composition as a funcx function
@@ -96,16 +158,16 @@ class Pipeline:
         return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):
-        """Build a single composite function from this pipeline's steps.
+        """Finish initializing the pipeline after validators have run.
 
-        I think it seems reasonable for the default to compose each Step
-        together like this so that the entire pipeline can be run as the same
-        funcx function, but we might want to think about how/why we might let
-        users opt out of this behavior in certain cases.
+        - Build a single composite function from this pipeline's steps
+        - Update metadata like signature, authors w/r/t underlying steps
+        - Infer conda and pip dependencies from steps and requirements file
         """
         self._composed_steps = reduce(safe_compose, reversed(self.steps))
         self.__signature__ = signature(self._composed_steps)
         self._sync_author_metadata()
+        self._collect_requirements()
         return
 
     def _sync_author_metadata(self):

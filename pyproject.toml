@@ -22,6 +22,7 @@ mlflow = "2.2.1"
 numba = "^0.56"
 boto3 = "^1.26.77"
 dparse = {extras = ["conda"], version = "^0.6.2"}
+pyyaml = "^6.0"
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
@@ -38,6 +39,7 @@ flake8 = "^5.0.4"
 mypy = "^0.981"
 types-requests = "^2.20.0"
 safety = "^2.3.1"
+types-pyyaml = "^6.0.12.8"
 
 
 [tool.poetry.group.develop.dependencies]

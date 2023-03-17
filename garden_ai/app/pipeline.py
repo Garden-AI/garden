@@ -201,8 +201,7 @@ def create(
         with open(out_file, "w") as f:
             f.write(contents)
         with open(out_dir / "requirements.txt", "w") as f:
-            lines = ["## Please specify all pipeline dependencies here"]
-            f.write(lines)
+            f.write("## Please specify all pipeline dependencies here\n")
 
         print(f"Generated pipeline scaffolding in {out_dir}.")
 

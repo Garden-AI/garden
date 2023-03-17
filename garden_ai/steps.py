@@ -7,11 +7,11 @@ from inspect import Parameter, Signature, signature
 from typing import Callable, Dict, List, Optional
 from uuid import UUID, uuid4
 
-import dparse
-from mlflow.pyfunc import PyFuncModel, get_model_dependencies
+from mlflow.pyfunc import PyFuncModel, get_model_dependencies  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
+from garden_ai.utils import read_conda_deps
 
 from garden_ai.mlmodel import Model
 
@@ -22,7 +22,6 @@ class DataclassConfig:
     # pydantic dataclasses read their config via decorator argument, not as
     # nested class (like BaseModels do)
     validate_assignment = True
-    underscore_attrs_are_private = True
 
 
 @dataclass(config=DataclassConfig)
@@ -124,7 +123,9 @@ class Step:
     input_info: Optional[str] = Field(None)
     output_info: Optional[str] = Field(None)
     uuid: UUID = Field(default_factory=uuid4)
-    _model_dependencies: Field(default_factory=list)
+    conda_dependencies: List[str] = Field(default_factory=list)
+    pip_dependencies: List[str] = Field(default_factory=list)
+    python_version: Optional[str] = Field(None)
 
     def __post_init_post_parse__(self):
         # like __post_init__, but called after pydantic validation
@@ -150,24 +151,32 @@ class Step:
 
     def _infer_model_deps(self):
         """
-        If this step's function has Model as a default argument, like
+        If this step's function has a Model as a default argument, like
         ``func(*args, model=Model(...))``, extract the dependencies for that model
         and track them as step-level dependencies.
+
+        Uses mlflow.pyfunc.get_model_dependencies.
         """
+
         sig = signature(self.func)
         for param in sig.parameters.values():
             if isinstance(param.default, PyFuncModel):
                 model = param.default
-                uri = model.get_model_info().model_uri
-                deps_file = get_model_dependencies(uri, format="conda")
-                with open(deps_file, "r") as f:
-                    contents = f.read()
-                    parsed = dparse.parse(
-                        contents, path=deps_file, resolve=True
-                    ).serialize()
-                    deps = [d["line"] for d in parsed["dependencies"]]
-                    deps.extend(d["line"] for d in parsed["resolved_dependencies"])
-                self._model_dependencies += deps
+                uri = model.metadata.get_model_info().model_uri
+                deps_file = str(get_model_dependencies(uri, format="conda"))
+                python_version, conda_deps, pip_deps = read_conda_deps(deps_file)
+                # hack: user-dependencies like `examol @ git+https://github.com/exalearn/ExaMol.git`,
+                # which are not on pypi, should be read _before_ a line saying
+                # `examol==0.0.1` so pip won't worry that it's not on pypi, otherwise
+                # pip will claim it could not be installed.
+                #
+                # fortunately, mlflow generates the pip section of the conda.yaml files
+                # in the exact opposite order to what we'd want, so we can just reverse
+                # that list.
+                self.python_version = python_version
+                self.conda_dependencies += conda_deps
+                self.pip_dependencies += reversed(pip_deps)
+
         return
 
     @validator("func")

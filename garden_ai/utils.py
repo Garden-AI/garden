@@ -1,12 +1,15 @@
-import logging
-import sys
-from inspect import Signature, signature, Parameter
-from itertools import zip_longest
-import json
 import base64
+import json
+import logging
+import re
+import sys
+from inspect import Parameter, Signature, signature
+from itertools import zip_longest
+from typing import List, Tuple, Optional
 
 import beartype.door
 import requests
+import yaml
 from typing_extensions import TypeAlias
 
 if sys.version_info < (3, 9):
@@ -176,3 +179,38 @@ def extract_email_from_globus_jwt(jwt: str) -> str:
     except KeyError as e:
         raise Exception("JWT did not include user email") from e
     return email
+
+
+def read_conda_deps(conda_file: str) -> Tuple[Optional[str], List[str], List[str]]:
+    """parse the dependencies from the given file and return as a (python_version, conda_dependencies, pip_dependencies) tuple
+    python_version defaults to the one described by sys.version_info
+
+    """
+
+    with open(conda_file, "r") as f:
+        contents = yaml.safe_load(f.read())
+
+    python_spec_re = re.compile(r"python[=<>! ]*")
+    pip_spec_re = re.compile(r"pip[=<>!]?")
+
+    # python_version = ".".join(map(str, sys.version_info[:3]))
+    python_version = None
+    conda_dependencies = []
+    pip_dependencies = []
+
+    for dependency in contents["dependencies"]:
+        if isinstance(dependency, str):
+            if python_spec_re.match(dependency):
+                # keep the right hand side only
+                rhs = re.sub(python_spec_re, "", dependency)
+                python_version = rhs.strip() or python_version
+            elif pip_spec_re.match(dependency):
+                # we already know we need pip
+                continue
+            else:
+                conda_dependencies += [dependency]
+        elif isinstance(dependency, dict):
+            # pip dependencies are already a flat list if they exist
+            pip_dependencies += dependency.get("pip", [])
+
+    return python_version, conda_dependencies, pip_dependencies
