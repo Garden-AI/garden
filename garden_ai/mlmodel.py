@@ -74,10 +74,9 @@ def upload_model(
 def Model(model_full_name: str) -> mlflow.pyfunc.PyFuncModel:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
-    Tip: for large models, using this as a "default argument" in a ``@step``-decorated
-    function will trigger the download as soon as the pipeline is initialized,
-    _before_ any calls to the pipeline. (Usage elsewhere should be fine, but
-    the pipeline won't be able to download the model until is actually called)
+    Tip: This is meant to be used as a "default argument" in a
+    ``@step``-decorated function. This allows the pipeline to download the model
+    as soon as the steps are initialized, _before_ any calls to the pipeline.
 
     Example:
     --------

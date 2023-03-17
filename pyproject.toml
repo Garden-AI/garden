@@ -21,6 +21,7 @@ mlflow = "2.2.1"
 # Specifying a recent version of it helps avoid install issues on M1 Macs
 numba = "^0.56"
 boto3 = "^1.26.77"
+dparse = {extras = ["conda"], version = "^0.6.2"}
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"

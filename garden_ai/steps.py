@@ -7,6 +7,8 @@ from inspect import Parameter, Signature, signature
 from typing import Callable, Dict, List, Optional
 from uuid import UUID, uuid4
 
+import dparse
+from mlflow.pyfunc import PyFuncModel, get_model_dependencies
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
@@ -122,6 +124,7 @@ class Step:
     input_info: Optional[str] = Field(None)
     output_info: Optional[str] = Field(None)
     uuid: UUID = Field(default_factory=uuid4)
+    _model_dependencies: Field(default_factory=list)
 
     def __post_init_post_parse__(self):
         # like __post_init__, but called after pydantic validation
@@ -138,11 +141,34 @@ class Step:
             self.input_info = str(input_hints)
         if self.output_info is None:
             self.output_info = f"return: {return_hint}"
+        self._infer_model_deps()
         return
 
     def __call__(self, *args, **kwargs):
         # keep it simple: just pass input the underlying callable.
         return self.func(*args, **kwargs)
+
+    def _infer_model_deps(self):
+        """
+        If this step's function has Model as a default argument, like
+        ``func(*args, model=Model(...))``, extract the dependencies for that model
+        and track them as step-level dependencies.
+        """
+        sig = signature(self.func)
+        for param in sig.parameters.values():
+            if isinstance(param.default, PyFuncModel):
+                model = param.default
+                uri = model.get_model_info().model_uri
+                deps_file = get_model_dependencies(uri, format="conda")
+                with open(deps_file, "r") as f:
+                    contents = f.read()
+                    parsed = dparse.parse(
+                        contents, path=deps_file, resolve=True
+                    ).serialize()
+                    deps = [d["line"] for d in parsed["dependencies"]]
+                    deps.extend(d["line"] for d in parsed["resolved_dependencies"])
+                self._model_dependencies += deps
+        return
 
     @validator("func")
     def has_annotations(cls, f: Callable):
@@ -217,23 +243,24 @@ def inference_step(model_uri: str, **kwargs):
 
     Example:
     --------
-    ```python
-    @inference_step(model_uri="models:/my-model/my-version")
-    def my_step(data: pd.DataFrame) -> MyResultType:
-        pass  # NOTE: leave the function body empty
+        ```python
+        @inference_step(model_uri="models:/my-model/my-version")
+        def my_step(data: pd.DataFrame) -> MyResultType:
+            pass  # NOTE: leave the function body empty
 
-    ## equivalent to:
-
-    def my_step(data: MyDataType) -> MyResultType:
-        model = garden_ai.Model("models:/my-model/my-version")
-        return model.predict(data)
-    ```
+        ## equivalent to:
+        @step
+        def my_step(
+            data: MyDataType,
+            model=garden_ai.Model("me@uni.edu-my-model/version"),
+        ) -> MyResultType:
+            return model.predict(data)
+        ```
     """
 
     def wrapper(f: Callable):
         @wraps(f)  # make sure we aren't losing signature info
-        def boilerplate(*args, **_kwargs):
-            model = Model(model_uri)
+        def boilerplate(*args, model=Model(model_uri), **_kwargs):
             return model.predict(*args)
 
         return step(boilerplate)
