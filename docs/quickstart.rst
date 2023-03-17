@@ -18,7 +18,7 @@ You should then be able to see the following: ::
 
     $ garden-ai garden create --help
 
-    Usage: garden create [OPTIONS] [DIRECTORY]
+    Usage: garden-ai garden create [OPTIONS] [DIRECTORY]
 
     Create a new Garden
 
