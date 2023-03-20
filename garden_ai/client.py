@@ -123,7 +123,7 @@ class GardenClient:
             FuncXClient.FUNCX_SCOPE: self.funcx_authorizer,
         }
         funcx_login_manager = FuncXLoginManager(scope_to_authorizer)
-        return FuncXClient(login_manager=funcx_login_manager)
+        return FuncXClient(login_manager=funcx_login_manager, do_version_check=False)
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
