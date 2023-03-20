@@ -8,6 +8,7 @@ from uuid import UUID
 
 import requests
 import typer
+from funcx import FuncXClient
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -31,6 +32,8 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
 from mlflow.tracking.request_header.registry import _request_header_provider_registry  # type: ignore
+from garden_ai.globus_compute.login_manager import FuncXLoginManager
+from globus_sdk.scopes import AuthScopes, SearchScopes
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
@@ -41,6 +44,8 @@ GARDEN_ENDPOINT = os.environ.get(
 
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
+
+FUNCX_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
 
@@ -84,13 +89,16 @@ class GardenClient:
         self.auth_client = (
             NativeAppAuthClient(self.client_id) if not auth_client else auth_client
         )
-
+        self.openid_authorizer = self._create_authorizer(
+            AuthClient.scopes.resource_server
+        )
         self.groups_authorizer = self._create_authorizer(
             GroupsClient.scopes.resource_server
         )
         self.search_authorizer = self._create_authorizer(
             SearchClient.scopes.resource_server
         )
+        self.funcx_authorizer = self._create_authorizer(FUNCX_RESOURCE_SERVER_NAME)
         self.search_client = (
             SearchClient(authorizer=self.search_authorizer)
             if not search_client
@@ -100,12 +108,22 @@ class GardenClient:
             GardenClient.scopes.resource_server
         )
 
+        self.funcx_client = self._make_funcx_client()
         self._set_up_mlflow_env()
 
     def _set_up_mlflow_env(self):
         os.environ["MLFLOW_TRACKING_TOKEN"] = self.garden_authorizer.access_token
         os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
         _request_header_provider_registry.register(BinaryContentTypeHeaderProvider)
+
+    def _make_funcx_client(self):
+        scope_to_authorizer = {
+            AuthScopes.openid: self.openid_authorizer,
+            SearchScopes.all: self.search_authorizer,
+            FuncXClient.FUNCX_SCOPE: self.funcx_authorizer,
+        }
+        funcx_login_manager = FuncXLoginManager(scope_to_authorizer)
+        return FuncXClient(login_manager=funcx_login_manager)
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -115,6 +133,7 @@ class GardenClient:
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
                 GardenClient.scopes.action_all,
+                FuncXClient.FUNCX_SCOPE,
             ],
             refresh_tokens=True,
         )
