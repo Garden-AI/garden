@@ -2,8 +2,8 @@ import logging
 
 import globus_sdk
 from globus_sdk.scopes import AuthScopes, SearchScopes
-from funcx.sdk.web_client import FuncxWebClient
-from funcx import FuncXClient
+from funcx.sdk.web_client import FuncxWebClient  # type: ignore
+from funcx import FuncXClient  # type: ignore
 
 from typing import Union
 

@@ -8,7 +8,7 @@ from uuid import UUID
 
 import requests
 import typer
-from funcx import FuncXClient
+from funcx import FuncXClient  # type: ignore
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
