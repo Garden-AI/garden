@@ -38,7 +38,7 @@ class FuncXLoginManager:
         )
 
     def ensure_logged_in(self):
-        logger.warning("ensure_logged_in cannot be invoked from here!")
+        raise NotImplementedError("ensure_logged_in cannot be invoked from here")
 
     def logout(self):
-        logger.warning("logout cannot be invoked from here!")
+        raise NotImplementedError("logout cannot be invoked from here")
