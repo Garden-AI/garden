@@ -5,7 +5,7 @@ from globus_sdk.scopes import AuthScopes, SearchScopes
 from funcx.sdk.web_client import FuncxWebClient  # type: ignore
 from funcx import FuncXClient  # type: ignore
 
-from typing import Union
+from typing import Union, Dict
 
 logger = logging.getLogger()
 
@@ -16,7 +16,7 @@ class FuncXLoginManager:
     https://github.com/funcx-faas/funcX/blob/main/funcx_sdk/funcx/sdk/login_manager/protocol.py#L18
     """
 
-    def __init__(self, authorizers: dict[str, globus_sdk.RefreshTokenAuthorizer]):
+    def __init__(self, authorizers: Dict[str, globus_sdk.RefreshTokenAuthorizer]):
         self.authorizers = authorizers
 
     def get_auth_client(self) -> globus_sdk.AuthClient:
