@@ -6,6 +6,7 @@ import sys
 from inspect import Parameter, Signature, signature
 from itertools import zip_longest
 from typing import List, Tuple, Optional
+from packaging.requirements import Requirement, InvalidRequirement
 
 import beartype.door
 import requests
@@ -182,10 +183,7 @@ def extract_email_from_globus_jwt(jwt: str) -> str:
 
 
 def read_conda_deps(conda_file: str) -> Tuple[Optional[str], List[str], List[str]]:
-    """parse the dependencies from the given file and return as a (python_version, conda_dependencies, pip_dependencies) tuple
-    python_version defaults to the one described by sys.version_info
-
-    """
+    """parse the dependencies contained in the given file and return as a (python_version, conda_dependencies, pip_dependencies) tuple"""
 
     with open(conda_file, "r") as f:
         contents = yaml.safe_load(f.read())
@@ -193,7 +191,6 @@ def read_conda_deps(conda_file: str) -> Tuple[Optional[str], List[str], List[str
     python_spec_re = re.compile(r"python[=<>! ]*")
     pip_spec_re = re.compile(r"pip[=<>!]?")
 
-    # python_version = ".".join(map(str, sys.version_info[:3]))
     python_version = None
     conda_dependencies = []
     pip_dependencies = []
@@ -213,4 +210,33 @@ def read_conda_deps(conda_file: str) -> Tuple[Optional[str], List[str], List[str
             # pip dependencies are already a flat list if they exist
             pip_dependencies += dependency.get("pip", [])
 
+    python_version = python_version or ".".join(map(str, sys.version_info[:3]))
+    pip_dependencies = validate_pip_lines(pip_dependencies)
     return python_version, conda_dependencies, pip_dependencies
+
+
+def validate_pip_lines(lines: List[str]) -> List[str]:
+    """given a list of pip requirements (e.g. the non-comment lines of a requirements.txt file),
+    validate them according to the spec at https://peps.python.org/pep-0508/.
+    """
+    # NOTE: this is significantly stricter than pip's actual behavior.  pip
+    # powerusers might be surprised by e.g. inline options such as --hash or
+    # --index-url not being valid, so we might want to re-think this if we see
+    # users consistently running into a wall here.
+    requirements = []
+    for line in lines:
+        try:
+            r = Requirement(line)
+            requirements += [r]
+        except InvalidRequirement:
+            logger.warning(f"Could not parse requirement line: {line}")
+            raise
+
+    # hack: user-dependencies like `examol @ git+https://github.com/exalearn/ExaMol.git`,
+    # which are not on pypi, should be read _before_ a line saying
+    # `examol==0.0.1` so pip won't worry that it's not on pypi, otherwise
+    # pip will claim it could not be installed.
+
+    # sorts s.t. url-based installs are read first
+    requirements.sort(key=lambda requirement: requirement.url is None)
+    return [str(r) for r in requirements]

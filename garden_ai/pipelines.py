@@ -23,7 +23,12 @@ from garden_ai.datacite import (
     Types,
 )
 from garden_ai.steps import DataclassConfig, Step
-from garden_ai.utils import garden_json_encoder, read_conda_deps, safe_compose
+from garden_ai.utils import (
+    garden_json_encoder,
+    read_conda_deps,
+    safe_compose,
+    validate_pip_lines,
+)
 
 logger = logging.getLogger()
 
@@ -136,7 +141,7 @@ class Pipeline:
 
         self.python_version = py_versions["pipeline"] or py_versions["system"]
         self.conda_dependencies = list(set(self.conda_dependencies))
-        self.pip_dependencies = list(set(self.pip_dependencies))
+        self.pip_dependencies = validate_pip_lines(list(set(self.pip_dependencies)))
 
         if len(set(py_versions[k] for k in py_versions if py_versions[k])) > 1:
             logger.warning(

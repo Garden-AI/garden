@@ -23,6 +23,7 @@ numba = "^0.56"
 boto3 = "^1.26.77"
 dparse = {extras = ["conda"], version = "^0.6.2"}
 pyyaml = "^6.0"
+packaging = "^23.0"
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"

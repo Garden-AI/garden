@@ -165,17 +165,9 @@ class Step:
                 uri = model.metadata.get_model_info().model_uri
                 deps_file = str(get_model_dependencies(uri, format="conda"))
                 python_version, conda_deps, pip_deps = read_conda_deps(deps_file)
-                # hack: user-dependencies like `examol @ git+https://github.com/exalearn/ExaMol.git`,
-                # which are not on pypi, should be read _before_ a line saying
-                # `examol==0.0.1` so pip won't worry that it's not on pypi, otherwise
-                # pip will claim it could not be installed.
-                #
-                # fortunately, mlflow generates the pip section of the conda.yaml files
-                # in the exact opposite order to what we'd want, so we can just reverse
-                # that list.
                 self.python_version = python_version
                 self.conda_dependencies += conda_deps
-                self.pip_dependencies += reversed(pip_deps)
+                self.pip_dependencies += pip_deps
 
         return
 
