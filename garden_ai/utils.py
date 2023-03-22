@@ -5,12 +5,12 @@ import re
 import sys
 from inspect import Parameter, Signature, signature
 from itertools import zip_longest
-from typing import List, Tuple, Optional
-from packaging.requirements import Requirement, InvalidRequirement
+from typing import List, Optional, Tuple
 
 import beartype.door
 import requests
 import yaml
+from packaging.requirements import InvalidRequirement, Requirement
 from typing_extensions import TypeAlias
 
 if sys.version_info < (3, 9):
@@ -185,8 +185,29 @@ def extract_email_from_globus_jwt(jwt: str) -> str:
 def read_conda_deps(conda_file: str) -> Tuple[Optional[str], List[str], List[str]]:
     """parse the dependencies contained in the given file and return as a (python_version, conda_dependencies, pip_dependencies) tuple"""
 
-    with open(conda_file, "r") as f:
-        contents = yaml.safe_load(f.read())
+    try:
+        with open(conda_file, "r") as f:
+            contents = yaml.safe_load(f.read())
+    except FileNotFoundError:
+        logger.error("File not found:", conda_file)
+        raise
+    except PermissionError:
+        logger.error("Insufficient permissions to read the file:", conda_file)
+        raise
+    except IOError as e:
+        logger.error("An error occurred while reading the file:", e)
+        raise
+    except yaml.YAMLError as e:
+        logger.error("An error occurred while parsing the YAML content:", e)
+        raise
+
+    if "dependencies" not in contents:
+        logger.error(
+            f"Parsed {conda_file} as {contents}, but did not find the expected"
+            "'dependencies' field. This should not happen if using a"
+            "conda-generated .yaml/.yml file."
+        )
+        raise KeyError
 
     python_spec_re = re.compile(r"python[=<>! ]*")
     pip_spec_re = re.compile(r"pip[=<>!]?")
@@ -223,6 +244,11 @@ def validate_pip_lines(lines: List[str]) -> List[str]:
     # powerusers might be surprised by e.g. inline options such as --hash or
     # --index-url not being valid, so we might want to re-think this if we see
     # users consistently running into a wall here.
+    #
+    # real example: pip could install (from cli or as a line in requirements.txt)
+    # `git+https://github.com/exalearn/ExaMol.git` by itself if asked to, but it
+    # isn't PEP-508 without `examol @ ...` prefixed to it, so this would fail to
+    # parse
     requirements = []
     for line in lines:
         try:

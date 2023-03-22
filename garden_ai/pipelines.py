@@ -143,7 +143,10 @@ class Pipeline:
         self.conda_dependencies = list(set(self.conda_dependencies))
         self.pip_dependencies = validate_pip_lines(list(set(self.pip_dependencies)))
 
-        if len(set(py_versions[k] for k in py_versions if py_versions[k])) > 1:
+        distinct_py_versions = set(
+            py_versions[k] for k in py_versions if py_versions[k]
+        )
+        if len(distinct_py_versions) > 1:
             logger.warning(
                 "Found multiple python versions specified across this"
                 f"pipeline's dependencies: {py_versions}. {self.python_version} "
