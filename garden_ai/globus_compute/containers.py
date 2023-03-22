@@ -1,14 +1,12 @@
 from time import sleep
 from enum import Enum
 from rich.console import Console
-import logging
 
 from funcx import FuncXClient, ContainerSpec  # type: ignore
 from globus_sdk import GlobusAPIError
 from garden_ai.pipelines import Pipeline
 
 console = Console()
-logger = logging.getLogger()
 
 
 class ContainerBuildException(Exception):
@@ -61,7 +59,6 @@ def poll_until_container_is_built(funcx_client, container_uuid):
                 raise ContainerBuildException(
                     "Lost connection with Container Service during build"
                 ) from e
-            logger.debug(f"status is {status}")
             # Update the end user twice a minute
             if i % 30 == 0:
                 console.log(f"Current status is {status}")
