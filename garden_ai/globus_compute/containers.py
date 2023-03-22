@@ -26,9 +26,9 @@ def build_container(funcx_client: FuncXClient, pipeline: Pipeline) -> str:
     name = str(pipeline.uuid)
     cs = ContainerSpec(
         name=name,
-        pip=[],  # pipeline.pip_requirements,
-        python_version="3.7",  # pipeline.python_version,
-        conda=[],  # pipeline.conda_requirements,
+        pip=pipeline.pip_dependencies,
+        python_version=pipeline.python_version,
+        conda=pipeline.conda_dependencies,
     )
 
     try:
