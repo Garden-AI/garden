@@ -18,10 +18,10 @@ class ContainerBuildException(Exception):
 
 
 class BuildStatus(str, Enum):
-    queued = 'queued'
-    building = 'building'
-    ready = 'ready'
-    failed = 'failed'
+    queued = "queued"
+    building = "building"
+    ready = "ready"
+    failed = "failed"
 
 
 def build_container(funcx_client: FuncXClient, pipeline: Pipeline) -> str:
@@ -36,7 +36,9 @@ def build_container(funcx_client: FuncXClient, pipeline: Pipeline) -> str:
     try:
         container_uuid = funcx_client.build_container(cs)
     except Exception as e:
-        raise ContainerBuildException("Could not submit build request to Container Service") from e
+        raise ContainerBuildException(
+            "Could not submit build request to Container Service"
+        ) from e
 
     poll_until_container_is_built(funcx_client, container_uuid)
     return container_uuid
@@ -49,12 +51,16 @@ def poll_until_container_is_built(funcx_client, container_uuid):
     """
     timeout_at = 1800
     i = 0
-    with console.status("[bold green]Building container. This operation times out after 30 minutes.") as status:
+    with console.status(
+        "[bold green]Building container. This operation times out after 30 minutes."
+    ) as status:
         while i < timeout_at:
             try:
                 status = funcx_client.get_container_build_status(container_uuid)
             except GlobusAPIError as e:
-                raise ContainerBuildException("Lost connection with Container Service during build") from e
+                raise ContainerBuildException(
+                    "Lost connection with Container Service during build"
+                ) from e
             logger.debug(f"status is {status}")
             # Update the end user twice a minute
             if i % 30 == 0:
@@ -64,12 +70,20 @@ def poll_until_container_is_built(funcx_client, container_uuid):
             sleep(5)
             i += 5
         else:
-            raise ContainerBuildException(f"Container Build Timeout after {timeout_at} seconds")
+            raise ContainerBuildException(
+                f"Container Build Timeout after {timeout_at} seconds"
+            )
 
     if status == BuildStatus.failed:
         try:
-            build_result = funcx_client.get_container(container_uuid, container_type="docker")
+            build_result = funcx_client.get_container(
+                container_uuid, container_type="docker"
+            )
         except GlobusAPIError as e:
-            raise ContainerBuildException("ContainerService build failed. Could not retrieve error reason.") from e
-        error_message = build_result['build_stderr']
-        raise ContainerBuildException("ContainerService build failed. Build error message:\n" + error_message)
+            raise ContainerBuildException(
+                "ContainerService build failed. Could not retrieve error reason."
+            ) from e
+        error_message = build_result["build_stderr"]
+        raise ContainerBuildException(
+            "ContainerService build failed. Build error message:\n" + error_message
+        )

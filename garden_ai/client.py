@@ -125,9 +125,7 @@ class GardenClient:
         }
         funcx_login_manager = FuncXLoginManager(scope_to_authorizer)
         return FuncXClient(
-            login_manager=funcx_login_manager,
-            do_version_check=False,
-            environment="dev"
+            login_manager=funcx_login_manager, do_version_check=False, environment="dev"
         )
 
     def _do_login_flow(self):

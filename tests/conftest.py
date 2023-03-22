@@ -95,9 +95,7 @@ def funcx_client(mocker):
     mock_funcx_client.build_container = mocker.Mock(
         return_value="d1fc6d30-be1c-4ac4-a289-d87b27e84357"
     )
-    mock_funcx_client.get_container_build_status = mocker.Mock(
-        return_value="ready"
-    )
+    mock_funcx_client.get_container_build_status = mocker.Mock(return_value="ready")
     return mock_funcx_client
 
 
