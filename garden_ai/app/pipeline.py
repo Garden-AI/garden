@@ -8,9 +8,10 @@ from typing import List, Optional
 import jinja2
 import rich
 import typer
-from garden_ai import GardenClient, Pipeline, step
 from rich import print
 from rich.prompt import Prompt
+
+from garden_ai import GardenClient, Pipeline, step
 
 logger = logging.getLogger()
 
@@ -199,7 +200,10 @@ def create(
         contents = template_pipeline(shortname, pipeline)
         with open(out_file, "w") as f:
             f.write(contents)
-        print(f"Wrote to {out_file}.")
+        with open(out_dir / "requirements.txt", "w") as f:
+            f.write("## Please specify all pipeline dependencies here\n")
+
+        print(f"Generated pipeline scaffolding in {out_dir}.")
 
     if verbose:
         client.put_local_pipeline(pipeline)

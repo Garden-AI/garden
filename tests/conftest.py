@@ -1,9 +1,13 @@
 from typing import List
 
+import mlflow  # type: ignore
 import pytest
-from garden_ai import Garden, GardenClient, Pipeline, step
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+from mlflow.pyfunc import PyFuncModel  # type: ignore
+
+import garden_ai
+from garden_ai import Garden, GardenClient, Pipeline, step
 
 
 @pytest.fixture(autouse=True)
@@ -99,7 +103,7 @@ def garden_no_fields():
 
 
 @pytest.fixture
-def pipeline_toy_example():
+def pipeline_toy_example(tmp_requirements_txt):
     # define a step using the decorator
     @step(authors=["Sister Constance"])
     def split_peas(ps: List) -> List[tuple]:
@@ -123,6 +127,7 @@ def pipeline_toy_example():
         steps=[split_peas, make_soup, rate_soup],
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
+        requirements_file=str(tmp_requirements_txt),
     )
 
     # the complete pipeline is now also callable by itself
@@ -145,3 +150,91 @@ def garden_all_fields(pipeline_toy_example):
     pea_garden.pipelines += [pipeline_toy_example]
     pea_garden.validate()
     return pea_garden
+
+
+@pytest.fixture
+def tmp_requirements_txt(tmp_path):
+    """
+    Fixture that creates a temporary requirements.txt file
+    """
+    contents = "Flask==2.1.1\npandas>=1.3.0\nnumpy==1.21.2\nscikit-learn>=0.24.2\n"
+    file_path = tmp_path / "requirements.txt"
+    with open(file_path, "w") as f:
+        f.write(contents)
+    return file_path
+
+
+@pytest.fixture
+def tmp_conda_yml(tmp_path):
+    """
+    Fixture that creates a temporary `conda.yml` file.
+    """
+    contents = """
+    name: my_env
+    channels:
+      - defaults
+    dependencies:
+      - python=3.8
+      - flask=2.1.1
+      - pandas>=1.3.0
+      - numpy==1.21.2
+      - scikit-learn>=0.24.2
+    """
+    file_path = tmp_path / "conda.yml"
+    with open(file_path, "w") as f:
+        f.write(contents)
+    return file_path
+
+
+@pytest.fixture
+def step_with_model(mocker, tmp_conda_yml):
+    mock_model = mocker.MagicMock(PyFuncModel)
+    mock_uri = "models:/email@addr.ess-fake-model/fake-version"
+
+    mock_model_info = mocker.Mock(mlflow.models.model.ModelInfo)
+    mock_model_info.model_uri = mock_uri
+
+    mock_model.get_model_info = mocker.Mock()
+    mock_model.get_model_info.return_value = mock_model_info
+
+    mocker.patch("garden_ai.mlmodel.load_model").return_value = mock_model
+
+    mocker.patch("garden_ai.steps.get_model_dependencies").return_value = tmp_conda_yml
+
+    @step
+    def uses_model_in_default(
+        arg: object,
+        default_arg_model: object = garden_ai.Model(
+            "email@addr.ess-fake-model/fake-version"
+        ),
+    ) -> object:
+        pass
+
+    return uses_model_in_default
+
+
+@pytest.fixture
+def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model):
+    # define a step using the decorator
+    @step(authors=["Sister Constance"])
+    def split_peas(ps: List) -> List[tuple]:
+        return [(p / 2, p / 2) for p in ps]
+
+    class Soup:
+        ...
+
+    @step(authors=["Friar Hugo"])
+    def make_soup(splits: List[tuple]) -> Soup:
+        return Soup()
+
+    ALL_STEPS = (split_peas, make_soup, step_with_model)  # see fixture
+
+    pea_edibility_pipeline = Pipeline(
+        title="Pea Edibility Pipeline",
+        steps=ALL_STEPS,
+        authors=["Brian Jacques"],
+        description="A pipeline for perfectly-reproducible soup ratings.",
+        requirements_file=str(tmp_requirements_txt),
+    )
+
+    return pea_edibility_pipeline
