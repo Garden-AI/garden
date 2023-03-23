@@ -23,7 +23,7 @@ from garden_ai.datacite import (
     Types,
 )
 from garden_ai.steps import DataclassConfig, Step
-from garden_ai.utils import (
+from garden_ai.utils.misc import (
     garden_json_encoder,
     read_conda_deps,
     safe_compose,
@@ -57,6 +57,7 @@ class Pipeline:
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = cast(str, Field(default_factory=lambda: None))
     uuid: UUID = Field(default_factory=uuid4)
+    funcx_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))

@@ -14,6 +14,11 @@ from rich.prompt import Prompt
 from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console
 
+from garden_ai.utils.filesystem import (
+    load_pipeline_from_python_file,
+    PipelineLoadException,
+)
+
 logger = logging.getLogger()
 
 pipeline_app = typer.Typer(name="pipeline", no_args_is_help=True)
@@ -214,15 +219,39 @@ def create(
     return
 
 
-@pipeline_app.command(no_args_is_help=False)
-def register():
+@pipeline_app.command(no_args_is_help=True)
+def register(
+    pipeline_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline implementation."),
+    ),
+    pipeline_name: str = typer.Argument(
+        None, help=("The name of the Pipeline object in the Python file.")
+    ),
+):
     client = GardenClient()
-    # TODO: Some code that makes a Pipeline object from the pipeline the user specifies.
-    # For now, only peas.
-    from examples.toy_example import pea_edibility_pipeline  # type: ignore
+    if (
+        not pipeline_file.exists()
+        or not pipeline_file.is_file()
+        or pipeline_file.suffix != ".py"
+    ):
+        console.log(
+            f"{pipeline_file} is not a valid Python file. Please provide a valid Python file (.py)."
+        )
+        raise typer.Exit(code=1)
+    try:
+        user_pipeline = load_pipeline_from_python_file(pipeline_file, pipeline_name)
+    except PipelineLoadException as e:
+        console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
+        raise typer.Exit(code=1)
 
     with console.status(
         "[bold green]Building container. This operation times out after 30 minutes."
     ):
-        container_uuid = client.build_container(pea_edibility_pipeline)
+        container_uuid = client.build_container(user_pipeline)
     console.print(f"Created container {container_uuid}")
+    func_uuid = client.register_pipeline(user_pipeline, container_uuid)
+    console.print(f"Created function {func_uuid}")

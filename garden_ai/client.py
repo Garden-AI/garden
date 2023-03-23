@@ -25,7 +25,7 @@ from rich.prompt import Prompt
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils import JSON, extract_email_from_globus_jwt
+from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
 from garden_ai.mlmodel import upload_model
 
 from garden_ai.mlflow_bandaid.binary_header_provider import (
@@ -34,6 +34,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
 from mlflow.tracking.request_header.registry import _request_header_provider_registry  # type: ignore
 from garden_ai.globus_compute.login_manager import FuncXLoginManager
 from garden_ai.globus_compute.containers import build_container
+from garden_ai.globus_compute.remote_functions import register_pipeline
 from globus_sdk.scopes import AuthScopes, SearchScopes
 
 # garden-dev index
@@ -124,9 +125,7 @@ class GardenClient:
             FuncXClient.FUNCX_SCOPE: self.funcx_authorizer,
         }
         funcx_login_manager = FuncXLoginManager(scope_to_authorizer)
-        return FuncXClient(
-            login_manager=funcx_login_manager, do_version_check=False, environment="dev"
-        )
+        return FuncXClient(login_manager=funcx_login_manager, do_version_check=False)
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -315,6 +314,12 @@ class GardenClient:
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.funcx_client, pipeline)
         return built_container_uuid
+
+    def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
+        func_uuid = register_pipeline(self.funcx_client, pipeline, container_uuid)
+        pipeline.funcx_uuid = UUID(func_uuid)
+        self.put_local_pipeline(pipeline)
+        return func_uuid
 
     def register_metadata(self, garden: Garden, out_dir=None):
         """
