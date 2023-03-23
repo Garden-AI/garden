@@ -1,12 +1,10 @@
-from time import sleep
+from time import sleep, time
 from enum import Enum
-from rich.console import Console
 
 from funcx import FuncXClient, ContainerSpec  # type: ignore
 from globus_sdk import GlobusAPIError
 from garden_ai.pipelines import Pipeline
-
-console = Console()
+from garden_ai.app.console import console
 
 
 class ContainerBuildException(Exception):
@@ -33,54 +31,64 @@ def build_container(funcx_client: FuncXClient, pipeline: Pipeline) -> str:
 
     try:
         container_uuid = funcx_client.build_container(cs)
-    except Exception as e:
+    except GlobusAPIError as e:
         raise ContainerBuildException(
             "Could not submit build request to Container Service"
         ) from e
 
-    poll_until_container_is_built(funcx_client, container_uuid)
+    _poll_until_container_is_built(funcx_client, container_uuid)
     return container_uuid
 
 
-def poll_until_container_is_built(funcx_client, container_uuid):
+def _poll_until_container_is_built(funcx_client: FuncXClient, container_uuid: str):
     """
-    Given a uuid of a container, blocks until that container is built.
-    Prints a cool status indicator to the console while polling.
+    Given a uuid of a container, block until that container is built.
     """
-    timeout_at = 1800
-    i = 0
-    with console.status(
-        "[bold green]Building container. This operation times out after 30 minutes."
-    ) as status:
-        while i < timeout_at:
-            try:
-                status = funcx_client.get_container_build_status(container_uuid)
-            except GlobusAPIError as e:
-                raise ContainerBuildException(
-                    "Lost connection with Container Service during build"
-                ) from e
-            # Update the end user twice a minute
-            if i % 30 == 0:
-                console.log(f"Current status is {status}")
-            if status in [BuildStatus.ready, BuildStatus.failed]:
-                break
-            sleep(5)
-            i += 5
-        else:
-            raise ContainerBuildException(
-                f"Container Build Timeout after {timeout_at} seconds"
-            )
+    # Time out in 1800 seconds, which is 30 minutes
+    timeout = 1800
+    # Update the user twice a minute
+    log_interval = 30
+    polling_interval = 5
 
-    if status == BuildStatus.failed:
+    start_time = time()
+    last_log_time = start_time
+
+    while True:
         try:
-            build_result = funcx_client.get_container(
-                container_uuid, container_type="docker"
-            )
+            status = funcx_client.get_container_build_status(container_uuid)
         except GlobusAPIError as e:
             raise ContainerBuildException(
-                "ContainerService build failed. Could not retrieve error reason."
+                "Lost connection with Container Service during build"
             ) from e
-        error_message = build_result["build_stderr"]
-        raise ContainerBuildException(
-            "ContainerService build failed. Build error message:\n" + error_message
+
+        if status == BuildStatus.ready:
+            return
+
+        if status == BuildStatus.failed:
+            _raise_build_failure_exception(funcx_client, container_uuid)
+
+        if time() - start_time > timeout:
+            raise ContainerBuildException(
+                f"Container Build Timeout after {timeout} seconds"
+            )
+
+        if time() - last_log_time > log_interval:
+            console.log(f"Current status is {status}")
+            last_log_time = time()
+
+        sleep(polling_interval)
+
+
+def _raise_build_failure_exception(funcx_client: FuncXClient, container_uuid: str):
+    try:
+        build_result = funcx_client.get_container(
+            container_uuid, container_type="docker"
         )
+    except GlobusAPIError as e:
+        raise ContainerBuildException(
+            "ContainerService build failed. Could not retrieve error reason."
+        ) from e
+    error_message = build_result["build_stderr"]
+    raise ContainerBuildException(
+        "ContainerService build failed. Build error message:\n" + error_message
+    )

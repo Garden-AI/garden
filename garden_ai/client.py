@@ -312,7 +312,7 @@ class GardenClient:
         else:
             return doi
 
-    def _build_container(self, pipeline: Pipeline) -> str:
+    def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.funcx_client, pipeline)
         return built_container_uuid
 

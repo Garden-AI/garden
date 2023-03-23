@@ -6,4 +6,4 @@ from garden_ai import GardenClient
 @pytest.mark.integration
 def test_container_build(pipeline_toy_example):
     gc = GardenClient()
-    gc._build_container(pipeline_toy_example)
+    gc.build_container(pipeline_toy_example)
