@@ -219,7 +219,7 @@ def register():
     client = GardenClient()
     # TODO: Some code that makes a Pipeline object from the pipeline the user specifies.
     # For now, only peas.
-    from examples.toy_example import pea_edibility_pipeline
+    from examples.toy_example import pea_edibility_pipeline  # type: ignore
 
     with console.status(
         "[bold green]Building container. This operation times out after 30 minutes."
