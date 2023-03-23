@@ -17,10 +17,12 @@ def test_build_container_where_build_fails(funcx_client, pipeline_toy_example, m
 def test_build_container_with_container_request_error(
     funcx_client, pipeline_toy_example, mocker
 ):
-    mock_exception = mocker.MagicMock(Exception)
+    class MockException(Exception):
+        pass
+
     mocker.patch(
-        "garden_ai.globus_compute.containers.GlobusAPIError", new=mock_exception
+        "garden_ai.globus_compute.containers.GlobusAPIError", new=MockException
     )
-    funcx_client.build_container.side_effect = mock_exception
+    funcx_client.build_container.side_effect = MockException
     with pytest.raises(ContainerBuildException):
         build_container(funcx_client, pipeline_toy_example)
