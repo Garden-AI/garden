@@ -12,6 +12,7 @@ from rich import print
 from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step
+from garden_ai.app.console import console
 
 logger = logging.getLogger()
 
@@ -211,3 +212,17 @@ def create(
         rich.print_json(metadata)
 
     return
+
+
+@pipeline_app.command(no_args_is_help=False)
+def register():
+    client = GardenClient()
+    # TODO: Some code that makes a Pipeline object from the pipeline the user specifies.
+    # For now, only peas.
+    from examples.toy_example import pea_edibility_pipeline  # type: ignore
+
+    with console.status(
+        "[bold green]Building container. This operation times out after 30 minutes."
+    ):
+        container_uuid = client.build_container(pea_edibility_pipeline)
+    console.print(f"Created container {container_uuid}")

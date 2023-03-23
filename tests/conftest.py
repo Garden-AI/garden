@@ -8,6 +8,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
+from funcx import FuncXClient  # type: ignore
 
 
 @pytest.fixture(autouse=True)
@@ -86,6 +87,16 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
     return gc
+
+
+@pytest.fixture
+def funcx_client(mocker):
+    mock_funcx_client = mocker.MagicMock(FuncXClient)
+    mock_funcx_client.build_container = mocker.Mock(
+        return_value="d1fc6d30-be1c-4ac4-a289-d87b27e84357"
+    )
+    mock_funcx_client.get_container_build_status = mocker.Mock(return_value="ready")
+    return mock_funcx_client
 
 
 @pytest.fixture

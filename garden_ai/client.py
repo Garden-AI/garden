@@ -33,6 +33,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
 )
 from mlflow.tracking.request_header.registry import _request_header_provider_registry  # type: ignore
 from garden_ai.globus_compute.login_manager import FuncXLoginManager
+from garden_ai.globus_compute.containers import build_container
 from globus_sdk.scopes import AuthScopes, SearchScopes
 
 # garden-dev index
@@ -123,7 +124,9 @@ class GardenClient:
             FuncXClient.FUNCX_SCOPE: self.funcx_authorizer,
         }
         funcx_login_manager = FuncXLoginManager(scope_to_authorizer)
-        return FuncXClient(login_manager=funcx_login_manager, do_version_check=False)
+        return FuncXClient(
+            login_manager=funcx_login_manager, do_version_check=False, environment="dev"
+        )
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -308,6 +311,10 @@ class GardenClient:
             raise
         else:
             return doi
+
+    def build_container(self, pipeline: Pipeline) -> str:
+        built_container_uuid = build_container(self.funcx_client, pipeline)
+        return built_container_uuid
 
     def register_metadata(self, garden: Garden, out_dir=None):
         """
