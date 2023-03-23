@@ -83,6 +83,7 @@ def publish_garden():
 
     # publishes metadata to search index
     result = client.publish_garden(pea_garden, ["public"])
+    print(result)
 
     # propagates any authors of steps/pipelines as "contributors"
     assert "Sister Constance" in pea_garden.contributors
