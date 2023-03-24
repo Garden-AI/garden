@@ -52,7 +52,7 @@ def register(
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
     if flavor not in ["sklearn", "tensorflow", "pytorch"]:
         rich.print(
-            f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} is not yet supported."
+            f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
 
     client = GardenClient()
