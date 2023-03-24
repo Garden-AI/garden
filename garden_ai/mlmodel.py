@@ -16,6 +16,7 @@ def upload_model(
     model_path: str,
     model_name: str,
     user_email: str,
+    flavor: str,  # TODO may not be needed? or may decide which mlflow package to use
     extra_pip_requirements: List[str] = None,
 ) -> str:
     """Upload a model to Garden-AI's MLflow model registry.
@@ -28,6 +29,8 @@ def upload_model(
         The name under which to register the uploaded model.
     user_email : str
         The email address of the user uploading the model.
+    flavor : str
+        The library the model was made with, e.g. ``sklearn`` or ``tensorflow``.
     extra_pip_requirements : List[str], optional
         A list of additional pip requirements needed to load and/or run the model.
         Defaults to None.

@@ -89,7 +89,8 @@ def test_model_upload(mocker):
     args = mock_client.log_model.call_args.args
     assert args[0] == "/Users/will/fake-file.pkl"
     assert args[1] == "unit-test-model"
-    assert args[2] == ["torch==1.13.1", "pandas<=1.5.0"]
+    assert args[2] == "sklearn"
+    assert args[3] == ["torch==1.13.1", "pandas<=1.5.0"]
 
 
 def test_clean_identifier():

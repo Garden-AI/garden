@@ -225,11 +225,19 @@ class GardenClient:
         return Pipeline(**data)
 
     def log_model(
-        self, model_path: str, model_name: str, extra_pip_requirements: List[str] = None
+        self,
+        model_path: str,
+        model_name: str,
+        flavor: str,
+        extra_pip_requirements: List[str] = None,
     ) -> str:
         email = self._get_user_email()
         full_model_name = upload_model(
-            model_path, model_name, email, extra_pip_requirements=extra_pip_requirements
+            model_path,
+            model_name,
+            email,
+            flavor,
+            extra_pip_requirements=extra_pip_requirements,
         )
         return full_model_name
 

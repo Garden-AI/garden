@@ -36,7 +36,7 @@ def register(
         "sklearn",
         help=(
             "What ML library did you make the model with? "
-            "Currently we just support sklearn."
+            "Currently we support the following flavors 'sklearn', 'tensorflow', and 'pytorch'."
         ),
     ),
     extra_pip_requirements: Optional[List[str]] = typer.Option(
@@ -45,16 +45,20 @@ def register(
         "-r",
         help=(
             "Additonal package requirmeents. Add multiple like "
-            '--extra_pip_requirements "torch=1.3.1" --extra_pip_requirements "pandas<=1.5.0"'
+            '--extra-pip-requirements "torch=1.3.1" --extra-pip-requirements "pandas<=1.5.0"'
         ),
     ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
-    if flavor != "sklearn":
-        rich.print("Sorry jk, we only support sklearn.")
+    if flavor not in ["sklearn", "tensorflow", "pytorch"]:
+        rich.print(
+            f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} is not yet supported."
+        )
 
     client = GardenClient()
-    full_model_name = client.log_model(str(model_path), name, extra_pip_requirements)
+    full_model_name = client.log_model(
+        str(model_path), name, flavor, extra_pip_requirements
+    )
     rich.print(
         f"Successfully uploaded your model! The full name to include in your pipeline is '{full_model_name}'"
     )
