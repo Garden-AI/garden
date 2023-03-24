@@ -1,5 +1,6 @@
 from garden_ai import GardenClient, step, Pipeline, Garden
 from typing import List
+import os
 
 
 client = GardenClient()
@@ -67,18 +68,22 @@ pea_edibility_pipeline = Pipeline(
     title="Concept: a pipeline for soup",
     steps=(split_peas, make_soup, rate_soup),
     authors=pea_garden.authors,
+    requirements_file=os.path.dirname(os.path.abspath(__file__)) + "/requirements.txt",
 )
 
 # the complete pipeline is now also callable by itself
 assert pea_edibility_pipeline([1, 2, 3]) == 10 / 10
 
-pea_garden.pipelines += [pea_edibility_pipeline]
 
-# writes complete metadata.json to current working directory
-client.register_metadata(pea_garden)
+def publish_garden():
+    pea_garden.pipelines += [pea_edibility_pipeline]
 
-# publishes metadata to search index
-result = client.publish_garden(pea_garden, ["public"])
+    # writes complete metadata.json to current working directory
+    client.register_metadata(pea_garden)
 
-# propagates any authors of steps/pipelines as "contributors"
-assert "Sister Constance" in pea_garden.contributors
+    # publishes metadata to search index
+    result = client.publish_garden(pea_garden, ["public"])
+    print(result)
+
+    # propagates any authors of steps/pipelines as "contributors"
+    assert "Sister Constance" in pea_garden.contributors

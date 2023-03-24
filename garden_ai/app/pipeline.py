@@ -8,9 +8,11 @@ from typing import List, Optional
 import jinja2
 import rich
 import typer
-from garden_ai import GardenClient, Pipeline, step
 from rich import print
 from rich.prompt import Prompt
+
+from garden_ai import GardenClient, Pipeline, step
+from garden_ai.app.console import console
 
 logger = logging.getLogger()
 
@@ -199,7 +201,10 @@ def create(
         contents = template_pipeline(shortname, pipeline)
         with open(out_file, "w") as f:
             f.write(contents)
-        print(f"Wrote to {out_file}.")
+        with open(out_dir / "requirements.txt", "w") as f:
+            f.write("## Please specify all pipeline dependencies here\n")
+
+        print(f"Generated pipeline scaffolding in {out_dir}.")
 
     if verbose:
         client.put_local_pipeline(pipeline)
@@ -207,3 +212,17 @@ def create(
         rich.print_json(metadata)
 
     return
+
+
+@pipeline_app.command(no_args_is_help=False)
+def register():
+    client = GardenClient()
+    # TODO: Some code that makes a Pipeline object from the pipeline the user specifies.
+    # For now, only peas.
+    from examples.toy_example import pea_edibility_pipeline  # type: ignore
+
+    with console.status(
+        "[bold green]Building container. This operation times out after 30 minutes."
+    ):
+        container_uuid = client.build_container(pea_edibility_pipeline)
+    console.print(f"Created container {container_uuid}")

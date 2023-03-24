@@ -1,19 +1,25 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-from garden_ai import Pipeline, step, Model
+from garden_ai import GardenClient, Model, Pipeline, step
 import typing
 
+_ = GardenClient()
 ##################################### STEPS #####################################
 """
 Brief notes on steps (see docs for more detail):
 
-    - any python callable can be made into a step by decorating it with `@step`.
-    - the callable MUST have valid type-hints for all arguments and return type.
-    - these type-hints are used to verify that the steps can be composed in a pipeline.
-    - steps also extract metadata from the callable, like `description` or
-        `output_info` from the callable's docstring or return annotation,
-        respectively.
-    - don't use `Any` or `None` in step annotations. If a step is indeed general enough to
-        accept or return any python object, prefer `object` as the annotation.
+    - you may define your pipeline using as many or as few @steps as you like.
+
+    - Any python function or callable can be made into a step by decorating it
+        with `@step`, like below.
+
+    - these functions will be composed in the pipeline (i.e. calling the pipeline
+        is equivalent to calling each step in order).
+
+    - the steps MUST have valid type-hints for all positional arguments and
+        return types.
+      - don't use `Any` or `None` in step annotations
+      - these type-hints are used to verify that steps are compatible when
+          composing (no checking at runtime)
 """
 
 # example step using the decorator:
@@ -24,18 +30,20 @@ def preprocessing_step(input_data: object) -> object:
     pass
 
 
-# metadata can also be manually specified with kwargs
-@step(input_info=..., authors=...)
+@step()
 def another_step(data: object) -> object:
     # TODO
     pass
 
 
 @step
-def run_inference(arg: object, model = Model("YOUR MODEL's URI HERE")) -> object:
+def run_inference(
+    input_arg: object,
+    model=Model("YOUR MODEL's NAME HERE"),
+) -> object:
     pass
 
-# steps will be composed in order by the pipeline below
+# the step functions will be composed in order by the pipeline:
 ALL_STEPS = (
     preprocessing_step,
     another_step,
@@ -45,6 +53,7 @@ ALL_STEPS = (
 ################################### PIPELINE ####################################
 
 {{ shortname }} = Pipeline(
+    requirements_file="./requirements.txt",
     title="{{ pipeline.title }}",
     steps=ALL_STEPS,
     authors={{ pipeline.authors }},
@@ -52,6 +61,6 @@ ALL_STEPS = (
     description="{{ pipeline.description }}",
     version="{{ pipeline.version }}",
     year={{ pipeline.year }},
-    tags= {{ pipeline.tags }},
+    tags={{ pipeline.tags }},
     uuid="{{ pipeline.uuid }}",  # WARNING: DO NOT EDIT UUID
 )

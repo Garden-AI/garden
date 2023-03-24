@@ -27,6 +27,8 @@ def test_client_no_previous_tokens(
         "groups.api.globus.org": token,
         "search.api.globus.org": token,
         "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
+        "funcx_service": token,
+        "auth.globus.org": token,
     }
     mock_token_response.data = {"id_token": identity_jwt}
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
@@ -47,6 +49,7 @@ def test_client_no_previous_tokens(
             "urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships",
             "urn:globus:auth:scope:search.api.globus.org:ingest",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all",
+            "https://auth.globus.org/scopes/facd7ccc-c5f4-42aa-916b-a0e270e2c2a9/all",
         ],
     )
 
