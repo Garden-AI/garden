@@ -50,12 +50,15 @@ ALL_STEPS = (
     run_inference,
 )
 
+REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
+                          # with an "/absolute/path/to/requirements.txt"
+
 ################################### PIPELINE ####################################
 
 {{ shortname }} = Pipeline(
-    requirements_file="./requirements.txt",
     title="{{ pipeline.title }}",
     steps=ALL_STEPS,
+    requirements_file=REQUIREMENTS_FILE,
     authors={{ pipeline.authors }},
     contributors={{ pipeline.contributors }},
     description="{{ pipeline.description }}",
