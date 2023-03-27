@@ -171,7 +171,7 @@ class Step:
         # check that any positional arguments have annotations
         for p in sig.parameters.values():
             if p.annotation is Parameter.empty is p.default:
-                # fine to skip annotation if there's a default we can use to infer type
+                # fine to skip annotation only if there's a default we can use to infer type
                 raise TypeError(
                     f"Parameter {p} is missing an annotation in {f.__name__}'s definition. "
                     "Please double check that the argument list is fully annotated.\n"
@@ -239,7 +239,7 @@ def inference_step(model_uri: str, **kwargs):
     Example:
     --------
         ```python
-        @inference_step(model_uri="models:/my-model/my-version")
+        @inference_step(model_uri="me@uni.edu-my-model/version")
         def my_step(data: pd.DataFrame) -> MyResultType:
             pass  # NOTE: leave the function body empty
 

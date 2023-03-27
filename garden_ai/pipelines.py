@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import pathlib
 import sys
+import time
 from datetime import datetime
 from functools import reduce
 from inspect import signature
@@ -11,6 +13,8 @@ from typing import Any, List, Optional, Tuple, cast
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
+from funcx import FuncXClient
+from funcx.errors import TaskPending
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
@@ -174,14 +178,79 @@ class Pipeline:
             )
         return
 
-    def register(self):
-        """register this Pipeline's complete Step composition as a globus compute function
-        TODO
-        """
-        raise NotImplementedError
+    def __call__(
+        self,
+        *args: Any,
+        endpoint_uuid: Union[UUID, str, None] = None,
+        timeout=None,
+        **kwargs: Any,
+    ) -> Any:
+        """Call the pipeline's composed steps on the given input data.
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self._composed_steps(*args, **kwargs)
+        Attempt to execute remotely if this pipeline has already been registered
+        and a valid ``endpoint_uuid`` is specified, else run locally as a regular
+        python function.
+
+        Parameters
+        ----------
+        *args : Any
+            Input data passed through the first step in the pipeline
+        endpoint_uuid : Union[UUID, str, None]
+            A valid funcx endpoint uuid
+        timeout : int
+            time (in seconds) to wait for results. Pass `None` to wait
+            indefinitely (default behavior).
+        **kwargs : Any
+            Additional keyword arguments passed directly to the first step in
+            the pipeline.
+
+        Returns
+        -------
+        Any
+            Results from the pipeline's composed steps called with the given
+            input data.
+
+        Raises
+        ------
+        Exception
+            Any exceptions raised over the course of executing the pipeline
+            function, remotely or otherwise.
+
+        """
+        run_locally = not (self.funcx_uuid and endpoint_uuid)
+        polling_interval = 3  # TODO might be a better value for this
+        if run_locally:
+            if endpoint_uuid:
+                logger.warning(
+                    f"Pipeline '{self.title}' invoked with endpoint_uuid="
+                    f"{endpoint_uuid}, but has not been registered yet. The "
+                    "pipeline will not execute remotely.",
+                )
+            if self.funcx_uuid:
+                logger.warning(
+                    f"Pipeline '{self.title}' has been registered for remote "
+                    "execution, but no endpoint_uuid was specified. The pipeline will "
+                    "not execute remotely.",
+                )
+            return self._composed_steps(*args, **kwargs)
+        else:
+            fxc = FuncXClient()
+            task_id = fxc.run(
+                *args,
+                endpoint_id=str(endpoint_uuid),
+                function_id=str(self.funcx_uuid),
+                **kwargs,
+            )
+
+            t_end = time.time() + timeout if timeout else math.inf
+            while time.time() < t_end:
+                try:
+                    result = fxc.get_result(task_id)
+                except TaskPending:
+                    time.sleep(polling_interval)
+                    continue
+                break
+            return result
 
     def __post_init_post_parse__(self):
         """Finish initializing the pipeline after validators have run.
@@ -205,10 +274,10 @@ class Pipeline:
         self.contributors = list(known_contributors)
         return
 
-    def json(self):
+    def json(self) -> str:
         return json.dumps(self, default=garden_json_encoder)
 
-    def datacite_json(self):
+    def datacite_json(self) -> str:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string.
 
         Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
