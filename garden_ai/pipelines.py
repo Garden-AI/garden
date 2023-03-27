@@ -61,7 +61,7 @@ class Pipeline:
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    requirements_file: str = "./requirements.txt"
+    requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
@@ -91,17 +91,31 @@ class Pipeline:
 
     @validator("requirements_file")
     def check_exists(cls, req_file):
-        req_file = pathlib.Path(req_file)
-        if not req_file.exists():
-            raise ValueError(f"Could not find {req_file}. Please make sure it exists.")
-        return str(req_file)
+        if not req_file:
+            msg = (
+                "No requirements file specified for pipeline. If this "
+                "pipeline has any further dependencies, please specify a "
+                "requirements file by including a"
+                ' `requirements_file="path/to/requirements.txt"` '
+                "keyword argument in the constructor."
+            )
+            logger.warning(msg)
+            return None
+
+        req_path = pathlib.Path(req_file).resolve()
+        if not req_path.exists():
+            raise ValueError(f"Could not find {req_path}. Please make sure it exists.")
+        return str(req_path)
 
     @validator("requirements_file")
     def check_extension(cls, req_file):
+        if not req_file:
+            # no warning if missing, would be redundant with check_exists
+            return None
         if not req_file.endswith((".txt", ".yml", ".yaml")):
             raise ValueError(
-                "Did not recognize requirements file extension. Try"
-                "again with a standard requirements.txt or conda"
+                "Did not recognize requirements file extension. Try "
+                "again with a standard requirements.txt or conda "
                 "environment.yml/yaml."
             )
         return req_file
@@ -112,27 +126,30 @@ class Pipeline:
         Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies``
         """
 
-        # mapping of python-version-witness: python-version (for warning msg)
+        # mapping of python-version-witness: python-version (collected for warning msg below)
         py_versions = {
             "system": ".".join(map(str, sys.version_info[:3])),
             "pipeline": self.python_version,
         }
-        if self.requirements_file.endswith((".yml", ".yaml")):
-            py_version, conda_deps, pip_deps = read_conda_deps(self.requirements_file)
-            if py_version:
-                py_versions["pipeline"] = py_version
-            self.conda_dependencies += conda_deps
-            self.pip_dependencies += pip_deps
+        if self.requirements_file:
+            if self.requirements_file.endswith((".yml", ".yaml")):
+                py_version, conda_deps, pip_deps = read_conda_deps(
+                    self.requirements_file
+                )
+                if py_version:
+                    py_versions["pipeline"] = py_version
+                self.conda_dependencies += conda_deps
+                self.pip_dependencies += pip_deps
 
-        elif self.requirements_file.endswith(".txt"):
-            with open(self.requirements_file, "r") as f:
-                contents = f.read()
-                parsed = dparse.parse(
-                    contents, path=self.requirements_file, resolve=True
-                ).serialize()
-                deps = [d["line"] for d in parsed["dependencies"]]
-                deps.extend(d["line"] for d in parsed["resolved_dependencies"])
-                self.pip_dependencies += deps
+            elif self.requirements_file.endswith(".txt"):
+                with open(self.requirements_file, "r") as f:
+                    contents = f.read()
+                    parsed = dparse.parse(
+                        contents, path=self.requirements_file, resolve=True
+                    ).serialize()
+                    deps = [d["line"] for d in parsed["dependencies"]]
+                    deps.extend(d["line"] for d in parsed["resolved_dependencies"])
+                    self.pip_dependencies += deps
 
         for step in self.steps:
             self.conda_dependencies += step.conda_dependencies
