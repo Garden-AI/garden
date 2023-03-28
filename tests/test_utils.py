@@ -1,6 +1,6 @@
 import pytest
 
-from garden_ai.utils import (
+from garden_ai.utils.misc import (
     extract_email_from_globus_jwt,
     validate_pip_lines,
     InvalidRequirement,

@@ -11,7 +11,7 @@ from mlflow.pyfunc import PyFuncModel, get_model_dependencies  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
-from garden_ai.utils import read_conda_deps
+from garden_ai.utils.misc import read_conda_deps
 
 from garden_ai.mlmodel import Model
 

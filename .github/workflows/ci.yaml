@@ -32,7 +32,7 @@ jobs:
       - name: black lint
         uses: psf/black@stable
         with:
-          options: "--check --verbose --color"
+          options: "--check --verbose --color --exclude 'fixtures'"
       - name: Lint with flake8
         run: |
           # stop the build if there are any-flake8 comments

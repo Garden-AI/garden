@@ -1,6 +1,14 @@
 import pytest
 
 from garden_ai.globus_compute.containers import build_container, ContainerBuildException
+from garden_ai.globus_compute.remote_functions import (
+    register_pipeline,
+    PipelineRegistrationException,
+)
+
+
+class MockException(Exception):
+    pass
 
 
 def test_build_container_happy_path(funcx_client, pipeline_toy_example):
@@ -17,12 +25,27 @@ def test_build_container_where_build_fails(funcx_client, pipeline_toy_example, m
 def test_build_container_with_container_request_error(
     funcx_client, pipeline_toy_example, mocker
 ):
-    class MockException(Exception):
-        pass
-
     mocker.patch(
         "garden_ai.globus_compute.containers.GlobusAPIError", new=MockException
     )
     funcx_client.build_container.side_effect = MockException
     with pytest.raises(ContainerBuildException):
         build_container(funcx_client, pipeline_toy_example)
+
+
+def test_register_pipeline_happy_path(funcx_client, pipeline_toy_example):
+    func_uuid = register_pipeline(
+        funcx_client, pipeline_toy_example, "fake_container_id"
+    )
+    assert func_uuid == "f9072604-6e71-4a14-a336-f7fc4a677293"
+
+
+def test_register_pipeline_with_request_error(
+    funcx_client, pipeline_toy_example, mocker
+):
+    mocker.patch(
+        "garden_ai.globus_compute.remote_functions.GlobusAPIError", new=MockException
+    )
+    funcx_client.register_function.side_effect = MockException
+    with pytest.raises(PipelineRegistrationException):
+        register_pipeline(funcx_client, pipeline_toy_example, "fake_container_id")
