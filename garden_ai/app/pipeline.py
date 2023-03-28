@@ -228,9 +228,6 @@ def register(
         resolve_path=True,
         help=("Path to a Python file containing your pipeline implementation."),
     ),
-    pipeline_name: str = typer.Argument(
-        None, help=("The name of the Pipeline object in the Python file.")
-    ),
 ):
     client = GardenClient()
     if (
@@ -243,7 +240,7 @@ def register(
         )
         raise typer.Exit(code=1)
     try:
-        user_pipeline = load_pipeline_from_python_file(pipeline_file, pipeline_name)
+        user_pipeline = load_pipeline_from_python_file(pipeline_file)
     except PipelineLoadException as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise typer.Exit(code=1)
@@ -255,3 +252,4 @@ def register(
     console.print(f"Created container {container_uuid}")
     func_uuid = client.register_pipeline(user_pipeline, container_uuid)
     console.print(f"Created function {func_uuid}")
+    console.print("Done! Pipeline is registered.")

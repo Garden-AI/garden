@@ -10,25 +10,23 @@ from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 def test_load_pipeline_from_valid_file():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/pipeline.py")
-    loaded_pipeline = load_pipeline_from_python_file(
-        fixture_file_path, "fixture_pipeline"
-    )
+    loaded_pipeline = load_pipeline_from_python_file(fixture_file_path)
     assert isinstance(loaded_pipeline, Pipeline)
 
 
-def test_load_pipeline_from_valid_file_wrong_pipeline_name():
-    fixture_file_path = get_fixture_file_path("fixture_pipeline/pipeline.py")
+def test_load_pipeline_from_valid_file_with_no_pipeline():
+    fixture_file_path = get_fixture_file_path("fixture_pipeline/missing_pipeline.py")
     with pytest.raises(PipelineLoadException):
-        load_pipeline_from_python_file(fixture_file_path, "does_not_match_the_file")
+        load_pipeline_from_python_file(fixture_file_path)
 
 
 def test_load_pipeline_from_invalid_file():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/invalid_pipeline.py")
     with pytest.raises(PipelineLoadException):
-        load_pipeline_from_python_file(fixture_file_path, "fixture_pipeline")
+        load_pipeline_from_python_file(fixture_file_path)
 
 
 def test_load_pipeline_from_nonexistent_pipeline():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/not_actually_a_file.py")
     with pytest.raises(PipelineLoadException):
-        load_pipeline_from_python_file(fixture_file_path, "fixture_pipeline")
+        load_pipeline_from_python_file(fixture_file_path)

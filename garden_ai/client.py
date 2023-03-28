@@ -318,6 +318,7 @@ class GardenClient:
     def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
         func_uuid = register_pipeline(self.funcx_client, pipeline, container_uuid)
         pipeline.funcx_uuid = UUID(func_uuid)
+        pipeline.doi = self._mint_doi(pipeline)
         self.put_local_pipeline(pipeline)
         return func_uuid
 
