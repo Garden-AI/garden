@@ -5,7 +5,7 @@ from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
-from utils.misc import read_conda_deps
+from garden_ai.utils.misc import read_conda_deps
 
 
 class ModelUploadException(Exception):
