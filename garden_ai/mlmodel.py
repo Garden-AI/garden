@@ -5,6 +5,7 @@ from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
+from utils.misc import read_conda_deps
 
 
 class ModelUploadException(Exception):
@@ -70,42 +71,94 @@ def upload_model(
     return f"{full_model_name}/{version_number}"
 
 
+class _Model:
+    def __init__(
+        self,
+        model_full_name: str,
+    ):
+        self.model = None
+        self.model_uri = f"models:/{model_full_name}"
+        # extract dependencies without loading model into memory
+        # make it easier for steps to infer
+        conda_yml = mlflow.pyfunc.get_model_dependencies(self.model_uri, format="conda")
+        python_version, conda_dependencies, pip_dependencies = read_conda_deps(
+            conda_yml
+        )
+        self.python_version = python_version
+        self.conda_dependencies = conda_dependencies
+        self.pip_dependencies = pip_dependencies
+        return
+
+    def _lazy_load_model(self):
+        """deserialize the underlying model, if necessary."""
+        if self.model is None:
+            # don't clutter current directory, especially if running locally
+            local_store = pathlib.Path("~/.garden/mlflow").expanduser()
+            local_store.mkdir(parents=True, exist_ok=True)
+            self.model = load_model(
+                self.model_uri, suppress_warnings=True, dst_path=local_store
+            )
+        return
+
+    def predict(self, data):
+        """Generate model predictions.
+
+        The underlying model will be downloaded if it hasn't already.
+
+        input data is passed directly to the underlying model via its respective
+        ``predict`` method.
+
+        Parameters
+        ----------
+        data : pd.DataFrame | pd.Series | np.ndarray | List[Any] | Dict[str, Any]
+            Input data fed to the model
+
+        Returns
+        --------
+        Results of model prediction
+
+        """
+        self._lazy_load_model()
+        return self.model.predict(data)
+
+
 @lru_cache
-def Model(model_full_name: str) -> mlflow.pyfunc.PyFuncModel:
+def Model(model_full_name: str) -> _Model:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
     Tip: This is meant to be used as a "default argument" in a
-    ``@step``-decorated function. This allows the pipeline to download the model
-    as soon as the steps are initialized, _before_ any calls to the pipeline.
+    ``@step``-decorated function. This allows the step to collect model-specific
+    dependencies, including any user-specified dependencies when the model was
+    registered.
 
     Example:
     --------
-    ```python
-    import garden_ai
-    from garden_ai import step
-    ....
-    # OK for preceding step to return only a DataFrame
-    @step
-    def run_inference(
-        my_data: pd.DataFrame,
-        my_model = garden_ai.Model("me@uni.edu-myModel/2"),  # NOTE: only downloads once
-                                                             # when python evaluates the
-                                                             # default(s)
-    ) -> MyResultType:
-    '''Run inference on DataFrame `my_data`, returned by previous step.'''
+        ```python
+        import garden_ai
+        from garden_ai import step
+        ....
+        # OK for preceding step to return only a DataFrame
+        @step
+        def run_inference(
+            my_data: pd.DataFrame,  # no default
+            my_model = garden_ai.Model("me@uni.edu-myModel/2"),  # NOTE: used as default
+        ) -> MyResultType:
+        '''Run inference on DataFrame `my_data`, returned by previous step.'''
 
-        result = my_model.predict(my_data)
-        return result
-    ```
+            result = my_model.predict(my_data)
+            return result
+        ```
 
     Notes:
     ------
-    This is currently just a wrapper around `mlflow.pyfunc.load_model`. In the future
-    this might implement smarter caching behavior, but for now the preferred usage is
-    to use this function as a default value for some keyword argument.
+    The object returned by this function waits as long as possible - i.e. until
+    the model actually needs to make a prediction - to actually deserialize the
+    registered model. This is done so that ``Model('me@uni.edu-myModel/2)`` in a
+    step (like above) an argument default is lighter-weight when the function itself
+    is serialized for remote execution of a pipeline.
+
+    This function is also memoized, so the same object (which, being lazy, may
+    or may not have actually loaded the model yet) will be returned if it is
+    called multiple times with the same model_full_name.
     """
-    model_uri = f"models:/{model_full_name}"
-    local_store = pathlib.Path("~/.garden/mlflow").expanduser()
-    local_store.mkdir(parents=True, exist_ok=True)
-    # don't clutter the user's current directory with mystery mlflow directories
-    return load_model(model_uri=model_uri, suppress_warnings=True, dst_path=local_store)
+    return _Model(model_full_name)
