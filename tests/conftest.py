@@ -1,14 +1,13 @@
 from typing import List
 
-import mlflow  # type: ignore
 import pytest
+from funcx import FuncXClient  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
-from funcx import FuncXClient  # type: ignore
 
 
 @pytest.fixture(autouse=True)
@@ -203,17 +202,10 @@ def tmp_conda_yml(tmp_path):
 @pytest.fixture
 def step_with_model(mocker, tmp_conda_yml):
     mock_model = mocker.MagicMock(PyFuncModel)
-    mock_uri = "models:/email@addr.ess-fake-model/fake-version"
-
-    mock_model_info = mocker.Mock(mlflow.models.model.ModelInfo)
-    mock_model_info.model_uri = mock_uri
-
-    mock_model.get_model_info = mocker.Mock()
-    mock_model.get_model_info.return_value = mock_model_info
-
     mocker.patch("garden_ai.mlmodel.load_model").return_value = mock_model
-
-    mocker.patch("garden_ai.steps.get_model_dependencies").return_value = tmp_conda_yml
+    mocker.patch(
+        "garden_ai.mlmodel.mlflow.pyfunc.get_model_dependencies"
+    ).return_value = tmp_conda_yml
 
     @step
     def uses_model_in_default(
