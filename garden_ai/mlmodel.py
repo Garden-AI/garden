@@ -5,6 +5,11 @@ from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # ignore cpu gaurd info on tf import
+import tensorflow  # noqa: E402
+import torch
 
 
 class ModelUploadException(Exception):
@@ -17,7 +22,7 @@ def upload_model(
     model_path: str,
     model_name: str,
     user_email: str,
-    flavor: str,  # TODO may not be needed? or may decide which mlflow package to use
+    flavor: str,
     extra_pip_requirements: List[str] = None,
 ) -> str:
     """Upload a model to Garden-AI's MLflow model registry.
@@ -50,9 +55,28 @@ def upload_model(
     """
     full_model_name = f"{user_email}-{model_name}"
     try:
-        with open(model_path, "rb") as f:
-            loaded_model = pickle.load(f)
-            mlflow.sklearn.log_model(
+        if flavor == "sklearn" and pathlib.Path(model_path).is_file:
+            with open(model_path, "rb") as f:
+                loaded_model = pickle.load(f)
+                mlflow.sklearn.log_model(
+                    loaded_model,
+                    user_email,
+                    registered_model_name=full_model_name,
+                    extra_pip_requirements=extra_pip_requirements,
+                )
+        elif flavor == "tensorflow" and pathlib.Path(model_path).is_dir:
+            loaded_model = tensorflow.keras.models.load_model(model_path)
+            mlflow.tensorflow.log_model(  # TODO explore artifact path, sigs, and HDf5
+                loaded_model,
+                user_email,
+                registered_model_name=full_model_name,
+                extra_pip_requirements=extra_pip_requirements,
+            )
+        elif (
+            flavor == "pytorch" and pathlib.Path(model_path).is_file
+        ):  # TODO explore signatures
+            loaded_model = torch.load(model_path)
+            mlflow.pytorch.log_model(
                 loaded_model,
                 user_email,
                 registered_model_name=full_model_name,

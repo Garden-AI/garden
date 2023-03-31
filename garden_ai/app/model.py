@@ -25,7 +25,7 @@ def register(
     ),
     model_path: Path = typer.Argument(
         ...,
-        dir_okay=False,
+        dir_okay=True,
         file_okay=True,
         writable=True,
         readable=True,
@@ -51,7 +51,7 @@ def register(
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
     if flavor not in ["sklearn", "tensorflow", "pytorch"]:
-        rich.print(
+        raise typer.BadParameter(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
 
