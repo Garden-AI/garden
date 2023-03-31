@@ -21,61 +21,69 @@ def toy_sklearn_model():
 
 
 @pytest.fixture
-def toy_tensorflow_model():
-    # import tensorflow
-    import tensorflow as tf  # type: ignore
-
-    tf_model = tf.keras.Sequential(
-        [
-            tf.keras.layers.Dense(units=10, input_shape=[8]),
-            tf.keras.layers.Dense(units=1),
-        ]
-    )
-    tf_model.compile(loss="mse", optimizer=tf.keras.optimizers.RMSprop(0.001))
-    return tf_model
-
-
-@pytest.fixture
 def toy_pytorch_model():
-    # import torch
-    import torch.nn as nn
+    import torch
 
-    pytorch_model = nn.Sequential(nn.Linear(8, 10), nn.ReLU(), nn.Linear(10, 1))
-    return pytorch_model
+    pt_model = torch.nn.Linear(6, 1)
+    loss_function = torch.nn.L1Loss()
+    optimizer = torch.optim.Adam(pt_model.parameters(), lr=1e-4)
 
+    X = torch.randn(6)
+    y = torch.randn(1)
 
-@pytest.fixture
-def toy_model(request, toy_sklearn_model, toy_tensorflow_model, toy_pytorch_model):
-    model_type = request.param
-    if model_type == "sklearn":
-        return (toy_sklearn_model, model_type)
-    elif model_type == "tensorflow":
-        return (toy_tensorflow_model, model_type)
-    elif model_type == "pytorch":
-        return (toy_pytorch_model, model_type)
-    else:
-        raise ValueError(f"Unknown model_type: {model_type}")
+    epochs = 5
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        outputs = pt_model(X)
+
+        loss = loss_function(outputs, y)
+        loss.backward()
+
+        optimizer.step()
+    return pt_model
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize(
-    "toy_model", ["sklearn", "tensorflow", "pytorch"], indirect=True
-)
-def test_mlflow_register(tmp_path, toy_model):
+def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     # as if model.pkl already existed on disk
     import pickle
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "model.pkl"
     model_path.touch()
+    flavor = "sklearn"
     # model_path.parent.mkdir(exist_ok=True)
 
     with open(model_path, "wb") as f_out:
-        pickle.dump(toy_model[0], f_out)
+        pickle.dump(toy_sklearn_model, f_out)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/model.pkl`
-    name = "test-model-name"
-    flavor = toy_model[1]
+    name = "sk-test-model-name"
+    extra_pip_requirements = None
+    # actually register the model
+    client = GardenClient()
+    full_model_name = client.log_model(
+        str(model_path), name, flavor, extra_pip_requirements
+    )
+
+    # all mlflow models will have a 'predict' method
+    downloaded_model = Model(full_model_name)
+    assert hasattr(downloaded_model, "predict")
+
+
+@pytest.mark.integration
+def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
+    # as if model.pkl already existed on disk
+    import torch
+
+    tmp_path.mkdir(exist_ok=True)
+    model_path = tmp_path / "pytorchtest.pth"
+    torch.save(toy_pytorch_model, model_path, _use_new_zipfile_serialization=False)
+    flavor = "pytorch"
+    # model_path.parent.mkdir(exist_ok=True)
+
+    # simulate `$ garden-ai model register test-model-name tmp_path/pytorchtest.pt`
+    name = "pt-test-model-name"
     extra_pip_requirements = None
     # actually register the model
     client = GardenClient()

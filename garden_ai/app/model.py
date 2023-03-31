@@ -25,6 +25,7 @@ def register(
     ),
     model_path: Path = typer.Argument(
         ...,
+        exists=True,
         dir_okay=True,
         file_okay=True,
         writable=True,

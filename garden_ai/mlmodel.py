@@ -6,10 +6,11 @@ from typing import List
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
 import os
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # ignore cpu gaurd info on tf import
-import tensorflow  # noqa: E402
 import torch
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# ignore cpu gaurd info on tf import require before tf import
+from tensorflow import keras  # noqa: E402
 
 
 class ModelUploadException(Exception):
@@ -30,7 +31,8 @@ def upload_model(
     Parameters
     ----------
     model_path : str
-        The file path of the model to be uploaded, e.g. ``/path/to/my/model.pkl``.
+        The file path specific to the model type to be uploaded, e.g. ``/path/to/my/model.pkl``
+        or ``/path/to/my/tf_model/`` or ``/path/to/my/torch_model.pt``.
     model_name : str
         The name under which to register the uploaded model.
     user_email : str
@@ -65,7 +67,7 @@ def upload_model(
                     extra_pip_requirements=extra_pip_requirements,
                 )
         elif flavor == "tensorflow" and pathlib.Path(model_path).is_dir:
-            loaded_model = tensorflow.keras.models.load_model(model_path)
+            loaded_model = keras.models.load_model(model_path)
             mlflow.tensorflow.log_model(  # TODO explore artifact path, sigs, and HDf5
                 loaded_model,
                 user_email,
@@ -98,7 +100,7 @@ def upload_model(
 
 
 @lru_cache
-def Model(model_full_name: str) -> mlflow.pyfunc.PyFuncModel:
+def Model(full_model_name: str) -> mlflow.pyfunc.PyFuncModel:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
     Tip: This is meant to be used as a "default argument" in a
@@ -131,7 +133,7 @@ def Model(model_full_name: str) -> mlflow.pyfunc.PyFuncModel:
     this might implement smarter caching behavior, but for now the preferred usage is
     to use this function as a default value for some keyword argument.
     """
-    model_uri = f"models:/{model_full_name}"
+    model_uri = f"models:/{full_model_name}"
     local_store = pathlib.Path("~/.garden/mlflow").expanduser()
     local_store.mkdir(parents=True, exist_ok=True)
     # don't clutter the user's current directory with mystery mlflow directories
