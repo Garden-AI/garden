@@ -2,7 +2,7 @@
 from garden_ai import GardenClient, Model, Pipeline, step
 import typing
 
-_ = GardenClient()
+client = GardenClient()
 ##################################### STEPS #####################################
 """
 Brief notes on steps (see docs for more detail):
@@ -55,7 +55,7 @@ REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
 
 ################################### PIPELINE ####################################
 
-{{ shortname }} = Pipeline(
+{{ shortname }}: Pipeline = client.create_pipeline(
     title="{{ pipeline.title }}",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,

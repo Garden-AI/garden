@@ -240,12 +240,28 @@ class GardenClient:
     def create_pipeline(
         self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
     ) -> Pipeline:
+        """Initialize and return a pipeline object.
+
+        If this pipeline's UUID has been used before to register a function for
+        remote execution, reuse the (funcx/globus compute) ID for consistency.
+
+        NOTE: this means that local modifications to a pipeline will not be
+        reflected when executing remotely until the pipeline is re-registered.
+        """
         data = dict(kwargs)
         if authors:
             data["authors"] = authors
         if title:
             data["title"] = title
-        return Pipeline(**data)
+
+        # if pipeline already registered on funcx, ensure new instance reuses funcx_uuid
+        pipeline = Pipeline(**data)
+        record = self.get_local_pipeline(pipeline.uuid)
+        if record:
+            logger.info("Found registered ")
+            pipeline.funcx_uuid = json.loads(record).get("funcx_uuid")
+
+        return pipeline
 
     def log_model(
         self,
@@ -289,13 +305,27 @@ class GardenClient:
             see `test`
 
         """
+
         if not test:
             raise NotImplementedError
-        elif obj.doi and not force:
+
+        def get_existing_doi() -> Optional[str]:
+            # check for existing doi, either on object or in db
+            record: Optional[JSON] = self.get_local_garden(obj.uuid)
+            record = record or self.get_local_pipeline(obj.uuid)
+            if record:
+                data = json.loads(record)
+                return data.get("doi", None)
+            else:
+                return None
+
+        existing_doi = obj.doi or get_existing_doi()
+
+        if existing_doi and not force:
             logger.info(
                 "existing DOI found, not requesting new DOI. Pass `force=true` to override this behavior."
             )
-            return obj.doi
+            return existing_doi
 
         logger.info("Requesting DOI")
         url = f"{GARDEN_ENDPOINT}/doi"
