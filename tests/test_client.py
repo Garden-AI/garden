@@ -28,7 +28,7 @@ def test_client_no_previous_tokens(
         "groups.api.globus.org": token,
         "search.api.globus.org": token,
         "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
-        "globus_compute_service": token,
+        "funcx_service": token,
         "auth.globus.org": token,
     }
     mock_token_response.data = {"id_token": identity_jwt}

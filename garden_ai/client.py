@@ -49,7 +49,7 @@ GARDEN_ENDPOINT = os.environ.get(
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
-COMPUTE_RESOURCE_SERVER_NAME = "globus_compute_service"
+COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
 
@@ -258,8 +258,8 @@ class GardenClient:
         pipeline = Pipeline(**data)
         record = self.get_local_pipeline(pipeline.uuid)
         if record:
-            logger.info("Found registered ")
-            pipeline.funcx_uuid = json.loads(record).get("funcx_uuid")
+            logger.info("Found pre-registered pipeline. Reusing remote function ID.")
+            pipeline.func_uuid = json.loads(record).get("func_uuid")
 
         return pipeline
 

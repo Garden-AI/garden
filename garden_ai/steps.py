@@ -152,8 +152,6 @@ class Step:
         If this step's function has a Model as a default argument, like
         ``func(*args, model=Model(...))``, extract the dependencies for that model
         and track them as step-level dependencies.
-
-        Uses mlflow.pyfunc.get_model_dependencies.
         """
 
         sig = signature(self.func)

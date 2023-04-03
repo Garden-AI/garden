@@ -9,15 +9,16 @@ import time
 from datetime import datetime
 from functools import reduce
 from inspect import signature
-from typing import Any, List, Optional, Tuple, cast
+from typing import Any, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
-from funcx import FuncXClient
-from funcx.errors import TaskPending
+from globus_compute_sdk import Client
+from globus_compute_sdk.errors import TaskPending
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
+from garden_ai.app.console import console
 from garden_ai.datacite import (
     Contributor,
     Creator,
@@ -181,22 +182,22 @@ class Pipeline:
     def __call__(
         self,
         *args: Any,
-        endpoint_uuid: Union[UUID, str, None] = None,
+        endpoint: Union[UUID, str, None] = None,
         timeout=None,
         **kwargs: Any,
     ) -> Any:
         """Call the pipeline's composed steps on the given input data.
 
         Attempt to execute remotely if this pipeline has already been registered
-        and a valid ``endpoint_uuid`` is specified, else run locally as a regular
+        and a valid ``endpoint`` is specified, else run locally as a regular
         python function.
 
         Parameters
         ----------
         *args : Any
             Input data passed through the first step in the pipeline
-        endpoint_uuid : Union[UUID, str, None]
-            A valid funcx endpoint uuid
+        endpoint : Union[UUID, str, None]
+            A valid globus compute endpoint uuid
         timeout : int
             time (in seconds) to wait for results. Pass `None` to wait
             indefinitely (default behavior).
@@ -217,40 +218,46 @@ class Pipeline:
             function, remotely or otherwise.
 
         """
-        run_locally = not (self.funcx_uuid and endpoint_uuid)
-        polling_interval = 3  # TODO might be a better value for this
+        run_locally = not (self.func_uuid and endpoint)
+        polling_interval = 2  # TODO might be a better value for this
+
         if run_locally:
-            if endpoint_uuid:
+            if endpoint:
                 logger.warning(
-                    f"Pipeline '{self.title}' invoked with endpoint_uuid="
-                    f"{endpoint_uuid}, but has not been registered yet. The "
+                    f"Pipeline '{self.title}' invoked with endpoint="
+                    f" {endpoint}, but has not been registered yet. The "
                     "pipeline will not execute remotely.",
                 )
-            if self.funcx_uuid:
+            if self.func_uuid:
                 logger.warning(
                     f"Pipeline '{self.title}' has been registered for remote "
-                    "execution, but no endpoint_uuid was specified. The pipeline will "
+                    "execution, but no endpoint was specified. The pipeline will "
                     "not execute remotely.",
                 )
+            # pass input directly to underlying steps
             return self._composed_steps(*args, **kwargs)
         else:
-            fxc = FuncXClient()
+            fxc = Client()
             task_id = fxc.run(
                 *args,
-                endpoint_id=str(endpoint_uuid),
-                function_id=str(self.funcx_uuid),
+                endpoint_id=str(endpoint),
+                function_id=str(self.func_uuid),
                 **kwargs,
             )
-
-            t_end = time.time() + timeout if timeout else math.inf
-            while time.time() < t_end:
-                try:
-                    result = fxc.get_result(task_id)
-                except TaskPending:
-                    time.sleep(polling_interval)
-                    continue
-                break
-            return result
+            with console.status(
+                f"[bold green] executing remotely on endpoint {endpoint}"
+            ) as status:
+                t_0 = time.time()
+                t_end = t_0 + timeout if timeout else math.inf
+                while time.time() < t_end:
+                    try:
+                        result = fxc.get_result(task_id)
+                    except TaskPending as e:
+                        time.sleep(polling_interval)
+                        status.update(f"[bold blue] task pending: {e.reason}")
+                        continue
+                    break
+                return result
 
     def __post_init_post_parse__(self):
         """Finish initializing the pipeline after validators have run.
