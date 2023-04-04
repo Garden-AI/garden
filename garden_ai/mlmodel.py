@@ -6,11 +6,6 @@ from typing import List
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
 import os
-import torch
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-# ignore cpu guard info on tf import require before tf import
-from tensorflow import keras  # noqa: E402
 
 from garden_ai.utils.misc import read_conda_deps
 
@@ -69,6 +64,10 @@ def upload_model(
                     extra_pip_requirements=extra_pip_requirements,
                 )
         elif flavor == "tensorflow" and pathlib.Path(model_path).is_dir:
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            # ignore cpu guard info on tf import require before tf import
+            from tensorflow import keras  # noqa: E402
+
             loaded_model = keras.models.load_model(model_path)
             mlflow.tensorflow.log_model(  # TODO explore artifact path, sigs, and HDf5
                 loaded_model,
@@ -79,6 +78,8 @@ def upload_model(
         elif (
             flavor == "pytorch" and pathlib.Path(model_path).is_file
         ):  # TODO explore signatures
+            import torch
+
             loaded_model = torch.load(model_path)
             mlflow.pytorch.log_model(
                 loaded_model,
