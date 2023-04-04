@@ -255,6 +255,7 @@ def test_pipeline_authors_are_garden_contributors(
 def test_upload_model(mocker, tmp_path):
     model_name = "test_model"
     user_email = "will@test.com"
+    flavor = "sklearn"
     model_dir_path = tmp_path / "models"
 
     model_dir_path.mkdir(parents=True, exist_ok=True)
@@ -275,7 +276,8 @@ def test_upload_model(mocker, tmp_path):
 
     full_model_name = "will@test.com-test_model/1"
     assert (
-        mlmodel.upload_model(str(model_path), model_name, user_email) == full_model_name
+        mlmodel.upload_model(str(model_path), model_name, user_email, flavor)
+        == full_model_name
     )
 
 

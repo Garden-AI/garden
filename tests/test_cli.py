@@ -69,14 +69,14 @@ def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
 
 
 @pytest.mark.cli
-def test_model_upload(mocker):
+def test_model_upload(mocker, tmp_path):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.model.GardenClient").return_value = mock_client
     command = [
         "model",
         "register",
         "unit-test-model",
-        "/Users/will/fake-file.pkl",
+        str(tmp_path),
         "sklearn",
         "--extra-pip-requirements",
         "torch==1.13.1",
@@ -87,9 +87,10 @@ def test_model_upload(mocker):
     assert result.exit_code == 0
 
     args = mock_client.log_model.call_args.args
-    assert args[0] == "/Users/will/fake-file.pkl"
+    assert args[0] == str(tmp_path)
     assert args[1] == "unit-test-model"
-    assert args[2] == ["torch==1.13.1", "pandas<=1.5.0"]
+    assert args[2] == "sklearn"
+    assert args[3] == ["torch==1.13.1", "pandas<=1.5.0"]
 
 
 def test_clean_identifier():

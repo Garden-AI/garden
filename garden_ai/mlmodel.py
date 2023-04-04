@@ -5,6 +5,8 @@ from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
+import os
+
 from garden_ai.utils.misc import read_conda_deps
 
 
@@ -18,6 +20,7 @@ def upload_model(
     model_path: str,
     model_name: str,
     user_email: str,
+    flavor: str,
     extra_pip_requirements: List[str] = None,
 ) -> str:
     """Upload a model to Garden-AI's MLflow model registry.
@@ -25,11 +28,14 @@ def upload_model(
     Parameters
     ----------
     model_path : str
-        The file path of the model to be uploaded, e.g. ``/path/to/my/model.pkl``.
+        The file path specific to the model type to be uploaded, e.g. ``/path/to/my/model.pkl``
+        or ``/path/to/my/tf_model/`` or ``/path/to/my/torch_model.pt``.
     model_name : str
         The name under which to register the uploaded model.
     user_email : str
         The email address of the user uploading the model.
+    flavor : str
+        The library the model was made with, e.g. ``sklearn`` or ``tensorflow``.
     extra_pip_requirements : List[str], optional
         A list of additional pip requirements needed to load and/or run the model.
         Defaults to None.
@@ -48,9 +54,34 @@ def upload_model(
     """
     full_model_name = f"{user_email}-{model_name}"
     try:
-        with open(model_path, "rb") as f:
-            loaded_model = pickle.load(f)
-            mlflow.sklearn.log_model(
+        if flavor == "sklearn" and pathlib.Path(model_path).is_file:
+            with open(model_path, "rb") as f:
+                loaded_model = pickle.load(f)
+                mlflow.sklearn.log_model(
+                    loaded_model,
+                    user_email,
+                    registered_model_name=full_model_name,
+                    extra_pip_requirements=extra_pip_requirements,
+                )
+        elif flavor == "tensorflow" and pathlib.Path(model_path).is_dir:
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            # ignore cpu guard info on tf import require before tf import
+            from tensorflow import keras  # type: ignore
+
+            loaded_model = keras.models.load_model(model_path)
+            mlflow.tensorflow.log_model(  # TODO explore artifact path, sigs, and HDf5
+                loaded_model,
+                user_email,
+                registered_model_name=full_model_name,
+                extra_pip_requirements=extra_pip_requirements,
+            )
+        elif (
+            flavor == "pytorch" and pathlib.Path(model_path).is_file
+        ):  # TODO explore signatures
+            import torch  # type: ignore
+
+            loaded_model = torch.load(model_path)
+            mlflow.pytorch.log_model(
                 loaded_model,
                 user_email,
                 registered_model_name=full_model_name,
@@ -123,7 +154,7 @@ class _Model:
 
 
 @lru_cache
-def Model(model_full_name: str) -> _Model:
+def Model(full_model_name: str) -> _Model:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
     Tip: This is meant to be used as a "default argument" in a
@@ -161,4 +192,4 @@ def Model(model_full_name: str) -> _Model:
     or may not have actually loaded the model yet) will be returned if it is
     called multiple times with the same model_full_name.
     """
-    return _Model(model_full_name)
+    return _Model(full_model_name)
