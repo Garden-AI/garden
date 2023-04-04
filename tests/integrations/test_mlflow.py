@@ -22,7 +22,7 @@ def toy_sklearn_model():
 
 @pytest.fixture
 def toy_pytorch_model():
-    import torch
+    import torch  # type: ignore
 
     pt_model = torch.nn.Linear(6, 1)
     loss_function = torch.nn.L1Loss()

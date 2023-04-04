@@ -66,7 +66,7 @@ def upload_model(
         elif flavor == "tensorflow" and pathlib.Path(model_path).is_dir:
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             # ignore cpu guard info on tf import require before tf import
-            from tensorflow import keras  # noqa: E402
+            from tensorflow import keras  # type: ignore
 
             loaded_model = keras.models.load_model(model_path)
             mlflow.tensorflow.log_model(  # TODO explore artifact path, sigs, and HDf5
@@ -78,7 +78,7 @@ def upload_model(
         elif (
             flavor == "pytorch" and pathlib.Path(model_path).is_file
         ):  # TODO explore signatures
-            import torch
+            import torch  # type: ignore
 
             loaded_model = torch.load(model_path)
             mlflow.pytorch.log_model(
