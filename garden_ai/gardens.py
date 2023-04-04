@@ -18,7 +18,7 @@ from .datacite import (
 )
 from .pipelines import Pipeline
 from .steps import Step
-from .utils import JSON, garden_json_encoder
+from garden_ai.utils.misc import JSON, garden_json_encoder
 
 logger = logging.getLogger()
 

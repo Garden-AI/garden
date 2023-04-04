@@ -7,13 +7,11 @@ from inspect import Parameter, Signature, signature
 from typing import Callable, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from mlflow.pyfunc import PyFuncModel, get_model_dependencies  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
-from garden_ai.utils import read_conda_deps
 
-from garden_ai.mlmodel import Model
+from garden_ai.mlmodel import Model, _Model
 
 logger = logging.getLogger()
 
@@ -160,15 +158,11 @@ class Step:
 
         sig = signature(self.func)
         for param in sig.parameters.values():
-            if isinstance(param.default, PyFuncModel):
+            if isinstance(param.default, _Model):
                 model = param.default
-                uri = model.metadata.get_model_info().model_uri
-                deps_file = str(get_model_dependencies(uri, format="conda"))
-                python_version, conda_deps, pip_deps = read_conda_deps(deps_file)
-                self.python_version = python_version
-                self.conda_dependencies += conda_deps
-                self.pip_dependencies += pip_deps
-
+                self.python_version = model.python_version
+                self.conda_dependencies += model.conda_dependencies
+                self.pip_dependencies += model.pip_dependencies
         return
 
     @validator("func")
