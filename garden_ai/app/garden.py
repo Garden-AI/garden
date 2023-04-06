@@ -174,3 +174,31 @@ def create(
         metadata = client.get_local_garden(garden.uuid)
         rich.print_json(metadata)
     return
+
+
+# TODO: allow referencing garden or pipeline by DOI
+@garden_app.command(no_args_is_help=True)
+def add_pipeline(
+    garden_name: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        prompt="Please enter a the name or DOI of a garden",
+        help="The name of the garden you want to add a pipeline to",
+        rich_help_panel="Required",
+    ),
+    pipeline_name: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        prompt="Please enter a the title or DOI of a pipeline",
+        help="The name of the pipeline you want to add",
+        rich_help_panel="Required",
+    ),
+):
+    pass
+
+
+@garden_app.command(no_args_is_help=True)
+def publish():
+    pass
