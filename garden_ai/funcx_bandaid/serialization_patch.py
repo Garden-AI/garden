@@ -27,7 +27,7 @@ def serialize(self, *args, **kwargs):
 
 
 @monkeypatch_method(DillCodeTextInspect)
-def serialize(self, *args, **kwargs):
+def serialize(self, *args, **kwargs):  # noqa: F811
     if args[0].__closure__ is not None:
         raise SerializerError("Payload non-local variables ignored by `getsource`.")
     return self.original_func(*args, **kwargs)
