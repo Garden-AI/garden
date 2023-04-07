@@ -1,3 +1,5 @@
+# type: ignore
+
 from funcx.serialize.base import SerializerError
 from funcx.serialize.concretes import DillCodeSource, DillCodeTextInspect
 
