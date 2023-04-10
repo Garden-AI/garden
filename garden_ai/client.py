@@ -32,6 +32,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
 from mlflow.tracking.request_header.registry import _request_header_provider_registry  # type: ignore
+import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
 from garden_ai.globus_compute.login_manager import FuncXLoginManager
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.remote_functions import register_pipeline
