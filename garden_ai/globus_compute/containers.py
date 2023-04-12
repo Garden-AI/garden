@@ -1,7 +1,7 @@
 from time import sleep, time
 from enum import Enum
 
-from funcx import FuncXClient, ContainerSpec  # type: ignore
+from globus_compute_sdk import Client, ContainerSpec  # type: ignore
 from globus_sdk import GlobusAPIError
 from garden_ai.pipelines import Pipeline
 from garden_ai.app.console import console
@@ -20,7 +20,7 @@ class BuildStatus(str, Enum):
     failed = "failed"
 
 
-def build_container(funcx_client: FuncXClient, pipeline: Pipeline) -> str:
+def build_container(compute_client: Client, pipeline: Pipeline) -> str:
     name = str(pipeline.uuid)
     cs = ContainerSpec(
         name=name,
@@ -30,17 +30,17 @@ def build_container(funcx_client: FuncXClient, pipeline: Pipeline) -> str:
     )
 
     try:
-        container_uuid = funcx_client.build_container(cs)
+        container_uuid = compute_client.build_container(cs)
     except GlobusAPIError as e:
         raise ContainerBuildException(
             "Could not submit build request to Container Service"
         ) from e
 
-    _poll_until_container_is_built(funcx_client, container_uuid)
+    _poll_until_container_is_built(compute_client, container_uuid)
     return container_uuid
 
 
-def _poll_until_container_is_built(funcx_client: FuncXClient, container_uuid: str):
+def _poll_until_container_is_built(compute_client: Client, container_uuid: str):
     """
     Given a uuid of a container, block until that container is built.
     """
@@ -55,7 +55,7 @@ def _poll_until_container_is_built(funcx_client: FuncXClient, container_uuid: st
 
     while True:
         try:
-            status = funcx_client.get_container_build_status(container_uuid)
+            status = compute_client.get_container_build_status(container_uuid)
         except GlobusAPIError as e:
             raise ContainerBuildException(
                 "Lost connection with Container Service during build"
@@ -65,7 +65,7 @@ def _poll_until_container_is_built(funcx_client: FuncXClient, container_uuid: st
             return
 
         if status == BuildStatus.failed:
-            _raise_build_failure_exception(funcx_client, container_uuid)
+            _raise_build_failure_exception(compute_client, container_uuid)
 
         if time() - start_time > timeout:
             raise ContainerBuildException(
@@ -79,9 +79,9 @@ def _poll_until_container_is_built(funcx_client: FuncXClient, container_uuid: st
         sleep(polling_interval)
 
 
-def _raise_build_failure_exception(funcx_client: FuncXClient, container_uuid: str):
+def _raise_build_failure_exception(compute_client: Client, container_uuid: str):
     try:
-        build_result = funcx_client.get_container(
+        build_result = compute_client.get_container(
             container_uuid, container_type="docker"
         )
     except GlobusAPIError as e:

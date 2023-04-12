@@ -1,5 +1,5 @@
 from garden_ai.pipelines import Pipeline
-from funcx import FuncXClient  # type: ignore
+from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import GlobusAPIError
 
 
@@ -10,12 +10,12 @@ class PipelineRegistrationException(Exception):
 
 
 def register_pipeline(
-    funcx_client: FuncXClient,
+    compute_client: Client,
     pipeline: Pipeline,
     container_uuid: str,
 ) -> str:
     try:
-        func_uuid = funcx_client.register_function(
+        func_uuid = compute_client.register_function(
             pipeline._composed_steps, container_uuid=container_uuid, public=True
         )
     except GlobusAPIError as e:
