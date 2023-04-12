@@ -8,6 +8,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
+from tests.fixtures.helpers import get_fixture_file_path
 
 
 @pytest.fixture(autouse=True)
@@ -244,3 +245,29 @@ def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model
     )
 
     return pea_edibility_pipeline
+
+
+@pytest.fixture
+def database_with_unconnected_pipeline(tmp_path):
+    source_path = get_fixture_file_path(
+        "database_dumps/one_pipeline_one_garden_unconnected.txt"
+    )
+    with open(source_path, "r") as file:
+        contents = file.read()
+    data_file = tmp_path / "data.json"
+    with open(data_file, "w") as f:
+        f.write(contents)
+    return tmp_path
+
+
+@pytest.fixture
+def database_with_connected_pipeline(tmp_path):
+    source_path = get_fixture_file_path(
+        "database_dumps/one_pipeline_one_garden_connected.txt"
+    )
+    with open(source_path, "r") as file:
+        contents = file.read()
+    data_file = tmp_path / "data.json"
+    with open(data_file, "w") as f:
+        f.write(contents)
+    return tmp_path

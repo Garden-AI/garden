@@ -180,7 +180,7 @@ def create(
     return
 
 
-# TODO: allow referencing garden or pipeline by DOI. Probably name too?
+# TODO: allow selecting by DOI.
 @garden_app.command(no_args_is_help=True)
 def add_pipeline(
     garden_uuid: str = typer.Option(
@@ -200,20 +200,20 @@ def add_pipeline(
         rich_help_panel="Required",
     ),
 ):
-    maybe_garden = local_data.get_local_garden(garden_uuid)
-    if not maybe_garden:
-        logger.fatal(f"Could not find garden with uuid {garden_uuid}")
-        raise typer.Exit(code=1)
-    try:
-        garden_metadata = json.loads(str(maybe_garden))
-    except json.JSONDecodeError as e:
-        logger.fatal(
-            f"Malformed local database. Could not parse record for {garden_uuid}"
-        )
-        raise typer.Exit(code=1) from e
+    garden_metadata = get_garden_meta(garden_uuid)
+    pipeline_uuids_already_present = set(
+        pipeline["uuid"] for pipeline in garden_metadata["pipelines"]
+    )
+    if pipeline_uuid in pipeline_uuids_already_present:
+        logger.info(f"Pipeline {pipeline_uuid} is already in Garden {garden_uuid}")
+        return
 
-    garden_metadata["pipelines"].append(pipeline_uuid)
+    pipeline_meta = get_pipeline_meta(pipeline_uuid)
+    garden_metadata["pipelines"].append(
+        {"uuid": pipeline_uuid, "doi": pipeline_meta["doi"]}
+    )
     local_data.put_local_garden_metadata(garden_metadata)
+    logger.info(f"Added pipeline {pipeline_uuid} to Garden {garden_uuid}")
 
 
 def get_pipeline_meta(pipeline_uuid: str):
@@ -261,7 +261,9 @@ def publish(
     client = GardenClient()
 
     garden_metadata = get_garden_meta(garden_uuid)
-    pipeline_metas = [get_pipeline_meta(p) for p in garden_metadata["pipelines"]]
+    pipeline_metas = [
+        get_pipeline_meta(p["uuid"]) for p in garden_metadata["pipelines"]
+    ]
     garden_metadata["pipelines"] = pipeline_metas
 
     try:

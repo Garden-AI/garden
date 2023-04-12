@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from garden_ai.app.main import app
 from garden_ai.client import GardenClient
@@ -6,8 +8,60 @@ import string
 import random
 from keyword import iskeyword
 from garden_ai.app.pipeline import clean_identifier
+from garden_ai import local_data
 
 runner = CliRunner()
+
+
+@pytest.mark.cli
+def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_unconnected_pipeline
+    )
+    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
+
+    def get_garden_meta():
+        return json.loads(str(local_data.get_local_garden(garden_id)))
+
+    before_addition = get_garden_meta()
+    assert len(before_addition["pipelines"]) == 0
+
+    command = ["garden", "add-pipeline", "-g", garden_id, "-p", pipeline_id]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    after_addition = get_garden_meta()
+    assert len(after_addition["pipelines"]) == 1
+    assert after_addition["pipelines"][0]["uuid"] == pipeline_id
+    assert after_addition["pipelines"][0]["doi"] == "10.23677/jx31-gx98"
+
+
+@pytest.mark.cli
+def test_garden_publish(database_with_connected_pipeline, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+
+    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
+
+    command = [
+        "garden",
+        "publish",
+        "-g",
+        garden_id,
+    ]
+    # We want to check that we called client.publish with the right shit
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    args = mock_client.publish_garden_metadata.call_args.args
+    denormalized_garden_metadata = args[0]
+    assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
+    assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_id
 
 
 @pytest.mark.cli

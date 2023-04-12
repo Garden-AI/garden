@@ -102,7 +102,8 @@ class GardenClient:
         self.search_authorizer = self._create_authorizer(
             SearchClient.scopes.resource_server
         )
-        self.compute_authorizer = self._create_authorizer(COMPUTE_RESOURCE_SERVER_NAME)
+        # funcx_service is still the name of the resource server in our tokens.json despite the rebrand
+        self.compute_authorizer = self._create_authorizer("funcx_service")
         self.search_client = (
             SearchClient(authorizer=self.search_authorizer)
             if not search_client
@@ -332,7 +333,7 @@ class GardenClient:
         local_data.put_local_pipeline(pipeline)
         return func_uuid
 
-    def publish_garden_metadata(self, garden_meta=None):
+    def publish_garden_metadata(self, garden_meta):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
         # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
         # and returns the Task document:
