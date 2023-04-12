@@ -7,8 +7,11 @@ from typing import List, Optional, Dict
 import rich
 import typer
 from garden_ai.client import GardenClient
+from garden_ai.gardens import Garden
 from garden_ai import local_data
 from rich.prompt import Prompt
+
+from globus_sdk import SearchAPIError
 
 logger = logging.getLogger()
 
@@ -205,7 +208,9 @@ def add_pipeline(
     try:
         garden_metadata = json.loads(str(maybe_garden))
     except json.JSONDecodeError as e:
-        logger.fatal(f"Malformed local database. Could not parse record for {garden_uuid}")
+        logger.fatal(
+            f"Malformed local database. Could not parse record for {garden_uuid}"
+        )
         raise typer.Exit(code=1) from e
 
     garden_metadata["pipelines"].append(pipeline_uuid)
@@ -220,7 +225,9 @@ def get_pipeline_meta(pipeline_uuid: str):
     try:
         pipeline_metadata = json.loads(str(maybe_pipeline))
     except json.JSONDecodeError as e:
-        logger.fatal(f"Malformed local database. Could not parse record for {pipeline_uuid}")
+        logger.fatal(
+            f"Malformed local database. Could not parse record for {pipeline_uuid}"
+        )
         raise typer.Exit(code=1) from e
     return pipeline_metadata
 
@@ -233,7 +240,9 @@ def get_garden_meta(garden_uuid: str) -> Dict:
     try:
         garden_metadata = json.loads(str(maybe_garden))
     except json.JSONDecodeError as e:
-        logger.fatal(f"Malformed local database. Could not parse record for {garden_uuid}")
+        logger.fatal(
+            f"Malformed local database. Could not parse record for {garden_uuid}"
+        )
         raise typer.Exit(code=1) from e
     return garden_metadata
 
@@ -249,20 +258,16 @@ def publish(
         rich_help_panel="Required",
     ),
 ):
+    # TODO: mint DOI for the Garden in this command.
     client = GardenClient()
 
     garden_metadata = get_garden_meta(garden_uuid)
     pipeline_metas = [get_pipeline_meta(p) for p in garden_metadata["pipelines"]]
-
-    # TODO: fix a bunch of dictionary mutation.
-    garden_doi = client._mint_doi_from_dict(garden_metadata)
-    garden_metadata["doi"]
-
     garden_metadata["pipelines"] = pipeline_metas
-    client.register_metadata(garden_metadata)
-    try:
-        client.publish_garden(garden_metadata)
-    except Exception as e:
-        print(e.error_data)
-        raise e
 
+    try:
+        client.publish_garden_metadata(garden_metadata)
+    except SearchAPIError as e:
+        logger.fatal(f"Could not publish garden {garden_uuid}")
+        logger.fatal(e.error_data)
+        raise typer.Exit(code=1) from e

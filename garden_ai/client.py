@@ -264,7 +264,6 @@ class GardenClient:
         )
         return full_model_name
 
-    # TODO: make variant that takes dict
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
     ) -> str:
@@ -299,38 +298,13 @@ class GardenClient:
             return obj.doi
 
         logger.info("Requesting DOI")
-        metadata = json.loads(obj.datacite_json())
-        return self._mint_doi_from_dict(metadata)
-        # url = f"{GARDEN_ENDPOINT}/doi"
-
-        # header = {
-        #     "Content-Type": "application/vnd.api+json",
-        #     "Authorization": self.garden_authorizer.get_authorization_header(),
-        # }
-        # metadata = json.loads(obj.datacite_json())
-        # metadata.update(event="publish", url="https://thegardens.ai")
-        # payload = {"data": {"type": "dois", "attributes": metadata}}
-        # r = requests.post(
-        #     url,
-        #     headers=header,
-        #     json=payload,
-        # )
-        # try:
-        #     r.raise_for_status()
-        #     doi = r.json()["doi"]
-        # except requests.HTTPError:
-        #     logger.error(f"{r.text}")
-        #     raise
-        # else:
-        #     return doi
-
-    def _mint_doi_from_dict(self, metadata):
         url = f"{GARDEN_ENDPOINT}/doi"
+
         header = {
             "Content-Type": "application/vnd.api+json",
             "Authorization": self.garden_authorizer.get_authorization_header(),
         }
-
+        metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url="https://thegardens.ai")
         payload = {"data": {"type": "dois", "attributes": metadata}}
         r = requests.post(
@@ -358,48 +332,7 @@ class GardenClient:
         local_data.put_local_pipeline(pipeline)
         return func_uuid
 
-    def register_metadata(self, garden_metadata: Dict, out_dir=None):
-        """
-        NOTE: this is mostly vestigial until we're at the point of implementing
-        ``$ garden-ai {garden, pipeline, model(?)} register`` and know what should be
-        here instead.
-
-        Make a `Garden` object's metadata (and any pipelines' metadata)
-        discoverable; mint DOIs via DataCite.
-
-        This will perform validation on the metadata fields and (if successful)
-        write all of the Garden's (including its pipelines) metadata to a
-        `"metadata.json"` file.
-
-        Parameters
-        ----------
-        garden : Garden
-            A Garden object with user's ready-to-publish metadata. See `Garden`
-            docstring for explanation of fields.
-
-        out_dir : Union[PathLike, str]
-            Directory in which a copy of the Garden's metadata is written on
-            successful registration. Defaults to current working directory.
-
-        Raises
-        ------
-        ValidationError
-
-        """
-        out_dir = Path(out_dir) if out_dir else Path.cwd()
-        # try:
-        #     for p in garden.pipelines:
-        #         p.doi = self._mint_doi(p)
-        #     garden.doi = self._mint_doi(garden)
-        #     garden.validate()
-        # except ValidationError as e:
-        #     logger.error(e)
-        #     raise
-        # else:
-        #     with open(out_dir / f"{garden.uuid}.json", "w+") as f:
-        #         f.write(garden.json())
-
-    def publish_garden(self, garden_meta=None):
+    def publish_garden_metadata(self, garden_meta=None):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
         # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
         # and returns the Task document:
