@@ -13,8 +13,8 @@ from typing import Any, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
-from globus_compute_sdk import Client
-from globus_compute_sdk.errors import TaskPending
+from globus_compute_sdk import Client  # type: ignore
+from globus_compute_sdk.errors import TaskPending  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
