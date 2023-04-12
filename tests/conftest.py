@@ -8,7 +8,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
-from tests.fixtures.helpers import get_fixture_file_path
+from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
 @pytest.fixture(autouse=True)
