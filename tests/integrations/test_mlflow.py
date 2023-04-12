@@ -43,6 +43,41 @@ def toy_pytorch_model():
     return pt_model
 
 
+@pytest.fixture
+def toy_tensorflow_model():
+    import tensorflow as tf  # type: ignore
+    import numpy as np  # type: ignore
+
+    # Define the model
+    tf_model = tf.keras.Sequential(
+        [
+            tf.keras.layers.Dense(10, input_shape=(4,), activation="relu"),
+            tf.keras.layers.Dense(1, activation="sigmoid"),
+        ]
+    )
+
+    # Compile the model
+    tf_model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
+
+    # Create some dummy data for training and testing
+    x_train = np.random.rand(100, 4)
+    y_train = np.random.randint(2, size=(100, 1))
+    x_test = np.random.rand(50, 4)
+    y_test = np.random.randint(2, size=(50, 1))
+
+    # Train the model silently
+    tf_model.fit(
+        x_train,
+        y_train,
+        epochs=10,
+        batch_size=32,
+        validation_data=(x_test, y_test),
+        verbose=0,
+    )
+    # model.save('savedtf1')
+    return tf_model
+
+
 @pytest.mark.integration
 def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     # as if model.pkl already existed on disk
@@ -74,7 +109,7 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
 @pytest.mark.integration
 def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     # as if model.pkl already existed on disk
-    import torch
+    import torch  # type: ignore
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "pytorchtest.pth"
@@ -84,6 +119,31 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
 
     # simulate `$ garden-ai model register test-model-name tmp_path/pytorchtest.pt`
     name = "pt-test-model-name"
+    extra_pip_requirements = None
+    # actually register the model
+    client = GardenClient()
+    full_model_name = client.log_model(
+        str(model_path), name, flavor, extra_pip_requirements
+    )
+
+    # all mlflow models will have a 'predict' method
+    downloaded_model = Model(full_model_name)
+    assert hasattr(downloaded_model, "predict")
+
+
+@pytest.mark.integration
+def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model):
+    # as if model.pkl already existed on disk
+    # import tensorflow as tf  # type: ignore
+
+    tmp_path.mkdir(exist_ok=True)
+    model_path = tmp_path / "tensorflowtest"
+    toy_tensorflow_model.save(model_path)
+    flavor = "tensorflow"
+    # model_path.parent.mkdir(exist_ok=True)
+
+    # simulate `$ garden-ai model register test-model-name tmp_path/tensorflowtest`
+    name = "tf-test-model-name"
     extra_pip_requirements = None
     # actually register the model
     client = GardenClient()
