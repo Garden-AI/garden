@@ -102,8 +102,7 @@ class GardenClient:
         self.search_authorizer = self._create_authorizer(
             SearchClient.scopes.resource_server
         )
-        # funcx_service is still the name of the resource server in our tokens.json despite the rebrand
-        self.compute_authorizer = self._create_authorizer("funcx_service")
+        self.compute_authorizer = self._create_authorizer(COMPUTE_RESOURCE_SERVER_NAME)
         self.search_client = (
             SearchClient(authorizer=self.search_authorizer)
             if not search_client
