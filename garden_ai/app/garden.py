@@ -1,11 +1,13 @@
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import rich
 import typer
 from garden_ai.client import GardenClient
+from garden_ai import local_data
 from rich.prompt import Prompt
 
 logger = logging.getLogger()
@@ -168,18 +170,18 @@ def create(
         tags=tags,
     )
 
-    client.put_local_garden(garden)
+    local_data.put_local_garden(garden)
 
     if verbose:
-        metadata = client.get_local_garden(garden.uuid)
+        metadata = local_data.get_local_garden(garden.uuid)
         rich.print_json(metadata)
     return
 
 
-# TODO: allow referencing garden or pipeline by DOI
+# TODO: allow referencing garden or pipeline by DOI. Probably name too?
 @garden_app.command(no_args_is_help=True)
 def add_pipeline(
-    garden_name: str = typer.Option(
+    garden_uuid: str = typer.Option(
         ...,
         "-g",
         "--garden",
@@ -187,18 +189,80 @@ def add_pipeline(
         help="The name of the garden you want to add a pipeline to",
         rich_help_panel="Required",
     ),
-    pipeline_name: str = typer.Option(
+    pipeline_uuid: str = typer.Option(
         ...,
-        "-g",
-        "--garden",
+        "-p",
+        "--pipeline",
         prompt="Please enter a the title or DOI of a pipeline",
         help="The name of the pipeline you want to add",
         rich_help_panel="Required",
     ),
 ):
-    pass
+    maybe_garden = local_data.get_local_garden(garden_uuid)
+    if not maybe_garden:
+        logger.fatal(f"Could not find garden with uuid {garden_uuid}")
+        raise typer.Exit(code=1)
+    try:
+        garden_metadata = json.loads(str(maybe_garden))
+    except json.JSONDecodeError as e:
+        logger.fatal(f"Malformed local database. Could not parse record for {garden_uuid}")
+        raise typer.Exit(code=1) from e
+
+    garden_metadata["pipelines"].append(pipeline_uuid)
+    local_data.put_local_garden_metadata(garden_metadata)
+
+
+def get_pipeline_meta(pipeline_uuid: str):
+    maybe_pipeline = local_data.get_local_pipeline(pipeline_uuid)
+    if not maybe_pipeline:
+        logger.fatal(f"Could not find garden with uuid {pipeline_uuid}")
+        raise typer.Exit(code=1)
+    try:
+        pipeline_metadata = json.loads(str(maybe_pipeline))
+    except json.JSONDecodeError as e:
+        logger.fatal(f"Malformed local database. Could not parse record for {pipeline_uuid}")
+        raise typer.Exit(code=1) from e
+    return pipeline_metadata
+
+
+def get_garden_meta(garden_uuid: str) -> Dict:
+    maybe_garden = local_data.get_local_garden(garden_uuid)
+    if not maybe_garden:
+        logger.fatal(f"Could not find garden with uuid {garden_uuid}")
+        raise typer.Exit(code=1)
+    try:
+        garden_metadata = json.loads(str(maybe_garden))
+    except json.JSONDecodeError as e:
+        logger.fatal(f"Malformed local database. Could not parse record for {garden_uuid}")
+        raise typer.Exit(code=1) from e
+    return garden_metadata
 
 
 @garden_app.command(no_args_is_help=True)
-def publish():
-    pass
+def publish(
+    garden_uuid: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        prompt="Please enter a the name or DOI of a garden",
+        help="The name of the garden you want to add a pipeline to",
+        rich_help_panel="Required",
+    ),
+):
+    client = GardenClient()
+
+    garden_metadata = get_garden_meta(garden_uuid)
+    pipeline_metas = [get_pipeline_meta(p) for p in garden_metadata["pipelines"]]
+
+    # TODO: fix a bunch of dictionary mutation.
+    garden_doi = client._mint_doi_from_dict(garden_metadata)
+    garden_metadata["doi"]
+
+    garden_metadata["pipelines"] = pipeline_metas
+    client.register_metadata(garden_metadata)
+    try:
+        client.publish_garden(garden_metadata)
+    except Exception as e:
+        print(e.error_data)
+        raise e
+

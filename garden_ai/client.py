@@ -27,6 +27,7 @@ from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
 from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
 from garden_ai.mlmodel import upload_model
+from garden_ai import local_data
 
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
@@ -39,7 +40,7 @@ from garden_ai.globus_compute.remote_functions import register_pipeline
 from globus_sdk.scopes import AuthScopes, SearchScopes
 
 # garden-dev index
-GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
+GARDEN_INDEX_UUID = "8386583d-e1cf-4b2f-ae66-b335ab5c9a21"
 GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
     "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
@@ -170,7 +171,7 @@ class GardenClient:
             tokens = response.by_resource_server[resource_server]
 
             email = extract_email_from_globus_jwt(response.data["id_token"])
-            self._store_user_email(email)
+            local_data._store_user_email(email)
         else:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(resource_server)
@@ -253,7 +254,7 @@ class GardenClient:
         flavor: str,
         extra_pip_requirements: List[str] = None,
     ) -> str:
-        email = self._get_user_email()
+        email = local_data._get_user_email()
         full_model_name = upload_model(
             model_path,
             model_name,
@@ -263,6 +264,7 @@ class GardenClient:
         )
         return full_model_name
 
+    # TODO: make variant that takes dict
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
     ) -> str:
@@ -297,13 +299,38 @@ class GardenClient:
             return obj.doi
 
         logger.info("Requesting DOI")
-        url = f"{GARDEN_ENDPOINT}/doi"
+        metadata = json.loads(obj.datacite_json())
+        return self._mint_doi_from_dict(metadata)
+        # url = f"{GARDEN_ENDPOINT}/doi"
 
+        # header = {
+        #     "Content-Type": "application/vnd.api+json",
+        #     "Authorization": self.garden_authorizer.get_authorization_header(),
+        # }
+        # metadata = json.loads(obj.datacite_json())
+        # metadata.update(event="publish", url="https://thegardens.ai")
+        # payload = {"data": {"type": "dois", "attributes": metadata}}
+        # r = requests.post(
+        #     url,
+        #     headers=header,
+        #     json=payload,
+        # )
+        # try:
+        #     r.raise_for_status()
+        #     doi = r.json()["doi"]
+        # except requests.HTTPError:
+        #     logger.error(f"{r.text}")
+        #     raise
+        # else:
+        #     return doi
+
+    def _mint_doi_from_dict(self, metadata):
+        url = f"{GARDEN_ENDPOINT}/doi"
         header = {
             "Content-Type": "application/vnd.api+json",
             "Authorization": self.garden_authorizer.get_authorization_header(),
         }
-        metadata = json.loads(obj.datacite_json())
+
         metadata.update(event="publish", url="https://thegardens.ai")
         payload = {"data": {"type": "dois", "attributes": metadata}}
         r = requests.post(
@@ -328,10 +355,10 @@ class GardenClient:
         func_uuid = register_pipeline(self.funcx_client, pipeline, container_uuid)
         pipeline.funcx_uuid = UUID(func_uuid)
         pipeline.doi = self._mint_doi(pipeline)
-        self.put_local_pipeline(pipeline)
+        local_data.put_local_pipeline(pipeline)
         return func_uuid
 
-    def register_metadata(self, garden: Garden, out_dir=None):
+    def register_metadata(self, garden_metadata: Dict, out_dir=None):
         """
         NOTE: this is mostly vestigial until we're at the point of implementing
         ``$ garden-ai {garden, pipeline, model(?)} register`` and know what should be
@@ -360,177 +387,28 @@ class GardenClient:
 
         """
         out_dir = Path(out_dir) if out_dir else Path.cwd()
-        try:
-            for p in garden.pipelines:
-                p.doi = self._mint_doi(p)
-            garden.doi = self._mint_doi(garden)
-            garden.validate()
-        except ValidationError as e:
-            logger.error(e)
-            raise
-        else:
-            with open(out_dir / f"{garden.uuid}.json", "w+") as f:
-                f.write(garden.json())
+        # try:
+        #     for p in garden.pipelines:
+        #         p.doi = self._mint_doi(p)
+        #     garden.doi = self._mint_doi(garden)
+        #     garden.validate()
+        # except ValidationError as e:
+        #     logger.error(e)
+        #     raise
+        # else:
+        #     with open(out_dir / f"{garden.uuid}.json", "w+") as f:
+        #         f.write(garden.json())
 
-    def _read_local_db(self) -> Dict:
-        """Helper: load JSON contents of local storage and return as a dict."""
-        data = {}
-        # read existing entries into memory, if any
-        if (LOCAL_STORAGE / "data.json").exists():
-            with open(LOCAL_STORAGE / "data.json", "r+") as f:
-                raw_data = f.read()
-                if raw_data:
-                    data = json.loads(raw_data)
-        return data
-
-    def _write_local_db(self, data: Dict) -> None:
-        """Helper: JSON-serialize and write ``contents`` to ~/.garden/data.json."""
-        contents = json.dumps(data)
-        with open(LOCAL_STORAGE / "data.json", "w+") as f:
-            f.write(contents)
-        return
-
-    def _store_user_email(self, email: str) -> None:
-        data = self._read_local_db()
-        data["user_email"] = email
-        self._write_local_db(data)
-
-    def _get_user_email(self) -> str:
-        data = self._read_local_db()
-        maybe_email = data.get("user_email")
-        return str(maybe_email) if maybe_email else "unknown"
-
-    def put_local_garden(self, garden: Garden) -> None:
-        """Helper: write a record to 'local database' for a given Garden
-
-        Overwrites any existing entry with the same uuid in ~/.garden/data.json.
-
-        Parameters
-        ----------
-        garden : Garden
-            The object to json-serialize and write/update in the local database.
-            a TypeError will be raised if not a Garden.
-
-        """
-        if not isinstance(garden, Garden):
-            raise TypeError(f"Expected Garden object, got: {type(garden)}.")
-        data = self._read_local_db()
-
-        key, val = str(garden.uuid), json.loads(garden.json())
-        local_gardens = data.get("gardens", {})
-        local_gardens[key] = val
-        data["gardens"] = local_gardens
-
-        self._write_local_db(data)
-        return
-
-    def get_local_garden(self, uuid: Union[UUID, str]) -> Optional[JSON]:
-        """Helper: fetch a record from 'local database'
-
-        Find entry with key matching ``uuid`` and return the associated metadata
-        extracted from ``~/.garden/db/data.json``
-
-        Parameters
-        ----------
-        uuid : UUID
-            The uuid corresponding to the desired Garden or Pipeline.
-
-        Returns
-        -------
-        Optional[JSON]
-            If successful, the JSON string corresponding to the metadata of the
-            object with the given uuid.
-        """
-        data = self._read_local_db()
-
-        uuid = str(uuid)
-        local_gardens = data.get("gardens", {})
-        if local_gardens and uuid in local_gardens:
-            return json.dumps(local_gardens[uuid])
-        else:
-            logger.error(f"No garden found locally with uuid: {uuid}.")
-            return None
-
-    def put_local_pipeline(self, pipeline: Pipeline) -> None:
-        """Helper: write a record to 'local database' for a given Pipeline.
-
-        Overwrites any existing entry with the same ``uuid``.
-
-        Parameters
-        ----------
-        pipeline : Pipeline
-            The object to json-serialize and write/update in the local database.
-            a TypeError will be raised if not a Pipeline.
-
-        """
-        if not isinstance(pipeline, Pipeline):
-            raise TypeError(f"Expected pipeline object, got: {type(pipeline)}.")
-        data = {}
-        # read existing entries into memory, if any
-        if (LOCAL_STORAGE / "data.json").exists():
-            with open(LOCAL_STORAGE / "data.json", "r+") as f:
-                raw_data = f.read()
-                if raw_data:
-                    data = json.loads(raw_data)
-
-        # update data['pipelines'], leaving data['gardens'] etc unmodified
-        pipelines = data.get("pipelines", {})
-        key, val = str(pipeline.uuid), pipeline.json()
-        pipelines[key] = json.loads(val)
-        data["pipelines"] = pipelines
-        contents = json.dumps(data)
-
-        with open(LOCAL_STORAGE / "data.json", "w+") as f:
-            f.write(contents)
-        return
-
-    def get_local_pipeline(self, uuid: Union[UUID, str]) -> Optional[JSON]:
-        """Helper: fetch a pipeline record from 'local database', if one exists.
-
-        Find entry with key matching ``uuid`` and return the associated metadata
-        extracted from ``~/.garden/db/data.json``
-
-        Parameters
-        ----------
-        uuid : UUID
-            The uuid corresponding to the desired Pipeline.
-
-        Returns
-        -------
-        Optional[JSON]
-            If successful, the JSON string corresponding to the metadata of the
-            object with the given uuid.
-        """
-        uuid = str(uuid)
-        with open(LOCAL_STORAGE / "data.json", "r+") as f:
-            raw_contents = f.read()
-            if raw_contents:
-                data: Dict[str, Dict] = json.loads(raw_contents)
-            else:
-                logger.error("Local storage is empty; could not find by uuid.")
-                return None
-
-        if "pipelines" in data and uuid in data["pipelines"]:
-            result = data["pipelines"][uuid]
-            return json.dumps(result)
-        else:
-            logger.error(f"No pipeline found locally with uuid: {uuid}.")
-            return None
-
-    def publish_garden(self, garden=None, visibility="Public"):
+    def publish_garden(self, garden_meta=None):
         # Takes a garden_id UUID as a subject, and a garden_doc dict, and
         # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
         # and returns the Task document:
         # https://docs.globus.org/api/search/reference/get_task/#task
 
-        # Sanity check visibility--if it is a string, make it a list of strings
-        if isinstance(visibility, str):
-            visibility = [visibility]
-
         gmeta_ingest = {
-            "subject": str(garden.uuid),
-            "visible_to": visibility,
-            "content": json.loads(garden.json()),
+            "subject": garden_meta["uuid"],
+            "visible_to": ["all_authenticated_users"],
+            "content": garden_meta,
         }
 
         publish_result = self.search_client.create_entry(
