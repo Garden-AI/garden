@@ -35,7 +35,6 @@ optional=true
 pytest = "^7.2.0"
 pytest-mock = "^3.10.0"
 coverage = "^6.5.0"
-codecov = "^2.1.12"
 flake8 = "^5.0.4"
 mypy = "^0.981"
 types-requests = "^2.20.0"
