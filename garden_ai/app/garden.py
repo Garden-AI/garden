@@ -7,7 +7,6 @@ from typing import List, Optional, Dict
 import rich
 import typer
 from garden_ai.client import GardenClient
-from garden_ai.gardens import Garden
 from garden_ai import local_data
 from rich.prompt import Prompt
 

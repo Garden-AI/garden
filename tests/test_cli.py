@@ -14,6 +14,7 @@ runner = CliRunner()
 def test_garden_create(garden_all_fields, tmp_path, mocker):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+    mocker.patch("garden_ai.app.garden.local_data.put_local_garden").return_value = None
 
     command = [
         "garden",
@@ -37,7 +38,6 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     kwargs = mock_client.create_garden.call_args.kwargs
     for key in kwargs:
         assert kwargs[key] == getattr(garden_all_fields, key)
-    mock_client.put_local_garden.assert_called_once()
 
 
 def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):

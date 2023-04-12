@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, List, Union, Optional
+from typing import Dict, Union, Optional
 from pathlib import Path
 from uuid import UUID
 
@@ -78,7 +78,7 @@ def put_local_garden(garden: Garden) -> None:
 
 def _put_garden(garden_metadata: Dict):
     data = _read_local_db()
-    key, val = str(garden_metadata['uuid']), garden_metadata
+    key, val = str(garden_metadata["uuid"]), garden_metadata
     local_gardens = data.get("gardens", {})
     local_gardens[key] = val
     data["gardens"] = local_gardens

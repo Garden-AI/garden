@@ -3,7 +3,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Union, Optional
+from typing import List, Union, Optional
 from uuid import UUID
 
 import requests
@@ -19,13 +19,12 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from pydantic import ValidationError
 from rich import print
 from rich.prompt import Prompt
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
+from garden_ai.utils.misc import extract_email_from_globus_jwt
 from garden_ai.mlmodel import upload_model
 from garden_ai import local_data
 
