@@ -1,7 +1,7 @@
 # type: ignore
 
-from funcx.serialize.base import SerializerError
-from funcx.serialize.concretes import DillCodeSource, DillCodeTextInspect
+from globus_compute_sdk.serialize.base import SerializerError
+from globus_compute_sdk.serialize.concretes import DillCodeSource, DillCodeTextInspect
 
 """
 This is a temporary hack until this PR gets merged: https://github.com/funcx-faas/funcX/pull/1083

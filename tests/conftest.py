@@ -1,7 +1,7 @@
 from typing import List
 
 import pytest
-from funcx import FuncXClient  # type: ignore
+from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
@@ -76,7 +76,7 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
         "groups.api.globus.org": token,
         "search.api.globus.org": token,
         "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
-        "funcx_service": token,
+        "globus_compute_service": token,
         "auth.globus.org": token,
     }
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
@@ -89,16 +89,16 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
 
 
 @pytest.fixture
-def funcx_client(mocker):
-    mock_funcx_client = mocker.MagicMock(FuncXClient)
-    mock_funcx_client.build_container = mocker.Mock(
+def compute_client(mocker):
+    mock_compute_client = mocker.MagicMock(Client)
+    mock_compute_client.build_container = mocker.Mock(
         return_value="d1fc6d30-be1c-4ac4-a289-d87b27e84357"
     )
-    mock_funcx_client.get_container_build_status = mocker.Mock(return_value="ready")
-    mock_funcx_client.register_function = mocker.Mock(
+    mock_compute_client.get_container_build_status = mocker.Mock(return_value="ready")
+    mock_compute_client.register_function = mocker.Mock(
         return_value="f9072604-6e71-4a14-a336-f7fc4a677293"
     )
-    return mock_funcx_client
+    return mock_compute_client
 
 
 @pytest.fixture

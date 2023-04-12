@@ -57,7 +57,7 @@ class Pipeline:
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = cast(str, Field(default_factory=lambda: None))
     uuid: UUID = Field(default_factory=uuid4)
-    funcx_uuid: Optional[UUID] = Field(None)
+    func_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
@@ -122,7 +122,7 @@ class Pipeline:
         return req_file
 
     def _collect_requirements(self):
-        """collect requirements to pass to funcx container service.
+        """collect requirements to pass to globus compute container service.
 
         Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies``
         """
@@ -175,7 +175,7 @@ class Pipeline:
         return
 
     def register(self):
-        """register this Pipeline's complete Step composition as a funcx function
+        """register this Pipeline's complete Step composition as a globus compute function
         TODO
         """
         raise NotImplementedError

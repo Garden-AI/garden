@@ -1,18 +1,17 @@
 import logging
+from typing import Dict, Union
 
 import globus_sdk
+from globus_compute_sdk import Client  # type: ignore
+from globus_compute_sdk.sdk.web_client import WebClient  # type: ignore
 from globus_sdk.scopes import AuthScopes, SearchScopes
-from funcx.sdk.web_client import FuncxWebClient  # type: ignore
-from funcx import FuncXClient  # type: ignore
-
-from typing import Union, Dict
 
 logger = logging.getLogger()
 
 
-class FuncXLoginManager:
+class ComputeLoginManager:
     """
-    Implements the funcx.sdk.login_manager.protocol.LoginManagerProtocol class.
+    Implements the globus_compute_sdk.sdk.login_manager.protocol.LoginManagerProtocol class.
     https://github.com/funcx-faas/funcX/blob/main/funcx_sdk/funcx/sdk/login_manager/protocol.py#L18
     """
 
@@ -25,16 +24,16 @@ class FuncXLoginManager:
     def get_search_client(self) -> globus_sdk.SearchClient:
         return globus_sdk.SearchClient(authorizer=self.authorizers[SearchScopes.all])
 
-    def get_funcx_web_client(
+    def get_web_client(
         self,
         *,
         base_url: Union[str, None] = None,
         app_name: Union[str, None] = None,
-    ) -> FuncxWebClient:
-        return FuncxWebClient(
+    ) -> WebClient:
+        return WebClient(
             base_url=base_url,
             app_name=app_name,
-            authorizer=self.authorizers[FuncXClient.FUNCX_SCOPE],
+            authorizer=self.authorizers[Client.FUNCX_SCOPE],
         )
 
     def ensure_logged_in(self):

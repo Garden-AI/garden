@@ -35,25 +35,6 @@ typing-extensions = ">=4"
 tz = ["python-dateutil"]
 
 [[package]]
-name = "attrs"
-version = "22.2.0"
-description = "Classes Without Boilerplate"
-category = "dev"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "attrs-22.2.0-py3-none-any.whl", hash = "sha256:29e95c7f6778868dbd49170f98f8818f78f3dc5e0e37c0b1f474e3561b240836"},
-    {file = "attrs-22.2.0.tar.gz", hash = "sha256:c9227bfc2f01993c03f68db37d1d15c9690188323c067c641f1a35ca58185f99"},
-]
-
-[package.extras]
-cov = ["attrs[tests]", "coverage-enable-subprocess", "coverage[toml] (>=5.3)"]
-dev = ["attrs[docs,tests]"]
-docs = ["furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphinxcontrib-towncrier", "towncrier", "zope.interface"]
-tests = ["attrs[tests-no-zope]", "zope.interface"]
-tests-no-zope = ["cloudpickle", "cloudpickle", "hypothesis", "hypothesis", "mypy (>=0.971,<0.990)", "mypy (>=0.971,<0.990)", "pympler", "pympler", "pytest (>=4.3.0)", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-mypy-plugins", "pytest-xdist[psutil]", "pytest-xdist[psutil]"]
-
-[[package]]
 name = "babel"
 version = "2.12.1"
 description = "Internationalization utilities"
@@ -139,18 +120,18 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "boto3"
-version = "1.26.107"
+version = "1.26.111"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.107-py3-none-any.whl", hash = "sha256:9de90a2c0b853f84436b032b28947fc8a765dc462573a8d543b13f16c6579b40"},
-    {file = "boto3-1.26.107.tar.gz", hash = "sha256:816a198a6cc4f283af6b21439d85be6dbe4b73c2232dd906c6bafb4fece28d19"},
+    {file = "boto3-1.26.111-py3-none-any.whl", hash = "sha256:6cb601c4232537aca2dd216282ff4383a7277f6a150b2c8947eda0c3933d0223"},
+    {file = "boto3-1.26.111.tar.gz", hash = "sha256:db8733f0a723c4548b6565d8665b876e93f28837d8d6bae40cc03a6e597cd6a6"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.107,<1.30.0"
+botocore = ">=1.29.111,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -159,14 +140,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.107"
+version = "1.29.111"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.107-py3-none-any.whl", hash = "sha256:ee1e43e6cd0864cc6811ba3f05123647612ee3f07a286a4c94f5885aa86d6922"},
-    {file = "botocore-1.29.107.tar.gz", hash = "sha256:f63942b4b7248c0b3d6ecbc2852cf0787c23ace2a91a012f7ee0b3ae3eb08f4f"},
+    {file = "botocore-1.29.111-py3-none-any.whl", hash = "sha256:baa6442df9b539c5c4e622bd22b47bc3594a0428f280587a359a9298e73a6e48"},
+    {file = "botocore-1.29.111.tar.gz", hash = "sha256:c3a51d80ceac0945969f94894651c4728525c7cf2df7d7838063c3516f5ee9e3"},
 ]
 
 [package.dependencies]
@@ -389,22 +370,6 @@ files = [
     {file = "cloudpickle-2.2.1-py3-none-any.whl", hash = "sha256:61f594d1f4c295fa5cd9014ceb3a1fc4a70b0de1164b94fbc2d854ccba056f9f"},
     {file = "cloudpickle-2.2.1.tar.gz", hash = "sha256:d89684b8de9e34a2a43b3460fbca07d09d6e25ce858df4d5a44240403b6178f5"},
 ]
-
-[[package]]
-name = "codecov"
-version = "2.1.12"
-description = "Hosted coverage reports for GitHub, Bitbucket and Gitlab"
-category = "dev"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-files = [
-    {file = "codecov-2.1.12-py2.py3-none-any.whl", hash = "sha256:585dc217dc3d8185198ceb402f85d5cb5dbfa0c5f350a5abcdf9e347776a5b47"},
-    {file = "codecov-2.1.12.tar.gz", hash = "sha256:a0da46bb5025426da895af90938def8ee12d37fcbcbbbc15b6dc64cf7ebc51c1"},
-]
-
-[package.dependencies]
-coverage = "*"
-requests = ">=2.7.9"
 
 [[package]]
 name = "colorama"
@@ -756,18 +721,18 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "filelock"
-version = "3.10.7"
+version = "3.11.0"
 description = "A platform independent file lock."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "filelock-3.10.7-py3-none-any.whl", hash = "sha256:bde48477b15fde2c7e5a0713cbe72721cb5a5ad32ee0b8f419907960b9d75536"},
-    {file = "filelock-3.10.7.tar.gz", hash = "sha256:892be14aa8efc01673b5ed6589dbccb95f9a8596f0507e232626155495c18105"},
+    {file = "filelock-3.11.0-py3-none-any.whl", hash = "sha256:f08a52314748335c6460fc8fe40cd5638b85001225db78c2aa01c8c0db83b318"},
+    {file = "filelock-3.11.0.tar.gz", hash = "sha256:3618c0da67adcc0506b015fd11ef7faf1b493f0b40d87728e19986b536890c37"},
 ]
 
 [package.extras]
-docs = ["furo (>=2022.12.7)", "sphinx (>=6.1.3)", "sphinx-autodoc-typehints (>=1.22,!=1.23.4)"]
+docs = ["furo (>=2023.3.27)", "sphinx (>=6.1.3)", "sphinx-autodoc-typehints (>=1.22,!=1.23.4)"]
 testing = ["covdefaults (>=2.3)", "coverage (>=7.2.2)", "diff-cover (>=7.5)", "pytest (>=7.2.2)", "pytest-cov (>=4)", "pytest-mock (>=3.10)", "pytest-timeout (>=2.1)"]
 
 [[package]]
@@ -837,55 +802,6 @@ unicode = ["unicodedata2 (>=15.0.0)"]
 woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
 
 [[package]]
-name = "funcx"
-version = "1.0.13"
-description = "funcX: High Performance Function Serving for Science"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "funcx-1.0.13-py3-none-any.whl", hash = "sha256:adbdb9f8566fd15e594c30ef11983f08358df97ff6b81da0284cf0c5c5df1cb3"},
-    {file = "funcx-1.0.13.tar.gz", hash = "sha256:209a72025ecac641e0926501f08c853c281ca834705c46d21352f8748737dc8d"},
-]
-
-[package.dependencies]
-dill = "0.3.5.1"
-funcx-common = "0.0.25"
-globus-sdk = ">=3.14.0,<4"
-packaging = ">=21.1"
-pika = ">=1.2"
-requests = ">=2.20.0"
-tblib = "1.7.0"
-texttable = ">=1.6.7"
-websockets = "10.3"
-
-[package.extras]
-dev = ["coverage", "flake8 (==3.8.0)", "pre-commit", "pytest (>=7.2)", "pytest-mock", "responses"]
-docs = ["furo (==2021.09.08)", "sphinx (<5)"]
-test = ["coverage", "flake8 (==3.8.0)", "pytest (>=7.2)", "pytest-mock", "responses"]
-
-[[package]]
-name = "funcx-common"
-version = "0.0.25"
-description = "Common tools for funcX projects"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "funcx-common-0.0.25.tar.gz", hash = "sha256:006850a91d77cc060238b8afd70782c8a6524cdfbae800307b374985b6f8f8de"},
-    {file = "funcx_common-0.0.25-py3-none-any.whl", hash = "sha256:c382afa807641c557c3b8c47dcae4d7f898757a2c25f9590b850b6bc78952270"},
-]
-
-[package.dependencies]
-pydantic = ">=1,<2"
-
-[package.extras]
-boto3 = ["boto3 (>=1.19.0)"]
-dev = ["pytest (<8)", "pytest-cov (<5)", "pytest-xdist (<4)", "types-redis"]
-moto = ["moto[s3] (<5)"]
-redis = ["redis (>=3.5.3,<5)"]
-
-[[package]]
 name = "gitdb"
 version = "4.0.10"
 description = "Git Object Database"
@@ -914,6 +830,55 @@ files = [
 
 [package.dependencies]
 gitdb = ">=4.0.1,<5"
+
+[[package]]
+name = "globus-compute-common"
+version = "0.1.0"
+description = "Common tools for Globus Compute projects"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "globus-compute-common-0.1.0.tar.gz", hash = "sha256:0fc5d4bdca39060f24cfbec130dc517f24296e55daaedea9f709947b7c79e18a"},
+    {file = "globus_compute_common-0.1.0-py3-none-any.whl", hash = "sha256:afc77dd2f76bd79c0923be019e25008945675c9ca1d004e3584bbd0910afb8be"},
+]
+
+[package.dependencies]
+pydantic = ">=1,<2"
+
+[package.extras]
+boto3 = ["boto3 (>=1.19.0)"]
+dev = ["pytest (<8)", "pytest-cov (<5)", "pytest-xdist (<4)", "types-redis"]
+moto = ["moto[s3] (<5)"]
+redis = ["redis (>=3.5.3,<5)"]
+
+[[package]]
+name = "globus-compute-sdk"
+version = "2.0.0"
+description = "Globus Compute: High Performance Function Serving for Science"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "globus-compute-sdk-2.0.0.tar.gz", hash = "sha256:63b8d5c384809f2ac9e7690c8b9d9be04cd22faac40d1b3ddffe2677d826bbdd"},
+    {file = "globus_compute_sdk-2.0.0-py3-none-any.whl", hash = "sha256:4f9c1e60921b60d66002927ecddec79638df12475bbec4a2bdedadd44855a9fa"},
+]
+
+[package.dependencies]
+dill = "0.3.5.1"
+globus-compute-common = "0.1.0"
+globus-sdk = ">=3.14.0,<4"
+packaging = ">=21.1"
+pika = ">=1.2"
+requests = ">=2.20.0"
+tblib = "1.7.0"
+texttable = ">=1.6.7"
+websockets = "10.3"
+
+[package.extras]
+dev = ["coverage", "flake8 (==3.8.0)", "pre-commit", "pytest (>=7.2)", "pytest-mock", "responses"]
+docs = ["furo (==2021.09.08)", "sphinx (<5)"]
+test = ["coverage", "flake8 (==3.8.0)", "pytest (>=7.2)", "pytest-mock", "responses"]
 
 [[package]]
 name = "globus-sdk"
@@ -1069,14 +1034,14 @@ files = [
 
 [[package]]
 name = "importlib-metadata"
-version = "6.1.0"
+version = "6.3.0"
 description = "Read metadata from Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "importlib_metadata-6.1.0-py3-none-any.whl", hash = "sha256:ff80f3b5394912eb1b108fcfd444dc78b7f1f3e16b16188054bd01cb9cb86f09"},
-    {file = "importlib_metadata-6.1.0.tar.gz", hash = "sha256:43ce9281e097583d758c2c708c4376371261a02c34682491a8e98352365aad20"},
+    {file = "importlib_metadata-6.3.0-py3-none-any.whl", hash = "sha256:8f8bd2af397cf33bd344d35cfe7f489219b7d14fc79a3f854b75b8417e9226b0"},
+    {file = "importlib_metadata-6.3.0.tar.gz", hash = "sha256:23c2bcae4762dfb0bbe072d358faec24957901d75b6c4ab11172c0c982532402"},
 ]
 
 [package.dependencies]
@@ -1701,14 +1666,14 @@ signedtoken = ["cryptography (>=3.0.0)", "pyjwt (>=2.0.0,<3)"]
 
 [[package]]
 name = "packaging"
-version = "23.0"
+version = "23.1"
 description = "Core utilities for Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "packaging-23.0-py3-none-any.whl", hash = "sha256:714ac14496c3e68c99c29b00845f7a2b85f3bb6f1078fd9f72fd20f0570002b2"},
-    {file = "packaging-23.0.tar.gz", hash = "sha256:b6ad297f8907de0fa2fe1ccbd26fdaf387f5f47c7275fedf8cce89f99446cf97"},
+    {file = "packaging-23.1-py3-none-any.whl", hash = "sha256:994793af429502c4ea2ebf6bf664629d07c1a9fe974af92966e4b8d2df7edc61"},
+    {file = "packaging-23.1.tar.gz", hash = "sha256:a392980d2b6cffa644431898be54b0045151319d1e7ec34f0cfed48767dd334f"},
 ]
 
 [[package]]
@@ -2091,14 +2056,14 @@ files = [
 
 [[package]]
 name = "pygments"
-version = "2.14.0"
+version = "2.15.0"
 description = "Pygments is a syntax highlighting package written in Python."
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "Pygments-2.14.0-py3-none-any.whl", hash = "sha256:fa7bd7bd2771287c0de303af8bfdfc731f51bd2c6a47ab69d117138893b82717"},
-    {file = "Pygments-2.14.0.tar.gz", hash = "sha256:b3ed06a9e8ac9a9aae5a6f5dbe78a8a58655d17b43b93c078f094ddc476ae297"},
+    {file = "Pygments-2.15.0-py3-none-any.whl", hash = "sha256:77a3299119af881904cd5ecd1ac6a66214b6e9bed1f2db16993b54adede64094"},
+    {file = "Pygments-2.15.0.tar.gz", hash = "sha256:f7e36cffc4c517fbc252861b9a6e4644ca0e5abadf9a113c72d1358ad09b9500"},
 ]
 
 [package.extras]
@@ -2142,18 +2107,17 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pytest"
-version = "7.2.2"
+version = "7.3.0"
 description = "pytest: simple powerful testing with Python"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pytest-7.2.2-py3-none-any.whl", hash = "sha256:130328f552dcfac0b1cec75c12e3f005619dc5f874f0a06e8ff7263f0ee6225e"},
-    {file = "pytest-7.2.2.tar.gz", hash = "sha256:c99ab0c73aceb050f68929bc93af19ab6db0558791c6a0715723abe9d0ade9d4"},
+    {file = "pytest-7.3.0-py3-none-any.whl", hash = "sha256:933051fa1bfbd38a21e73c3960cebdad4cf59483ddba7696c48509727e17f201"},
+    {file = "pytest-7.3.0.tar.gz", hash = "sha256:58ecc27ebf0ea643ebfdf7fb1249335da761a00c9f955bcd922349bcb68ee57d"},
 ]
 
 [package.dependencies]
-attrs = ">=19.2.0"
 colorama = {version = "*", markers = "sys_platform == \"win32\""}
 exceptiongroup = {version = ">=1.0.0rc8", markers = "python_version < \"3.11\""}
 iniconfig = "*"
@@ -2162,7 +2126,7 @@ pluggy = ">=0.12,<2.0"
 tomli = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
-testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "xmlschema"]
+testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "xmlschema"]
 
 [[package]]
 name = "pytest-mock"
@@ -3263,4 +3227,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "0c0278029403e03ff059ffde783397e171054eee5d59a1a9430f5ab79eb6128d"
+content-hash = "3b0499396249fc647106669c147d66117c4add4642747dd144e8b0ccbaf6228f"
