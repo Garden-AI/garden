@@ -1,14 +1,14 @@
+# mypy: disable-error-code="import"
 import json
 import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional, Union
 from uuid import UUID
-
 import requests
 import typer
-from funcx import FuncXClient  # type: ignore
+from globus_compute_sdk import Client
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -17,26 +17,26 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
 )
-from globus_sdk.scopes import ScopeBuilder
+from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+from mlflow.tracking.request_header.registry import (
+    _request_header_provider_registry,
+)
 from pydantic import ValidationError
 from rich import print
 from rich.prompt import Prompt
 
+import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
 from garden_ai.gardens import Garden
-from garden_ai.pipelines import Pipeline
-from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
-from garden_ai.mlmodel import upload_model
-
+from garden_ai.globus_compute.containers import build_container
+from garden_ai.globus_compute.login_manager import ComputeLoginManager
+from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
-from mlflow.tracking.request_header.registry import _request_header_provider_registry  # type: ignore
-import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
-from garden_ai.globus_compute.login_manager import FuncXLoginManager
-from garden_ai.globus_compute.containers import build_container
-from garden_ai.globus_compute.remote_functions import register_pipeline
-from globus_sdk.scopes import AuthScopes, SearchScopes
+from garden_ai.mlmodel import upload_model
+from garden_ai.pipelines import Pipeline
+from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
@@ -48,7 +48,7 @@ GARDEN_ENDPOINT = os.environ.get(
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
-FUNCX_RESOURCE_SERVER_NAME = "funcx_service"
+COMPUTE_RESOURCE_SERVER_NAME = "globus_compute_service"
 
 logger = logging.getLogger()
 
@@ -101,7 +101,7 @@ class GardenClient:
         self.search_authorizer = self._create_authorizer(
             SearchClient.scopes.resource_server
         )
-        self.funcx_authorizer = self._create_authorizer(FUNCX_RESOURCE_SERVER_NAME)
+        self.compute_authorizer = self._create_authorizer(COMPUTE_RESOURCE_SERVER_NAME)
         self.search_client = (
             SearchClient(authorizer=self.search_authorizer)
             if not search_client
@@ -111,7 +111,7 @@ class GardenClient:
             GardenClient.scopes.resource_server
         )
 
-        self.funcx_client = self._make_funcx_client()
+        self.compute_client = self._make_compute_client()
         self._set_up_mlflow_env()
 
     def _set_up_mlflow_env(self):
@@ -119,14 +119,14 @@ class GardenClient:
         os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
         _request_header_provider_registry.register(BinaryContentTypeHeaderProvider)
 
-    def _make_funcx_client(self):
+    def _make_compute_client(self):
         scope_to_authorizer = {
             AuthScopes.openid: self.openid_authorizer,
             SearchScopes.all: self.search_authorizer,
-            FuncXClient.FUNCX_SCOPE: self.funcx_authorizer,
+            Client.FUNCX_SCOPE: self.compute_authorizer,
         }
-        funcx_login_manager = FuncXLoginManager(scope_to_authorizer)
-        return FuncXClient(login_manager=funcx_login_manager, do_version_check=False)
+        compute_login_manager = ComputeLoginManager(scope_to_authorizer)
+        return Client(login_manager=compute_login_manager, do_version_check=False)
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -136,7 +136,7 @@ class GardenClient:
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
                 GardenClient.scopes.action_all,
-                FuncXClient.FUNCX_SCOPE,
+                Client.FUNCX_SCOPE,
             ],
             refresh_tokens=True,
         )
@@ -321,12 +321,12 @@ class GardenClient:
             return doi
 
     def build_container(self, pipeline: Pipeline) -> str:
-        built_container_uuid = build_container(self.funcx_client, pipeline)
+        built_container_uuid = build_container(self.compute_client, pipeline)
         return built_container_uuid
 
     def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
-        func_uuid = register_pipeline(self.funcx_client, pipeline, container_uuid)
-        pipeline.funcx_uuid = UUID(func_uuid)
+        func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
+        pipeline.func_uuid = UUID(func_uuid)
         pipeline.doi = self._mint_doi(pipeline)
         self.put_local_pipeline(pipeline)
         return func_uuid
