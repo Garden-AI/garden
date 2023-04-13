@@ -255,7 +255,7 @@ def mint_doi_from_garden_meta(garden_meta: Dict, client: GardenClient):
     garden_copy["pipelines"] = []
     # No DOI currently serializes to None, which is not accepted by the Garden model.
     if not garden_copy["doi"]:
-        garden_copy["doi"] = ""
+        del garden_copy["doi"]
     garden_model = Garden(**garden_copy)
     doi = client._mint_doi(garden_model)
     return doi
@@ -264,7 +264,7 @@ def mint_doi_from_garden_meta(garden_meta: Dict, client: GardenClient):
 def get_pipeline_meta(pipeline_uuid: str):
     maybe_pipeline = local_data.get_local_pipeline(pipeline_uuid)
     if not maybe_pipeline:
-        logger.fatal(f"Could not find garden with uuid {pipeline_uuid}")
+        logger.fatal(f"Could not find pipeline with uuid {pipeline_uuid}")
         raise typer.Exit(code=1)
     try:
         pipeline_metadata = json.loads(str(maybe_pipeline))
