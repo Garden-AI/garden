@@ -45,6 +45,7 @@ def _get_user_email() -> str:
     return str(maybe_email) if maybe_email else "unknown"
 
 
+# TODO: eliminate redundant ways to write a garden once we fix the deserialization issue.
 def put_local_garden_metadata(garden_metadata: Dict) -> None:
     """Helper: write a record to 'local database' for a given Garden
 
