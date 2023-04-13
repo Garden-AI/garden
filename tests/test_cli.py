@@ -58,6 +58,8 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
+    mock_client._mint_doi.assert_called_once()
+
     args = mock_client.publish_garden_metadata.call_args.args
     denormalized_garden_metadata = args[0]
     assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None

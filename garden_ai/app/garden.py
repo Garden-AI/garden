@@ -3,11 +3,13 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict
+from copy import deepcopy
 
 import rich
 import typer
 from garden_ai.client import GardenClient
 from garden_ai import local_data
+from garden_ai.gardens import Garden
 from rich.prompt import Prompt
 
 from globus_sdk import SearchAPIError
@@ -216,6 +218,50 @@ def add_pipeline(
     logger.info(f"Added pipeline {pipeline_uuid} to Garden {garden_uuid}")
 
 
+@garden_app.command(no_args_is_help=True)
+def publish(
+    garden_uuid: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        prompt="Please enter a the name or DOI of a garden",
+        help="The name of the garden you want to add a pipeline to",
+        rich_help_panel="Required",
+    ),
+):
+    # TODO: mint DOI for the Garden in this command.
+    client = GardenClient()
+
+    garden_metadata = get_garden_meta(garden_uuid)
+    pipeline_metas = [
+        get_pipeline_meta(p["uuid"]) for p in garden_metadata["pipelines"]
+    ]
+    garden_metadata["pipelines"] = pipeline_metas
+    garden_metadata["doi"] = mint_doi_from_garden_meta(garden_metadata, client)
+
+    try:
+        client.publish_garden_metadata(garden_metadata)
+    except SearchAPIError as e:
+        logger.fatal(f"Could not publish garden {garden_uuid}")
+        logger.fatal(e.error_data)
+        raise typer.Exit(code=1) from e
+
+
+# Right now we can make a Garden model from Garde JSON iff it has no pipelines.
+# Make a pipeline-less copy of the JSON so that we can make a Garden model
+# and use its DOI generating method.
+# TODO: clean up this hack once we fix Pydantic model deserialization.
+def mint_doi_from_garden_meta(garden_meta: Dict, client: GardenClient):
+    garden_copy = deepcopy(garden_meta)
+    garden_copy["pipelines"] = []
+    # No DOI currently serializes to None, which is not accepted by the Garden model.
+    if not garden_copy["doi"]:
+        garden_copy["doi"] = ""
+    garden_model = Garden(**garden_copy)
+    doi = client._mint_doi(garden_model)
+    return doi
+
+
 def get_pipeline_meta(pipeline_uuid: str):
     maybe_pipeline = local_data.get_local_pipeline(pipeline_uuid)
     if not maybe_pipeline:
@@ -244,31 +290,3 @@ def get_garden_meta(garden_uuid: str) -> Dict:
         )
         raise typer.Exit(code=1) from e
     return garden_metadata
-
-
-@garden_app.command(no_args_is_help=True)
-def publish(
-    garden_uuid: str = typer.Option(
-        ...,
-        "-g",
-        "--garden",
-        prompt="Please enter a the name or DOI of a garden",
-        help="The name of the garden you want to add a pipeline to",
-        rich_help_panel="Required",
-    ),
-):
-    # TODO: mint DOI for the Garden in this command.
-    client = GardenClient()
-
-    garden_metadata = get_garden_meta(garden_uuid)
-    pipeline_metas = [
-        get_pipeline_meta(p["uuid"]) for p in garden_metadata["pipelines"]
-    ]
-    garden_metadata["pipelines"] = pipeline_metas
-
-    try:
-        client.publish_garden_metadata(garden_metadata)
-    except SearchAPIError as e:
-        logger.fatal(f"Could not publish garden {garden_uuid}")
-        logger.fatal(e.error_data)
-        raise typer.Exit(code=1) from e

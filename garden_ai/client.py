@@ -49,7 +49,7 @@ GARDEN_ENDPOINT = os.environ.get(
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
-COMPUTE_RESOURCE_SERVER_NAME = "globus_compute_service"
+COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
 
