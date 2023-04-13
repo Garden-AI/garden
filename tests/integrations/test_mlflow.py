@@ -130,7 +130,6 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
 @pytest.mark.integration
 def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model):
     # as if model.pkl already existed on disk
-    # import tensorflow as tf  # type: ignore
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "tensorflowtest"
