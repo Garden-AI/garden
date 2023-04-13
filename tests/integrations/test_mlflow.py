@@ -11,7 +11,6 @@ def do_not_set_mlflow_env_variables():
 
 @pytest.fixture
 def toy_sklearn_model():
-    # import sklearn
     from sklearn import tree  # type: ignore
     from sklearn.datasets import load_wine  # type: ignore
 
@@ -74,7 +73,6 @@ def toy_tensorflow_model():
         validation_data=(x_test, y_test),
         verbose=0,
     )
-    # model.save('savedtf1')
     return tf_model
 
 
@@ -87,7 +85,6 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     model_path = tmp_path / "model.pkl"
     model_path.touch()
     flavor = "sklearn"
-    # model_path.parent.mkdir(exist_ok=True)
 
     with open(model_path, "wb") as f_out:
         pickle.dump(toy_sklearn_model, f_out)
@@ -115,7 +112,6 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     model_path = tmp_path / "pytorchtest.pth"
     torch.save(toy_pytorch_model, model_path, _use_new_zipfile_serialization=False)
     flavor = "pytorch"
-    # model_path.parent.mkdir(exist_ok=True)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/pytorchtest.pt`
     name = "pt-test-model-name"
@@ -140,7 +136,6 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model):
     model_path = tmp_path / "tensorflowtest"
     toy_tensorflow_model.save(model_path)
     flavor = "tensorflow"
-    # model_path.parent.mkdir(exist_ok=True)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/tensorflowtest`
     name = "tf-test-model-name"
