@@ -40,7 +40,7 @@ from garden_ai.pipelines import Pipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 # garden-dev index
-GARDEN_INDEX_UUID = "8386583d-e1cf-4b2f-ae66-b335ab5c9a21"
+GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
 GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
     "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
