@@ -229,7 +229,6 @@ def publish(
         rich_help_panel="Required",
     ),
 ):
-    # TODO: mint DOI for the Garden in this command.
     client = GardenClient()
 
     garden_metadata = get_garden_meta(garden_uuid)
