@@ -97,28 +97,102 @@ def _reindex_by_doi(resources: dict) -> Dict:
 
 
 def put_local_garden(garden: Garden):
+    """Helper: write a record to 'local database' for a given Garden
+    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+
+    Parameters
+    ----------
+    garden Garden
+        The object to json-serialize and write/update in the local database.
+        a TypeError will be raised if not a Garden.
+    """
     _put_resource_from_pydantic(garden)
 
 
 def put_local_garden_from_metadata(garden_metadata: Dict):
+    """Helper: write a record to 'local database' for a given Garden
+    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+
+    Parameters
+    ----------
+    garden_metadata Dict
+        Dictionary in the format serialized by the Garden Pydantic model.
+    """
     _put_resource_from_metadata(garden_metadata, ResourceType.GARDEN)
 
 
 def put_local_pipeline(pipeline: Pipeline):
+    """Helper: write a record to 'local database' for a given Pipeline
+    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+
+    Parameters
+    ----------
+    pipeline Pipeline
+        The object to json-serialize and write/update in the local database.
+        a TypeError will be raised if not a Pipeline.
+    """
     _put_resource_from_pydantic(pipeline)
 
 
 def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
+    """Helper: fetch a Garden record from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    uuid Union[UUID, str]
+        The uuid of the Garden you are fetching.
+
+    Returns
+    -------
+    Optional[Dict]
+        If successful, a dictionary in the form given by Garden.json().
+    """
     return _get_resource_by_uuid(uuid, ResourceType.GARDEN)
 
 
 def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
+    """Helper: fetch a Pipeline record from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    uuid Union[UUID, str]
+        The uuid of the Pipeline you are fetching.
+
+    Returns
+    -------
+    Optional[Dict]
+        If successful, a dictionary in the form given by Pipeline.json().
+    """
     return _get_resource_by_uuid(uuid, ResourceType.PIPELINE)
 
 
 def get_local_garden_by_doi(doi: str) -> Optional[Dict]:
+    """Helper: fetch a Garden record from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    doi str
+        The doi of the Garden you are fetching.
+
+    Returns
+    -------
+    Optional[Dict]
+        If successful, a dictionary in the form given by Garden.json().
+    """
     return _get_resource_by_doi(doi, ResourceType.GARDEN)
 
 
 def get_local_pipeline_by_doi(doi: str) -> Optional[Dict]:
+    """Helper: fetch a Pipeline record from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    doi str
+        The doi of the Pipeline you are fetching.
+
+    Returns
+    -------
+    Optional[Dict]
+        If successful, a dictionary in the form given by Pipeline.json().
+    """
     return _get_resource_by_doi(doi, ResourceType.PIPELINE)
