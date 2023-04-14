@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import pathlib
 import sys
-import time
 from datetime import datetime
 from functools import reduce
 from inspect import signature
@@ -14,7 +12,6 @@ from uuid import UUID, uuid4
 
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
-from globus_compute_sdk.errors import TaskPending  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
