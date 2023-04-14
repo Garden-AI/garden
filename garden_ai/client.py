@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 import requests
@@ -254,10 +254,10 @@ class GardenClient:
 
         # if pipeline already registered on funcx, ensure new instance reuses funcx_uuid
         pipeline = Pipeline(**data)
-        record = local_data.get_local_pipeline(pipeline.uuid)
+        record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
         if record:
             logger.info("Found pre-registered pipeline. Reusing remote function ID.")
-            pipeline.func_uuid = json.loads(record).get("func_uuid")
+            pipeline.func_uuid = record.get("func_uuid")
 
         return pipeline
 
@@ -309,11 +309,9 @@ class GardenClient:
 
         def get_existing_doi() -> Optional[str]:
             # check for existing doi, either on object or in db
-            record: Optional[JSON] = local_data.get_local_garden(obj.uuid)
-            record = record or local_data.get_local_pipeline(obj.uuid)
+            record: Optional[Dict] = local_data.get_local_garden_by_uuid(obj.uuid)
             if record:
-                data = json.loads(record)
-                return data.get("doi", None)
+                return record.get("doi", None)
             else:
                 return None
 
