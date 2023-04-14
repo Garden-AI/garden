@@ -1,8 +1,11 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-from garden_ai import GardenClient, Model, Pipeline, step
 import typing
+from pathlib import Path
+
+from garden_ai import GardenClient, Pipeline, step
 
 client = GardenClient()
+
 ##################################### STEPS #####################################
 """
 Brief notes on steps (see docs for more detail):
@@ -22,26 +25,25 @@ Brief notes on steps (see docs for more detail):
           composing (no checking at runtime)
 """
 
+
 # example step using the decorator:
 @step
 def preprocessing_step(input_data: object) -> object:
     """ """
-    # TODO
-    pass
+    return input_data
 
 
-@step()
+@step
 def another_step(data: object) -> object:
-    # TODO
-    pass
+    return data
 
 
 @step
 def run_inference(
     input_arg: object,
-    model=Model("YOUR MODEL's NAME HERE"),
 ) -> object:
-    pass
+    return input_arg
+
 
 # the step functions will be composed in order by the pipeline:
 ALL_STEPS = (
@@ -50,20 +52,19 @@ ALL_STEPS = (
     run_inference,
 )
 
-REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
-                          # with an "/absolute/path/to/requirements.txt"
+REQUIREMENTS_FILE = str((Path(__file__).parent / "requirements.txt").resolve())
 
 ################################### PIPELINE ####################################
 
-{{ shortname }}: Pipeline = client.create_pipeline(
-    title="{{ pipeline.title }}",
+fixture_pipeline: Pipeline = client.create_pipeline(
+    title="Fixture pipeline",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
-    authors={{ pipeline.authors }},
-    contributors={{ pipeline.contributors }},
-    description="{{ pipeline.description }}",
-    version="{{ pipeline.version }}",
-    year={{ pipeline.year }},
-    tags={{ pipeline.tags }},
-    uuid="{{ pipeline.uuid }}",  # WARNING: DO NOT EDIT UUID
+    authors=["Garden Team"],
+    contributors=[],
+    description="",
+    version="0.0.1",
+    year=2023,
+    tags=[],
+    uuid="b537520b-e86e-45bf-8566-4555a72b0b08",  # WARNING: DO NOT EDIT UUID
 )

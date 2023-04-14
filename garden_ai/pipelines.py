@@ -7,13 +7,15 @@ import sys
 from datetime import datetime
 from functools import reduce
 from inspect import signature
-from typing import Any, List, Optional, Tuple, cast
+from typing import Any, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
+import globus_compute_sdk  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 
+from garden_ai.app.console import console
 from garden_ai.datacite import (
     Contributor,
     Creator,
@@ -174,14 +176,74 @@ class Pipeline:
             )
         return
 
-    def register(self):
-        """register this Pipeline's complete Step composition as a globus compute function
-        TODO
-        """
-        raise NotImplementedError
+    def __call__(
+        self,
+        *args: Any,
+        endpoint: Union[UUID, str, None] = None,
+        timeout=None,
+        **kwargs: Any,
+    ) -> Any:
+        """Call the pipeline's composed steps on the given input data.
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self._composed_steps(*args, **kwargs)
+        Attempt to execute remotely if this pipeline has already been registered
+        and a valid ``endpoint`` is specified, else run locally as a regular
+        python function.
+
+        Parameters
+        ----------
+        *args : Any
+            Input data passed through the first step in the pipeline
+        endpoint : Union[UUID, str, None]
+            A valid globus compute endpoint uuid
+        timeout : int
+            time (in seconds) to wait for results. Pass `None` to wait
+            indefinitely (default behavior).
+        **kwargs : Any
+            Additional keyword arguments passed directly to the first step in
+            the pipeline.
+
+        Returns
+        -------
+        Any
+            Results from the pipeline's composed steps called with the given
+            input data.
+
+        Raises
+        ------
+        Exception
+            Any exceptions raised over the course of executing the pipeline
+            function, remotely or otherwise.
+
+        """
+        run_locally = not (self.func_uuid and endpoint)
+
+        if run_locally:
+            if endpoint:
+                logger.warning(
+                    f"Pipeline '{self.title}' invoked with endpoint="
+                    f" {endpoint}, but has not been registered yet. The "
+                    "pipeline will not execute remotely.",
+                )
+            if self.func_uuid:
+                logger.warning(
+                    f"Pipeline '{self.title}' has been registered for remote "
+                    "execution, but no endpoint was specified. The pipeline will "
+                    "not execute remotely.",
+                )
+            # pass input directly to underlying steps
+            return self._composed_steps(*args, **kwargs)
+
+        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
+            # TODO: refactor below once the remote-calling interface is settled.
+            # console/spinner is good ux but shouldn't live this deep in the
+            # sdk.
+            with console.status(
+                f"[bold green] executing remotely on endpoint {endpoint}"
+            ):
+                future = gce.submit_to_registered_function(
+                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
+                )
+                return future.result()
 
     def __post_init_post_parse__(self):
         """Finish initializing the pipeline after validators have run.
@@ -205,10 +267,10 @@ class Pipeline:
         self.contributors = list(known_contributors)
         return
 
-    def json(self):
+    def json(self) -> str:
         return json.dumps(self, default=garden_json_encoder)
 
-    def datacite_json(self):
+    def datacite_json(self) -> str:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string.
 
         Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
