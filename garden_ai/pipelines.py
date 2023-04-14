@@ -13,7 +13,7 @@ from typing import Any, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
-from globus_compute_sdk import Client  # type: ignore
+import globus_compute_sdk  # type: ignore
 from globus_compute_sdk.errors import TaskPending  # type: ignore
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
@@ -237,13 +237,16 @@ class Pipeline:
             # pass input directly to underlying steps
             return self._composed_steps(*args, **kwargs)
         else:
-            fxc = Client()
-            task_id = fxc.run(
+            compute_client = globus_compute_sdk.Client()
+            task_id = compute_client.run(
                 *args,
                 endpoint_id=str(endpoint),
                 function_id=str(self.func_uuid),
                 **kwargs,
             )
+            # TODO: refactor once the remote-calling interface is settled.
+            # console/spinner is good ux but shouldn't live this deep in the
+            # sdk.
             with console.status(
                 f"[bold green] executing remotely on endpoint {endpoint}"
             ) as status:
@@ -251,7 +254,7 @@ class Pipeline:
                 t_end = t_0 + timeout if timeout else math.inf
                 while time.time() < t_end:
                     try:
-                        result = fxc.get_result(task_id)
+                        result = compute_client.get_result(task_id)
                     except TaskPending as e:
                         time.sleep(polling_interval)
                         status.update(f"[bold blue] task pending: {e.reason}")
