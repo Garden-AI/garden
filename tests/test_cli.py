@@ -14,56 +14,6 @@ runner = CliRunner()
 
 
 @pytest.mark.cli
-def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker):
-    mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_unconnected_pipeline
-    )
-    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
-    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
-
-    before_addition = local_data.get_local_garden_by_uuid(garden_id)
-    assert len(before_addition["pipelines"]) == 0
-
-    command = ["garden", "add-pipeline", "-g", garden_id, "-p", pipeline_id]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    after_addition = local_data.get_local_garden_by_uuid(garden_id)
-    assert len(after_addition["pipelines"]) == 1
-    assert after_addition["pipelines"][0]["uuid"] == pipeline_id
-    assert after_addition["pipelines"][0]["doi"] == "10.23677/jx31-gx98"
-
-
-@pytest.mark.cli
-def test_garden_publish(database_with_connected_pipeline, mocker):
-    mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
-    )
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-
-    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
-    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
-
-    command = [
-        "garden",
-        "publish",
-        "-g",
-        garden_id,
-    ]
-    # We want to check that we called client.publish with the right shit
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client._mint_doi.assert_called_once()
-
-    args = mock_client.publish_garden_metadata.call_args.args
-    denormalized_garden_metadata = args[0]
-    assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
-    assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_id
-
-
-@pytest.mark.cli
 def test_garden_create(garden_all_fields, tmp_path, mocker):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
@@ -144,6 +94,64 @@ def test_model_upload(mocker, tmp_path):
     assert args[1] == "unit-test-model"
     assert args[2] == "sklearn"
     assert args[3] == ["torch==1.13.1", "pandas<=1.5.0"]
+
+
+@pytest.mark.cli
+@pytest.mark.parametrize("use_doi", [True, False])
+def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker, use_doi):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_unconnected_pipeline
+    )
+
+    garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    pipeline_doi = "10.23677/jx31-gx98"
+
+    def run_test_with_ids(garden_id, pipeline_id):
+        before_addition = local_data.get_local_garden_by_uuid(garden_id)
+        assert len(before_addition["pipelines"]) == 0
+
+        command = ["garden", "add-pipeline", "-g", garden_id, "-p", pipeline_id]
+        result = runner.invoke(app, command)
+        assert result.exit_code == 0
+
+        after_addition = local_data.get_local_garden_by_uuid(garden_id)
+        assert len(after_addition["pipelines"]) == 1
+        assert after_addition["pipelines"][0]["uuid"] == pipeline_uuid
+        assert after_addition["pipelines"][0]["doi"] == pipeline_doi
+
+    if use_doi:
+        run_test_with_ids(garden_uuid, pipeline_doi)
+    else:
+        run_test_with_ids(garden_uuid, pipeline_uuid)
+
+
+@pytest.mark.cli
+def test_garden_publish(database_with_connected_pipeline, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+
+    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
+
+    command = [
+        "garden",
+        "publish",
+        "-g",
+        garden_id,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    mock_client._mint_doi.assert_called_once()
+
+    args = mock_client.publish_garden_metadata.call_args.args
+    denormalized_garden_metadata = args[0]
+    assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
+    assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_id
 
 
 def test_clean_identifier():
