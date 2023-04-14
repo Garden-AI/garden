@@ -127,31 +127,39 @@ def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker, use_doi
 
 
 @pytest.mark.cli
-def test_garden_publish(database_with_connected_pipeline, mocker):
+@pytest.mark.parametrize("use_doi", [True, False])
+def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
 
-    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
-    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    garden_doi = "10.23677/jx31-db53"
+    pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
 
-    command = [
-        "garden",
-        "publish",
-        "-g",
-        garden_id,
-    ]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
+    def run_test_with_id(garden_id):
+        command = [
+            "garden",
+            "publish",
+            "-g",
+            garden_id,
+        ]
+        result = runner.invoke(app, command)
+        assert result.exit_code == 0
 
-    mock_client._mint_doi.assert_called_once()
+        mock_client._mint_doi.assert_called_once()
 
-    args = mock_client.publish_garden_metadata.call_args.args
-    denormalized_garden_metadata = args[0]
-    assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
-    assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_id
+        args = mock_client.publish_garden_metadata.call_args.args
+        denormalized_garden_metadata = args[0]
+        assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
+        assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_uuid
+
+    if use_doi:
+        run_test_with_id(garden_doi)
+    else:
+        run_test_with_id(garden_uuid)
 
 
 def test_clean_identifier():
