@@ -219,7 +219,6 @@ class Pipeline:
 
         """
         run_locally = not (self.func_uuid and endpoint)
-        polling_interval = 2  # TODO might be a better value for this
 
         if run_locally:
             if endpoint:
@@ -236,31 +235,18 @@ class Pipeline:
                 )
             # pass input directly to underlying steps
             return self._composed_steps(*args, **kwargs)
-        else:
-            compute_client = globus_compute_sdk.Client()
-            task_id = compute_client.run(
-                *args,
-                endpoint_id=str(endpoint),
-                function_id=str(self.func_uuid),
-                **kwargs,
-            )
-            # TODO: refactor once the remote-calling interface is settled.
+
+        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
+            # TODO: refactor below once the remote-calling interface is settled.
             # console/spinner is good ux but shouldn't live this deep in the
             # sdk.
             with console.status(
                 f"[bold green] executing remotely on endpoint {endpoint}"
-            ) as status:
-                t_0 = time.time()
-                t_end = t_0 + timeout if timeout else math.inf
-                while time.time() < t_end:
-                    try:
-                        result = compute_client.get_result(task_id)
-                    except TaskPending as e:
-                        time.sleep(polling_interval)
-                        status.update(f"[bold blue] task pending: {e.reason}")
-                        continue
-                    break
-                return result
+            ):
+                future = gce.submit_to_registered_function(
+                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
+                )
+                return future.result()
 
     def __post_init_post_parse__(self):
         """Finish initializing the pipeline after validators have run.
