@@ -20,15 +20,13 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from mlflow.tracking.request_header.registry import (
-    _request_header_provider_registry,
-)
+from mlflow.tracking.request_header.registry import _request_header_provider_registry
 from rich import print
 from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
-from garden_ai.gardens import Garden
 from garden_ai import local_data
+from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
@@ -37,7 +35,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
 )
 from garden_ai.mlmodel import upload_model
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils.misc import extract_email_from_globus_jwt
+from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
@@ -256,7 +254,7 @@ class GardenClient:
 
         # if pipeline already registered on funcx, ensure new instance reuses funcx_uuid
         pipeline = Pipeline(**data)
-        record = self.get_local_pipeline(pipeline.uuid)
+        record = local_data.get_local_pipeline(pipeline.uuid)
         if record:
             logger.info("Found pre-registered pipeline. Reusing remote function ID.")
             pipeline.func_uuid = json.loads(record).get("func_uuid")
@@ -311,8 +309,8 @@ class GardenClient:
 
         def get_existing_doi() -> Optional[str]:
             # check for existing doi, either on object or in db
-            record: Optional[JSON] = self.get_local_garden(obj.uuid)
-            record = record or self.get_local_pipeline(obj.uuid)
+            record: Optional[JSON] = local_data.get_local_garden(obj.uuid)
+            record = record or local_data.get_local_pipeline(obj.uuid)
             if record:
                 data = json.loads(record)
                 return data.get("doi", None)
