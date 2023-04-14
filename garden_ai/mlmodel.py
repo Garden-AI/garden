@@ -121,7 +121,7 @@ class _Model:
         return
 
     def _lazy_load_model(self):
-        """deserialize the underlying model, if necessary."""
+        """download and deserialize the underlying model, if necessary."""
         if self.model is None:
             # don't clutter current directory, especially if running locally
             local_store = pathlib.Path("~/.garden/mlflow").expanduser()

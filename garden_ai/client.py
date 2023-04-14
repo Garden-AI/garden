@@ -20,15 +20,13 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from mlflow.tracking.request_header.registry import (
-    _request_header_provider_registry,
-)
+from mlflow.tracking.request_header.registry import _request_header_provider_registry
 from rich import print
 from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
-from garden_ai.gardens import Garden
 from garden_ai import local_data
+from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
@@ -37,7 +35,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
 )
 from garden_ai.mlmodel import upload_model
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils.misc import extract_email_from_globus_jwt
+from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
@@ -49,7 +47,7 @@ GARDEN_ENDPOINT = os.environ.get(
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
-COMPUTE_RESOURCE_SERVER_NAME = "globus_compute_service"
+COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
 
@@ -240,12 +238,28 @@ class GardenClient:
     def create_pipeline(
         self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
     ) -> Pipeline:
+        """Initialize and return a pipeline object.
+
+        If this pipeline's UUID has been used before to register a function for
+        remote execution, reuse the (funcx/globus compute) ID for consistency.
+
+        NOTE: this means that local modifications to a pipeline will not be
+        reflected when executing remotely until the pipeline is re-registered.
+        """
         data = dict(kwargs)
         if authors:
             data["authors"] = authors
         if title:
             data["title"] = title
-        return Pipeline(**data)
+
+        # if pipeline already registered on funcx, ensure new instance reuses funcx_uuid
+        pipeline = Pipeline(**data)
+        record = local_data.get_local_pipeline(pipeline.uuid)
+        if record:
+            logger.info("Found pre-registered pipeline. Reusing remote function ID.")
+            pipeline.func_uuid = json.loads(record).get("func_uuid")
+
+        return pipeline
 
     def log_model(
         self,
@@ -289,13 +303,27 @@ class GardenClient:
             see `test`
 
         """
+
         if not test:
             raise NotImplementedError
-        elif obj.doi and not force:
+
+        def get_existing_doi() -> Optional[str]:
+            # check for existing doi, either on object or in db
+            record: Optional[JSON] = local_data.get_local_garden(obj.uuid)
+            record = record or local_data.get_local_pipeline(obj.uuid)
+            if record:
+                data = json.loads(record)
+                return data.get("doi", None)
+            else:
+                return None
+
+        existing_doi = obj.doi or get_existing_doi()
+
+        if existing_doi and not force:
             logger.info(
                 "existing DOI found, not requesting new DOI. Pass `force=true` to override this behavior."
             )
-            return obj.doi
+            return existing_doi
 
         logger.info("Requesting DOI")
         url = f"{GARDEN_ENDPOINT}/doi"
