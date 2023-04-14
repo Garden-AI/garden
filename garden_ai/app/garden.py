@@ -177,7 +177,7 @@ def create(
     local_data.put_local_garden(garden)
 
     if verbose:
-        metadata = local_data.get_local_garden(garden.uuid)
+        metadata = json.dumps(local_data.get_local_garden_by_uuid(garden.uuid))
         rich.print_json(metadata)
     return
 
@@ -214,7 +214,7 @@ def add_pipeline(
     garden_metadata["pipelines"].append(
         {"uuid": pipeline_uuid, "doi": pipeline_meta["doi"]}
     )
-    local_data.put_local_garden_metadata(garden_metadata)
+    local_data.put_local_garden_from_metadata(garden_metadata)
     logger.info(f"Added pipeline {pipeline_uuid} to Garden {garden_uuid}")
 
 
@@ -261,31 +261,17 @@ def mint_doi_from_garden_meta(garden_meta: Dict, client: GardenClient):
     return doi
 
 
-def get_pipeline_meta(pipeline_uuid: str):
-    maybe_pipeline = local_data.get_local_pipeline(pipeline_uuid)
-    if not maybe_pipeline:
+def get_pipeline_meta(pipeline_uuid: str) -> Dict:
+    pipeline_meta = local_data.get_local_pipeline_by_uuid(pipeline_uuid)
+    if not pipeline_meta:
         logger.fatal(f"Could not find pipeline with uuid {pipeline_uuid}")
         raise typer.Exit(code=1)
-    try:
-        pipeline_metadata = json.loads(str(maybe_pipeline))
-    except json.JSONDecodeError as e:
-        logger.fatal(
-            f"Malformed local database. Could not parse record for {pipeline_uuid}"
-        )
-        raise typer.Exit(code=1) from e
-    return pipeline_metadata
+    return pipeline_meta
 
 
 def get_garden_meta(garden_uuid: str) -> Dict:
-    maybe_garden = local_data.get_local_garden(garden_uuid)
-    if not maybe_garden:
+    garden_meta = local_data.get_local_garden_by_uuid(garden_uuid)
+    if not garden_meta:
         logger.fatal(f"Could not find garden with uuid {garden_uuid}")
         raise typer.Exit(code=1)
-    try:
-        garden_metadata = json.loads(str(maybe_garden))
-    except json.JSONDecodeError as e:
-        logger.fatal(
-            f"Malformed local database. Could not parse record for {garden_uuid}"
-        )
-        raise typer.Exit(code=1) from e
-    return garden_metadata
+    return garden_meta

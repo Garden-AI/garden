@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from datetime import datetime
@@ -214,7 +215,7 @@ def create(
 
     if verbose:
         local_data.put_local_pipeline(pipeline)
-        metadata = local_data.get_local_pipeline(pipeline.uuid)
+        metadata = json.dumps(local_data.get_local_pipeline_by_uuid(pipeline.uuid))
         rich.print_json(metadata)
 
     return

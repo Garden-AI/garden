@@ -21,17 +21,14 @@ def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker):
     garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
     pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
 
-    def get_garden_meta():
-        return json.loads(str(local_data.get_local_garden(garden_id)))
-
-    before_addition = get_garden_meta()
+    before_addition = local_data.get_local_garden_by_uuid(garden_id)
     assert len(before_addition["pipelines"]) == 0
 
     command = ["garden", "add-pipeline", "-g", garden_id, "-p", pipeline_id]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    after_addition = get_garden_meta()
+    after_addition = local_data.get_local_garden_by_uuid(garden_id)
     assert len(after_addition["pipelines"]) == 1
     assert after_addition["pipelines"][0]["uuid"] == pipeline_id
     assert after_addition["pipelines"][0]["doi"] == "10.23677/jx31-gx98"
