@@ -35,7 +35,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
 )
 from garden_ai.mlmodel import upload_model
 from garden_ai.pipelines import Pipeline
-from garden_ai.utils.misc import JSON, extract_email_from_globus_jwt
+from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
