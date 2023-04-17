@@ -145,11 +145,13 @@ def create(
 
 @garden_app.command(no_args_is_help=True)
 def search(
-    title: str = typer.Option(None, "-t", "--title", help="Title of a Garden"),
-    authors: List[str] = typer.Option(
+    title: Optional[str] = typer.Option(
+        None, "-t", "--title", help="Title of a Garden"
+    ),
+    authors: Optional[List[str]] = typer.Option(
         None, "-a", "--author", help="an author of the Garden"
     ),
-    year: str = typer.Option(
+    year: Optional[str] = typer.Option(
         None, "-y", "--year", help="year the Garden was published"
     ),
     contributors: List[str] = typer.Option(
@@ -169,29 +171,36 @@ def search(
         "--tag",
         help="A tag of the Garden",
     ),
+    verbose: bool = typer.Option(
+        False, help="If true, print the query being passed to Globus Search."
+    ),
+    raw_query: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Form your own Globus Search query directly. It will be passed to Search in advanced mode."
+            "See https://docs.globus.org/api/search/reference/get_query for more details."
+        ),
+    ),
 ):
-    query_parts = []
-
-    if title:
-        query_parts.append({"match": {"title": title}})
-
-    if authors:
-        query_parts.append({"terms": {"authors.keyword": authors}})
-
-    if year:
-        query_parts.append({"match": {"year": year}})
-
-    if contributors:
-        query_parts.append({"terms": {"contributors.keyword": contributors}})
-
-    if description:
-        query_parts.append({"match": {"description": description}})
-
-    if tags:
-        query_parts.append({"terms": {"tags.keyword": tags}})
-
-    query = {"query": {"bool": {"must": query_parts}}}
+    """Queries the Garden search index and prints matching results. All query components are ANDed together.
+    So if you say `garden-ai garden search --description "foo" --title "bar"` you will get results
+    for gardens that have "foo" in their description and "bar" in their title.
+    """
     client = GardenClient()
+    if raw_query:
+        query = raw_query
+    else:
+        query = create_query(
+            title=title,
+            authors=authors,
+            year=year,
+            contributors=contributors,
+            description=description,
+            tags=tags,
+        )
+    if verbose:
+        logger.info(query)
+
     results = client.search(query)
     rich.print_json(results)
 
@@ -297,3 +306,36 @@ def get_garden_meta(garden_id: str) -> Dict:
         logger.fatal(f"Could not find garden with id {garden_id}")
         raise typer.Exit(code=1)
     return garden_meta
+
+
+def create_query(
+    title: Optional[str] = None,
+    authors: List[str] = None,
+    year: str = None,
+    contributors: List[str] = None,
+    description: Optional[str] = None,
+    tags: List[str] = None,
+) -> str:
+    query_parts = []
+    if title:
+        query_parts.append(f'(title: "{title}")')
+
+    if authors:
+        for author in authors:
+            query_parts.append(f'(authors: "{author}")')
+
+    if year:
+        query_parts.append(f'(year: "{year}")')
+
+    if contributors:
+        for contributor in contributors:
+            query_parts.append(f'(contributors: "{contributor}")')
+
+    if description:
+        query_parts.append(f'(description: "{description}")')
+
+    if tags:
+        for tag in tags:
+            query_parts.append(f'(tags: "{tag}")')
+
+    return " AND ".join(query_parts)

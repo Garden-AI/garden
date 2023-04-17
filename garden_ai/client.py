@@ -381,6 +381,6 @@ class GardenClient:
             task_result = self.search_client.get_task(publish_result["task_id"])
         return task_result
 
-    def search(self, query: Dict) -> str:
-        res = self.search_client.search(GARDEN_INDEX_UUID, query)
+    def search(self, query: str) -> str:
+        res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
         return res.text
