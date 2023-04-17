@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 from uuid import UUID
 
 import requests
@@ -134,6 +134,7 @@ class GardenClient:
                 AuthClient.scopes.email,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.ingest,
+                SearchClient.scopes.search,
                 GardenClient.scopes.action_all,
                 Client.FUNCX_SCOPE,
             ],
@@ -381,3 +382,7 @@ class GardenClient:
             time.sleep(5)
             task_result = self.search_client.get_task(publish_result["task_id"])
         return task_result
+
+    def search(self, query: Dict) -> str:
+        res = self.search_client.search(GARDEN_INDEX_UUID, query)
+        return res.text

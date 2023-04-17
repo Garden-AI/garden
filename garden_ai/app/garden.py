@@ -1,8 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from copy import deepcopy
 
 import rich
@@ -17,31 +16,6 @@ from globus_sdk import SearchAPIError
 logger = logging.getLogger()
 
 garden_app = typer.Typer(name="garden", no_args_is_help=True)
-
-
-def setup_directory(directory: Optional[Path]) -> Optional[Path]:
-    """
-    Validate the directory provided by the user, scaffolding with "pipelines/" and
-    "models/" subdirectories if possible (i.e. directory does not yet exist or
-    exists but is empty).
-    """
-    if directory is None:
-        return None
-
-    if directory.exists() and any(directory.iterdir()):
-        logger.fatal("Directory must be empty if it already exists.")
-        raise typer.Exit(code=1)
-
-    (directory / "models").mkdir(parents=True)
-    (directory / "pipelines").mkdir(parents=True)
-
-    with open(directory / "models" / ".gitignore", "w") as f_out:
-        f_out.write("# TODO\n")
-
-    with open(directory / "README.md", "w") as f_out:
-        f_out.write("# TODO\n")
-
-    return directory
 
 
 def validate_name(name: str) -> str:
@@ -59,19 +33,6 @@ def garden():
 
 @garden_app.command(no_args_is_help=True)
 def create(
-    directory: Path = typer.Argument(
-        None,
-        callback=setup_directory,
-        dir_okay=True,
-        file_okay=False,
-        writable=True,
-        readable=True,
-        resolve_path=True,
-        help=(
-            "(Optional) if specified, this generates a directory with subfolders to help organize the new Garden. "
-            "This is likely to be useful if you want to track your Garden/Pipeline development with GitHub."
-        ),
-    ),
     title: str = typer.Option(
         ...,
         "-t",
@@ -180,6 +141,59 @@ def create(
         metadata = local_data.get_local_garden(garden.uuid)
         rich.print_json(metadata)
     return
+
+
+@garden_app.command(no_args_is_help=True)
+def search(
+    title: str = typer.Option(None, "-t", "--title", help="Title of a Garden"),
+    authors: List[str] = typer.Option(
+        None, "-a", "--author", help="an author of the Garden"
+    ),
+    year: str = typer.Option(
+        None, "-y", "--year", help="year the Garden was published"
+    ),
+    contributors: List[str] = typer.Option(
+        None,
+        "-c",
+        "--contributor",
+        help="a contributor to the Garden",
+    ),
+    description: Optional[str] = typer.Option(
+        None,
+        "-d",
+        "--description",
+        help="text in the description of the Garden you are searching for",
+    ),
+    tags: List[str] = typer.Option(
+        None,
+        "--tag",
+        help="A tag of the Garden",
+    ),
+):
+    query_parts = []
+
+    if title:
+        query_parts.append({"match": {"title": title}})
+
+    if authors:
+        query_parts.append({"terms": {"authors.keyword": authors}})
+
+    if year:
+        query_parts.append({"match": {"year": year}})
+
+    if contributors:
+        query_parts.append({"terms": {"contributors.keyword": contributors}})
+
+    if description:
+        query_parts.append({"match": {"description": description}})
+
+    if tags:
+        query_parts.append({"terms": {"tags.keyword": tags}})
+
+    query = {"query": {"bool": {"must": query_parts}}}
+    client = GardenClient()
+    results = client.search(query)
+    rich.print_json(results)
 
 
 # TODO: allow selecting by DOI.
