@@ -4,6 +4,8 @@ from garden_ai.client import GardenClient
 from typer.testing import CliRunner
 import string
 import random
+
+import rich
 from keyword import iskeyword
 from garden_ai.app.pipeline import clean_identifier
 from garden_ai import local_data
@@ -92,6 +94,58 @@ def test_model_upload(mocker, tmp_path):
     assert args[1] == "unit-test-model"
     assert args[2] == "sklearn"
     assert args[3] == ["torch==1.13.1", "pandas<=1.5.0"]
+
+
+@pytest.mark.cli
+def test_search_easy_query(mocker):
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+    mock_rich = mocker.MagicMock(rich)
+    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
+    command = [
+        "garden",
+        "search",
+        "-d",
+        "foo",
+        "-t",
+        "bar",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    mock_client.search.assert_called_once()
+    mock_rich.print_json.assert_called_once()
+
+    args = mock_client.search.call_args.args
+    query = args[0]
+    assert '(title: "bar")' in query
+    assert '(description: "foo")' in query
+    assert " AND " in query
+
+
+@pytest.mark.cli
+def test_search_raw_query(mocker):
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+    mock_rich = mocker.MagicMock(rich)
+    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
+    command = [
+        "garden",
+        "search",
+        "-d",
+        "foo",
+        "--raw-query",
+        "lalalala",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    mock_client.search.assert_called_once()
+    mock_rich.print_json.assert_called_once()
+
+    args = mock_client.search.call_args.args
+    query = args[0]
+    assert query == "lalalala"
 
 
 @pytest.mark.cli
