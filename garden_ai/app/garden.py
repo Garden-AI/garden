@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from copy import deepcopy
 
 import rich
@@ -138,7 +138,7 @@ def create(
     local_data.put_local_garden(garden)
 
     if verbose:
-        metadata = local_data.get_local_garden(garden.uuid)
+        metadata = json.dumps(local_data.get_local_garden_by_uuid(garden.uuid))
         rich.print_json(metadata)
     return
 
@@ -196,56 +196,58 @@ def search(
     rich.print_json(results)
 
 
-# TODO: allow selecting by DOI.
 @garden_app.command(no_args_is_help=True)
 def add_pipeline(
-    garden_uuid: str = typer.Option(
+    garden_id: str = typer.Option(
         ...,
         "-g",
         "--garden",
-        prompt="Please enter a the name or DOI of a garden",
+        prompt="Please enter the UUID or DOI of a garden",
         help="The name of the garden you want to add a pipeline to",
         rich_help_panel="Required",
     ),
-    pipeline_uuid: str = typer.Option(
+    pipeline_id: str = typer.Option(
         ...,
         "-p",
         "--pipeline",
-        prompt="Please enter a the title or DOI of a pipeline",
+        prompt="Please enter a the UUID or DOI of a pipeline",
         help="The name of the pipeline you want to add",
         rich_help_panel="Required",
     ),
 ):
-    garden_metadata = get_garden_meta(garden_uuid)
-    pipeline_uuids_already_present = set(
-        pipeline["uuid"] for pipeline in garden_metadata["pipelines"]
-    )
-    if pipeline_uuid in pipeline_uuids_already_present:
-        logger.info(f"Pipeline {pipeline_uuid} is already in Garden {garden_uuid}")
-        return
+    """ "Add a registered pipeline to a garden"""
 
-    pipeline_meta = get_pipeline_meta(pipeline_uuid)
+    garden_metadata = get_garden_meta(garden_id)
+
+    for pipeline in garden_metadata["pipelines"]:
+        if pipeline_id in {pipeline["doi"], pipeline["uuid"]}:
+            logger.info(f"Pipeline {pipeline_id} is already in Garden {garden_id}")
+            return
+
+    pipeline_meta = get_pipeline_meta(pipeline_id)
     garden_metadata["pipelines"].append(
-        {"uuid": pipeline_uuid, "doi": pipeline_meta["doi"]}
+        {"uuid": pipeline_meta["uuid"], "doi": pipeline_meta["doi"]}
     )
-    local_data.put_local_garden_metadata(garden_metadata)
-    logger.info(f"Added pipeline {pipeline_uuid} to Garden {garden_uuid}")
+    local_data.put_local_garden_from_metadata(garden_metadata)
+    logger.info(f"Added pipeline {pipeline_id} to Garden {garden_id}")
 
 
 @garden_app.command(no_args_is_help=True)
 def publish(
-    garden_uuid: str = typer.Option(
+    garden_id: str = typer.Option(
         ...,
         "-g",
         "--garden",
-        prompt="Please enter a the name or DOI of a garden",
+        prompt="Please enter the UUID or DOI of a garden",
         help="The name of the garden you want to add a pipeline to",
         rich_help_panel="Required",
     ),
 ):
+    """Push data about a Garden stored to Globus Search so that other users can search for it"""
+
     client = GardenClient()
 
-    garden_metadata = get_garden_meta(garden_uuid)
+    garden_metadata = get_garden_meta(garden_id)
     pipeline_metas = [
         get_pipeline_meta(p["uuid"]) for p in garden_metadata["pipelines"]
     ]
@@ -255,12 +257,12 @@ def publish(
     try:
         client.publish_garden_metadata(garden_metadata)
     except SearchAPIError as e:
-        logger.fatal(f"Could not publish garden {garden_uuid}")
+        logger.fatal(f"Could not publish garden {garden_id}")
         logger.fatal(e.error_data)
         raise typer.Exit(code=1) from e
 
 
-# Right now we can make a Garden model from Garde JSON iff it has no pipelines.
+# Right now we can make a Garden model from Garden JSON iff it has no pipelines.
 # Make a pipeline-less copy of the JSON so that we can make a Garden model
 # and use its DOI generating method.
 # TODO: clean up this hack once we fix Pydantic model deserialization.
@@ -275,31 +277,23 @@ def mint_doi_from_garden_meta(garden_meta: Dict, client: GardenClient):
     return doi
 
 
-def get_pipeline_meta(pipeline_uuid: str):
-    maybe_pipeline = local_data.get_local_pipeline(pipeline_uuid)
-    if not maybe_pipeline:
-        logger.fatal(f"Could not find pipeline with uuid {pipeline_uuid}")
+def get_pipeline_meta(pipeline_id: str) -> Dict:
+    if "/" in pipeline_id:
+        pipeline_meta = local_data.get_local_pipeline_by_doi(pipeline_id)
+    else:
+        pipeline_meta = local_data.get_local_pipeline_by_uuid(pipeline_id)
+    if not pipeline_meta:
+        logger.fatal(f"Could not find pipeline with id {pipeline_id}")
         raise typer.Exit(code=1)
-    try:
-        pipeline_metadata = json.loads(str(maybe_pipeline))
-    except json.JSONDecodeError as e:
-        logger.fatal(
-            f"Malformed local database. Could not parse record for {pipeline_uuid}"
-        )
-        raise typer.Exit(code=1) from e
-    return pipeline_metadata
+    return pipeline_meta
 
 
-def get_garden_meta(garden_uuid: str) -> Dict:
-    maybe_garden = local_data.get_local_garden(garden_uuid)
-    if not maybe_garden:
-        logger.fatal(f"Could not find garden with uuid {garden_uuid}")
+def get_garden_meta(garden_id: str) -> Dict:
+    if "/" in garden_id:
+        garden_meta = local_data.get_local_garden_by_doi(garden_id)
+    else:
+        garden_meta = local_data.get_local_garden_by_uuid(garden_id)
+    if not garden_meta:
+        logger.fatal(f"Could not find garden with id {garden_id}")
         raise typer.Exit(code=1)
-    try:
-        garden_metadata = json.loads(str(maybe_garden))
-    except json.JSONDecodeError as e:
-        logger.fatal(
-            f"Malformed local database. Could not parse record for {garden_uuid}"
-        )
-        raise typer.Exit(code=1) from e
-    return garden_metadata
+    return garden_meta
