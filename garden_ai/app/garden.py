@@ -201,15 +201,14 @@ def add_pipeline(
         rich_help_panel="Required",
     ),
 ):
-    garden_metadata = get_garden_meta(garden_id)
-    pipeline_ids_already_present = set()
-    for pipeline in garden_metadata["pipelines"]:
-        pipeline_ids_already_present.add(pipeline["uuid"])
-        pipeline_ids_already_present.add(pipeline["doi"])
+    """ "Add a registered pipeline to a garden"""
 
-    if pipeline_id in pipeline_ids_already_present:
-        logger.info(f"Pipeline {pipeline_id} is already in Garden {garden_id}")
-        return
+    garden_metadata = get_garden_meta(garden_id)
+
+    for pipeline in garden_metadata["pipelines"]:
+        if pipeline_id in {pipeline["doi"], pipeline["uuid"]}:
+            logger.info(f"Pipeline {pipeline_id} is already in Garden {garden_id}")
+            return
 
     pipeline_meta = get_pipeline_meta(pipeline_id)
     garden_metadata["pipelines"].append(
@@ -230,6 +229,8 @@ def publish(
         rich_help_panel="Required",
     ),
 ):
+    """Push data about a Garden stored to Globus Search so that other users can search for it"""
+
     client = GardenClient()
 
     garden_metadata = get_garden_meta(garden_id)

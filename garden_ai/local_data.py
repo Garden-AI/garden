@@ -14,19 +14,29 @@ LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 logger = logging.getLogger()
 
 
+class LocalDataException(Exception):
+    """Exception raised when a user's local data.json is corrupted"""
+
+    pass
+
+
 class ResourceType(Enum):
     GARDEN = "gardens"
     PIPELINE = "pipelines"
 
 
-# This guy needs a try/except
 def _read_local_db() -> Dict:
     data = {}
     if (LOCAL_STORAGE / "data.json").exists():
         with open(LOCAL_STORAGE / "data.json", "r+") as f:
             raw_data = f.read()
             if raw_data:
-                data = json.loads(raw_data)
+                try:
+                    data = json.loads(raw_data)
+                except json.JSONDecodeError as e:
+                    raise LocalDataException(
+                        "Could not parse data.json as valid json"
+                    ) from e
     return data
 
 
@@ -58,7 +68,7 @@ def _put_resource_from_metadata(
     _write_local_db(data)
 
 
-def _put_resource_from_pydantic(resource: Union[Garden, Pipeline]) -> None:
+def _put_resource_from_obj(resource: Union[Garden, Pipeline]) -> None:
     resource_type = (
         ResourceType.GARDEN if isinstance(resource, Garden) else ResourceType.PIPELINE
     )
@@ -106,7 +116,7 @@ def put_local_garden(garden: Garden):
         The object to json-serialize and write/update in the local database.
         a TypeError will be raised if not a Garden.
     """
-    _put_resource_from_pydantic(garden)
+    _put_resource_from_obj(garden)
 
 
 def put_local_garden_from_metadata(garden_metadata: Dict):
@@ -131,7 +141,7 @@ def put_local_pipeline(pipeline: Pipeline):
         The object to json-serialize and write/update in the local database.
         a TypeError will be raised if not a Pipeline.
     """
-    _put_resource_from_pydantic(pipeline)
+    _put_resource_from_obj(pipeline)
 
 
 def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
