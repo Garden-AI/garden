@@ -461,22 +461,6 @@ files = [
 test = ["codecov (>=2.0.5)", "coverage (>=4.2)", "flake8 (>=3.0.4)", "path.py (>=11.5.0)", "pytest (>=3.0.3)", "pytest-cov (>=2.4.0)", "pytest-runner (>=2.9)", "pytest-virtualenv (>=1.7.0)", "scikit-build (>=0.10.0)", "setuptools (>=28.0.0)", "virtualenv (>=15.0.3)", "wheel"]
 
 [[package]]
-name = "codecov"
-version = "2.1.12"
-description = "Hosted coverage reports for GitHub, Bitbucket and Gitlab"
-category = "dev"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-files = [
-    {file = "codecov-2.1.12-py2.py3-none-any.whl", hash = "sha256:585dc217dc3d8185198ceb402f85d5cb5dbfa0c5f350a5abcdf9e347776a5b47"},
-    {file = "codecov-2.1.12.tar.gz", hash = "sha256:a0da46bb5025426da895af90938def8ee12d37fcbcbbbc15b6dc64cf7ebc51c1"},
-]
-
-[package.dependencies]
-coverage = "*"
-requests = ">=2.7.9"
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -921,55 +905,6 @@ type1 = ["xattr"]
 ufo = ["fs (>=2.2.0,<3)"]
 unicode = ["unicodedata2 (>=15.0.0)"]
 woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
-
-[[package]]
-name = "funcx"
-version = "1.0.11"
-description = "funcX: High Performance Function Serving for Science"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "funcx-1.0.11-py3-none-any.whl", hash = "sha256:6164158c5f988ec5af2195f4afa50ef388bbb11ddde83eed48a4abb55afa93c8"},
-    {file = "funcx-1.0.11.tar.gz", hash = "sha256:419bf1cf1256bce36aa202a80271d72ac9b74856a88d6f777ff922202fd02d2f"},
-]
-
-[package.dependencies]
-dill = "0.3.5.1"
-funcx-common = "0.0.24"
-globus-sdk = ">=3.14.0,<4"
-packaging = ">=21.1"
-pika = ">=1.2"
-requests = ">=2.20.0"
-tblib = "1.7.0"
-texttable = ">=1.6.7"
-websockets = "10.3"
-
-[package.extras]
-dev = ["coverage", "flake8 (==3.8.0)", "pre-commit", "pytest (>=7.2)", "pytest-mock", "responses"]
-docs = ["furo (==2021.09.08)", "sphinx (<5)"]
-test = ["coverage", "flake8 (==3.8.0)", "pytest (>=7.2)", "pytest-mock", "responses"]
-
-[[package]]
-name = "funcx-common"
-version = "0.0.24"
-description = "Common tools for funcX projects"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "funcx-common-0.0.24.tar.gz", hash = "sha256:7a75ee8fe403c3cab80884d6a08f2a3429f6be8bd1413e63602a194c5a750764"},
-    {file = "funcx_common-0.0.24-py3-none-any.whl", hash = "sha256:0d24cb94a237e7316e2760017fe3d412b61ee41b379df43cc40c0d3677113521"},
-]
-
-[package.dependencies]
-pydantic = ">=1,<2"
-
-[package.extras]
-boto3 = ["boto3 (>=1.19.0)"]
-dev = ["pytest (<8)", "pytest-cov (<5)", "pytest-xdist (<4)", "types-redis"]
-moto = ["moto[s3] (<5)"]
-redis = ["redis (>=3.5.3,<5)"]
 
 [[package]]
 name = "gast"
@@ -4302,4 +4237,4 @@ torch = ["torch"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "49f7f6839558c5bf320abcd9462f270e6bf26962e802158de2edc877904e27bc"
+content-hash = "542c78b43498cbeaa90f6b5686d761dde14724d35b82c6f14743c77ed0e03599"
