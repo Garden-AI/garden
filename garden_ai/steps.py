@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import json
 import logging
 import typing
 from functools import update_wrapper, wraps
 from inspect import Parameter, Signature, signature
-from typing import Callable, Dict, List, Optional
-from uuid import UUID, uuid4
+from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
 from garden_ai.mlmodel import Model, _Model
+from garden_ai.utils.misc import garden_json_encoder
 
 logger = logging.getLogger()
 
@@ -120,7 +121,6 @@ class Step:
     description: Optional[str] = Field(None)
     input_info: Optional[str] = Field(None)
     output_info: Optional[str] = Field(None)
-    uuid: UUID = Field(default_factory=uuid4)
     conda_dependencies: List[str] = Field(default_factory=list)
     pip_dependencies: List[str] = Field(default_factory=list)
     python_version: Optional[str] = Field(None)
@@ -207,6 +207,9 @@ class Step:
                 "https://github.com/beartype/beartype#compliance"
             )
         return f
+
+    def json(self) -> Dict[str, Any]:
+        return json.dumps(self, default=garden_json_encoder)
 
 
 def step(func: Callable = None, **kwargs):
