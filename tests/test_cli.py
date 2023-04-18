@@ -22,7 +22,6 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     command = [
         "garden",
         "create",
-        str(tmp_path / "pea_directory"),
         "--title",
         garden_all_fields.title,
         "--description",
