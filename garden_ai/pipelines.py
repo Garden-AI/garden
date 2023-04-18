@@ -27,6 +27,7 @@ from garden_ai.datacite import (
 )
 from garden_ai.steps import DataclassConfig, Step
 from garden_ai.utils.misc import (
+    JSON,
     garden_json_encoder,
     read_conda_deps,
     safe_compose,
@@ -153,7 +154,7 @@ class Pipeline:
                     ).serialize()
                     deps = [d["line"] for d in parsed["dependencies"]]
                     deps.extend(d["line"] for d in parsed["resolved_dependencies"])
-                    self.pip_dependencies += deps
+                    self.pip_dependencies += set(deps)
 
         for step in self.steps:
             self.conda_dependencies += step.conda_dependencies
@@ -301,6 +302,7 @@ class RegisteredPipeline:
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
+    __env_vars = Field(default_factory=dict, exclude=True)
 
     def __call__(
         self,
@@ -336,6 +338,11 @@ class RegisteredPipeline:
             Any exceptions raised over the course of executing the pipeline
 
         """
+        if self.__env_vars:
+            # see: inject_env_kwarg util
+            kwargs = dict(kwargs)
+            kwargs["__env_vars"] = self.__env_vars
+
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
             # TODO: refactor below once the remote-calling interface is settled.
             # console/spinner is good ux but shouldn't live this deep in the

@@ -256,8 +256,11 @@ class GardenClient:
         pipeline = Pipeline(**data)
         record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
         if record:
-            logger.info("Found pre-registered pipeline. Reusing remote function ID.")
-            pipeline.func_uuid = record.get("func_uuid")
+            logger.info(
+                "Found pre-registered pipeline. Reusing remote function ID and DOI."
+            )
+            pipeline.func_uuid = record["func_uuid"]
+            pipeline.doi = record["doi"]
 
         return pipeline
 

@@ -5,7 +5,8 @@ import re
 import sys
 from inspect import Parameter, Signature, signature
 from itertools import zip_longest
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Callable
+from functools import wraps
 
 import beartype.door
 import requests
@@ -112,10 +113,9 @@ def safe_compose(f, g):
         # case 3: signatures are neither single types nor equivalent tuples
         raise TypeError(
             (
-                f"Could not compose with step {g.__name__} due to return "
-                "type signature mismatch. Please double-check that its "
-                "return signature matches the argument(s) of the "
-                "subsequent step."
+                f"Could not compose {f.__name__} with step {g.__name__} due to"
+                "return type signature mismatch. Please double-check that its"
+                "return matches the argument expected by the subsequent step."
             )
         )
 
@@ -266,3 +266,23 @@ def validate_pip_lines(lines: List[str]) -> List[str]:
     # sorts s.t. url-based installs are read first
     requirements.sort(key=lambda requirement: requirement.url is None)
     return [str(r) for r in requirements]
+
+
+def inject_env_kwarg(func: Callable):
+    """
+    Helper: modify a function so that it will accept an ``__env_vars`` keyword argument.
+
+    This can be used to dynamically set environment variables before executing the
+    original function, particularly useful if the function is executing remotely.
+    """
+
+    @wraps(func)
+    def inner(*args, __env_vars=None, **kwargs):
+        if __env_vars:
+            import os
+
+            for k, v in __env_vars.items():
+                os.environ[k] = v
+        return func(*args, **kwargs)
+
+    return inner
