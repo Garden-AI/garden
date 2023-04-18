@@ -15,7 +15,6 @@ pydantic = "^1.10.2"
 typer = {extras = ["all"], version = "^0.7.0"}
 beartype = "^0.12.0"
 jinja2 = "^3.1.2"
-funcx = "^1.0.11"
 mlflow = "2.2.1"
 # numba is an indirect dep of ML Flow.
 # Specifying a recent version of it helps avoid install issues on M1 Macs
@@ -27,6 +26,8 @@ packaging = "^23.0"
 # Be sure to add additional flavors as optional below as support is added and update tool.poetry.extras
 torch = { version = "^2.0.0", optional = true}
 tensorflow = { version = "^2.11.0", optional = true, python = ">=3.8,<3.12" }
+globus-compute-sdk = "^2.0.0"
+
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
@@ -38,7 +39,6 @@ optional=true
 pytest = "^7.2.0"
 pytest-mock = "^3.10.0"
 coverage = "^6.5.0"
-codecov = "^2.1.12"
 flake8 = "^5.0.4"
 mypy = "^0.981"
 types-requests = "^2.20.0"

@@ -1,13 +1,14 @@
 from typing import List
 
 import pytest
-from funcx import FuncXClient  # type: ignore
+from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
+from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
 @pytest.fixture(autouse=True)
@@ -89,16 +90,16 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
 
 
 @pytest.fixture
-def funcx_client(mocker):
-    mock_funcx_client = mocker.MagicMock(FuncXClient)
-    mock_funcx_client.build_container = mocker.Mock(
+def compute_client(mocker):
+    mock_compute_client = mocker.MagicMock(Client)
+    mock_compute_client.build_container = mocker.Mock(
         return_value="d1fc6d30-be1c-4ac4-a289-d87b27e84357"
     )
-    mock_funcx_client.get_container_build_status = mocker.Mock(return_value="ready")
-    mock_funcx_client.register_function = mocker.Mock(
+    mock_compute_client.get_container_build_status = mocker.Mock(return_value="ready")
+    mock_compute_client.register_function = mocker.Mock(
         return_value="f9072604-6e71-4a14-a336-f7fc4a677293"
     )
-    return mock_funcx_client
+    return mock_compute_client
 
 
 @pytest.fixture
@@ -244,3 +245,29 @@ def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model
     )
 
     return pea_edibility_pipeline
+
+
+@pytest.fixture
+def database_with_unconnected_pipeline(tmp_path):
+    source_path = get_fixture_file_path(
+        "database_dumps/one_pipeline_one_garden_unconnected.txt"
+    )
+    with open(source_path, "r") as file:
+        contents = file.read()
+    data_file = tmp_path / "data.json"
+    with open(data_file, "w") as f:
+        f.write(contents)
+    return tmp_path
+
+
+@pytest.fixture
+def database_with_connected_pipeline(tmp_path):
+    source_path = get_fixture_file_path(
+        "database_dumps/one_pipeline_one_garden_connected.txt"
+    )
+    with open(source_path, "r") as file:
+        contents = file.read()
+    data_file = tmp_path / "data.json"
+    with open(data_file, "w") as f:
+        f.write(contents)
+    return tmp_path

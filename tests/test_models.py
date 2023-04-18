@@ -41,17 +41,6 @@ def test_validate_required_only(garden_no_fields):
     garden.validate()
 
 
-def test_register_metadata(garden_client, garden_title_authors_doi_only, tmp_path):
-    # uses pytest builtin fixture to write to tmp_path
-    gc = garden_client
-    garden = garden_title_authors_doi_only
-    gc.register_metadata(garden, tmp_path)
-    assert (tmp_path / f"{garden.uuid}.json").exists()
-    with open(tmp_path / f"{garden.uuid}.json", "r") as f:
-        json_contents = f.read()
-        assert json_contents == garden.json()
-
-
 def test_step_wrapper():
     # well-annotated callables are accepted; poorly annotated callables are not
     @step

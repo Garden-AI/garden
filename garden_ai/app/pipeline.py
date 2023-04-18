@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from datetime import datetime
@@ -13,6 +14,7 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console
+from garden_ai import local_data
 
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
@@ -212,8 +214,8 @@ def create(
         print(f"Generated pipeline scaffolding in {out_dir}.")
 
     if verbose:
-        client.put_local_pipeline(pipeline)
-        metadata = client.get_local_pipeline(pipeline.uuid)
+        local_data.put_local_pipeline(pipeline)
+        metadata = json.dumps(local_data.get_local_pipeline_by_uuid(pipeline.uuid))
         rich.print_json(metadata)
 
     return
@@ -243,7 +245,7 @@ def register(
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
     except PipelineLoadException as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     with console.status(
         "[bold green]Building container. This operation times out after 30 minutes."
