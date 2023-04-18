@@ -162,7 +162,7 @@ class Pipeline:
 
         self.python_version = py_versions["pipeline"] or py_versions["system"]
         self.conda_dependencies = list(set(self.conda_dependencies))
-        self.pip_dependencies = validate_pip_lines(list(set(self.pip_dependencies)))
+        self.pip_dependencies = list(set(validate_pip_lines(self.pip_dependencies)))
 
         distinct_py_versions = set(
             py_versions[k] for k in py_versions if py_versions[k]
@@ -184,7 +184,7 @@ class Pipeline:
     ) -> Any:
         """Call the pipeline's composed steps on the given input data.
 
-        To run a Pipeline on a remote endpoint, see ``PipelineMeta``.
+        To run a Pipeline on a remote endpoint, see ``RegisteredPipeline``.
 
         Parameters
         ----------
@@ -204,10 +204,9 @@ class Pipeline:
         ------
         Exception
             Any exceptions raised over the course of executing the pipeline
-            function, remotely or otherwise.
+            function.
 
         """
-        # pass input directly to underlying steps
         return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):
@@ -232,10 +231,11 @@ class Pipeline:
         self.contributors = list(known_contributors)
         return
 
-    def json(self) -> str:
+    def json(self) -> JSON:
+        self._sync_author_metadata()
         return json.dumps(self, default=garden_json_encoder)
 
-    def datacite_json(self) -> str:
+    def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string.
 
         Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
@@ -262,6 +262,15 @@ class Pipeline:
             else None,
         ).json()
 
+    def dict(self) -> Dict[str, Any]:
+        d = {}
+        for key in self.__dataclass_fields__:
+            val = getattr(self, key)
+            if key == "steps":
+                val = [s.dict() for s in val]
+            d[key] = val
+        return d
+
 
 @dataclass
 class RegisteredPipeline:
@@ -272,14 +281,16 @@ class RegisteredPipeline:
 
     Note that this has no direct references to the underlying steps/function
     objects, so it cannot be used to execute a pipeline locally.
+
+    Otherwise, all fields should be the same.
     """
 
     title: str = Field(...)
     authors: List[str] = Field(...)
     uuid: UUID = Field(...)
     func_uuid: Optional[UUID] = Field(...)
-    # NOTE: steps as dicts, not Steps
-    steps: List[Dict[str, Optional[List, str]]] = Field(...)
+    # NOTE: steps as dicts here, not Steps
+    steps: List[Dict[str, Union[List, str, None]]] = Field(...)
     doi: Optional[str] = Field(None)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     description: Optional[str] = Field(None)
@@ -339,3 +350,6 @@ class RegisteredPipeline:
 
     def json(self) -> str:
         return json.dumps(self, default=pydantic_encoder)
+
+    def dict(self) -> Dict:
+        return json.loads(self.json())

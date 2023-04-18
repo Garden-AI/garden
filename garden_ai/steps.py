@@ -12,7 +12,7 @@ from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
 from garden_ai.mlmodel import Model, _Model
-from garden_ai.utils.misc import garden_json_encoder
+from garden_ai.utils.misc import JSON, garden_json_encoder
 
 logger = logging.getLogger()
 
@@ -208,8 +208,15 @@ class Step:
             )
         return f
 
-    def json(self) -> Dict[str, Any]:
+    def json(self) -> JSON:
         return json.dumps(self, default=garden_json_encoder)
+
+    def dict(self) -> Dict[str, Any]:
+        d = {}
+        for key in self.__dataclass_fields__:
+            val = getattr(self, key)
+            d[key] = val
+        return d
 
 
 def step(func: Callable = None, **kwargs):
