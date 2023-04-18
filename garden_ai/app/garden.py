@@ -6,7 +6,7 @@ from copy import deepcopy
 
 import rich
 import typer
-from garden_ai.client import GardenClient
+from garden_ai.client import GardenClient, GARDEN_INDEX_UUID
 from garden_ai import local_data
 from garden_ai.gardens import Garden
 from rich.prompt import Prompt
@@ -201,7 +201,13 @@ def search(
     if verbose:
         logger.info(query)
 
-    results = client.search(query)
+    try:
+        results = client.search(query)
+    except SearchAPIError as e:
+        logger.fatal(f"Could not query search index {GARDEN_INDEX_UUID}")
+        logger.fatal(e.error_data)
+        raise typer.Exit(code=1) from e
+
     rich.print_json(results)
 
 
