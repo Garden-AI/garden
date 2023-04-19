@@ -34,7 +34,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
 from garden_ai.mlmodel import upload_model
-from garden_ai.pipelines import Pipeline
+from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 # garden-dev index
@@ -252,15 +252,11 @@ class GardenClient:
         if title:
             data["title"] = title
 
-        # if pipeline already registered on funcx, ensure new instance reuses funcx_uuid
         pipeline = Pipeline(**data)
         record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
         if record:
-            logger.info(
-                "Found pre-registered pipeline. Reusing remote function ID and DOI."
-            )
-            pipeline.func_uuid = record["func_uuid"]
-            pipeline.doi = record["doi"]
+            logger.info("Found pre-registered pipeline. Reusing DOI.")
+            pipeline.doi = record.doi
 
         return pipeline
 
@@ -358,7 +354,8 @@ class GardenClient:
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         pipeline.doi = self._mint_doi(pipeline)
-        local_data.put_local_pipeline(pipeline)
+        registered = RegisteredPipeline.from_pipeline(pipeline)
+        local_data.put_local_pipeline(registered)
         return func_uuid
 
     def publish_garden_metadata(self, garden_meta):
