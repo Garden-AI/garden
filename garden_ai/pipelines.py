@@ -7,14 +7,13 @@ import sys
 from datetime import datetime
 from functools import reduce
 from inspect import signature
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
-from pydantic import Field, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
-from pydantic.json import pydantic_encoder
 
 from garden_ai.app.console import console
 from garden_ai.datacite import (
@@ -59,7 +58,7 @@ class Pipeline:
     authors: List[str] = Field(...)
     steps: Tuple[Step, ...] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    doi: str = cast(str, Field(default_factory=lambda: None))
+    doi: Optional[str] = None
     uuid: UUID = Field(default_factory=uuid4)
     func_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
@@ -273,8 +272,7 @@ class Pipeline:
         return d
 
 
-@dataclass
-class RegisteredPipeline:
+class RegisteredPipeline(BaseModel):
     """Metadata of a completed and registered ``Pipeline`` object.
 
     Unlike a plain ``Pipeline``, this object's ``__call__`` executes a
@@ -286,13 +284,13 @@ class RegisteredPipeline:
     Otherwise, all fields should be the same.
     """
 
+    uuid: UUID = Field(...)
+    doi: str = Field(...)
+    func_uuid: Optional[UUID] = Field(...)
     title: str = Field(...)
     authors: List[str] = Field(...)
-    uuid: UUID = Field(...)
-    func_uuid: Optional[UUID] = Field(...)
-    # NOTE: steps as dicts here, not Steps
-    steps: List[Dict[str, Union[List, str, None]]] = Field(...)
-    doi: Optional[str] = Field(None)
+    # NOTE: steps as dicts here, not Step objects
+    steps: List[Dict[str, Union[str, None, List]]] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     description: Optional[str] = Field(None)
     version: str = "0.0.1"
@@ -302,7 +300,7 @@ class RegisteredPipeline:
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
-    __env_vars = Field(default_factory=dict, exclude=True)
+    _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     def __call__(
         self,
@@ -338,10 +336,10 @@ class RegisteredPipeline:
             Any exceptions raised over the course of executing the pipeline
 
         """
-        if self.__env_vars:
+        if self._env_vars:
             # see: inject_env_kwarg util
             kwargs = dict(kwargs)
-            kwargs["__env_vars"] = self.__env_vars
+            kwargs["_env_vars"] = self._env_vars
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
             # TODO: refactor below once the remote-calling interface is settled.
@@ -355,8 +353,11 @@ class RegisteredPipeline:
                 )
                 return future.result()
 
-    def json(self) -> str:
-        return json.dumps(self, default=pydantic_encoder)
-
-    def dict(self) -> Dict:
-        return json.loads(self.json())
+    @classmethod
+    def from_pipeline(cls, pipeline: Pipeline) -> RegisteredPipeline:
+        # note: we want every RegisteredPipeline to be re-constructible
+        # from mere json, so as a sanity check we use pipeline.json() instead of
+        # pipeline.dict() directly
+        record = pipeline.json()
+        data = json.loads(record)
+        return cls(**data)

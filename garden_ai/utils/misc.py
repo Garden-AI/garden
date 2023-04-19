@@ -270,18 +270,18 @@ def validate_pip_lines(lines: List[str]) -> List[str]:
 
 def inject_env_kwarg(func: Callable):
     """
-    Helper: modify a function so that it will accept an ``__env_vars`` keyword argument.
+    Helper: modify a function so that it will accept an ``_env_vars`` keyword argument.
 
     This can be used to dynamically set environment variables before executing the
     original function, particularly useful if the function is executing remotely.
     """
 
     @wraps(func)
-    def inner(*args, __env_vars=None, **kwargs):
-        if __env_vars:
+    def inner(*args, _env_vars=None, **kwargs):
+        if _env_vars:
             import os
 
-            for k, v in __env_vars.items():
+            for k, v in _env_vars.items():
                 os.environ[k] = v
         return func(*args, **kwargs)
 
