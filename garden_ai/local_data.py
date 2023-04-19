@@ -168,7 +168,7 @@ def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Garden]:
     Optional[Garden]
         If successful, a dictionary in the form given by Garden.json().
     """
-    return _get_resource_by_uuid(uuid, ResourceType.GARDEN)
+    return _get_resource_by_uuid(uuid, ResourceType.GARDEN)  # type: ignore
 
 
 def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[RegisteredPipeline]:
@@ -183,7 +183,7 @@ def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[RegisteredPip
     -------
     Optional[RegisteredPipeline]
     """
-    return _get_resource_by_uuid(uuid, ResourceType.PIPELINE)
+    return _get_resource_by_uuid(uuid, ResourceType.PIPELINE)  # type: ignore
 
 
 def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
@@ -198,7 +198,7 @@ def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
     -------
     Optional[Garden]
     """
-    return _get_resource_by_doi(doi, ResourceType.GARDEN)
+    return _get_resource_by_doi(doi, ResourceType.GARDEN)  # type: ignore
 
 
 def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
@@ -213,4 +213,4 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     -------
     Optional[RegisteredPipeline]
     """
-    return _get_resource_by_doi(doi, ResourceType.PIPELINE)
+    return _get_resource_by_doi(doi, ResourceType.PIPELINE)  # type: ignore
