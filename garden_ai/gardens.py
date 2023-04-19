@@ -7,6 +7,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, ValidationError, validator
 
+from garden_ai.utils.misc import JSON, garden_json_encoder
+
 from .datacite import (
     Contributor,
     Creator,
@@ -16,9 +18,7 @@ from .datacite import (
     Title,
     Types,
 )
-from .pipelines import Pipeline
-from .steps import Step
-from garden_ai.utils.misc import JSON, garden_json_encoder
+from .pipelines import RegisteredPipeline
 
 logger = logging.getLogger()
 
@@ -113,7 +113,7 @@ class Garden(BaseModel):
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"  # TODO: enforce semver for this?
-    pipelines: List[Pipeline] = Field(default_factory=list)
+    pipelines: List[RegisteredPipeline] = Field(default_factory=list)
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
 
     @validator("year")
@@ -124,7 +124,7 @@ class Garden(BaseModel):
 
     def json(self, **kwargs):
         def pipeline_id_only_encoder(obj):
-            if isinstance(obj, Pipeline):
+            if isinstance(obj, RegisteredPipeline):
                 return {"uuid": str(obj.uuid), "doi": obj.doi}
             else:
                 return garden_json_encoder(obj)
@@ -223,30 +223,4 @@ class Garden(BaseModel):
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
-        return
-
-    def add_new_pipeline(
-        self, title: str, steps: List[Step], authors: List[str] = None, **kwargs
-    ):
-        """Create a new Pipeline object and add it to this Garden's list of pipelines.
-
-        Arguments (along with any further `kwargs`, e.g. `description`) have the
-        same meaning as in `Pipeline` constructor.
-
-        If not provided, the `authors` field of the pipeline will be set to this
-        garden's `authors` attribute.
-
-        """
-        kwargs.update(
-            authors=authors if authors else self.authors,
-            title=title,
-            steps=tuple(steps),
-        )
-        pipe = Pipeline(**kwargs)
-        self.pipelines += [pipe]
-        return
-
-    def remove_pipeline(self, to_remove: Pipeline):
-        """Removes a given Pipeline object from this Garden, if present."""
-        self.pipelines = [p for p in self.pipelines if p.uuid != to_remove.uuid]
         return
