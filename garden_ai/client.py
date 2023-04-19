@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 import requests
@@ -308,9 +308,10 @@ class GardenClient:
 
         def get_existing_doi() -> Optional[str]:
             # check for existing doi, either on object or in db
-            record: Optional[Dict] = local_data.get_local_garden_by_uuid(obj.uuid)
+            # TODO pipelines too
+            record: Optional[Garden] = local_data.get_local_garden_by_uuid(obj.uuid)
             if record:
-                return record.get("doi", None)
+                return record.doi
             else:
                 return None
 
