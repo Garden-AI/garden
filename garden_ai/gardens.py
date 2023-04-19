@@ -5,9 +5,9 @@ from datetime import datetime
 from typing import List, Optional, cast
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ValidationError, validator
+from pydantic import BaseModel, Field, ValidationError, root_validator, validator
 
-from garden_ai.utils.misc import JSON, garden_json_encoder
+from garden_ai.utils.misc import JSON
 
 from .datacite import (
     Contributor,
@@ -84,8 +84,7 @@ class Garden(BaseModel):
     Mendel's work was ignored by the scientific community during his lifetime,
     presumably due to the lack of a working DOI.
     To remedy this, if the `doi` field is unset when registering the garden, we
-    build one for the user with the datacite api (see the `request_doi()`
-    method).
+    build one for the user with the datacite api.
     """
 
     class Config:
@@ -112,9 +111,11 @@ class Garden(BaseModel):
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    version: str = "0.0.1"  # TODO: enforce semver for this?
-    pipelines: List[RegisteredPipeline] = Field(default_factory=list)
+    version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
+    pipelines: List[RegisteredPipeline] = Field(
+        default_factory=list, include={"__all__": {"uuid"}}
+    )  # see: fetch_registered_pipeline below
 
     @validator("year")
     def valid_year(cls, year):
@@ -122,15 +123,25 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def json(self, **kwargs):
-        def pipeline_id_only_encoder(obj):
-            if isinstance(obj, RegisteredPipeline):
-                return {"uuid": str(obj.uuid), "doi": obj.doi}
-            else:
-                return garden_json_encoder(obj)
+    @root_validator(pre=True)
+    def fetch_registered_pipelines(cls, values):
+        if "pipelines" not in values:
+            return values
+        from .local_data import get_local_pipeline_by_uuid
 
-        kwargs.update(encoder=pipeline_id_only_encoder)
-        return super().json(**kwargs)
+        # HACK - because we tell pydantic to only include 'uuid' from
+        # pipelines when dumping Garden json/dict, we break the invariant of
+        # `valid_garden == Garden(**valid_garden.dict())` unless we intercept
+        # the bare uuids here and replace them with the real thing.
+
+        pipelines = []
+        for p in values["pipelines"]:
+            if isinstance(p, dict):
+                pipelines += [get_local_pipeline_by_uuid(p["uuid"])]
+            else:
+                pipelines += [p]
+        values["pipelines"] = pipelines
+        return values
 
     def datacite_json(self) -> JSON:
         """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
@@ -218,7 +229,6 @@ class Garden(BaseModel):
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
         for pipe in self.pipelines:
-            pipe._sync_author_metadata()
             new_contributors = set(pipe.authors) | set(pipe.contributors)
             known_contributors |= new_contributors - known_authors
 
