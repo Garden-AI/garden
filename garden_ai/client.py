@@ -44,9 +44,6 @@ GARDEN_ENDPOINT = os.environ.get(
     "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
 )
 
-LOCAL_STORAGE = Path("~/.garden").expanduser()
-LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
-
 COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
@@ -308,12 +305,13 @@ class GardenClient:
 
         def get_existing_doi() -> Optional[str]:
             # check for existing doi, either on object or in db
-            # TODO pipelines too
-            record: Optional[Garden] = local_data.get_local_garden_by_uuid(obj.uuid)
-            if record:
-                return record.doi
+            registered_obj: Optional[Union[Garden, RegisteredPipeline]]
+            if isinstance(obj, Garden):
+                registered_obj = local_data.get_local_garden_by_uuid(obj.uuid)
             else:
-                return None
+                registered_obj = local_data.get_local_pipeline_by_uuid(obj.uuid)
+
+            return registered_obj.doi if registered_obj else None
 
         existing_doi = obj.doi or get_existing_doi()
 
@@ -359,12 +357,11 @@ class GardenClient:
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def publish_garden_metadata(self, garden_meta):
-        # Takes a garden_id UUID as a subject, and a garden_doc dict, and
-        # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
-        # and returns the Task document:
+    def publish_garden_metadata(self, garden):
+        # Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
+        # to discover status, and returns the Task document:
         # https://docs.globus.org/api/search/reference/get_task/#task
-
+        garden_meta = json.loads(garden.expanded_json())
         gmeta_ingest = {
             "subject": garden_meta["uuid"],
             "visible_to": ["all_authenticated_users"],

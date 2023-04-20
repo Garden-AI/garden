@@ -201,10 +201,10 @@ def add_pipeline(
         rich_help_panel="Required",
     ),
 ):
-    """ "Add a registered pipeline to a garden"""
+    """Add a registered pipeline to a garden"""
 
-    garden = get_garden(garden_id)
-    to_add = get_pipeline(pipeline_id)
+    garden = _get_garden(garden_id)
+    to_add = _get_pipeline(pipeline_id)
 
     if to_add in garden.collect_pipelines():
         logger.info(f"Pipeline {pipeline_id} is already in Garden {garden_id}")
@@ -229,18 +229,18 @@ def publish(
     """Push data about a Garden stored to Globus Search so that other users can search for it"""
 
     client = GardenClient()
-    garden = get_garden(garden_id)
+    garden = _get_garden(garden_id)
     garden.doi = client._mint_doi(garden)
 
     try:
-        client.publish_garden_metadata(garden.expanded_metadata())
+        client.publish_garden_metadata(garden)
     except SearchAPIError as e:
         logger.fatal(f"Could not publish garden {garden_id}")
         logger.fatal(e.error_data)
         raise typer.Exit(code=1) from e
 
 
-def get_pipeline(pipeline_id: str) -> RegisteredPipeline:
+def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
     if "/" in pipeline_id:
         pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
     else:
@@ -251,7 +251,7 @@ def get_pipeline(pipeline_id: str) -> RegisteredPipeline:
     return pipeline
 
 
-def get_garden(garden_id: str) -> Garden:
+def _get_garden(garden_id: str) -> Garden:
     if "/" in garden_id:
         garden = local_data.get_local_garden_by_doi(garden_id)
     else:
