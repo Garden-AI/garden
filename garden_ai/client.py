@@ -357,7 +357,7 @@ class GardenClient:
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def publish_garden_metadata(self, garden):
+    def publish_garden_metadata(self, garden: Garden):
         # Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
         # to discover status, and returns the Task document:
         # https://docs.globus.org/api/search/reference/get_task/#task

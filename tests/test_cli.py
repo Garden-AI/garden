@@ -140,6 +140,7 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
     garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
     garden_doi = "10.23677/fake-doi"
     pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    mock_client._mint_doi.return_value = garden_doi
 
     def run_test_with_id(garden_id):
         command = [
@@ -154,9 +155,12 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
         mock_client._mint_doi.assert_called_once()
 
         args = mock_client.publish_garden_metadata.call_args.args
-        denormalized_garden_metadata = args[0]
+        garden = args[0]
+        denormalized_garden_metadata = garden.expanded_metadata()
         assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
-        assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_uuid
+        assert (
+            str(denormalized_garden_metadata["pipelines"][0]["uuid"]) == pipeline_uuid
+        )
 
     if use_doi:
         run_test_with_id(garden_doi)
