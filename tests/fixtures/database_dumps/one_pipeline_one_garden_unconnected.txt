@@ -1,6 +1,9 @@
 {
   "pipelines": {
     "b537520b-e86e-45bf-8566-4555a72b0b08": {
+      "uuid": "b537520b-e86e-45bf-8566-4555a72b0b08",
+      "doi": "10.23677/jx31-gx98",
+      "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
       "title": "Fixture pipeline",
       "authors": [
         "Garden Team"
@@ -14,7 +17,6 @@
           "description": " ",
           "input_info": "{'input_data': <class 'object'>}",
           "output_info": "return: <class 'object'>",
-          "uuid": "abc4356e-b845-42f8-8276-fa2e6de7b3e5",
           "conda_dependencies": [],
           "pip_dependencies": [],
           "python_version": null
@@ -27,7 +29,6 @@
           "description": null,
           "input_info": "{'data': <class 'object'>}",
           "output_info": "return: <class 'object'>",
-          "uuid": "9015f3b0-fa71-4673-b3e4-fd80977a5a78",
           "conda_dependencies": [],
           "pip_dependencies": [],
           "python_version": null
@@ -40,23 +41,20 @@
           "description": null,
           "input_info": "{'input_arg': <class 'object'>}",
           "output_info": "return: <class 'object'>",
-          "uuid": "bb71b032-c9dd-4dd0-9667-b0e9302f8218",
           "conda_dependencies": [],
           "pip_dependencies": [],
           "python_version": null
         }
       ],
       "contributors": [],
-      "doi": "10.23677/jx31-gx98",
-      "uuid": "b537520b-e86e-45bf-8566-4555a72b0b08",
-      "funcx_uuid": "c0158db4-5904-499b-a02a-e4cb8cbb0daa",
       "description": "",
       "version": "0.0.1",
       "year": "2023",
       "tags": [],
-      "requirements_file": null,
-      "python_version": "3.9.6",
-      "pip_dependencies": [],
+      "python_version": "3.10.10",
+      "pip_dependencies": [
+        "garden-ai@ git+https://github.com/garden-ai/garden.git"
+      ],
       "conda_dependencies": []
     }
   },
@@ -67,14 +65,14 @@
       ],
       "contributors": [],
       "title": "Will Test Garden",
-      "doi": null,
+      "doi": "10.23677/fake-doi",
       "description": "",
       "publisher": "Garden",
       "year": "2023",
       "language": "en",
       "tags": [],
       "version": "0.0.1",
-      "pipelines": [],
+      "pipeline_ids": [],
       "uuid": "e1a3b50b-4efc-42c8-8422-644f4f858b87"
     }
   }
