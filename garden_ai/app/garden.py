@@ -1,9 +1,8 @@
 import json
 import logging
-from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import rich
 import typer
@@ -207,11 +206,11 @@ def add_pipeline(
     garden = get_garden(garden_id)
     to_add = get_pipeline(pipeline_id)
 
-    if to_add in garden.pipelines:
+    if to_add in garden.collect_pipelines():
         logger.info(f"Pipeline {pipeline_id} is already in Garden {garden_id}")
         return
 
-    garden.pipelines += [to_add]
+    garden.pipeline_ids += [to_add.uuid]
     local_data.put_local_garden(garden)
     logger.info(f"Added pipeline {pipeline_id} to Garden {garden_id}")
 
@@ -234,7 +233,7 @@ def publish(
     garden.doi = client._mint_doi(garden)
 
     try:
-        client.publish_garden_metadata(garden.dict())
+        client.publish_garden_metadata(garden.expanded_metadata())
     except SearchAPIError as e:
         logger.fatal(f"Could not publish garden {garden_id}")
         logger.fatal(e.error_data)

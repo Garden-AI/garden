@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ValidationError, root_validator, validator
+from pydantic import BaseModel, Field, ValidationError, validator
 
-from garden_ai.utils.misc import JSON
+from garden_ai.utils.misc import JSON, garden_json_encoder
 
 from .datacite import (
     Contributor,
@@ -21,6 +22,10 @@ from .datacite import (
 from .pipelines import RegisteredPipeline
 
 logger = logging.getLogger()
+
+
+class PipelineNotFoundException(KeyError):
+    """Exception raised when a Garden references an unknown pipeline uuid"""
 
 
 class Garden(BaseModel):
@@ -113,9 +118,7 @@ class Garden(BaseModel):
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
-    pipelines: List[RegisteredPipeline] = Field(
-        default_factory=list, include={"__all__": {"uuid"}}
-    )  # see: fetch_registered_pipeline below
+    pipeline_ids: List[UUID] = Field(default_factory=list)
 
     @validator("year")
     def valid_year(cls, year):
@@ -123,25 +126,52 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    @root_validator(pre=True)
-    def fetch_registered_pipelines(cls, values):
-        if "pipelines" not in values:
-            return values
+    def collect_pipelines(self) -> List[RegisteredPipeline]:
+        """Collect the full ``RegisteredPipeline`` objects referred to by this garden's pipeline_ids."""
         from .local_data import get_local_pipeline_by_uuid
 
-        # HACK - because we tell pydantic to only include 'uuid' from
-        # pipelines when dumping Garden json/dict, we break the invariant of
-        # `valid_garden == Garden(**valid_garden.dict())` unless we intercept
-        # the bare uuids here and replace them with the real thing.
-
         pipelines = []
-        for p in values["pipelines"]:
-            if isinstance(p, dict):
-                pipelines += [get_local_pipeline_by_uuid(p["uuid"])]
-            else:
-                pipelines += [p]
-        values["pipelines"] = pipelines
-        return values
+        for uuid in self.pipeline_ids:
+            pipeline = get_local_pipeline_by_uuid(uuid)
+            if pipeline is None:
+                raise PipelineNotFoundException(
+                    f"Could not find registered pipeline with id {uuid}."
+                )
+            pipelines += [pipeline]
+        return pipelines
+
+    def expanded_metadata(self) -> Dict[str, Any]:
+        """Helper: build the "complete" metadata dict with nested ``Pipeline`` and ``step`` metadata.
+
+        Notes
+        ------
+        When serializing normally with ``garden.{dict(), json()}``, only the
+        uuids of the pipelines in the garden are included.
+
+        This returns a superset of ``garden.dict()``, so that the following holds:
+
+            valid_garden == Garden(**valid_garden.expanded_metadata()) == Garden(**valid_garden.dict())
+
+        Returns
+        -------
+        Dict[str, Any]  ``Garden`` metadata dict augmented with a list of ``RegisteredPipeline`` metadata
+
+        Raises
+        ------
+        PipelineNotFoundException  if ``garden.pipeline_ids`` references an unknown pipeline id.
+        """
+
+        data = self.dict()
+        data["pipelines"] = [p.dict() for p in self.collect_pipelines()]
+        return data
+
+    def expanded_json(self) -> JSON:
+        """Helper: return the expanded garden metadata as JSON.
+
+        See: ``Garden.expanded_metadata`` method
+        """
+        data = self.expanded_metadata()
+        return json.dumps(data, default=garden_json_encoder)
 
     def datacite_json(self) -> JSON:
         """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
@@ -169,8 +199,7 @@ class Garden(BaseModel):
                     relatedIdentifierType="DOI",
                     relationType="HasPart",
                 )
-                for p in self.pipelines
-                if p.doi
+                for p in self.collect_pipelines()
             ],
             version=self.version,
             descriptions=[
@@ -213,7 +242,7 @@ class Garden(BaseModel):
         """
         try:
             self._sync_author_metadata()
-            _ = self.__init__(**self.dict())
+            _ = self.__class__(**self.dict())
         except ValidationError as err:
             logger.error(err)
             raise
@@ -228,7 +257,7 @@ class Garden(BaseModel):
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
-        for pipe in self.pipelines:
+        for pipe in self.collect_pipelines():
             new_contributors = set(pipe.authors) | set(pipe.contributors)
             known_contributors |= new_contributors - known_authors
 

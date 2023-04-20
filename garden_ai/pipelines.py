@@ -289,7 +289,7 @@ class RegisteredPipeline(BaseModel):
     func_uuid: Optional[UUID] = Field(...)
     title: str = Field(...)
     authors: List[str] = Field(...)
-    # NOTE: steps as dicts here, not Step objects
+    # NOTE: steps are dicts here, not Step objects
     steps: List[Dict[str, Union[str, None, List]]] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     description: Optional[str] = Field(None)
@@ -309,7 +309,7 @@ class RegisteredPipeline(BaseModel):
         timeout=None,
         **kwargs: Any,
     ) -> Any:
-        """Remotely execute this ``PipelineMeta``'s function from its uuid. An endpoint must be specified.
+        """Remotely execute this ``RegisteredPipeline``'s function from its uuid. An endpoint must be specified.
 
         Parameters
         ----------
@@ -332,10 +332,17 @@ class RegisteredPipeline(BaseModel):
 
         Raises
         ------
+        ValueError
+            If no endpoint is specified
         Exception
             Any exceptions raised over the course of executing the pipeline
 
         """
+        if not endpoint:
+            raise ValueError(
+                "A Globus Compute endpoint uuid must be specified to execute remotely."
+            )
+
         if self._env_vars:
             # see: inject_env_kwarg util
             kwargs = dict(kwargs)
