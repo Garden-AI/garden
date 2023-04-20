@@ -104,13 +104,10 @@ class Garden(BaseModel):
         validate_assignment = True  # validators invoked on assignment
         underscore_attrs_are_private = True
 
+    title: str = cast(str, Field(default_factory=lambda: None))
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    # note: default_factory=lambda:None allows us to have fields which are None by
-    # default, but not automatically considered optional by pydantic
-    title: str = cast(str, Field(default_factory=lambda: None))
-    doi: str = cast(str, Field(default_factory=lambda: None))
-    # ^ casts here to appease mypy
+    doi: Optional[str] = Field(default=None)
     description: Optional[str] = Field(None)
     publisher: str = "Garden"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
@@ -241,7 +238,6 @@ class Garden(BaseModel):
         #   none is not an allowed value (type=type_error.none.not_allowed)
         """
         try:
-            self._sync_author_metadata()
             _ = self.__class__(**self.dict())
         except ValidationError as err:
             logger.error(err)

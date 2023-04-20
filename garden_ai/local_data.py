@@ -7,6 +7,7 @@ from uuid import UUID
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.utils.misc import garden_json_encoder
 
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
@@ -41,7 +42,7 @@ def _read_local_db() -> Dict:
 
 
 def _write_local_db(data: Dict) -> None:
-    contents = json.dumps(data)
+    contents = json.dumps(data, default=garden_json_encoder)
     with open(LOCAL_STORAGE / "data.json", "w+") as f:
         f.write(contents)
 
