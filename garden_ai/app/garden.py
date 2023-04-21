@@ -178,6 +178,7 @@ def search(
         None,
         help=(
             "Form your own Globus Search query directly. It will be passed to Search in advanced mode."
+            "Overrides all the other query options."
             "See https://docs.globus.org/api/search/reference/get_query for more details."
         ),
     ),
