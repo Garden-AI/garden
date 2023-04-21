@@ -1,12 +1,13 @@
 import json
 import logging
 from enum import Enum
-from typing import Dict, Union, Optional
 from pathlib import Path
+from typing import Dict, Optional, Union
 from uuid import UUID
 
 from garden_ai.gardens import Garden
-from garden_ai.pipelines import Pipeline
+from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.utils.misc import garden_json_encoder
 
 LOCAL_STORAGE = Path("~/.garden").expanduser()
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
@@ -41,7 +42,7 @@ def _read_local_db() -> Dict:
 
 
 def _write_local_db(data: Dict) -> None:
-    contents = json.dumps(data)
+    contents = json.dumps(data, default=garden_json_encoder)
     with open(LOCAL_STORAGE / "data.json", "w+") as f:
         f.write(contents)
 
@@ -68,32 +69,43 @@ def _put_resource_from_metadata(
     _write_local_db(data)
 
 
-def _put_resource_from_obj(resource: Union[Garden, Pipeline]) -> None:
+def _put_resource_from_obj(resource: Union[Garden, RegisteredPipeline]) -> None:
     resource_type = (
         ResourceType.GARDEN if isinstance(resource, Garden) else ResourceType.PIPELINE
     )
-    resource_metadata = json.loads(resource.json())
+    resource_metadata = resource.dict()
     _put_resource_from_metadata(resource_metadata, resource_type)
+
+
+def _make_obj_from_record(
+    record: Dict, resource_type: ResourceType
+) -> Union[Garden, RegisteredPipeline]:
+    if resource_type is ResourceType.GARDEN:
+        return Garden(**record)
+    else:
+        return RegisteredPipeline(**record)
 
 
 def _get_resource_by_uuid(
     uuid: Union[UUID, str], resource_type: ResourceType
-) -> Optional[Dict]:
+) -> Union[Garden, RegisteredPipeline, None]:
     data = _read_local_db()
     uuid = str(uuid)
     resources = data.get(resource_type.value, {})
     if resources and uuid in resources:
-        return resources[uuid]
+        return _make_obj_from_record(resources[uuid], resource_type)
     else:
         return None
 
 
-def _get_resource_by_doi(doi: str, resource_type: ResourceType) -> Optional[Dict]:
+def _get_resource_by_doi(
+    doi: str, resource_type: ResourceType
+) -> Union[Garden, RegisteredPipeline, None]:
     data = _read_local_db()
     resources_by_uuid = data.get(resource_type.value, {})
     resources_by_doi = _reindex_by_doi(resources_by_uuid)
     if resources_by_doi and doi in resources_by_doi:
-        return resources_by_doi[doi]
+        return _make_obj_from_record(resources_by_doi[doi], resource_type)
     else:
         return None
 
@@ -131,7 +143,7 @@ def put_local_garden_from_metadata(garden_metadata: Dict):
     _put_resource_from_metadata(garden_metadata, ResourceType.GARDEN)
 
 
-def put_local_pipeline(pipeline: Pipeline):
+def put_local_pipeline(pipeline: RegisteredPipeline):
     """Helper: write a record to 'local database' for a given Pipeline
     Overwrites any existing entry with the same uuid in ~/.garden/data.json.
 
@@ -144,7 +156,7 @@ def put_local_pipeline(pipeline: Pipeline):
     _put_resource_from_obj(pipeline)
 
 
-def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
+def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Garden]:
     """Helper: fetch a Garden record from ~/.garden/data.json.
 
     Parameters
@@ -154,13 +166,13 @@ def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
 
     Returns
     -------
-    Optional[Dict]
+    Optional[Garden]
         If successful, a dictionary in the form given by Garden.json().
     """
-    return _get_resource_by_uuid(uuid, ResourceType.GARDEN)
+    return _get_resource_by_uuid(uuid, ResourceType.GARDEN)  # type: ignore
 
 
-def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
+def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[RegisteredPipeline]:
     """Helper: fetch a Pipeline record from ~/.garden/data.json.
 
     Parameters
@@ -170,13 +182,12 @@ def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[Dict]:
 
     Returns
     -------
-    Optional[Dict]
-        If successful, a dictionary in the form given by Pipeline.json().
+    Optional[RegisteredPipeline]
     """
-    return _get_resource_by_uuid(uuid, ResourceType.PIPELINE)
+    return _get_resource_by_uuid(uuid, ResourceType.PIPELINE)  # type: ignore
 
 
-def get_local_garden_by_doi(doi: str) -> Optional[Dict]:
+def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
     """Helper: fetch a Garden record from ~/.garden/data.json.
 
     Parameters
@@ -186,13 +197,12 @@ def get_local_garden_by_doi(doi: str) -> Optional[Dict]:
 
     Returns
     -------
-    Optional[Dict]
-        If successful, a dictionary in the form given by Garden.json().
+    Optional[Garden]
     """
-    return _get_resource_by_doi(doi, ResourceType.GARDEN)
+    return _get_resource_by_doi(doi, ResourceType.GARDEN)  # type: ignore
 
 
-def get_local_pipeline_by_doi(doi: str) -> Optional[Dict]:
+def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     """Helper: fetch a Pipeline record from ~/.garden/data.json.
 
     Parameters
@@ -202,7 +212,6 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[Dict]:
 
     Returns
     -------
-    Optional[Dict]
-        If successful, a dictionary in the form given by Pipeline.json().
+    Optional[RegisteredPipeline]
     """
-    return _get_resource_by_doi(doi, ResourceType.PIPELINE)
+    return _get_resource_by_doi(doi, ResourceType.PIPELINE)  # type: ignore

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, ValidationError, validator
+
+from garden_ai.utils.misc import JSON, garden_json_encoder
 
 from .datacite import (
     Contributor,
@@ -16,11 +19,13 @@ from .datacite import (
     Title,
     Types,
 )
-from .pipelines import Pipeline
-from .steps import Step
-from garden_ai.utils.misc import JSON, garden_json_encoder
+from .pipelines import RegisteredPipeline
 
 logger = logging.getLogger()
+
+
+class PipelineNotFoundException(KeyError):
+    """Exception raised when a Garden references an unknown pipeline uuid"""
 
 
 class Garden(BaseModel):
@@ -84,8 +89,7 @@ class Garden(BaseModel):
     Mendel's work was ignored by the scientific community during his lifetime,
     presumably due to the lack of a working DOI.
     To remedy this, if the `doi` field is unset when registering the garden, we
-    build one for the user with the datacite api (see the `request_doi()`
-    method).
+    build one for the user with the datacite api.
     """
 
     class Config:
@@ -100,21 +104,18 @@ class Garden(BaseModel):
         validate_assignment = True  # validators invoked on assignment
         underscore_attrs_are_private = True
 
+    title: str = cast(str, Field(default_factory=lambda: None))
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    # note: default_factory=lambda:None allows us to have fields which are None by
-    # default, but not automatically considered optional by pydantic
-    title: str = cast(str, Field(default_factory=lambda: None))
-    doi: str = cast(str, Field(default_factory=lambda: None))
-    # ^ casts here to appease mypy
+    doi: Optional[str] = Field(default=None)
     description: Optional[str] = Field(None)
     publisher: str = "Garden"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    version: str = "0.0.1"  # TODO: enforce semver for this?
-    pipelines: List[Pipeline] = Field(default_factory=list)
+    version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
+    pipeline_ids: List[UUID] = Field(default_factory=list)
 
     @validator("year")
     def valid_year(cls, year):
@@ -122,15 +123,52 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def json(self, **kwargs):
-        def pipeline_id_only_encoder(obj):
-            if isinstance(obj, Pipeline):
-                return {"uuid": str(obj.uuid), "doi": obj.doi}
-            else:
-                return garden_json_encoder(obj)
+    def collect_pipelines(self) -> List[RegisteredPipeline]:
+        """Collect the full ``RegisteredPipeline`` objects referred to by this garden's pipeline_ids."""
+        from .local_data import get_local_pipeline_by_uuid
 
-        kwargs.update(encoder=pipeline_id_only_encoder)
-        return super().json(**kwargs)
+        pipelines = []
+        for uuid in self.pipeline_ids:
+            pipeline = get_local_pipeline_by_uuid(uuid)
+            if pipeline is None:
+                raise PipelineNotFoundException(
+                    f"Could not find registered pipeline with id {uuid}."
+                )
+            pipelines += [pipeline]
+        return pipelines
+
+    def expanded_metadata(self) -> Dict[str, Any]:
+        """Helper: build the "complete" metadata dict with nested ``Pipeline`` and ``step`` metadata.
+
+        Notes
+        ------
+        When serializing normally with ``garden.{dict(), json()}``, only the
+        uuids of the pipelines in the garden are included.
+
+        This returns a superset of ``garden.dict()``, so that the following holds:
+
+            valid_garden == Garden(**valid_garden.expanded_metadata()) == Garden(**valid_garden.dict())
+
+        Returns
+        -------
+        Dict[str, Any]  ``Garden`` metadata dict augmented with a list of ``RegisteredPipeline`` metadata
+
+        Raises
+        ------
+        PipelineNotFoundException  if ``garden.pipeline_ids`` references an unknown pipeline id.
+        """
+
+        data = self.dict()
+        data["pipelines"] = [p.dict() for p in self.collect_pipelines()]
+        return data
+
+    def expanded_json(self) -> JSON:
+        """Helper: return the expanded garden metadata as JSON.
+
+        See: ``Garden.expanded_metadata`` method
+        """
+        data = self.expanded_metadata()
+        return json.dumps(data, default=garden_json_encoder)
 
     def datacite_json(self) -> JSON:
         """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string.
@@ -158,8 +196,7 @@ class Garden(BaseModel):
                     relatedIdentifierType="DOI",
                     relationType="HasPart",
                 )
-                for p in self.pipelines
-                if p.doi
+                for p in self.collect_pipelines()
             ],
             version=self.version,
             descriptions=[
@@ -201,8 +238,7 @@ class Garden(BaseModel):
         #   none is not an allowed value (type=type_error.none.not_allowed)
         """
         try:
-            self._sync_author_metadata()
-            _ = self.__init__(**self.dict())
+            _ = self.__class__(**self.dict())
         except ValidationError as err:
             logger.error(err)
             raise
@@ -217,36 +253,9 @@ class Garden(BaseModel):
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
-        for pipe in self.pipelines:
-            pipe._sync_author_metadata()
+        for pipe in self.collect_pipelines():
             new_contributors = set(pipe.authors) | set(pipe.contributors)
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
-        return
-
-    def add_new_pipeline(
-        self, title: str, steps: List[Step], authors: List[str] = None, **kwargs
-    ):
-        """Create a new Pipeline object and add it to this Garden's list of pipelines.
-
-        Arguments (along with any further `kwargs`, e.g. `description`) have the
-        same meaning as in `Pipeline` constructor.
-
-        If not provided, the `authors` field of the pipeline will be set to this
-        garden's `authors` attribute.
-
-        """
-        kwargs.update(
-            authors=authors if authors else self.authors,
-            title=title,
-            steps=tuple(steps),
-        )
-        pipe = Pipeline(**kwargs)
-        self.pipelines += [pipe]
-        return
-
-    def remove_pipeline(self, to_remove: Pipeline):
-        """Removes a given Pipeline object from this Garden, if present."""
-        self.pipelines = [p for p in self.pipelines if p.uuid != to_remove.uuid]
         return

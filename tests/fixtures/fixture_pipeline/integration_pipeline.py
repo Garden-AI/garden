@@ -1,5 +1,4 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-import typing
 from pathlib import Path
 
 from garden_ai import GardenClient, Pipeline, step

@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 import requests
@@ -34,7 +34,7 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
 from garden_ai.mlmodel import upload_model
-from garden_ai.pipelines import Pipeline
+from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 # garden-dev index
@@ -43,9 +43,6 @@ GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
     "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
 )
-
-LOCAL_STORAGE = Path("~/.garden").expanduser()
-LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
 COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
@@ -252,12 +249,11 @@ class GardenClient:
         if title:
             data["title"] = title
 
-        # if pipeline already registered on funcx, ensure new instance reuses funcx_uuid
         pipeline = Pipeline(**data)
         record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
         if record:
-            logger.info("Found pre-registered pipeline. Reusing remote function ID.")
-            pipeline.func_uuid = record.get("func_uuid")
+            logger.info("Found pre-registered pipeline. Reusing DOI.")
+            pipeline.doi = record.doi
 
         return pipeline
 
@@ -309,11 +305,13 @@ class GardenClient:
 
         def get_existing_doi() -> Optional[str]:
             # check for existing doi, either on object or in db
-            record: Optional[Dict] = local_data.get_local_garden_by_uuid(obj.uuid)
-            if record:
-                return record.get("doi", None)
+            registered_obj: Optional[Union[Garden, RegisteredPipeline]]
+            if isinstance(obj, Garden):
+                registered_obj = local_data.get_local_garden_by_uuid(obj.uuid)
             else:
-                return None
+                registered_obj = local_data.get_local_pipeline_by_uuid(obj.uuid)
+
+            return registered_obj.doi if registered_obj else None
 
         existing_doi = obj.doi or get_existing_doi()
 
@@ -355,15 +353,15 @@ class GardenClient:
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         pipeline.doi = self._mint_doi(pipeline)
-        local_data.put_local_pipeline(pipeline)
+        registered = RegisteredPipeline.from_pipeline(pipeline)
+        local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def publish_garden_metadata(self, garden_meta):
-        # Takes a garden_id UUID as a subject, and a garden_doc dict, and
-        # publishes to the GARDEN_INDEX_UUID index.  Polls to discover status,
-        # and returns the Task document:
+    def publish_garden_metadata(self, garden: Garden):
+        # Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
+        # to discover status, and returns the Task document:
         # https://docs.globus.org/api/search/reference/get_task/#task
-
+        garden_meta = json.loads(garden.expanded_json())
         gmeta_ingest = {
             "subject": garden_meta["uuid"],
             "visible_to": ["all_authenticated_users"],

@@ -7,12 +7,12 @@ import sys
 from datetime import datetime
 from functools import reduce
 from inspect import signature
-from typing import Any, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
-from pydantic import Field, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai.app.console import console
@@ -26,6 +26,7 @@ from garden_ai.datacite import (
 )
 from garden_ai.steps import DataclassConfig, Step
 from garden_ai.utils.misc import (
+    JSON,
     garden_json_encoder,
     read_conda_deps,
     safe_compose,
@@ -57,7 +58,7 @@ class Pipeline:
     authors: List[str] = Field(...)
     steps: Tuple[Step, ...] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    doi: str = cast(str, Field(default_factory=lambda: None))
+    doi: Optional[str] = None
     uuid: UUID = Field(default_factory=uuid4)
     func_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
@@ -152,7 +153,7 @@ class Pipeline:
                     ).serialize()
                     deps = [d["line"] for d in parsed["dependencies"]]
                     deps.extend(d["line"] for d in parsed["resolved_dependencies"])
-                    self.pip_dependencies += deps
+                    self.pip_dependencies += set(deps)
 
         for step in self.steps:
             self.conda_dependencies += step.conda_dependencies
@@ -161,7 +162,7 @@ class Pipeline:
 
         self.python_version = py_versions["pipeline"] or py_versions["system"]
         self.conda_dependencies = list(set(self.conda_dependencies))
-        self.pip_dependencies = validate_pip_lines(list(set(self.pip_dependencies)))
+        self.pip_dependencies = list(set(validate_pip_lines(self.pip_dependencies)))
 
         distinct_py_versions = set(
             py_versions[k] for k in py_versions if py_versions[k]
@@ -179,25 +180,16 @@ class Pipeline:
     def __call__(
         self,
         *args: Any,
-        endpoint: Union[UUID, str, None] = None,
-        timeout=None,
         **kwargs: Any,
     ) -> Any:
         """Call the pipeline's composed steps on the given input data.
 
-        Attempt to execute remotely if this pipeline has already been registered
-        and a valid ``endpoint`` is specified, else run locally as a regular
-        python function.
+        To run a Pipeline on a remote endpoint, see ``RegisteredPipeline``.
 
         Parameters
         ----------
         *args : Any
             Input data passed through the first step in the pipeline
-        endpoint : Union[UUID, str, None]
-            A valid globus compute endpoint uuid
-        timeout : int
-            time (in seconds) to wait for results. Pass `None` to wait
-            indefinitely (default behavior).
         **kwargs : Any
             Additional keyword arguments passed directly to the first step in
             the pipeline.
@@ -212,38 +204,10 @@ class Pipeline:
         ------
         Exception
             Any exceptions raised over the course of executing the pipeline
-            function, remotely or otherwise.
+            function.
 
         """
-        run_locally = not (self.func_uuid and endpoint)
-
-        if run_locally:
-            if endpoint:
-                logger.warning(
-                    f"Pipeline '{self.title}' invoked with endpoint="
-                    f" {endpoint}, but has not been registered yet. The "
-                    "pipeline will not execute remotely.",
-                )
-            if self.func_uuid:
-                logger.warning(
-                    f"Pipeline '{self.title}' has been registered for remote "
-                    "execution, but no endpoint was specified. The pipeline will "
-                    "not execute remotely.",
-                )
-            # pass input directly to underlying steps
-            return self._composed_steps(*args, **kwargs)
-
-        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
-            # TODO: refactor below once the remote-calling interface is settled.
-            # console/spinner is good ux but shouldn't live this deep in the
-            # sdk.
-            with console.status(
-                f"[bold green] executing remotely on endpoint {endpoint}"
-            ):
-                future = gce.submit_to_registered_function(
-                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
-                )
-                return future.result()
+        return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):
         """Finish initializing the pipeline after validators have run.
@@ -267,10 +231,11 @@ class Pipeline:
         self.contributors = list(known_contributors)
         return
 
-    def json(self) -> str:
+    def json(self) -> JSON:
+        self._sync_author_metadata()
         return json.dumps(self, default=garden_json_encoder)
 
-    def datacite_json(self) -> str:
+    def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string.
 
         Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
@@ -296,3 +261,110 @@ class Pipeline:
             if self.description
             else None,
         ).json()
+
+    def dict(self) -> Dict[str, Any]:
+        d = {}
+        for key in self.__dataclass_fields__:
+            val = getattr(self, key)
+            if key == "steps":
+                val = [s.dict() for s in val]
+            d[key] = val
+        return d
+
+
+class RegisteredPipeline(BaseModel):
+    """Metadata of a completed and registered ``Pipeline`` object.
+
+    Unlike a plain ``Pipeline``, this object's ``__call__`` executes a
+    registered function remotely.
+
+    Note that this has no direct references to the underlying steps/function
+    objects, so it cannot be used to execute a pipeline locally.
+
+    Otherwise, all fields should be the same.
+    """
+
+    uuid: UUID = Field(...)
+    doi: str = Field(...)
+    func_uuid: Optional[UUID] = Field(...)
+    title: str = Field(...)
+    authors: List[str] = Field(...)
+    # NOTE: steps are dicts here, not Step objects
+    steps: List[Dict[str, Union[str, None, List]]] = Field(...)
+    contributors: List[str] = Field(default_factory=list, unique_items=True)
+    description: Optional[str] = Field(None)
+    version: str = "0.0.1"
+    year: str = Field(default_factory=lambda: str(datetime.now().year))
+    tags: List[str] = Field(default_factory=list, unique_items=True)
+    # requirements_file: Optional[str] = Field(None)
+    python_version: Optional[str] = Field(None)
+    pip_dependencies: List[str] = Field(default_factory=list)
+    conda_dependencies: List[str] = Field(default_factory=list)
+    _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
+
+    def __call__(
+        self,
+        *args: Any,
+        endpoint: Union[UUID, str] = None,
+        timeout=None,
+        **kwargs: Any,
+    ) -> Any:
+        """Remotely execute this ``RegisteredPipeline``'s function from its uuid. An endpoint must be specified.
+
+        Parameters
+        ----------
+        *args : Any
+            Input data passed through the first step in the pipeline
+        endpoint : Union[UUID, str, None]
+            A valid globus compute endpoint UUID
+        timeout : int
+            time (in seconds) to wait for results. Pass `None` to wait
+            indefinitely (default behavior).
+        **kwargs : Any
+            Additional keyword arguments passed directly to the first step in
+            the pipeline.
+
+        Returns
+        -------
+        Any
+            Results from the pipeline's composed steps called with the given
+            input data.
+
+        Raises
+        ------
+        ValueError
+            If no endpoint is specified
+        Exception
+            Any exceptions raised over the course of executing the pipeline
+
+        """
+        if not endpoint:
+            raise ValueError(
+                "A Globus Compute endpoint uuid must be specified to execute remotely."
+            )
+
+        if self._env_vars:
+            # see: inject_env_kwarg util
+            kwargs = dict(kwargs)
+            kwargs["_env_vars"] = self._env_vars
+
+        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
+            # TODO: refactor below once the remote-calling interface is settled.
+            # console/spinner is good ux but shouldn't live this deep in the
+            # sdk.
+            with console.status(
+                f"[bold green] executing remotely on endpoint {endpoint}"
+            ):
+                future = gce.submit_to_registered_function(
+                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
+                )
+                return future.result()
+
+    @classmethod
+    def from_pipeline(cls, pipeline: Pipeline) -> RegisteredPipeline:
+        # note: we want every RegisteredPipeline to be re-constructible
+        # from mere json, so as a sanity check we use pipeline.json() instead of
+        # pipeline.dict() directly
+        record = pipeline.json()
+        data = json.loads(record)
+        return cls(**data)

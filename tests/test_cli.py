@@ -1,12 +1,14 @@
-import pytest
-from garden_ai.app.main import app
-from garden_ai.client import GardenClient
-from typer.testing import CliRunner
-import string
 import random
+import string
 from keyword import iskeyword
-from garden_ai.app.pipeline import clean_identifier
+
+import pytest
+from typer.testing import CliRunner
+
 from garden_ai import local_data
+from garden_ai.app.main import app
+from garden_ai.app.pipeline import clean_identifier
+from garden_ai.client import GardenClient
 
 runner = CliRunner()
 
@@ -107,15 +109,17 @@ def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker, use_doi
 
     def run_test_with_ids(garden_id, pipeline_id):
         before_addition = local_data.get_local_garden_by_uuid(garden_id)
-        assert len(before_addition["pipelines"]) == 0
+        assert len(before_addition.pipeline_ids) == 0
 
         command = ["garden", "add-pipeline", "-g", garden_id, "-p", pipeline_id]
         result = runner.invoke(app, command)
         assert result.exit_code == 0
 
-        after_addition = local_data.get_local_garden_by_uuid(garden_id)
+        garden_after_addition = local_data.get_local_garden_by_uuid(garden_id)
+        # expanded metadata includes "pipelines" attribute
+        after_addition = garden_after_addition.expanded_metadata()
         assert len(after_addition["pipelines"]) == 1
-        assert after_addition["pipelines"][0]["uuid"] == pipeline_uuid
+        assert str(after_addition["pipelines"][0]["uuid"]) == pipeline_uuid
         assert after_addition["pipelines"][0]["doi"] == pipeline_doi
 
     if use_doi:
@@ -134,8 +138,9 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
 
     garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
-    garden_doi = "10.23677/jx31-db53"
+    garden_doi = "10.23677/fake-doi"
     pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    mock_client._mint_doi.return_value = garden_doi
 
     def run_test_with_id(garden_id):
         command = [
@@ -150,9 +155,12 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
         mock_client._mint_doi.assert_called_once()
 
         args = mock_client.publish_garden_metadata.call_args.args
-        denormalized_garden_metadata = args[0]
+        garden = args[0]
+        denormalized_garden_metadata = garden.expanded_metadata()
         assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
-        assert denormalized_garden_metadata["pipelines"][0]["uuid"] == pipeline_uuid
+        assert (
+            str(denormalized_garden_metadata["pipelines"][0]["uuid"]) == pipeline_uuid
+        )
 
     if use_doi:
         run_test_with_id(garden_doi)

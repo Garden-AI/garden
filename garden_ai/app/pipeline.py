@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 from datetime import datetime
@@ -7,14 +6,12 @@ from pathlib import Path
 from typing import List, Optional
 
 import jinja2
-import rich
 import typer
 from rich import print
 from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console
-from garden_ai import local_data
 
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
@@ -212,11 +209,6 @@ def create(
             f.write("## Please specify all pipeline dependencies here\n")
 
         print(f"Generated pipeline scaffolding in {out_dir}.")
-
-    if verbose:
-        local_data.put_local_pipeline(pipeline)
-        metadata = json.dumps(local_data.get_local_pipeline_by_uuid(pipeline.uuid))
-        rich.print_json(metadata)
 
     return
 
