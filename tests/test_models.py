@@ -33,11 +33,10 @@ def test_validate_no_fields(garden_no_fields):
 def test_validate_required_only(garden_no_fields):
     garden = garden_no_fields
     garden.authors = ["Mendel, Gregor"]
-    garden.title = "Experiments on Plant Hybridization"
     assert not garden.doi
     with pytest.raises(ValidationError):
         garden.validate()
-    garden.doi = "10.26311/fake-doi"
+    garden.title = "Experiments on Plant Hybridization"
     garden.validate()
 
 
@@ -214,31 +213,6 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
             assert author in pipe.contributors
         for contributor in s.contributors:
             assert contributor in pipe.contributors
-
-
-def test_pipeline_authors_are_garden_contributors(
-    garden_all_fields,
-    pipeline_toy_example,
-):
-    # verify that adding a pipeline with new authors
-    # updates the garden's 'contributors' field
-    garden, pipe = garden_all_fields, pipeline_toy_example
-    garden.add_new_pipeline(
-        pipe.title,
-        pipe.steps,
-        authors=pipe.authors,
-        requirements_file=pipe.requirements_file,
-    )
-
-    known_authors = [a for a in garden.authors]
-    known_contributors = [c for c in garden.contributors]
-    garden._sync_author_metadata()
-    # should never modify garden.authors implicitly
-    assert known_authors == garden.authors
-    # should not lose contributors by adding pipelines
-    assert set(known_contributors) <= set(garden.contributors)
-    # 'contributors' at any pipeline level should propagate to garden
-    assert set(pipe.contributors) <= set(garden.contributors)
 
 
 def test_upload_model(mocker, tmp_path):

@@ -8,6 +8,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
+from garden_ai.pipelines import RegisteredPipeline
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -42,6 +43,11 @@ def token():
         "access_token": "MyAccessToken",
         "expires_at_seconds": 1024,
     }
+
+
+@pytest.fixture
+def noop_func_uuid():
+    return "9f5688ac-424d-443e-b525-97c72e4e083f"
 
 
 @pytest.fixture
@@ -150,7 +156,14 @@ def pipeline_toy_example(tmp_requirements_txt):
 
 
 @pytest.fixture
-def garden_all_fields(pipeline_toy_example):
+def registered_pipeline_toy_example(pipeline_toy_example, noop_func_uuid):
+    pipeline_toy_example.doi = "10.26311/fake-doi"
+    pipeline_toy_example.func_uuid = noop_func_uuid
+    return RegisteredPipeline.from_pipeline(pipeline_toy_example)
+
+
+@pytest.fixture
+def garden_all_fields(registered_pipeline_toy_example):
     pea_garden = Garden(
         authors=["Mendel, Gregor"],
         title="Experiments on Plant Hybridization",
@@ -161,7 +174,7 @@ def garden_all_fields(pipeline_toy_example):
     pea_garden.version = "0.0.1"
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
     pea_garden.doi = "10.26311/fake-doi"
-    pea_garden.pipelines += [pipeline_toy_example]
+    pea_garden.pipeline_ids += [registered_pipeline_toy_example.uuid]
     pea_garden.validate()
     return pea_garden
 

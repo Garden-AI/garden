@@ -1,6 +1,8 @@
-from garden_ai.pipelines import Pipeline
 from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import GlobusAPIError
+
+from garden_ai.pipelines import Pipeline
+from garden_ai.utils.misc import inject_env_kwarg
 
 
 class PipelineRegistrationException(Exception):
@@ -15,8 +17,9 @@ def register_pipeline(
     container_uuid: str,
 ) -> str:
     try:
+        to_register = inject_env_kwarg(pipeline._composed_steps)
         func_uuid = compute_client.register_function(
-            pipeline._composed_steps, container_uuid=container_uuid, public=True
+            to_register, container_uuid=container_uuid, public=True
         )
     except GlobusAPIError as e:
         raise PipelineRegistrationException(
