@@ -1,7 +1,6 @@
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 import rich
@@ -10,38 +9,13 @@ from globus_sdk import SearchAPIError
 from rich.prompt import Prompt
 
 from garden_ai import local_data
-from garden_ai.client import GardenClient
+from garden_ai.client import GardenClient, GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 
 logger = logging.getLogger()
 
 garden_app = typer.Typer(name="garden", no_args_is_help=True)
-
-
-def setup_directory(directory: Optional[Path]) -> Optional[Path]:
-    """
-    Validate the directory provided by the user, scaffolding with "pipelines/" and
-    "models/" subdirectories if possible (i.e. directory does not yet exist or
-    exists but is empty).
-    """
-    if directory is None:
-        return None
-
-    if directory.exists() and any(directory.iterdir()):
-        logger.fatal("Directory must be empty if it already exists.")
-        raise typer.Exit(code=1)
-
-    (directory / "models").mkdir(parents=True)
-    (directory / "pipelines").mkdir(parents=True)
-
-    with open(directory / "models" / ".gitignore", "w") as f_out:
-        f_out.write("# TODO\n")
-
-    with open(directory / "README.md", "w") as f_out:
-        f_out.write("# TODO\n")
-
-    return directory
 
 
 def validate_name(name: str) -> str:
@@ -59,19 +33,6 @@ def garden():
 
 @garden_app.command(no_args_is_help=True)
 def create(
-    directory: Path = typer.Argument(
-        None,
-        callback=setup_directory,
-        dir_okay=True,
-        file_okay=False,
-        writable=True,
-        readable=True,
-        resolve_path=True,
-        help=(
-            "(Optional) if specified, this generates a directory with subfolders to help organize the new Garden. "
-            "This is likely to be useful if you want to track your Garden/Pipeline development with GitHub."
-        ),
-    ),
     title: str = typer.Option(
         ...,
         "-t",
@@ -183,6 +144,75 @@ def create(
 
 
 @garden_app.command(no_args_is_help=True)
+def search(
+    title: Optional[str] = typer.Option(
+        None, "-t", "--title", help="Title of a Garden"
+    ),
+    authors: Optional[List[str]] = typer.Option(
+        None, "-a", "--author", help="an author of the Garden"
+    ),
+    year: Optional[str] = typer.Option(
+        None, "-y", "--year", help="year the Garden was published"
+    ),
+    contributors: List[str] = typer.Option(
+        None,
+        "-c",
+        "--contributor",
+        help="a contributor to the Garden",
+    ),
+    description: Optional[str] = typer.Option(
+        None,
+        "-d",
+        "--description",
+        help="text in the description of the Garden you are searching for",
+    ),
+    tags: List[str] = typer.Option(
+        None,
+        "--tag",
+        help="A tag of the Garden",
+    ),
+    verbose: bool = typer.Option(
+        False, help="If true, print the query being passed to Globus Search."
+    ),
+    raw_query: Optional[str] = typer.Option(
+        None,
+        help=(
+            "Form your own Globus Search query directly. It will be passed to Search in advanced mode."
+            "Overrides all the other query options."
+            "See https://docs.globus.org/api/search/reference/get_query for more details."
+        ),
+    ),
+):
+    """Queries the Garden search index and prints matching results. All query components are ANDed together.
+    So if you say `garden-ai garden search --description "foo" --title "bar"` you will get results
+    for gardens that have "foo" in their description and "bar" in their title.
+    """
+    client = GardenClient()
+    if raw_query:
+        query = raw_query
+    else:
+        query = create_query(
+            title=title,
+            authors=authors,
+            year=year,
+            contributors=contributors,
+            description=description,
+            tags=tags,
+        )
+    if verbose:
+        logger.info(query)
+
+    try:
+        results = client.search(query)
+    except SearchAPIError as e:
+        logger.fatal(f"Could not query search index {GARDEN_INDEX_UUID}")
+        logger.fatal(e.error_data)
+        raise typer.Exit(code=1) from e
+
+    rich.print_json(results)
+
+
+@garden_app.command(no_args_is_help=True)
 def add_pipeline(
     garden_id: str = typer.Option(
         ...,
@@ -260,3 +290,36 @@ def _get_garden(garden_id: str) -> Garden:
         logger.fatal(f"Could not find garden with id {garden_id}")
         raise typer.Exit(code=1)
     return garden
+
+
+def create_query(
+    title: Optional[str] = None,
+    authors: List[str] = None,
+    year: str = None,
+    contributors: List[str] = None,
+    description: Optional[str] = None,
+    tags: List[str] = None,
+) -> str:
+    query_parts = []
+    if title:
+        query_parts.append(f'(title: "{title}")')
+
+    if authors:
+        for author in authors:
+            query_parts.append(f'(authors: "{author}")')
+
+    if year:
+        query_parts.append(f'(year: "{year}")')
+
+    if contributors:
+        for contributor in contributors:
+            query_parts.append(f'(contributors: "{contributor}")')
+
+    if description:
+        query_parts.append(f'(description: "{description}")')
+
+    if tags:
+        for tag in tags:
+            query_parts.append(f'(tags: "{tag}")')
+
+    return " AND ".join(query_parts)
