@@ -1,12 +1,8 @@
-from typing import Optional
-
 import pytest
 from typer.testing import CliRunner
 
 from garden_ai import GardenClient
 from garden_ai.app.main import app
-from garden_ai.gardens import PipelineNotFoundException
-from garden_ai.local_data import get_local_pipeline_by_uuid
 from garden_ai.utils.filesystem import load_pipeline_from_python_file
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 

@@ -42,7 +42,7 @@ jobs:
           mypy .
       - name: Test with pytest
         run: |
-          python -m coverage run -m pytest -m "not integration" -r sx
+          pytest -m "not integration" --cov=garden_ai --cov-report=xml -r sx tests/
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
