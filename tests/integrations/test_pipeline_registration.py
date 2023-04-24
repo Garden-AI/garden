@@ -1,14 +1,24 @@
-import pytest
-from typer.testing import CliRunner
 from typing import Optional
 
-from garden_ai import GardenClient, RegisteredPipeline
+import pytest
+from typer.testing import CliRunner
+
+from garden_ai import GardenClient
 from garden_ai.app.main import app
+from garden_ai.gardens import PipelineNotFoundException
 from garden_ai.local_data import get_local_pipeline_by_uuid
 from garden_ai.utils.filesystem import load_pipeline_from_python_file
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=False)
+def do_not_set_mlflow_env_variables():
+    # actually, DO set mlflow env variables
+    # locally defining a fixture to override
+    # the one mocking `setup_mlflow_env`
+    pass
 
 
 @pytest.mark.integration
@@ -42,29 +52,27 @@ def test_run_registered_pipeline():
 
 
 @pytest.mark.integration
-def test_run_registered_pipeline_with_env_vars():
+def test_register_and_run_with_env_vars(do_not_set_mlflow_env_variables):
+    client = GardenClient()
+    # register the pipeline
     pipeline_path = get_fixture_file_path("fixture_pipeline/env_vars_pipeline.py")
     pipeline = load_pipeline_from_python_file(pipeline_path)
-    # note: env vars pipeline just returns `dict(os.environ)`
-    registered_pipeline = get_local_pipeline_by_uuid(pipeline.uuid)
-    if not registered_pipeline:
-        # note: currently we only run integration tests locally, so check before
-        # re-registering the test pipeline in case its already been registered_pipeline
-        container_id = "3dc3170e-2cdc-4379-885d-435a0d85b581"
-        command = "pipeline register " + str(pipeline_path)
-        runner.invoke(app, command)
-        client = GardenClient()
-        client.register_pipeline(pipeline, container_id)
-        registered_pipeline = get_local_pipeline_by_uuid(pipeline.uuid)
-        assert registered_pipeline is not None
+    container_id = "3dc3170e-2cdc-4379-885d-435a0d85b581"
+    client.register_pipeline(pipeline, container_id)
 
-    dlhub_endpoint = "86a47061-f3d9-44f0-90dc-56ddc642c000"  # real endpoint
-    input_data = "i'm afraid of change"
+    # load from client, setting mlflow env vars
+    registered_pipeline = client.get_registered_pipeline(pipeline.uuid)
 
+    # set arbitrary other env vars
     test_var, test_val = (
         "GARDEN_TEST_ENV_VARIABLE",
         "... especially of a changing environment",
     )
-    registered_pipeline._env_vars = {test_var: test_val}
+    registered_pipeline._env_vars[test_var] = test_val
+
+    dlhub_endpoint = "86a47061-f3d9-44f0-90dc-56ddc642c000"  # real endpoint
+    input_data = "i'm afraid of change"
     results = registered_pipeline(input_data, endpoint=dlhub_endpoint)
     assert results[test_var] == test_val
+    assert "MLFLOW_TRACKING_URI" in results
+    assert "MLFLOW_TRACKING_TOKEN" in results
