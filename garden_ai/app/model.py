@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from garden_ai.client import GardenClient
+from garden_ai.mlmodel import RegisteredModel, LocalModel
 
 import typer
 import rich
@@ -55,11 +56,16 @@ def register(
         raise typer.BadParameter(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
-
     client = GardenClient()
-    full_model_name = client.log_model(
-        str(model_path), name, flavor, extra_pip_requirements
+    local_model = LocalModel(
+        model_path=str(model_path),
+        name=name,
+        flavor=flavor,
+        extra_pip_requirements=extra_pip_requirements,
+        user_email=client.get_email(),
     )
+    registered_model = client.register_model(local_model)
+    model_uri = registered_model.model_uri
     rich.print(
-        f"Successfully uploaded your model! The full name to include in your pipeline is '{full_model_name}'"
+        f"Successfully uploaded your model! The full name to include in your pipeline is '{model_uri}'"
     )

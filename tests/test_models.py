@@ -6,7 +6,8 @@ from typing import Any, List, Tuple, Union
 import pytest
 from pydantic import ValidationError
 
-from garden_ai import Garden, Pipeline, Step, mlmodel, step
+from garden_ai import Garden, Pipeline, Step, step
+from garden_ai.mlmodel import upload_to_model_registry, LocalModel
 
 
 def test_create_empty_garden(garden_client):
@@ -216,9 +217,6 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
 
 
 def test_upload_model(mocker, tmp_path):
-    model_name = "test_model"
-    user_email = "will@test.com"
-    flavor = "sklearn"
     model_dir_path = tmp_path / "models"
 
     model_dir_path.mkdir(parents=True, exist_ok=True)
@@ -237,11 +235,15 @@ def test_upload_model(mocker, tmp_path):
         "mlflow.tracking.MlflowClient.get_latest_versions"
     ).return_value = versions_response
 
-    full_model_name = "will@test.com-test_model/1"
-    assert (
-        mlmodel.upload_model(str(model_path), model_name, user_email, flavor)
-        == full_model_name
+    model_uri = "will@test.com-test_model/1"
+    local_model = LocalModel(
+        local_path=str(model_path),
+        model_name="test_model",
+        user_email="will@test.com",
+        flavor="sklearn",
     )
+
+    assert upload_to_model_registry(local_model).model_uri == model_uri
 
 
 def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):

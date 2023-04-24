@@ -7,6 +7,7 @@ from uuid import UUID
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.mlmodel import RegisteredModel
 from garden_ai.utils.misc import garden_json_encoder
 
 LOCAL_STORAGE = Path("~/.garden").expanduser()
@@ -24,6 +25,14 @@ class LocalDataException(Exception):
 class ResourceType(Enum):
     GARDEN = "gardens"
     PIPELINE = "pipelines"
+    MODEL = "models"
+
+
+resource_type_to_id_key = {
+    ResourceType.GARDEN: "uuid",
+    ResourceType.PIPELINE: "uuid",
+    ResourceType.MODEL: "model_uri",
+}
 
 
 def _read_local_db() -> Dict:
@@ -64,15 +73,16 @@ def _put_resource_from_metadata(
 ) -> None:
     data = _read_local_db()
     resources = data.get(resource_type.value, {})
-    resources[str(resource_metadata["uuid"])] = resource_metadata
+    id_key = resource_type_to_id_key[resource_type]
+    resources[str(resource_metadata[id_key])] = resource_metadata
     data[resource_type.value] = resources
     _write_local_db(data)
 
 
-def _put_resource_from_obj(resource: Union[Garden, RegisteredPipeline]) -> None:
-    resource_type = (
-        ResourceType.GARDEN if isinstance(resource, Garden) else ResourceType.PIPELINE
-    )
+def _put_resource_from_obj(
+    resource: Union[Garden, RegisteredPipeline, RegisteredModel],
+    resource_type: ResourceType,
+) -> None:
     resource_metadata = resource.dict()
     _put_resource_from_metadata(resource_metadata, resource_type)
 
@@ -86,14 +96,14 @@ def _make_obj_from_record(
         return RegisteredPipeline(**record)
 
 
-def _get_resource_by_uuid(
-    uuid: Union[UUID, str], resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline, None]:
+def _get_resource_by_id(
+    id_: Union[UUID, str], resource_type: ResourceType
+) -> Union[Garden, RegisteredPipeline, RegisteredModel, None]:
     data = _read_local_db()
-    uuid = str(uuid)
+    id_ = str(id_)
     resources = data.get(resource_type.value, {})
-    if resources and uuid in resources:
-        return _make_obj_from_record(resources[uuid], resource_type)
+    if resources and id_ in resources:
+        return _make_obj_from_record(resources[id_], resource_type)
     else:
         return None
 
@@ -128,19 +138,7 @@ def put_local_garden(garden: Garden):
         The object to json-serialize and write/update in the local database.
         a TypeError will be raised if not a Garden.
     """
-    _put_resource_from_obj(garden)
-
-
-def put_local_garden_from_metadata(garden_metadata: Dict):
-    """Helper: write a record to 'local database' for a given Garden
-    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
-
-    Parameters
-    ----------
-    garden_metadata Dict
-        Dictionary in the format serialized by the Garden Pydantic model.
-    """
-    _put_resource_from_metadata(garden_metadata, ResourceType.GARDEN)
+    _put_resource_from_obj(garden, resource_type=ResourceType.GARDEN)
 
 
 def put_local_pipeline(pipeline: RegisteredPipeline):
@@ -153,7 +151,7 @@ def put_local_pipeline(pipeline: RegisteredPipeline):
         The object to json-serialize and write/update in the local database.
         a TypeError will be raised if not a Pipeline.
     """
-    _put_resource_from_obj(pipeline)
+    _put_resource_from_obj(pipeline, resource_type=ResourceType.PIPELINE)
 
 
 def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Garden]:
@@ -169,7 +167,7 @@ def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Garden]:
     Optional[Garden]
         If successful, a dictionary in the form given by Garden.json().
     """
-    return _get_resource_by_uuid(uuid, ResourceType.GARDEN)  # type: ignore
+    return _get_resource_by_id(uuid, ResourceType.GARDEN)  # type: ignore
 
 
 def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[RegisteredPipeline]:
@@ -184,7 +182,7 @@ def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[RegisteredPip
     -------
     Optional[RegisteredPipeline]
     """
-    return _get_resource_by_uuid(uuid, ResourceType.PIPELINE)  # type: ignore
+    return _get_resource_by_id(uuid, ResourceType.PIPELINE)  # type: ignore
 
 
 def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
@@ -215,3 +213,20 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     Optional[RegisteredPipeline]
     """
     return _get_resource_by_doi(doi, ResourceType.PIPELINE)  # type: ignore
+
+
+def put_local_model(model: RegisteredModel):
+    """Helper: write a record to 'local database' for a given RegisteredModel
+    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+
+    Parameters
+    ----------
+    model Model
+        The object to json-serialize and write/update in the local database.
+        a TypeError will be raised if not a Model.
+    """
+    _put_resource_from_obj(model, resource_type=ResourceType.MODEL)
+
+
+def get_local_model_by_uri(model_uri: str):
+    return _get_resource_by_id(model_uri, ResourceType.MODEL)  # type: ignore

@@ -1,6 +1,7 @@
 import pytest
 
 from garden_ai import GardenClient, Model
+from garden_ai.mlmodel import LocalModel
 
 
 @pytest.fixture(autouse=True)
@@ -84,22 +85,26 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "model.pkl"
     model_path.touch()
-    flavor = "sklearn"
 
     with open(model_path, "wb") as f_out:
         pickle.dump(toy_sklearn_model, f_out)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/model.pkl`
     name = "sk-test-model-name"
-    extra_pip_requirements = None
+
     # actually register the model
     client = GardenClient()
-    full_model_name = client.log_model(
-        str(model_path), name, flavor, extra_pip_requirements
+    local_model = LocalModel(
+        local_path=str(model_path),
+        model_name=name,
+        extra_pip_requirements=None,
+        flavor="sklearn",
+        user_email="foo@example.com",
     )
+    registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(full_model_name)
+    downloaded_model = Model(registered_model.model_uri)
     assert hasattr(downloaded_model, "predict")
 
 
@@ -111,19 +116,22 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "pytorchtest.pth"
     torch.save(toy_pytorch_model, model_path, _use_new_zipfile_serialization=False)
-    flavor = "pytorch"
 
     # simulate `$ garden-ai model register test-model-name tmp_path/pytorchtest.pt`
     name = "pt-test-model-name"
-    extra_pip_requirements = None
     # actually register the model
     client = GardenClient()
-    full_model_name = client.log_model(
-        str(model_path), name, flavor, extra_pip_requirements
+    local_model = LocalModel(
+        local_path=str(model_path),
+        model_name=name,
+        extra_pip_requirements=None,
+        flavor="pytorch",
+        user_email="foo@example.com",
     )
+    registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(full_model_name)
+    downloaded_model = Model(registered_model.model_uri)
     assert hasattr(downloaded_model, "predict")
 
 
@@ -134,17 +142,20 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model):
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "tensorflowtest"
     toy_tensorflow_model.save(model_path)
-    flavor = "tensorflow"
 
     # simulate `$ garden-ai model register test-model-name tmp_path/tensorflowtest`
     name = "tf-test-model-name"
-    extra_pip_requirements = None
     # actually register the model
     client = GardenClient()
-    full_model_name = client.log_model(
-        str(model_path), name, flavor, extra_pip_requirements
+    local_model = LocalModel(
+        local_path=str(model_path),
+        model_name=name,
+        extra_pip_requirements=None,
+        flavor="tensorflow",
+        user_email="foo@example.com",
     )
+    registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(full_model_name)
+    downloaded_model = Model(registered_model.model_uri)
     assert hasattr(downloaded_model, "predict")
