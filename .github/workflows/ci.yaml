@@ -42,11 +42,14 @@ jobs:
           mypy .
       - name: Test with pytest
         run: |
-          pytest -m "not integration" --cov=garden_ai --cov-report=xml -r sx tests/
+          pytest -m "not integration" --cov=./ --cov-report=xml -r sx
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/reports/
+          verbose: true
+          fail_ci_if_error: false
       - name: Check for vulnerable libraries with safety
         run: |
           safety check
