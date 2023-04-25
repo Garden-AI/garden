@@ -83,4 +83,4 @@ flavors = ["tensorflow", "torch"]
 
 [tool.coverage.run]
 source = ["garden_ai/"]
-omit = ["garden_ai/templates/pipeline"]
+omit = ["garden_ai/templates/pipeline", "tests/"]
