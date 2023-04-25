@@ -47,9 +47,9 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage/reports/
           verbose: true
-          fail_ci_if_error: false
+          fail_ci_if_error: true
+          files: ./coverage.xml
       - name: Check for vulnerable libraries with safety
         run: |
           safety check
