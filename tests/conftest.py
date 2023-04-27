@@ -18,7 +18,7 @@ def do_not_sleep(mocker):
 
 
 @pytest.fixture(autouse=True)
-def do_not_set_mlflow_env_variables(mocker):
+def auto_mock_GardenClient_set_up_mlflow_env(mocker):
     mocker.patch("garden_ai.client.GardenClient._set_up_mlflow_env")
 
 

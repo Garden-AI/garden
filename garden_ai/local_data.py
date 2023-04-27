@@ -98,7 +98,7 @@ def _make_obj_from_record(
 
 def _get_resource_by_id(
     id_: Union[UUID, str], resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline, RegisteredModel, None]:
+) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
     data = _read_local_db()
     id_ = str(id_)
     resources = data.get(resource_type.value, {})

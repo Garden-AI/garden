@@ -1,3 +1,3 @@
 from .app.main import app
 
-app(prog_name="garden")
+app(prog_name="garden-ai")

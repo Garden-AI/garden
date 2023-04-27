@@ -42,11 +42,14 @@ jobs:
           mypy .
       - name: Test with pytest
         run: |
-          python -m coverage run -m pytest -m "not integration" -r sx
+          pytest -m "not integration" --cov=./ --cov-report=xml -r sx
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: true
+          files: ./coverage.xml
       - name: Check for vulnerable libraries with safety
         run: |
           safety check
