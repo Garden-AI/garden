@@ -128,6 +128,17 @@ def _reindex_by_doi(resources: dict) -> Dict:
     return by_doi
 
 
+def _delete_old_model_versions(model_name: str):
+    data = _read_local_db()
+    models_by_uri = data.get(ResourceType.MODEL.value, {})
+    # Use `list` so that we don't delete items while iterating.
+    for k, v in list(models_by_uri.items()):
+        if v["model_name"] == model_name:
+            del models_by_uri[k]
+    data[ResourceType.MODEL.value] = models_by_uri
+    _write_local_db(data)
+
+
 def put_local_garden(garden: Garden):
     """Helper: write a record to 'local database' for a given Garden
     Overwrites any existing entry with the same uuid in ~/.garden/data.json.
@@ -217,7 +228,7 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
 
 def put_local_model(model: RegisteredModel):
     """Helper: write a record to 'local database' for a given RegisteredModel
-    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+    Overwrites any existing entry with the same model_name in ~/.garden/data.json.
 
     Parameters
     ----------
@@ -225,6 +236,7 @@ def put_local_model(model: RegisteredModel):
         The object to json-serialize and write/update in the local database.
         a TypeError will be raised if not a Model.
     """
+    _delete_old_model_versions(model.model_name)
     _put_resource_from_obj(model, resource_type=ResourceType.MODEL)
 
 

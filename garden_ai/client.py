@@ -33,7 +33,12 @@ from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
-from garden_ai.mlmodel import upload_to_model_registry, RegisteredModel, LocalModel
+from garden_ai.mlmodel import (
+    upload_to_model_registry,
+    RegisteredModel,
+    LocalModel,
+    DatasetConnection,
+)
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 

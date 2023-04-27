@@ -1,7 +1,7 @@
 import pathlib
 import pickle
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
@@ -18,11 +18,14 @@ class ModelUploadException(Exception):
 
 
 class DatasetConnection(BaseModel):
+    """
+    A first step towards the Accelerate Connection Schema
+    """
+
     type: str = "dataset"
     relationship: str = "origin"
     doi: str = None
-    bibtex: str = None
-    repository: str = None
+    repository: str = "Foundry"
     url: str = None
 
 
@@ -48,17 +51,11 @@ class LocalModel(BaseModel):
     local_path: str = None
     user_email: str = None
     namespaced_model_name: str = None
+    connections: list[DatasetConnection] = Field(default_factory=list)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.namespaced_model_name = f"{self.user_email}-{self.model_name}"
-
-    def fields_for_registered_model(self):
-        return {
-            "model_name": self.model_name,
-            "user_email": self.user_email,
-            "flavor": self.flavor,
-        }
 
 
 class RegisteredModel(BaseModel):
@@ -161,9 +158,8 @@ def _assemble_metadata(local_model: LocalModel) -> RegisteredModel:
         raise ModelUploadException("Could not retrieve model version.")
     version_number = versions[0].version
     return RegisteredModel(
-        **local_model.fields_for_registered_model(),
+        **local_model.dict(),
         version=version_number,
-        connections=[],
     )
 
 
