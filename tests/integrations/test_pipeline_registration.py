@@ -10,7 +10,7 @@ runner = CliRunner()
 
 
 @pytest.fixture(autouse=False)
-def do_not_set_mlflow_env_variables():
+def auto_mock_GardenClient_set_up_mlflow_env():
     # actually, DO set mlflow env variables
     # locally defining a fixture to override
     # the one mocking `setup_mlflow_env`

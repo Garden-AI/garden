@@ -44,7 +44,7 @@ types-requests = "^2.20.0"
 safety = "^2.3.1"
 types-pyyaml = "^6.0.12.8"
 torch = { version = "^2.0.0"}
-# tensorflow = { version = "^2.11.0", python = ">=3.8,<3.12" }
+tensorflow = { version = "^2.11.0", python = ">=3.8,<3.12" }
 coverage = {extras = ["toml"], version = "^7.2.3"}
 
 
