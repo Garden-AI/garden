@@ -26,7 +26,7 @@ from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
 from garden_ai import local_data
-from garden_ai.gardens import Garden
+from garden_ai.gardens import Garden, PipelineNotFoundException
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
@@ -357,6 +357,48 @@ class GardenClient:
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
         return func_uuid
+
+    def get_registered_pipeline(
+        self, identifier: Union[UUID, str]
+    ) -> RegisteredPipeline:
+        """Return a callable ``RegisteredPipeline`` corresponding to the given uuid/doi.
+
+        Parameters
+        ----------
+        identifier : Union[UUID, str]
+            The previously registered pipeline's DOI or UUID. Raises an
+            exception if not found.
+
+        Returns
+        -------
+        RegisteredPipeline
+            Instance of ``RegisteredPipeline``, which can be run on
+            a specified remote Globus Compute endpoint (and knows how to
+            set the appropriate MLFlow environment variables).
+
+        Raises
+        ------
+        PipelineNotFoundException
+            Raised when no known pipeline exists with the given identifier.
+        """
+        is_doi = "/" in str(identifier)
+        if is_doi:
+            registered = local_data.get_local_pipeline_by_doi(str(identifier))
+        else:
+            registered = local_data.get_local_pipeline_by_uuid(identifier)
+
+        if registered is None:
+            raise PipelineNotFoundException(
+                f"Could not find any pipelines with identifier {identifier}."
+            )
+
+        self._set_up_mlflow_env()
+        registered._env_vars = {
+            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
+            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
+        }
+
+        return registered
 
     def publish_garden_metadata(self, garden: Garden):
         # Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls

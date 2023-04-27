@@ -317,7 +317,7 @@ class RegisteredPipeline(BaseModel):
             Input data passed through the first step in the pipeline
         endpoint : Union[UUID, str, None]
             A valid globus compute endpoint UUID
-        timeout : int
+        timeout : Optional[int]
             time (in seconds) to wait for results. Pass `None` to wait
             indefinitely (default behavior).
         **kwargs : Any
@@ -344,7 +344,7 @@ class RegisteredPipeline(BaseModel):
             )
 
         if self._env_vars:
-            # see: inject_env_kwarg util
+            # see: utils.misc.inject_env_kwarg
             kwargs = dict(kwargs)
             kwargs["_env_vars"] = self._env_vars
 

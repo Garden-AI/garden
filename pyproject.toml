@@ -37,7 +37,7 @@ optional=true
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
 pytest-mock = "^3.10.0"
-coverage = "^6.5.0"
+pytest-cov = "^4.0.0"
 flake8 = "^5.0.4"
 mypy = "^0.981"
 types-requests = "^2.20.0"
@@ -45,6 +45,7 @@ safety = "^2.3.1"
 types-pyyaml = "^6.0.12.8"
 torch = { version = "^2.0.0"}
 tensorflow = { version = "^2.11.0", python = ">=3.8,<3.12" }
+coverage = {extras = ["toml"], version = "^7.2.3"}
 
 
 
@@ -79,3 +80,7 @@ markers = [
 torch = ["torch"]
 tensorflow = ["tensorflow"]
 flavors = ["tensorflow", "torch"]
+
+[tool.coverage.run]
+source = ["garden_ai/"]
+omit = ["garden_ai/templates/pipeline", "tests/"]
