@@ -243,7 +243,10 @@ def test_upload_model(mocker, tmp_path):
         flavor="sklearn",
     )
 
-    assert upload_to_model_registry(local_model).model_uri == model_uri
+    registered_model = upload_to_model_registry(local_model)
+    assert registered_model.model_uri == model_uri
+    assert registered_model.connections == []
+    assert registered_model.version == "1"
 
 
 def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):

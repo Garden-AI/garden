@@ -23,6 +23,10 @@ def test_model_upload(mocker, tmp_path):
         "torch==1.13.1",
         "--extra-pip-requirements",
         "pandas<=1.5.0",
+        "--dataset-url",
+        "example.com/123456",
+        "--dataset-doi",
+        "uc-435t/abcde",
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
@@ -33,3 +37,7 @@ def test_model_upload(mocker, tmp_path):
     assert local_model.model_name == "unit-test-model"
     assert local_model.flavor == "sklearn"
     assert local_model.extra_pip_requirements == ["torch==1.13.1", "pandas<=1.5.0"]
+    dataset_connection = local_model.connections[0]
+    assert dataset_connection.doi == "uc-435t/abcde"
+    assert dataset_connection.url == "example.com/123456"
+    assert dataset_connection.repository == "Foundry"
