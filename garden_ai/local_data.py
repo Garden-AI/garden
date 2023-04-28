@@ -89,11 +89,13 @@ def _put_resource_from_obj(
 
 def _make_obj_from_record(
     record: Dict, resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline]:
+) -> Union[Garden, RegisteredPipeline, RegisteredModel]:
     if resource_type is ResourceType.GARDEN:
         return Garden(**record)
-    else:
+    elif resource_type is ResourceType.PIPELINE:
         return RegisteredPipeline(**record)
+    else:
+        return RegisteredModel(**record)
 
 
 def _get_resource_by_id(

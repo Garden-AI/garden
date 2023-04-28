@@ -37,3 +37,19 @@ def test_local_storage_keyerror(
     # can find the pipeline
     from_record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
     assert from_record == pipeline
+
+
+def test_local_storage_model(mocker, database_with_model, second_draft_of_model):
+    # mock to replace "~/.garden/db"
+    mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=database_with_model)
+    local_data.put_local_model(second_draft_of_model)
+
+    # New version of same model name should get overwritten in local DB
+    registered_model = local_data.get_local_model_by_uri(
+        second_draft_of_model.model_uri
+    )
+    assert registered_model is not None
+    overwritten_model = local_data.get_local_model_by_uri(
+        "test@example.com-unit-test-model/1"
+    )
+    assert overwritten_model is None

@@ -12,7 +12,7 @@ def test_model_upload(mocker, tmp_path):
     user_email = "test@example.com"
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.model.GardenClient").return_value = mock_client
-    mock_client.get_email = lambda: user_email
+    mock_client.get_email.return_value = user_email
     command = [
         "model",
         "register",
