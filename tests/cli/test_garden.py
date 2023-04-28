@@ -1,14 +1,8 @@
-import string
-import random
-import rich
-from keyword import iskeyword
-
 import pytest
 from typer.testing import CliRunner
 
 from garden_ai import local_data
 from garden_ai.app.main import app
-from garden_ai.app.pipeline import clean_identifier
 from garden_ai.client import GardenClient
 
 runner = CliRunner()
@@ -41,111 +35,6 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     kwargs = mock_client.create_garden.call_args.kwargs
     for key in kwargs:
         assert kwargs[key] == getattr(garden_all_fields, key)
-
-
-def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.pipeline.GardenClient").return_value = mock_client
-    command = [
-        "pipeline",
-        "create",
-        "--directory",
-        str(tmp_path),
-        "--title",
-        pipeline_toy_example.title,
-        "--description",
-        pipeline_toy_example.description,
-        "--year",
-        pipeline_toy_example.year,
-    ]
-    for name in pipeline_toy_example.authors:
-        command += ["--author", name]
-    for name in pipeline_toy_example.contributors:
-        command += ["--contributor", name]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    kwargs = mock_client.create_pipeline.call_args.kwargs
-    del kwargs["steps"]  # different steps on purpose -- can't get a function from cli
-    for key in kwargs:
-        assert kwargs[key] == getattr(pipeline_toy_example, key)
-
-
-@pytest.mark.cli
-def test_model_upload(mocker, tmp_path):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.model.GardenClient").return_value = mock_client
-    command = [
-        "model",
-        "register",
-        "unit-test-model",
-        str(tmp_path),
-        "sklearn",
-        "--extra-pip-requirements",
-        "torch==1.13.1",
-        "--extra-pip-requirements",
-        "pandas<=1.5.0",
-    ]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    args = mock_client.log_model.call_args.args
-    assert args[0] == str(tmp_path)
-    assert args[1] == "unit-test-model"
-    assert args[2] == "sklearn"
-    assert args[3] == ["torch==1.13.1", "pandas<=1.5.0"]
-
-
-@pytest.mark.cli
-def test_search_easy_query(mocker):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-    mock_rich = mocker.MagicMock(rich)
-    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
-    command = [
-        "garden",
-        "search",
-        "-d",
-        "foo",
-        "-t",
-        "bar",
-    ]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client.search.assert_called_once()
-    mock_rich.print_json.assert_called_once()
-
-    args = mock_client.search.call_args.args
-    query = args[0]
-    assert '(title: "bar")' in query
-    assert '(description: "foo")' in query
-    assert " AND " in query
-
-
-@pytest.mark.cli
-def test_search_raw_query(mocker):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-    mock_rich = mocker.MagicMock(rich)
-    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
-    command = [
-        "garden",
-        "search",
-        "-d",
-        "foo",
-        "--raw-query",
-        "lalalala",
-    ]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client.search.assert_called_once()
-    mock_rich.print_json.assert_called_once()
-
-    args = mock_client.search.call_args.args
-    query = args[0]
-    assert query == "lalalala"
 
 
 @pytest.mark.cli
@@ -218,10 +107,3 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
         run_test_with_id(garden_doi)
     else:
         run_test_with_id(garden_uuid)
-
-
-def test_clean_identifier():
-    possible_name = "".join(random.choices(string.printable, k=50))
-    valid_name = clean_identifier(possible_name)
-    assert valid_name.isidentifier()
-    assert not iskeyword(clean_identifier("import"))
