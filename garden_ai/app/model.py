@@ -76,7 +76,7 @@ def register(
     )
     if only_one_dataset_option_provided:
         raise typer.BadParameter(
-            f"If you are linking a Foundry dataset, please include both --dataset-url and --dataset-doi"
+            "If you are linking a Foundry dataset, please include both --dataset-url and --dataset-doi"
         )
 
     client = GardenClient()

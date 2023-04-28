@@ -112,7 +112,7 @@ def _get_resource_by_id(
 
 def _get_resource_by_doi(
     doi: str, resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline, None]:
+) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
     data = _read_local_db()
     resources_by_uuid = data.get(resource_type.value, {})
     resources_by_doi = _reindex_by_doi(resources_by_uuid)

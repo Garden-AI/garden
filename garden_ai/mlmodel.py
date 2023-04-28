@@ -1,7 +1,7 @@
 import pathlib
 import pickle
 from functools import lru_cache
-from typing import List, Optional
+from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
@@ -24,9 +24,9 @@ class DatasetConnection(BaseModel):
 
     type: str = "dataset"
     relationship: str = "origin"
-    doi: str = None
+    doi: str = Field(...)
     repository: str = "Foundry"
-    url: str = None
+    url: str = Field(...)
 
 
 class LocalModel(BaseModel):
@@ -45,12 +45,12 @@ class LocalModel(BaseModel):
 
     """
 
-    model_name: str = None
-    flavor: str = None
-    extra_pip_requirements: List[str] = None
-    local_path: str = None
-    user_email: str = None
-    namespaced_model_name: str = None
+    model_name: str = Field(...)
+    flavor: str = Field(...)
+    extra_pip_requirements: List[str] = Field(default_factory=list)
+    local_path: str = Field(...)
+    user_email: str = Field(...)
+    namespaced_model_name: str = Field(...)
     connections: list[DatasetConnection] = Field(default_factory=list)
 
     def __init__(self, **kwargs):
@@ -75,13 +75,13 @@ class RegisteredModel(BaseModel):
 
     """
 
-    model_name: str = None
-    version: str = None
-    user_email: str = None
-    flavor: str = None
+    model_name: str = Field(...)
+    version: str = Field(...)
+    user_email: str = Field(...)
+    flavor: str = Field(...)
     connections: list[DatasetConnection] = Field(default_factory=list)
-    namespaced_model_name: str = None
-    model_uri: str = None
+    namespaced_model_name: str = Field(...)
+    model_uri: str = Field(...)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

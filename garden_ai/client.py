@@ -37,7 +37,6 @@ from garden_ai.mlmodel import (
     upload_to_model_registry,
     RegisteredModel,
     LocalModel,
-    DatasetConnection,
 )
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
