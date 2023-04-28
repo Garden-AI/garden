@@ -1,7 +1,7 @@
 import pathlib
 import pickle
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
@@ -50,8 +50,8 @@ class LocalModel(BaseModel):
     extra_pip_requirements: List[str] = Field(default_factory=list)
     local_path: str = Field(...)
     user_email: str = Field(...)
-    namespaced_model_name: str = Field(...)
     connections: List[DatasetConnection] = Field(default_factory=list)
+    namespaced_model_name: Optional[str]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -80,8 +80,8 @@ class RegisteredModel(BaseModel):
     user_email: str = Field(...)
     flavor: str = Field(...)
     connections: List[DatasetConnection] = Field(default_factory=list)
-    namespaced_model_name: str = Field(...)
-    model_uri: str = Field(...)
+    namespaced_model_name: Optional[str]
+    model_uri: Optional[str]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
