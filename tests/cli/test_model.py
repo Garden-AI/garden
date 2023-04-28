@@ -9,8 +9,10 @@ runner = CliRunner()
 
 @pytest.mark.cli
 def test_model_upload(mocker, tmp_path):
+    user_email = "test@example.com"
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.model.GardenClient").return_value = mock_client
+    mock_client.get_email = lambda: user_email
     command = [
         "model",
         "register",
@@ -25,8 +27,9 @@ def test_model_upload(mocker, tmp_path):
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    args = mock_client.log_model.call_args.args
-    assert args[0] == str(tmp_path)
-    assert args[1] == "unit-test-model"
-    assert args[2] == "sklearn"
-    assert args[3] == ["torch==1.13.1", "pandas<=1.5.0"]
+    args = mock_client.register_model.call_args.args
+    local_model = args[0]
+    assert local_model.local_path == str(tmp_path)
+    assert local_model.model_name == "unit-test-model"
+    assert local_model.flavor == "sklearn"
+    assert local_model.extra_pip_requirements == ["torch==1.13.1", "pandas<=1.5.0"]
