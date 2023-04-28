@@ -51,7 +51,7 @@ class LocalModel(BaseModel):
     local_path: str = Field(...)
     user_email: str = Field(...)
     namespaced_model_name: str = Field(...)
-    connections: list[DatasetConnection] = Field(default_factory=list)
+    connections: List[DatasetConnection] = Field(default_factory=list)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -79,7 +79,7 @@ class RegisteredModel(BaseModel):
     version: str = Field(...)
     user_email: str = Field(...)
     flavor: str = Field(...)
-    connections: list[DatasetConnection] = Field(default_factory=list)
+    connections: List[DatasetConnection] = Field(default_factory=list)
     namespaced_model_name: str = Field(...)
     model_uri: str = Field(...)
 
