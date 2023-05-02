@@ -252,7 +252,7 @@ def publish(
         "-g",
         "--garden",
         prompt="Please enter the UUID or DOI of a garden",
-        help="The name of the garden you want to add a pipeline to",
+        help="The UUID or DOI of the garden you want to publish",
         rich_help_panel="Required",
     ),
 ):

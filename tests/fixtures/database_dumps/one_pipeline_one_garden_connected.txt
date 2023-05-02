@@ -5,6 +5,7 @@
       "doi": "10.23677/jx31-gx98",
       "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
       "title": "Fixture pipeline",
+      "short_name": "fixture_pipeline",
       "authors": [
         "Garden Team"
       ],
