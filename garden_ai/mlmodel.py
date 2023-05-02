@@ -2,7 +2,7 @@ import pathlib
 import pickle
 from enum import Enum
 from functools import lru_cache
-from typing import List, Optional
+from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
