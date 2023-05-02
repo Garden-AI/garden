@@ -112,6 +112,7 @@ class Garden(BaseModel):
     version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
     pipeline_ids: List[UUID] = Field(default_factory=list)
+    pipeline_aliases: Dict[UUID, str] = Field(default_factory=dict)
     _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
@@ -123,7 +124,7 @@ class Garden(BaseModel):
 
     def collect_pipelines(self) -> List[RegisteredPipeline]:
         """Collect the full ``RegisteredPipeline`` objects referred to by this garden's pipeline_ids."""
-        from .local_data import get_local_pipeline_by_uuid, PipelineNotFoundException
+        from .local_data import PipelineNotFoundException, get_local_pipeline_by_uuid
 
         pipelines = []
         for uuid in self.pipeline_ids:
@@ -133,6 +134,10 @@ class Garden(BaseModel):
                     f"Could not find registered pipeline with id {uuid}."
                 )
             pipeline._env_vars = self._env_vars
+            # use default short_name if no alias already specified
+            # TODO enable specifying alias
+            if uuid not in self.pipeline_aliases:
+                self.pipeline_aliases[uuid] = pipeline.short_name
             pipelines += [pipeline]
 
         self._pipelines = pipelines
@@ -264,11 +269,23 @@ class Garden(BaseModel):
         return
 
     def __getattr__(self, name):
+        #  note: this is only called as a fallback, when __getattribute__ raises an exception
+        #  so existing attributes are not affected by overriding this
         if not self._pipelines:
             self.collect_pipelines()
+
         for pipeline in self._pipelines:
-            if name == pipeline.short_name:
+            uuid = pipeline.uuid
+            alias = self.pipeline_aliases[uuid]
+            if name == alias:
                 return pipeline
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
+
+    def __dir__(self):
+        # this gets us pipeline_name autocompletion in jupyter/ipython notebooks (like pandas columns)
+        if not self._pipelines:
+            self.collect_pipelines()
+        pipeline_names = [self.pipeline_aliases[uuid] for uuid in self.pipeline_ids]
+        return pipeline_names + super().__dir__()
