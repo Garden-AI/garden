@@ -93,7 +93,7 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
         result = runner.invoke(app, command)
         assert result.exit_code == 0
 
-        mock_client._mint_doi.assert_called_once()
+        mock_client.publish_garden_metadata.assert_called_once()
 
         args = mock_client.publish_garden_metadata.call_args.args
         garden = args[0]

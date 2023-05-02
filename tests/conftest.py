@@ -160,6 +160,7 @@ def pipeline_toy_example(tmp_requirements_txt):
 def registered_pipeline_toy_example(pipeline_toy_example, noop_func_uuid):
     pipeline_toy_example.doi = "10.26311/fake-doi"
     pipeline_toy_example.func_uuid = noop_func_uuid
+    pipeline_toy_example.short_name = "pipeline_toy_example"
     return RegisteredPipeline.from_pipeline(pipeline_toy_example)
 
 
