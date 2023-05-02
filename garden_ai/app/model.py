@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from garden_ai.client import GardenClient
-from garden_ai.mlmodel import DatasetConnection, LocalModel
+from garden_ai.mlmodel import DatasetConnection, LocalModel, ModelFlavor
 
 import typer
 import rich
@@ -66,7 +66,7 @@ def register(
     ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
-    if flavor not in ["sklearn", "tensorflow", "pytorch"]:
+    if flavor not in [f.value for f in ModelFlavor]:
         raise typer.BadParameter(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )

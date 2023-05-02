@@ -1,12 +1,13 @@
 import pathlib
 import pickle
+from enum import Enum
 from functools import lru_cache
 from typing import List, Optional
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
 import os
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from garden_ai.utils.misc import read_conda_deps
 
@@ -15,6 +16,12 @@ class ModelUploadException(Exception):
     """Exception raised when an attempt to upload a model to ML Flow fails"""
 
     pass
+
+
+class ModelFlavor(Enum):
+    SKLEARN = "sklearn"
+    PYTORCH = "pytorch"
+    TENSORFLOW = "tensorflow"
 
 
 class DatasetConnection(BaseModel):
@@ -51,11 +58,28 @@ class LocalModel(BaseModel):
     local_path: str = Field(...)
     user_email: str = Field(...)
     connections: List[DatasetConnection] = Field(default_factory=list)
-    namespaced_model_name: Optional[str]
+    namespaced_model_name: str = ""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.namespaced_model_name = f"{self.user_email}-{self.model_name}"
+
+    @validator("flavor")
+    def must_be_a_supported_flavor(cls, flavor):
+        if flavor not in [f.value for f in ModelFlavor]:
+            raise ValueError("is not a supported flavor")
+        return flavor
+
+    @validator("model_name")
+    def must_be_a_valid_model_name(cls, model_name):
+        is_valid = all(c.isalnum() or c == "-" or c == "_" for c in model_name)
+        if not is_valid:
+            error_message = (
+                "is not a valid model name. "
+                "Model names can only contain alphanumeric characters, hyphens, and underscores."
+            )
+            raise ValueError(error_message)
+        return model_name
 
 
 class RegisteredModel(BaseModel):
@@ -65,11 +89,10 @@ class RegisteredModel(BaseModel):
 
     Args:
     model_name (str): A short and descriptive name of the model
-    version (str): What
+    version (str): Version string like "1" or "2" for this model.
     flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
-    extra_pip_requirements (List[str]), optional
-        A list of additional pip requirements needed to load and/or run the model.
-        Defaults to None.
+    connections (List[DatasetConnection]):
+        A list of dataset records that the model was trained on.
     local_path (str): Where the model is located on disk. Can be a file or a directory depending on the flavor.
     user_email (str): The email address of the user uploading the model.
 
@@ -80,8 +103,8 @@ class RegisteredModel(BaseModel):
     user_email: str = Field(...)
     flavor: str = Field(...)
     connections: List[DatasetConnection] = Field(default_factory=list)
-    namespaced_model_name: Optional[str]
-    model_uri: Optional[str]
+    namespaced_model_name: str = ""
+    model_uri: str = ""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -115,11 +138,11 @@ def upload_to_model_registry(local_model: LocalModel) -> RegisteredModel:
 def _push_model_to_registry(local_model: LocalModel):
     flavor, local_path = local_model.flavor, local_model.local_path
     try:
-        if flavor == "sklearn" and pathlib.Path(local_path).is_file:
+        if flavor == ModelFlavor.SKLEARN and pathlib.Path(local_path).is_file:
             with open(local_path, "rb") as f:
                 loaded_model = pickle.load(f)
                 log_model_variant = mlflow.sklearn.log_model
-        elif flavor == "tensorflow" and pathlib.Path(local_path).is_dir:
+        elif flavor == ModelFlavor.TENSORFLOW and pathlib.Path(local_path).is_dir:
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             # ignore cpu guard info on tf import require before tf import
             from tensorflow import keras  # type: ignore
@@ -128,13 +151,13 @@ def _push_model_to_registry(local_model: LocalModel):
             log_model_variant = (
                 mlflow.tensorflow.log_model
             )  # TODO explore artifact path, sigs, and HDf5
-        elif flavor == "pytorch" and pathlib.Path(local_path).is_file:
+        elif flavor == ModelFlavor.PYTORCH and pathlib.Path(local_path).is_file:
             import torch  # type: ignore
 
             loaded_model = torch.load(local_path)
             log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
         else:
-            return
+            raise ModelUploadException(f"Unsupported model flavor {flavor}")
         log_model_variant(
             loaded_model,
             local_model.user_email,
