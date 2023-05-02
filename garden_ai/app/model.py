@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional, List
 
 from garden_ai.client import GardenClient
+from garden_ai.mlmodel import DatasetConnection, LocalModel, ModelFlavor
 
 import typer
 import rich
@@ -49,17 +50,49 @@ def register(
             '--extra-pip-requirements "torch=1.3.1" --extra-pip-requirements "pandas<=1.5.0"'
         ),
     ),
+    dataset_url: Optional[str] = typer.Option(
+        None,
+        "--dataset-url",
+        help=(
+            "If you trained this model on a Foundry dataset, include a link to the dataset with this option"
+        ),
+    ),
+    dataset_doi: Optional[str] = typer.Option(
+        None,
+        "--dataset-doi",
+        help=(
+            "If you trained this model on a Foundry dataset, include the doi of the dataset"
+        ),
+    ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
-    if flavor not in ["sklearn", "tensorflow", "pytorch"]:
+    if flavor not in [f.value for f in ModelFlavor]:
         raise typer.BadParameter(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
 
-    client = GardenClient()
-    full_model_name = client.log_model(
-        str(model_path), name, flavor, extra_pip_requirements
+    only_one_dataset_option_provided = (dataset_url and not dataset_doi) or (
+        dataset_doi and not dataset_url
     )
+    if only_one_dataset_option_provided:
+        raise typer.BadParameter(
+            "If you are linking a Foundry dataset, please include both --dataset-url and --dataset-doi"
+        )
+
+    client = GardenClient()
+    local_model = LocalModel(
+        local_path=str(model_path),
+        model_name=name,
+        flavor=flavor,
+        extra_pip_requirements=extra_pip_requirements,
+        user_email=client.get_email(),
+    )
+    if dataset_doi and dataset_url:
+        dataset_metadata = DatasetConnection(doi=dataset_doi, url=dataset_url)
+        local_model.connections.append(dataset_metadata)
+
+    registered_model = client.register_model(local_model)
+    model_uri = registered_model.model_uri
     rich.print(
-        f"Successfully uploaded your model! The full name to include in your pipeline is '{full_model_name}'"
+        f"Successfully uploaded your model! The full name to include in your pipeline is '{model_uri}'"
     )

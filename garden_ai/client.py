@@ -33,7 +33,11 @@ from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
-from garden_ai.mlmodel import upload_model
+from garden_ai.mlmodel import (
+    upload_to_model_registry,
+    RegisteredModel,
+    LocalModel,
+)
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -258,22 +262,10 @@ class GardenClient:
 
         return pipeline
 
-    def log_model(
-        self,
-        model_path: str,
-        model_name: str,
-        flavor: str,
-        extra_pip_requirements: List[str] = None,
-    ) -> str:
-        email = local_data._get_user_email()
-        full_model_name = upload_model(
-            model_path,
-            model_name,
-            email,
-            flavor,
-            extra_pip_requirements=extra_pip_requirements,
-        )
-        return full_model_name
+    def register_model(self, local_model: LocalModel) -> RegisteredModel:
+        registered_model = upload_to_model_registry(local_model)
+        local_data.put_local_model(registered_model)
+        return registered_model
 
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
@@ -424,3 +416,6 @@ class GardenClient:
     def search(self, query: str) -> str:
         res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
         return res.text
+
+    def get_email(self) -> str:
+        return local_data._get_user_email()
