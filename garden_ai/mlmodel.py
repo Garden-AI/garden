@@ -138,11 +138,11 @@ def upload_to_model_registry(local_model: LocalModel) -> RegisteredModel:
 def _push_model_to_registry(local_model: LocalModel):
     flavor, local_path = local_model.flavor, local_model.local_path
     try:
-        if flavor == ModelFlavor.SKLEARN and pathlib.Path(local_path).is_file:
+        if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
             with open(local_path, "rb") as f:
                 loaded_model = pickle.load(f)
                 log_model_variant = mlflow.sklearn.log_model
-        elif flavor == ModelFlavor.TENSORFLOW and pathlib.Path(local_path).is_dir:
+        elif flavor == ModelFlavor.TENSORFLOW.value and pathlib.Path(local_path).is_dir:
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             # ignore cpu guard info on tf import require before tf import
             from tensorflow import keras  # type: ignore
@@ -151,7 +151,7 @@ def _push_model_to_registry(local_model: LocalModel):
             log_model_variant = (
                 mlflow.tensorflow.log_model
             )  # TODO explore artifact path, sigs, and HDf5
-        elif flavor == ModelFlavor.PYTORCH and pathlib.Path(local_path).is_file:
+        elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
             import torch  # type: ignore
 
             loaded_model = torch.load(local_path)
