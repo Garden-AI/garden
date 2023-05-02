@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ValidationError, validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, validator
 
 from garden_ai.utils.misc import JSON, garden_json_encoder
 
@@ -22,10 +22,6 @@ from .datacite import (
 from .pipelines import RegisteredPipeline
 
 logger = logging.getLogger()
-
-
-class PipelineNotFoundException(KeyError):
-    """Exception raised when a Garden references an unknown pipeline uuid"""
 
 
 class Garden(BaseModel):
@@ -116,6 +112,8 @@ class Garden(BaseModel):
     version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
     pipeline_ids: List[UUID] = Field(default_factory=list)
+    _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
+    _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @validator("year")
     def valid_year(cls, year):
@@ -125,7 +123,7 @@ class Garden(BaseModel):
 
     def collect_pipelines(self) -> List[RegisteredPipeline]:
         """Collect the full ``RegisteredPipeline`` objects referred to by this garden's pipeline_ids."""
-        from .local_data import get_local_pipeline_by_uuid
+        from .local_data import get_local_pipeline_by_uuid, PipelineNotFoundException
 
         pipelines = []
         for uuid in self.pipeline_ids:
@@ -134,7 +132,10 @@ class Garden(BaseModel):
                 raise PipelineNotFoundException(
                     f"Could not find registered pipeline with id {uuid}."
                 )
+            pipeline._env_vars = self._env_vars
             pipelines += [pipeline]
+
+        self._pipelines = pipelines
         return pipelines
 
     def expanded_metadata(self) -> Dict[str, Any]:
@@ -253,9 +254,21 @@ class Garden(BaseModel):
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
-        for pipe in self.collect_pipelines():
-            new_contributors = set(pipe.authors) | set(pipe.contributors)
+        if not self._pipelines:
+            self.collect_pipelines()
+        for pipeline in self._pipelines:
+            new_contributors = set(pipeline.authors) | set(pipeline.contributors)
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
         return
+
+    def __getattr__(self, name):
+        if not self._pipelines:
+            self.collect_pipelines()
+        for pipeline in self._pipelines:
+            if name == pipeline.short_name:
+                return pipeline
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )

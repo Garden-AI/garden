@@ -26,10 +26,11 @@ from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
 from garden_ai import local_data
-from garden_ai.gardens import Garden, PipelineNotFoundException
+from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
+from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
@@ -381,6 +382,43 @@ class GardenClient:
         if registered is None:
             raise PipelineNotFoundException(
                 f"Could not find any pipelines with identifier {identifier}."
+            )
+
+        self._set_up_mlflow_env()
+        registered._env_vars = {
+            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
+            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
+        }
+
+        return registered
+
+    def get_registered_garden(self, identifier: Union[UUID, str]) -> Garden:
+        """Return a registered ``Garden`` corresponding to the given uuid/doi.
+
+        Any ``RegisteredPipelines`` registered to the Garden will be callable
+        as attributes on the garden by their (registered) short_name, e.g.
+            ```python
+                my_garden = client.get_registered_garden('garden-doi-or-uuid')
+                #  pipeline would have been registered with short_name='my_pipeline'
+                my_garden.my_pipeline(*args, endpoint='where-to-execute')
+            ```
+
+        Parameters
+        ----------
+        identifier : Union[UUID, str]
+            The previously registered Garden's DOI or UUID. Raises an
+            exception if not found.
+
+        """
+        is_doi = "/" in str(identifier)
+        if is_doi:
+            registered = local_data.get_local_garden_by_doi(str(identifier))
+        else:
+            registered = local_data.get_local_garden_by_uuid(identifier)
+
+        if registered is None:
+            raise GardenNotFoundException(
+                f"Could not find any Gardens with identifier {identifier}."
             )
 
         self._set_up_mlflow_env()
