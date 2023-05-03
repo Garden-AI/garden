@@ -102,6 +102,9 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
         assert (
             str(denormalized_garden_metadata["pipelines"][0]["uuid"]) == pipeline_uuid
         )
+        model = denormalized_garden_metadata["pipelines"][0]["models"][0]
+        assert model["version"] == "3"
+        assert len(model["connections"]) == 1
 
     if use_doi:
         run_test_with_id(garden_doi)
