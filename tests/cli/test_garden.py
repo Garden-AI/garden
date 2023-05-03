@@ -97,11 +97,13 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
 
         args = mock_client.publish_garden_metadata.call_args.args
         garden = args[0]
+        # Confirm that expanded gardens include pipelines
         denormalized_garden_metadata = garden.expanded_metadata()
         assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
         assert (
             str(denormalized_garden_metadata["pipelines"][0]["uuid"]) == pipeline_uuid
         )
+        # Confirm that pipelines within expanded gardens contain models
         model = denormalized_garden_metadata["pipelines"][0]["models"][0]
         assert model["version"] == "3"
         assert len(model["connections"]) == 1
