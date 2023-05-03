@@ -112,3 +112,37 @@ def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
         run_test_with_id(garden_doi)
     else:
         run_test_with_id(garden_uuid)
+
+
+@pytest.mark.cli
+def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+
+    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    pipeline_old_name = "fixture_pipeline"
+    pipeline_alias = "fixed_ur_pipeline"
+
+    before_addition = local_data.get_local_garden_by_uuid(garden_id)
+    assert len(before_addition.pipelines) == 1
+    assert hasattr(before_addition, pipeline_old_name)
+    assert not hasattr(before_addition, pipeline_alias)
+
+    command = [
+        "garden",
+        "add-pipeline",
+        "-g",
+        garden_id,
+        "-p",
+        pipeline_id,
+        "-a",
+        pipeline_alias,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    after_addition = local_data.get_local_garden_by_uuid(garden_id)
+    assert not hasattr(after_addition, pipeline_old_name)
+    assert hasattr(after_addition, pipeline_alias)

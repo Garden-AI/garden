@@ -12,7 +12,6 @@ from garden_ai import local_data
 from garden_ai.client import GARDEN_INDEX_UUID, GardenClient
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.utils.misc import clean_identifier
 
 logger = logging.getLogger()
 

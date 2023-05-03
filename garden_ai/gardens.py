@@ -309,14 +309,11 @@ class Garden(BaseModel):
         return list(super().__dir__()) + self.pipeline_names
 
     def rename_pipeline(self, old_name: str, new_name: str):
-        try:
-            getattr(self, new_name)
-        except AttributeError:
-            if not new_name.isidentifier():
-                raise ValueError("new_name must be a valid identifier.")
-            self.pipeline_aliases[old_name] = new_name
-            return
-        else:
+        if hasattr(self, new_name):
             raise ValueError(
                 f"Error: found existing {new_name} attribute on this garden."
             )
+        if not new_name.isidentifier():
+            raise ValueError("new_name must be a valid identifier.")
+        self.pipeline_aliases[old_name] = new_name
+        return

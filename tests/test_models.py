@@ -6,7 +6,8 @@ from typing import Any, List, Tuple, Union
 import pytest
 from pydantic import ValidationError
 
-from garden_ai import Garden, Pipeline, Step, step
+from garden_ai import Garden, Pipeline, Step, step, RegisteredPipeline
+from garden_ai import local_data
 from garden_ai.mlmodel import upload_to_model_registry, LocalModel
 
 
@@ -39,6 +40,17 @@ def test_validate_required_only(garden_no_fields):
         garden.validate()
     garden.title = "Experiments on Plant Hybridization"
     garden.validate()
+
+
+def test_garden_can_access_pipeline_as_attribute(
+    mocker, database_with_connected_pipeline
+):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+    # mocker.patch("garden_ai.gardens.Garden._collect_pipelines", )
+    garden = local_data.get_local_garden_by_uuid("e1a3b50b-4efc-42c8-8422-644f4f858b87")
+    assert isinstance(garden.fixture_pipeline, RegisteredPipeline)
 
 
 def test_step_wrapper():
