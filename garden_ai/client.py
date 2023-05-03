@@ -402,6 +402,8 @@ class GardenClient:
                 #  pipeline would have been registered with short_name='my_pipeline'
                 my_garden.my_pipeline(*args, endpoint='where-to-execute')
             ```
+        Tip: To access the pipeline by a different name, use ``my_garden.rename_pipeline(old_name, new_name)``.
+        To persist a new name for a pipeline, re-register it to the garden and specify an alias.
 
         Parameters
         ----------

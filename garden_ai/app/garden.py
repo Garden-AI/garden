@@ -9,9 +9,10 @@ from globus_sdk import SearchAPIError
 from rich.prompt import Prompt
 
 from garden_ai import local_data
-from garden_ai.client import GardenClient, GARDEN_INDEX_UUID
+from garden_ai.client import GARDEN_INDEX_UUID, GardenClient
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.utils.misc import clean_identifier
 
 logger = logging.getLogger()
 
@@ -230,17 +231,35 @@ def add_pipeline(
         help="The name of the pipeline you want to add",
         rich_help_panel="Required",
     ),
+    pipeline_alias: Optional[str] = typer.Option(
+        None,
+        "-a",
+        "--alias",
+        help=(
+            'Alternate short_name to use when calling this pipeline as a "method" of the'
+            "garden, e.g. ``my_garden.alias(args, endpoint=...)``. Defaults to the variable"
+            "name used when the pipeline was first registered."
+        ),
+    ),
 ):
     """Add a registered pipeline to a garden"""
 
     garden = _get_garden(garden_id)
     to_add = _get_pipeline(pipeline_id)
 
-    if to_add in garden.collect_pipelines():
-        logger.info(f"Pipeline {pipeline_id} is already in Garden {garden_id}")
-        return
-
-    garden.pipeline_ids += [to_add.uuid]
+    if to_add in garden.pipelines:
+        if pipeline_alias:
+            old_name = (
+                garden.pipeline_aliases.get(to_add.short_name) or to_add.short_name
+            )
+            print(
+                f"Pipeline {pipeline_id} is already in Garden {garden_id} as {old_name}. Renaming to {pipeline_alias}."
+            )
+            garden.rename_pipeline(old_name, pipeline_alias)
+    else:
+        garden.pipeline_ids += [to_add.uuid]
+        if pipeline_alias:
+            garden.rename_pipeline(to_add.short_name, pipeline_alias)
     local_data.put_local_garden(garden)
     logger.info(f"Added pipeline {pipeline_id} to Garden {garden_id}")
 
