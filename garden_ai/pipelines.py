@@ -410,11 +410,3 @@ class RegisteredPipeline(BaseModel):
         data = self.dict()
         data["models"] = [m.dict() for m in self.collect_models()]
         return data
-
-    def expanded_json(self) -> JSON:
-        """Helper: return the expanded pipeline metadata as JSON.
-
-        See: ``RegisteredPipeline.expanded_metadata`` method
-        """
-        data = self.expanded_metadata()
-        return json.dumps(data, default=garden_json_encoder)
