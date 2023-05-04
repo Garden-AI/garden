@@ -1,5 +1,4 @@
 from .client import GardenClient
-from .datacite import DataciteSchema
 from .gardens import Garden
 from .mlmodel import Model
 from .pipelines import Pipeline, RegisteredPipeline
@@ -12,6 +11,5 @@ __all__ = [
     "RegisteredPipeline",
     "Step",
     "step",
-    "DataciteSchema",
     "Model",
 ]

@@ -22,6 +22,14 @@ class LocalDataException(Exception):
     pass
 
 
+class PipelineNotFoundException(KeyError):
+    """Exception raised when a Garden references an unknown pipeline uuid"""
+
+
+class GardenNotFoundException(KeyError):
+    """Exception raised when no Garden is found with a given uuid"""
+
+
 class ResourceType(Enum):
     GARDEN = "gardens"
     PIPELINE = "pipelines"

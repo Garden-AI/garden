@@ -1,7 +1,5 @@
 import logging
-import re
 from datetime import datetime
-from keyword import iskeyword
 from pathlib import Path
 from typing import List, Optional
 
@@ -17,41 +15,11 @@ from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
 )
+from garden_ai.utils.misc import clean_identifier
 
 logger = logging.getLogger()
 
 pipeline_app = typer.Typer(name="pipeline", no_args_is_help=True)
-
-
-def clean_identifier(name: str) -> str:
-    """Clean the name provided for use as a pipeline's python identifier."""
-    orig = name
-    # Remove invalid characters, replacing with _
-    name = re.sub("[^0-9a-zA-Z_]", "_", name)
-
-    # Remove leading characters until we find a letter
-    name = re.sub("^[^a-zA-Z]+", "", name)
-
-    # Remove doubled/trailing underscores
-    name = re.sub("__+", "_", name).rstrip("_")
-
-    if not name:
-        # name consisted only of invalid characters
-        raise typer.BadParameter(
-            "Invalid shortname. This argument should contain a valid python identifier"
-            "(i.e. something usable as a variable name)."
-        )
-
-    # truncate to sane length, though not strictly necessary
-    name = name[:50]
-
-    if iskeyword(name):
-        name += "_"
-
-    if name != orig:
-        print(f'Generated valid shortname "{name}" from "{orig}".')
-
-    return name
 
 
 def parse_full_name(name: str) -> str:
@@ -59,11 +27,11 @@ def parse_full_name(name: str) -> str:
     return name.strip() if name else ""
 
 
-def template_pipeline(shortname: str, pipeline: Pipeline) -> str:
+def template_pipeline(short_name: str, pipeline: Pipeline) -> str:
     """populate jinja2 template with starter code for creating a pipeline"""
     env = jinja2.Environment(loader=jinja2.PackageLoader("garden_ai"))
     template = env.get_template("pipeline")
-    return template.render(shortname=shortname, pipeline=pipeline)
+    return template.render(short_name=short_name, pipeline=pipeline)
 
 
 @pipeline_app.callback()
@@ -76,12 +44,12 @@ def pipeline():
 
 @pipeline_app.command(no_args_is_help=True)
 def create(
-    shortname: str = typer.Argument(
+    short_name: str = typer.Argument(
         None,
         help=(
             "A valid python identifier (i.e. variable name) for the new pipeline. "
             "If not provided, one will be generated from your pipeline's title. "
-            "a [shortname].py file will be templated for your pipeline code. "
+            "a [short_name].py file will be templated for your pipeline code. "
         ),
     ),
     directory: Path = typer.Option(
@@ -92,7 +60,7 @@ def create(
         readable=True,
         resolve_path=True,
         help=(
-            "(Optional) if specified, target directory in which to generate the templated [shortname].py file. "
+            "(Optional) if specified, target directory in which to generate the templated [short_name].py file. "
             "Defaults to current directory."
         ),
     ),
@@ -151,7 +119,7 @@ def create(
 ):
     """Scaffold a new pipeline"""
 
-    shortname = clean_identifier(shortname or title)
+    short_name = clean_identifier(short_name or title)
 
     while not authors:
         # repeatedly prompt for at least one author until one is given
@@ -195,14 +163,14 @@ def create(
     )
 
     # template file
-    out_dir = Path(directory / shortname)
+    out_dir = Path(directory / short_name)
     if out_dir.exists():
-        logger.fatal(f"Error: {directory / shortname} already exists.")
+        logger.fatal(f"Error: {directory / short_name} already exists.")
         raise typer.Exit(code=1)
     else:
         out_dir.mkdir(parents=True)
         out_file = out_dir / "pipeline.py"
-        contents = template_pipeline(shortname, pipeline)
+        contents = template_pipeline(short_name, pipeline)
         with open(out_file, "w") as f:
             f.write(contents)
         with open(out_dir / "requirements.txt", "w") as f:
