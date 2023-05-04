@@ -17,12 +17,10 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
-    GlobusAPIError,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from mlflow.tracking.request_header.registry import _request_header_provider_registry
-from pydantic import ValidationError
 from rich import print
 from rich.prompt import Prompt
 
@@ -32,6 +30,8 @@ from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
+from garden_ai.globus_search import garden_search
+
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
@@ -40,8 +40,6 @@ from garden_ai.mlmodel import LocalModel, RegisteredModel, upload_to_model_regis
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
-# garden-dev index
-GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
 GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
     "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
@@ -54,10 +52,6 @@ logger = logging.getLogger()
 
 class AuthException(Exception):
     pass
-
-
-class RemoteGardenException(Exception):
-    """Exception raised when a requested Garden cannot be found"""
 
 
 GardenScopes = ScopeBuilder(
@@ -433,63 +427,17 @@ class GardenClient:
 
         return registered
 
-    def publish_garden_metadata(self, garden: Garden):
-        # Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
-        # to discover status, and returns the Task document:
-        # https://docs.globus.org/api/search/reference/get_task/#task
-        garden_meta = json.loads(garden.expanded_json())
-        gmeta_ingest = {
-            "subject": garden_meta["uuid"],
-            "visible_to": ["all_authenticated_users"],
-            "content": garden_meta,
-        }
-
-        publish_result = self.search_client.create_entry(
-            GARDEN_INDEX_UUID, gmeta_ingest
-        )
-
-        task_result = self.search_client.get_task(publish_result["task_id"])
-        while not task_result["state"] in {"FAILED", "SUCCESS"}:
-            time.sleep(5)
-            task_result = self.search_client.get_task(publish_result["task_id"])
-        return task_result
-
-    def search(self, query: str) -> str:
-        res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
-        return res.text
-
     def get_email(self) -> str:
         return local_data._get_user_email()
 
+    def publish_garden_metadata(self, garden: Garden):
+        return garden_search.publish_garden_metadata(garden, self.search_client)
+
+    def search(self, query: str) -> str:
+        return garden_search.search_gardens(query, self.search_client)
+
     def get_garden_by_doi(self, doi: str) -> Garden:
-        query = f'(doi: "{doi}")'
-        try:
-            res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
-        except GlobusAPIError as e:
-            raise RemoteGardenException(
-                f"Could not reach index {GARDEN_INDEX_UUID}"
-            ) from e
-        try:
-            garden_meta = json.loads(res.text)["gmeta"][0]["entries"][0]
-            garden = Garden(**garden_meta)
-        except Exception as e:
-            raise RemoteGardenException(
-                f"Could not parse search response {res.text}"
-            ) from e
-        return garden
+        return garden_search.get_remote_garden_by_doi(doi, self.search_client)
 
     def get_garden_by_id(self, uuid: str):
-        try:
-            res = self.search_client.get_subject(GARDEN_INDEX_UUID, uuid)
-        except GlobusAPIError as e:
-            raise RemoteGardenException(
-                f"Could not reach index {GARDEN_INDEX_UUID}"
-            ) from e
-        try:
-            garden_dict = json.loads(res.text)["entries"][0]
-            garden = Garden(**garden_dict)
-        except (ValueError, KeyError, IndexError, ValidationError) as e:
-            raise RemoteGardenException(
-                f"Could not parse search response {res.text}"
-            ) from e
-        return garden
+        return garden_search.get_remote_garden_by_uuid(uuid, self.search_client)
