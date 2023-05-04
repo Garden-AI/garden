@@ -396,6 +396,13 @@ class GardenClient:
             "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
         }
 
+    def _fresh_mlflow_vars(self):
+        self._set_up_mlflow_env()
+        return {
+            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
+            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
+        }
+
     def get_email(self) -> str:
         return local_data._get_user_email()
 
@@ -429,7 +436,11 @@ class GardenClient:
             raise GardenNotFoundException(
                 f"Could not find any Gardens with identifier {identifier}."
             )
-        self._attach_mlflow_vars_to_garden(registered)
+        self._set_up_mlflow_env()
+        registered._env_vars = {
+            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
+            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
+        }
         return registered
 
     def publish_garden_metadata(self, garden: Garden) -> GlobusHTTPResponse:
@@ -463,8 +474,9 @@ class GardenClient:
         Garden populated with metadata from remote metadata record.
 
         """
-        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
-        self._attach_mlflow_vars_to_garden(garden)
+        garden = garden_search.get_remote_garden_by_doi(
+            doi, self._fresh_mlflow_vars(), self.search_client
+        )
         return garden
 
     def get_garden_by_id(self, uuid: str) -> Garden:
@@ -480,6 +492,7 @@ class GardenClient:
         Garden populated with metadata from remote metadata record.
 
         """
-        garden = garden_search.get_remote_garden_by_uuid(uuid, self.search_client)
-        self._attach_mlflow_vars_to_garden(garden)
+        garden = garden_search.get_remote_garden_by_uuid(
+            uuid, self._fresh_mlflow_vars(), self.search_client
+        )
         return garden

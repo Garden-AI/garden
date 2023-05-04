@@ -13,7 +13,9 @@ class RemoteGardenException(Exception):
     """Exception raised when a requested Garden cannot be found"""
 
 
-def get_remote_garden_by_uuid(uuid: str, search_client: SearchClient) -> Garden:
+def get_remote_garden_by_uuid(
+    uuid: str, env_vars: dict, search_client: SearchClient
+) -> Garden:
     try:
         res = search_client.get_subject(GARDEN_INDEX_UUID, uuid)
     except GlobusAPIError as e:
@@ -26,8 +28,10 @@ def get_remote_garden_by_uuid(uuid: str, search_client: SearchClient) -> Garden:
                 f"Could not reach index {GARDEN_INDEX_UUID}"
             ) from e
     try:
-        garden_dict = json.loads(res.text)["entries"][0]
-        garden = Garden(**garden_dict)
+        garden_meta = json.loads(res.text)["entries"][0]["content"]
+        garden = Garden(**garden_meta)
+        garden._env_vars = env_vars
+        garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
     except (ValueError, KeyError, IndexError, ValidationError) as e:
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
@@ -35,7 +39,9 @@ def get_remote_garden_by_uuid(uuid: str, search_client: SearchClient) -> Garden:
     return garden
 
 
-def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
+def get_remote_garden_by_doi(
+    doi: str, env_vars: dict, search_client: SearchClient
+) -> Garden:
     query = f'(doi: "{doi}")'
     try:
         res = search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
@@ -45,8 +51,10 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
         parsed_result = json.loads(res.text)
         if parsed_result.get("count", 0) < 1:
             raise RemoteGardenException(f"Could not find garden with doi {doi}")
-        garden_meta = parsed_result["gmeta"][0]["entries"][0]
+        garden_meta = parsed_result["gmeta"][0]["entries"][0]["content"]
         garden = Garden(**garden_meta)
+        garden._env_vars = env_vars
+        garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
     except (ValueError, KeyError, IndexError, ValidationError) as e:
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
