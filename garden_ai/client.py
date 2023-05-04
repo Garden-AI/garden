@@ -419,3 +419,21 @@ class GardenClient:
 
     def get_email(self) -> str:
         return local_data._get_user_email()
+
+    # TODO: lots of error handling
+    def get_garden_by_doi(self, doi: str):
+        query = f'(doi: "{doi}")'
+        # If this fails: could not access search index
+        res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
+        # If this fails: malformed response
+        response_dict = json.loads(res.text)  # Add on trail o things
+        # If this fails: malformed OR nothing with that doi
+        garden_meta = response_dict["gmeta"][0]["entries"][0]
+        # If this fails ... malformed garden?
+        return Garden(**garden_meta)
+
+    def get_garden_by_id(self, uuid: str):
+        res = self.search_client.get_subject(GARDEN_INDEX_UUID, uuid)
+        response_dict = json.loads(res.text)
+        garden_meta = response_dict["entries"][0]
+        return Garden(**garden_meta)
