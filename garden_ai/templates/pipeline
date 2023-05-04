@@ -55,7 +55,7 @@ REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
 
 ################################### PIPELINE ####################################
 
-{{ shortname }}: Pipeline = client.create_pipeline(
+{{ short_name }}: Pipeline = client.create_pipeline(
     title="{{ pipeline.title }}",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,

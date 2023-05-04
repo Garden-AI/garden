@@ -3,10 +3,11 @@ import json
 import logging
 import re
 import sys
+from functools import wraps
 from inspect import Parameter, Signature, signature
 from itertools import zip_longest
-from typing import List, Optional, Tuple, Callable
-from functools import wraps
+from keyword import iskeyword
+from typing import Callable, List, Optional, Tuple
 
 import beartype.door
 import requests
@@ -286,3 +287,34 @@ def inject_env_kwarg(func: Callable):
         return func(*args, **kwargs)
 
     return inner
+
+
+def clean_identifier(name: str) -> str:
+    """Clean the name provided for use as a pipeline's python identifier."""
+    orig = name
+    # Remove invalid characters, replacing with _
+    name = re.sub("[^0-9a-zA-Z_]", "_", name)
+
+    # Remove leading characters until we find a letter
+    name = re.sub("^[^a-zA-Z]+", "", name)
+
+    # Remove doubled/trailing underscores
+    name = re.sub("__+", "_", name).strip("_")
+
+    if not name:
+        # name consisted only of invalid characters
+        raise ValueError(
+            "Invalid short_name. This argument should contain a valid python identifier "
+            "(i.e. something usable as a variable name)."
+        )
+
+    # truncate to sane length, though not strictly necessary
+    name = name[:50]
+
+    if iskeyword(name):
+        name += "_"
+
+    if name != orig:
+        logger.info(f'Generated valid short_name "{name}" from "{orig}".')
+
+    return name.lower()

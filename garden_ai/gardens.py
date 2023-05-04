@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ValidationError, validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, validator
 
 from garden_ai.utils.misc import JSON, garden_json_encoder
 
@@ -22,10 +22,6 @@ from .datacite import (
 from .pipelines import RegisteredPipeline
 
 logger = logging.getLogger()
-
-
-class PipelineNotFoundException(KeyError):
-    """Exception raised when a Garden references an unknown pipeline uuid"""
 
 
 class Garden(BaseModel):
@@ -116,6 +112,9 @@ class Garden(BaseModel):
     version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
     pipeline_ids: List[UUID] = Field(default_factory=list)
+    pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
+    _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
+    _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @validator("year")
     def valid_year(cls, year):
@@ -123,9 +122,37 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def collect_pipelines(self) -> List[RegisteredPipeline]:
-        """Collect the full ``RegisteredPipeline`` objects referred to by this garden's pipeline_ids."""
-        from .local_data import get_local_pipeline_by_uuid
+    @property
+    def pipelines(self) -> List[RegisteredPipeline]:
+        """Read-only list of the pipelines registered to a garden.
+
+        Note that these pipelines can also be accessed from the garden as attributes,
+        according to their short_name -- see also ``rename_pipeline``.
+        """
+        if not self._pipelines:
+            self._pipelines = self._collect_pipelines()
+        return self._pipelines
+
+    @property
+    def pipeline_names(self) -> List[str]:
+        """Read-only list of short_names of pipelines registered to a garden."""
+        names = []
+        for pipeline in self.pipelines:
+            name = self.pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
+            names += [name]
+        return names
+
+    def _collect_pipelines(self) -> List[RegisteredPipeline]:
+        """
+        Collect the pipeline objects which have been registered to this garden from local database.
+
+        Note: prefer the ``garden.pipelines` computed property to avoid running this many times.
+
+        Returns
+        -------
+        List[RegisteredPipeline]
+        """
+        from .local_data import PipelineNotFoundException, get_local_pipeline_by_uuid
 
         pipelines = []
         for uuid in self.pipeline_ids:
@@ -134,7 +161,11 @@ class Garden(BaseModel):
                 raise PipelineNotFoundException(
                     f"Could not find registered pipeline with id {uuid}."
                 )
+            # set env vars for pipeline to use when remotely executing
+            pipeline._env_vars = self._env_vars
+
             pipelines += [pipeline]
+
         return pipelines
 
     def expanded_metadata(self) -> Dict[str, Any]:
@@ -159,7 +190,7 @@ class Garden(BaseModel):
         """
 
         data = self.dict()
-        data["pipelines"] = [p.expanded_metadata() for p in self.collect_pipelines()]
+        data["pipelines"] = [p.expanded_metadata() for p in self.pipelines]
         return data
 
     def expanded_json(self) -> JSON:
@@ -196,7 +227,7 @@ class Garden(BaseModel):
                     relatedIdentifierType="DOI",
                     relationType="HasPart",
                 )
-                for p in self.collect_pipelines()
+                for p in self.pipelines
             ],
             version=self.version,
             descriptions=[
@@ -215,7 +246,7 @@ class Garden(BaseModel):
         Garden.
 
         This is mostly redundant for any already-set fields, as the validators
-        for those would have (hopefully) already run when they were set. However
+        for those would have (hopefully) already run when they were set. However,
         (because this is still python), it's relatively easy to *modify* some
         fields without ever *assigning* to them, which wouldn't trigger
         validation.
@@ -244,18 +275,45 @@ class Garden(BaseModel):
             raise
 
     def _sync_author_metadata(self):
-        """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata.
-
-        We'll probably want to tweak the behavior of this at some point once we
-        tease out what we really want `contributor` to entail, but for now this
-        seems like a sane default.
-        """
+        """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata."""
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
-        for pipe in self.collect_pipelines():
-            new_contributors = set(pipe.authors) | set(pipe.contributors)
+
+        for pipeline in self.pipelines:
+            new_contributors = set(pipeline.authors) | set(pipeline.contributors)
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
+        return
+
+    def __getattr__(self, name):
+        #  note: this is only called as a fallback when __getattribute__ raises an exception,
+        #  existing attributes are not affected by overriding this
+        message_extra = ""
+        for pipeline in self.pipelines:
+            short_name = pipeline.short_name
+            alias = self.pipeline_aliases.get(short_name) or short_name
+            if name == alias:
+                return pipeline
+            elif name == short_name:
+                message_extra = f" Did you mean {alias}?"
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'."
+            + message_extra
+        )
+
+    def __dir__(self):
+        # this gets us jupyter/ipython/repl tab-completion of pipeline names
+        return list(super().__dir__()) + self.pipeline_names
+
+    def rename_pipeline(self, old_name: str, new_name: str):
+        if hasattr(self, new_name):
+            raise ValueError(
+                f"Error: found existing {new_name} attribute on this garden."
+            )
+        if not new_name.isidentifier():
+            raise ValueError("new_name must be a valid identifier.")
+        self.pipeline_aliases[old_name] = new_name
         return

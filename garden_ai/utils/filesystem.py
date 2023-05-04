@@ -37,6 +37,8 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     for obj_name in dir(module):
         obj = getattr(module, obj_name)
         if isinstance(obj, Pipeline):
+            if obj.short_name is None:
+                obj.short_name = obj_name
             return obj
 
     raise PipelineLoadException(f"Could not find pipeline object in {python_file}")

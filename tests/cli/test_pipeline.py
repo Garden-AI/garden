@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from garden_ai.app.main import app
-from garden_ai.app.pipeline import clean_identifier
+from garden_ai.utils.misc import clean_identifier
 from garden_ai.client import GardenClient
 
 runner = CliRunner()

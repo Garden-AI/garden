@@ -7,6 +7,7 @@ import sys
 from datetime import datetime
 from functools import reduce
 from inspect import signature
+from keyword import iskeyword
 from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import UUID, uuid4
 
@@ -72,6 +73,7 @@ class Pipeline:
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
     model_uris: List[str] = Field(default_factory=list)
+    short_name: Optional[str] = Field(None)
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
@@ -84,6 +86,13 @@ class Pipeline:
         up at the class level, so can't be set dynamically for different instances.
         """
         raise NotImplementedError
+
+    @validator("short_name")
+    def is_valid_identifier(cls, name: Optional[str]) -> Optional[str]:
+        if name:
+            assert name.isidentifier(), "short_name must be a valid python identifier"
+            assert not iskeyword(name), "short_name must not be a reserved keyword"
+        return name
 
     @validator("steps")
     def check_steps_composable(cls, steps):
@@ -292,6 +301,7 @@ class RegisteredPipeline(BaseModel):
     doi: str = Field(...)
     func_uuid: Optional[UUID] = Field(...)
     title: str = Field(...)
+    short_name: str = Field(...)
     authors: List[str] = Field(...)
     # NOTE: steps are dicts here, not Step objects
     steps: List[Dict[str, Union[str, None, List]]] = Field(...)
@@ -300,7 +310,6 @@ class RegisteredPipeline(BaseModel):
     version: str = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    # requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
