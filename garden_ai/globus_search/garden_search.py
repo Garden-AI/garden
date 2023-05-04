@@ -20,7 +20,14 @@ def get_remote_garden_by_uuid(uuid: str, search_client: SearchClient) -> Garden:
     try:
         res = search_client.get_subject(GARDEN_INDEX_UUID, uuid)
     except GlobusAPIError as e:
-        raise RemoteGardenException(f"Could not reach index {GARDEN_INDEX_UUID}") from e
+        if e.code == 404:
+            raise RemoteGardenException(
+                f"Could not reach find garden with id {uuid}"
+            ) from e
+        else:
+            raise RemoteGardenException(
+                f"Could not reach index {GARDEN_INDEX_UUID}"
+            ) from e
     try:
         garden_dict = json.loads(res.text)["entries"][0]
         garden = Garden(**garden_dict)
@@ -38,9 +45,12 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
     except GlobusAPIError as e:
         raise RemoteGardenException(f"Could not reach index {GARDEN_INDEX_UUID}") from e
     try:
-        garden_meta = json.loads(res.text)["gmeta"][0]["entries"][0]
+        parsed_result = json.loads(res.text)
+        if parsed_result.get("count", 0) < 1:
+            raise RemoteGardenException(f"Could not find garden with doi {doi}")
+        garden_meta = parsed_result["gmeta"][0]["entries"][0]
         garden = Garden(**garden_meta)
-    except Exception as e:
+    except (ValueError, KeyError, IndexError, ValidationError) as e:
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
         ) from e

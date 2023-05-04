@@ -318,3 +318,25 @@ def second_draft_of_model():
             )
         ],
     )
+
+
+# Fixture JSON responses from the Search API
+def read_fixture_text(fname):
+    path = get_fixture_file_path(fname)
+    with open(path, "r") as f:
+        return f.read()
+
+
+@pytest.fixture
+def valid_search_by_subject():
+    return read_fixture_text("search_results/valid_search_by_subject.json")
+
+
+@pytest.fixture
+def valid_search_by_doi():
+    return read_fixture_text("search_results/valid_search_by_doi.json")
+
+
+@pytest.fixture
+def empty_search_by_doi():
+    return read_fixture_text("search_results/empty_search_by_doi.json")
