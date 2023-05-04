@@ -130,7 +130,7 @@ class Pipeline:
     def _collect_requirements(self):
         """collect requirements to pass to globus compute container service.
 
-        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies, self.models``
+        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies, self.model_uris``
         """
 
         # mapping of python-version-witness: python-version (collected for warning msg below)
@@ -375,7 +375,7 @@ class RegisteredPipeline(BaseModel):
         return cls(**data)
 
     def collect_models(self) -> List[RegisteredModel]:
-        """Collect the RegisteredModel objects if possible, and uri stubs if not."""
+        """Collect the RegisteredModel objects that are present in the local DB"""
         from .local_data import get_local_model_by_uri
 
         models = []

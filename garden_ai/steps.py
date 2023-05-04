@@ -82,7 +82,8 @@ class Step:
         purposes.
 
     model_uris: List[str]
-        A reference to the models used in this step, if any. Model uris as stored in MLFlow.
+        A reference to the models used in this step, if any.
+        Model identifiers as stored in MLFlow (not including the 'models:/' prefix).
 
     uuid: UUID
         short for "uuid"
