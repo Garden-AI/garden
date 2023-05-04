@@ -144,13 +144,8 @@ class Garden(BaseModel):
 
     def _set_pipelines_from_remote_metadata(self, pipeline_metadata: list[dict]):
         """
-        Collect the pipeline objects which have been registered to this garden from local database.
-
-        Note: prefer the ``garden.pipelines` computed property to avoid running this many times.
-
-        Returns
-        -------
-        List[RegisteredPipeline]
+        Given a list of dicts in RegisteredPipeline format (as from Globus Search),
+        attempt to convert them to RegisteredPipelines and use them to populate _pipelines.
         """
         pipelines = []
         for meta in pipeline_metadata:
