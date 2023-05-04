@@ -17,10 +17,12 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
+    GlobusAPIError,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from mlflow.tracking.request_header.registry import _request_header_provider_registry
+from pydantic import ValidationError
 from rich import print
 from rich.prompt import Prompt
 
@@ -55,6 +57,10 @@ logger = logging.getLogger()
 
 class AuthException(Exception):
     pass
+
+
+class RemoteGardenException(Exception):
+    """Exception raised when a requested Garden cannot be found"""
 
 
 GardenScopes = ScopeBuilder(
@@ -420,20 +426,35 @@ class GardenClient:
     def get_email(self) -> str:
         return local_data._get_user_email()
 
-    # TODO: lots of error handling
-    def get_garden_by_doi(self, doi: str):
+    def get_garden_by_doi(self, doi: str) -> Garden:
         query = f'(doi: "{doi}")'
-        # If this fails: could not access search index
-        res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
-        # If this fails: malformed response
-        response_dict = json.loads(res.text)  # Add on trail o things
-        # If this fails: malformed OR nothing with that doi
-        garden_meta = response_dict["gmeta"][0]["entries"][0]
-        # If this fails ... malformed garden?
-        return Garden(**garden_meta)
+        try:
+            res = self.search_client.search(GARDEN_INDEX_UUID, query, advanced=True)
+        except GlobusAPIError as e:
+            raise RemoteGardenException(
+                f"Could not reach index {GARDEN_INDEX_UUID}"
+            ) from e
+        try:
+            garden_meta = json.loads(res.text)["gmeta"][0]["entries"][0]
+            garden = Garden(**garden_meta)
+        except Exception as e:
+            raise RemoteGardenException(
+                f"Could not parse search response {res.text}"
+            ) from e
+        return garden
 
     def get_garden_by_id(self, uuid: str):
-        res = self.search_client.get_subject(GARDEN_INDEX_UUID, uuid)
-        response_dict = json.loads(res.text)
-        garden_meta = response_dict["entries"][0]
-        return Garden(**garden_meta)
+        try:
+            res = self.search_client.get_subject(GARDEN_INDEX_UUID, uuid)
+        except GlobusAPIError as e:
+            raise RemoteGardenException(
+                f"Could not reach index {GARDEN_INDEX_UUID}"
+            ) from e
+        try:
+            garden_dict = json.loads(res.text)["entries"][0]
+            garden = Garden(**garden_dict)
+        except (ValueError, KeyError, IndexError, ValidationError) as e:
+            raise RemoteGardenException(
+                f"Could not parse search response {res.text}"
+            ) from e
+        return garden
