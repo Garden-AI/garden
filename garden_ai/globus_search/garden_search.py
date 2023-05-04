@@ -30,12 +30,12 @@ def get_remote_garden_by_uuid(
     try:
         garden_meta = json.loads(res.text)["entries"][0]["content"]
         garden = Garden(**garden_meta)
-        garden._env_vars = env_vars
-        garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
     except (ValueError, KeyError, IndexError, ValidationError) as e:
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
         ) from e
+    garden._env_vars = env_vars
+    garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
 
 
@@ -53,12 +53,12 @@ def get_remote_garden_by_doi(
             raise RemoteGardenException(f"Could not find garden with doi {doi}")
         garden_meta = parsed_result["gmeta"][0]["entries"][0]["content"]
         garden = Garden(**garden_meta)
-        garden._env_vars = env_vars
-        garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
     except (ValueError, KeyError, IndexError, ValidationError) as e:
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
         ) from e
+    garden._env_vars = env_vars
+    garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
 
 
