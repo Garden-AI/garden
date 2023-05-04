@@ -81,6 +81,10 @@ class Step:
         The main researchers involved in producing the Step, for citation and discoverability
         purposes.
 
+    model_uris: List[str]
+        A reference to the models used in this step, if any.
+        Model identifiers as stored in MLFlow (not including the 'models:/' prefix).
+
     uuid: UUID
         short for "uuid"
 
@@ -124,6 +128,7 @@ class Step:
     conda_dependencies: List[str] = Field(default_factory=list)
     pip_dependencies: List[str] = Field(default_factory=list)
     python_version: Optional[str] = Field(None)
+    model_uris: List[str] = Field(default_factory=list)
 
     def __post_init_post_parse__(self):
         # like __post_init__, but called after pydantic validation
@@ -161,6 +166,7 @@ class Step:
                 self.python_version = model.python_version
                 self.conda_dependencies += model.conda_dependencies
                 self.pip_dependencies += model.pip_dependencies
+                self.model_uris += [model.model_full_name]
         return
 
     @validator("func")

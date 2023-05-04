@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai.app.console import console
+from garden_ai.mlmodel import RegisteredModel
 from garden_ai.datacite import (
     Contributor,
     Creator,
@@ -51,6 +52,7 @@ class Pipeline:
     authors (List[str]): A list of the authors of the pipeline.
     title (str): The title of the pipeline.
     steps (List[Step]): A list of the steps in the pipeline.
+    model_uris (List[str]): A list of model uris used in the pipeline.
 
     """
 
@@ -69,6 +71,7 @@ class Pipeline:
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
+    model_uris: List[str] = Field(default_factory=list)
 
     def _composed_steps(*args, **kwargs):
         """ "This method intentionally left blank"
@@ -127,7 +130,7 @@ class Pipeline:
     def _collect_requirements(self):
         """collect requirements to pass to globus compute container service.
 
-        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies``
+        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies, self.model_uris``
         """
 
         # mapping of python-version-witness: python-version (collected for warning msg below)
@@ -158,6 +161,7 @@ class Pipeline:
         for step in self.steps:
             self.conda_dependencies += step.conda_dependencies
             self.pip_dependencies += step.pip_dependencies
+            self.model_uris += step.model_uris
             py_versions[step.__name__] = step.python_version
 
         self.python_version = py_versions["pipeline"] or py_versions["system"]
@@ -301,6 +305,7 @@ class RegisteredPipeline(BaseModel):
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
+    model_uris: List[str] = Field(default_factory=list)
 
     def __call__(
         self,
@@ -368,3 +373,40 @@ class RegisteredPipeline(BaseModel):
         record = pipeline.json()
         data = json.loads(record)
         return cls(**data)
+
+    def collect_models(self) -> List[RegisteredModel]:
+        """Collect the RegisteredModel objects that are present in the local DB"""
+        from .local_data import get_local_model_by_uri
+
+        models = []
+        for uri in self.model_uris:
+            model = get_local_model_by_uri(uri)
+            if model:
+                models += [model]
+            else:
+                logger.warning(
+                    f"No record in local database for model {uri}. "
+                    "Published garden will not have detailed metadata for that model."
+                )
+        return models
+
+    def expanded_metadata(self) -> Dict[str, Any]:
+        """Helper: build the "complete" metadata dict with nested ``Model`` metadata.
+
+        Notes
+        ------
+        When serializing normally with ``registered_pipeline.{dict(), json()}``, only the
+        uris of the models in the pipeline are included.
+
+        This returns a superset of ``registered_pipeline.dict()``, so that the following holds:
+
+            pipeline == Registered_Pipeline(**pipeline.expanded_metadata()) == Registered_Pipeline(**pipeline.dict())
+
+        Returns
+        -------
+        Dict[str, Any]  ``RegisteredPipeline`` metadata dict augmented with a list of ``RegisteredModel`` metadata
+        """
+
+        data = self.dict()
+        data["models"] = [m.dict() for m in self.collect_models()]
+        return data

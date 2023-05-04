@@ -262,6 +262,10 @@ def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):
     return
 
 
+def test_step_collect_model(step_with_model):
+    assert step_with_model.model_uris == ["email@addr.ess-fake-model/fake-version"]
+
+
 def test_pipeline_collects_own_requirements(
     pipeline_using_step_with_model, tmp_requirements_txt
 ):
@@ -281,6 +285,12 @@ def test_pipeline_collects_step_requirements(
 
     for step_dependency in step_with_model.pip_dependencies:
         assert step_dependency in pipeline_using_step_with_model.pip_dependencies
+
+
+def test_pipeline_collects_step_models(pipeline_using_step_with_model):
+    assert pipeline_using_step_with_model.model_uris == [
+        "email@addr.ess-fake-model/fake-version"
+    ]
 
 
 def test_step_compose_ignores_defaults(tmp_requirements_txt):

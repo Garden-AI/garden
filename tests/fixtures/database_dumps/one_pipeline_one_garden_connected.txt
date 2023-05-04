@@ -19,7 +19,8 @@
           "output_info": "return: <class 'object'>",
           "conda_dependencies": [],
           "pip_dependencies": [],
-          "python_version": null
+          "python_version": null,
+          "model_uris": []
         },
         {
           "func": "another_step: (data: object) -> object",
@@ -31,7 +32,8 @@
           "output_info": "return: <class 'object'>",
           "conda_dependencies": [],
           "pip_dependencies": [],
-          "python_version": null
+          "python_version": null,
+          "model_uris": []
         },
         {
           "func": "run_inference: (input_arg: object) -> object",
@@ -43,7 +45,8 @@
           "output_info": "return: <class 'object'>",
           "conda_dependencies": [],
           "pip_dependencies": [],
-          "python_version": null
+          "python_version": null,
+          "model_uris": ["willengler@uchicago.edu-will-test-model/3"]
         }
       ],
       "contributors": [],
@@ -55,7 +58,27 @@
       "pip_dependencies": [
         "garden-ai@ git+https://github.com/garden-ai/garden.git"
       ],
-      "conda_dependencies": []
+      "conda_dependencies": [],
+      "model_uris": ["willengler@uchicago.edu-will-test-model/3"]
+    }
+  },
+  "models": {
+    "willengler@uchicago.edu-will-test-model/3": {
+      "model_name": "will-test-model",
+      "version": "3",
+      "user_email": "willengler@uchicago.edu",
+      "flavor": "sklearn",
+      "connections": [
+        {
+          "type": "dataset",
+          "relationship": "origin",
+          "doi": "10.18126/wg3u-g8vu",
+          "repository": "Foundry",
+          "url": "https://foundry-ml.org/#/datasets/10.18126%2Fwg3u-g8vu"
+        }
+      ],
+      "namespaced_model_name": "willengler@uchicago.edu-will-test-model",
+      "model_uri": "willengler@uchicago.edu-will-test-model/3"
     }
   },
   "gardens": {
