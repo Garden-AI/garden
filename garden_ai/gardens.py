@@ -142,15 +142,27 @@ class Garden(BaseModel):
             names += [name]
         return names
 
-    def _collect_pipelines_from_remote_metadata(self, pipeline_metadata: list[dict]):
+    def _set_pipelines_from_remote_metadata(self, pipeline_metadata: list[dict]):
+        """
+        Collect the pipeline objects which have been registered to this garden from local database.
+
+        Note: prefer the ``garden.pipelines` computed property to avoid running this many times.
+
+        Returns
+        -------
+        List[RegisteredPipeline]
+        """
         pipelines = []
         for meta in pipeline_metadata:
             try:
                 pipeline = RegisteredPipeline(**meta)
                 pipeline._env_vars = self._env_vars
                 pipelines.append(pipeline)
-            except ValidationError:
-                logger.warning(f"Could not parse pipeline: {json.dumps(meta)}")
+            except ValidationError as e:
+                logger.warning(
+                    f"Could not parse pipeline: {json.dumps(meta)}. {e.__str__()}"
+                )
+
         self._pipelines = pipelines
 
     def _collect_pipelines(self) -> List[RegisteredPipeline]:

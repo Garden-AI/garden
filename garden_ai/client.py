@@ -389,13 +389,6 @@ class GardenClient:
 
         return registered
 
-    def _attach_mlflow_vars_to_garden(self, garden: Garden):
-        self._set_up_mlflow_env()
-        garden._env_vars = {
-            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
-            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
-        }
-
     def _fresh_mlflow_vars(self):
         self._set_up_mlflow_env()
         return {

@@ -35,7 +35,7 @@ def get_remote_garden_by_uuid(
             f"Could not parse search response {res.text}"
         ) from e
     garden._env_vars = env_vars
-    garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
+    garden._set_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
 
 
@@ -58,7 +58,7 @@ def get_remote_garden_by_doi(
             f"Could not parse search response {res.text}"
         ) from e
     garden._env_vars = env_vars
-    garden._collect_pipelines_from_remote_metadata(garden_meta["pipelines"])
+    garden._set_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
 
 
