@@ -304,7 +304,7 @@ def clean_identifier(name: str) -> str:
     if not name:
         # name consisted only of invalid characters
         raise ValueError(
-            "Invalid short_name. This argument should contain a valid python identifier"
+            "Invalid short_name. This argument should contain a valid python identifier "
             "(i.e. something usable as a variable name)."
         )
 
@@ -315,6 +315,6 @@ def clean_identifier(name: str) -> str:
         name += "_"
 
     if name != orig:
-        print(f'Generated valid short_name "{name}" from "{orig}".')
+        logger.info(f'Generated valid short_name "{name}" from "{orig}".')
 
     return name.lower()

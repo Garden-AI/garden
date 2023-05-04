@@ -27,7 +27,7 @@ class PipelineNotFoundException(KeyError):
 
 
 class GardenNotFoundException(KeyError):
-    """Exception raised when a Garden references an unknown pipeline uuid"""
+    """Exception raised when no Garden is found with a given uuid"""
 
 
 class ResourceType(Enum):
