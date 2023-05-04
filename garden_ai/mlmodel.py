@@ -192,6 +192,7 @@ class _Model:
         model_full_name: str,
     ):
         self.model = None
+        self.model_full_name = model_full_name
         self.model_uri = f"models:/{model_full_name}"
         # extract dependencies without loading model into memory
         # make it easier for steps to infer

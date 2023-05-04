@@ -159,7 +159,7 @@ class Garden(BaseModel):
         """
 
         data = self.dict()
-        data["pipelines"] = [p.dict() for p in self.collect_pipelines()]
+        data["pipelines"] = [p.expanded_metadata() for p in self.collect_pipelines()]
         return data
 
     def expanded_json(self) -> JSON:
