@@ -17,6 +17,7 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
+    GlobusHTTPResponse,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
@@ -388,6 +389,16 @@ class GardenClient:
 
         return registered
 
+    def _attach_mlflow_vars_to_garden(self, garden: Garden):
+        self._set_up_mlflow_env()
+        garden._env_vars = {
+            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
+            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
+        }
+
+    def get_email(self) -> str:
+        return local_data._get_user_email()
+
     def get_registered_garden(self, identifier: Union[UUID, str]) -> Garden:
         """Return a registered ``Garden`` corresponding to the given uuid/doi.
 
@@ -418,26 +429,57 @@ class GardenClient:
             raise GardenNotFoundException(
                 f"Could not find any Gardens with identifier {identifier}."
             )
-
-        self._set_up_mlflow_env()
-        registered._env_vars = {
-            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
-            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
-        }
-
+        self._attach_mlflow_vars_to_garden(registered)
         return registered
 
-    def get_email(self) -> str:
-        return local_data._get_user_email()
+    def publish_garden_metadata(self, garden: Garden) -> GlobusHTTPResponse:
+        """
+        Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
+        to discover status, and returns the Task document.
+        Task document has a task["state"] field that can be FAILED or SUCCESS.
 
-    def publish_garden_metadata(self, garden: Garden):
+        Returns
+        -------
+        https://docs.globus.org/api/search/reference/get_task/#task
+        """
         return garden_search.publish_garden_metadata(garden, self.search_client)
 
     def search(self, query: str) -> str:
+        """
+        Given a Globus Search advanced query, returns JSON Globus Search result string with gardens as entries.
+        """
         return garden_search.search_gardens(query, self.search_client)
 
     def get_garden_by_doi(self, doi: str) -> Garden:
-        return garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        """
+        Queries Globus Search for the garden with this DOI.
 
-    def get_garden_by_id(self, uuid: str):
-        return garden_search.get_remote_garden_by_uuid(uuid, self.search_client)
+        Parameters
+        ----------
+        doi: The doi of the garden you want.
+
+        Returns
+        -------
+        Garden populated with metadata from remote metadata record.
+
+        """
+        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        self._attach_mlflow_vars_to_garden(garden)
+        return garden
+
+    def get_garden_by_id(self, uuid: str) -> Garden:
+        """
+        Queries Globus Search for the garden with this uuid.
+
+        Parameters
+        ----------
+        uuid: The uuid/garden_id of the garden you want.
+
+        Returns
+        -------
+        Garden populated with metadata from remote metadata record.
+
+        """
+        garden = garden_search.get_remote_garden_by_uuid(uuid, self.search_client)
+        self._attach_mlflow_vars_to_garden(garden)
+        return garden

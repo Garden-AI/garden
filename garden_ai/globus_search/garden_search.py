@@ -2,10 +2,7 @@ import json
 import time
 
 from garden_ai.gardens import Garden
-from globus_sdk import (
-    SearchClient,
-    GlobusAPIError,
-)
+from globus_sdk import SearchClient, GlobusAPIError, GlobusHTTPResponse
 from pydantic import ValidationError
 
 # garden-dev index
@@ -57,10 +54,9 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
     return garden
 
 
-def publish_garden_metadata(garden: Garden, search_client: SearchClient):
-    # Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
-    # to discover status, and returns the Task document:
-    # https://docs.globus.org/api/search/reference/get_task/#task
+def publish_garden_metadata(
+    garden: Garden, search_client: SearchClient
+) -> GlobusHTTPResponse:
     garden_meta = json.loads(garden.expanded_json())
     gmeta_ingest = {
         "subject": garden_meta["uuid"],
