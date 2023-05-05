@@ -142,7 +142,7 @@ class Garden(BaseModel):
             names += [name]
         return names
 
-    def _set_pipelines_from_remote_metadata(self, pipeline_metadata: list[dict]):
+    def _set_pipelines_from_remote_metadata(self, pipeline_metadata: List[dict]):
         """
         Given a list of dicts in RegisteredPipeline format (as from Globus Search),
         attempt to convert them to RegisteredPipelines and use them to populate _pipelines.
@@ -151,8 +151,13 @@ class Garden(BaseModel):
         for meta in pipeline_metadata:
             try:
                 pipeline = RegisteredPipeline(**meta)
-                pipeline._env_vars = self._env_vars
-                pipelines.append(pipeline)
+                if pipeline.uuid in self.pipeline_ids:
+                    pipeline._env_vars = self._env_vars
+                    pipelines.append(pipeline)
+                else:
+                    logger.warning(
+                        f"Remote pipeline {pipeline.uuid} not present in pipeline id list."
+                    )
             except ValidationError as e:
                 logger.warning(
                     f"Could not parse pipeline: {json.dumps(meta)}. {e.__str__()}"

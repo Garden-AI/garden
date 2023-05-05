@@ -399,13 +399,13 @@ class GardenClient:
     def get_email(self) -> str:
         return local_data._get_user_email()
 
-    def get_registered_garden(self, identifier: Union[UUID, str]) -> Garden:
+    def get_local_garden(self, identifier: Union[UUID, str]) -> Garden:
         """Return a registered ``Garden`` corresponding to the given uuid/doi.
 
         Any ``RegisteredPipelines`` registered to the Garden will be callable
         as attributes on the garden by their (registered) short_name, e.g.
             ```python
-                my_garden = client.get_registered_garden('garden-doi-or-uuid')
+                my_garden = client.get_local_garden('garden-doi-or-uuid')
                 #  pipeline would have been registered with short_name='my_pipeline'
                 my_garden.my_pipeline(*args, endpoint='where-to-execute')
             ```
@@ -454,38 +454,25 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_garden_by_doi(self, doi: str) -> Garden:
+    def get_published_garden(self, identifier: str) -> Garden:
         """
         Queries Globus Search for the garden with this DOI.
 
         Parameters
         ----------
-        doi: The doi of the garden you want.
+        identifier: The doi or uuid of the garden you want.
 
         Returns
         -------
         Garden populated with metadata from remote metadata record.
 
         """
-        garden = garden_search.get_remote_garden_by_doi(
-            doi, self._fresh_mlflow_vars(), self.search_client
-        )
-        return garden
-
-    def get_garden_by_id(self, uuid: str) -> Garden:
-        """
-        Queries Globus Search for the garden with this uuid.
-
-        Parameters
-        ----------
-        uuid: The uuid/garden_id of the garden you want.
-
-        Returns
-        -------
-        Garden populated with metadata from remote metadata record.
-
-        """
-        garden = garden_search.get_remote_garden_by_uuid(
-            uuid, self._fresh_mlflow_vars(), self.search_client
-        )
-        return garden
+        is_doi = "/" in str(identifier)
+        if is_doi:
+            return garden_search.get_remote_garden_by_doi(
+                identifier, self._fresh_mlflow_vars(), self.search_client
+            )
+        else:
+            return garden_search.get_remote_garden_by_uuid(
+                identifier, self._fresh_mlflow_vars(), self.search_client
+            )
