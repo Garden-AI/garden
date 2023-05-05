@@ -9,7 +9,8 @@ from globus_sdk import SearchAPIError
 from rich.prompt import Prompt
 
 from garden_ai import local_data
-from garden_ai.client import GARDEN_INDEX_UUID, GardenClient
+from garden_ai.client import GardenClient
+from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 
