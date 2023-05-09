@@ -1,3 +1,3 @@
-# single source of truth for package version,
-# see https://packaging.python.org/en/latest/single_source_version/
-__version__ = "0.0.1"
+from importlib.metadata import version
+
+__version__ = version("garden-ai")
