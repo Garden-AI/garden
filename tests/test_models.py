@@ -6,9 +6,8 @@ from typing import Any, List, Tuple, Union
 import pytest
 from pydantic import ValidationError
 
-from garden_ai import Garden, Pipeline, Step, step, RegisteredPipeline
-from garden_ai import local_data
-from garden_ai.mlmodel import upload_to_model_registry, LocalModel
+from garden_ai import Garden, Pipeline, RegisteredPipeline, Step, local_data, step
+from garden_ai.mlmodel import LocalModel, upload_to_model_registry
 
 
 def test_create_empty_garden(garden_client):
@@ -225,6 +224,13 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
             assert author in pipe.contributors
         for contributor in s.contributors:
             assert contributor in pipe.contributors
+
+
+def test_sdk_pinned_in_pipeline_deps(pipeline_toy_example):
+    # garden-ai should appear exactly once as an automatically-included dependency
+    assert 1 == sum(
+        req.startswith("garden-ai==") for req in pipeline_toy_example.pip_dependencies
+    )
 
 
 def test_upload_model(mocker, tmp_path):

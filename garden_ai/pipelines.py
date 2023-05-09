@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai.app.console import console
-from garden_ai.mlmodel import RegisteredModel
 from garden_ai.datacite import (
     Contributor,
     Creator,
@@ -26,6 +25,7 @@ from garden_ai.datacite import (
     Title,
     Types,
 )
+from garden_ai.mlmodel import RegisteredModel
 from garden_ai.steps import DataclassConfig, Step
 from garden_ai.utils.misc import (
     JSON,
@@ -34,6 +34,7 @@ from garden_ai.utils.misc import (
     safe_compose,
     validate_pip_lines,
 )
+from garden_ai.version import __version__
 
 logger = logging.getLogger()
 
@@ -70,7 +71,7 @@ class Pipeline:
     tags: List[str] = Field(default_factory=list, unique_items=True)
     requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
-    pip_dependencies: List[str] = Field(default_factory=list)
+    pip_dependencies: List[str] = Field(default=[f"garden-ai=={__version__}"])
     conda_dependencies: List[str] = Field(default_factory=list)
     model_uris: List[str] = Field(default_factory=list)
     short_name: Optional[str] = Field(None)
