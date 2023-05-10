@@ -34,7 +34,7 @@ from garden_ai.utils.misc import (
     safe_compose,
     validate_pip_lines,
 )
-from garden_ai.version import __version__
+from garden_ai._version import __version__
 
 logger = logging.getLogger()
 

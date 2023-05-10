@@ -4,13 +4,20 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "garden-ai"
-version = "0.0.0" # placeholder; version set by release
+version = "0.0.0" # placeholder
 description = "Garden: tools to simplify access to scientific AI advances."
-authors = [
-  "Owen Price Skelly <owenpriceskelly@uchicago.edu>",
-  "Will Engler <willengler@uchicago.edu>"
+# note to contributors: feel free to add yourselves to this list 🌱
+maintainers = [
+  "Owen Price Skelly",
+  "Will Engler",
+  "Ben Blaiszik",
+  "Ben Galewsky",
+  "Eric Blau",
+  "Steve Barnard"
 ]
-maintainers = ["Ben Blaiszik <blaiszik@uchicago.edu>"]
+authors = [
+  "Garden Team <labs@globus.org>",
+]
 license = "MIT"
 readme = "README.md"
 include = ["templates"]

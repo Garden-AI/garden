@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create false && \
-          poetry install --no-root --no-interaction --no-ansi --with=test
+          poetry install --no-interaction --no-ansi --with=test
       - name: black lint
         uses: psf/black@stable
         with:

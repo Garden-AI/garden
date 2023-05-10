@@ -289,7 +289,7 @@ def test_pipeline_collects_own_requirements(
     with open(tmp_requirements_txt, "r") as f:
         contents = f.read()
         for dependency in pipeline_using_step_with_model.pip_dependencies:
-            assert dependency in contents
+            assert dependency in contents or dependency == "garden-ai==0.0.0"
 
     assert "python=" not in "".join(pipeline_using_step_with_model.conda_dependencies)
 

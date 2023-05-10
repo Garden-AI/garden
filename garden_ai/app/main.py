@@ -7,7 +7,7 @@ import typer
 from garden_ai.app.garden import garden_app
 from garden_ai.app.model import model_app
 from garden_ai.app.pipeline import pipeline_app
-from garden_ai.version import __version__
+from garden_ai._version import __version__
 
 logger = logging.getLogger()
 
