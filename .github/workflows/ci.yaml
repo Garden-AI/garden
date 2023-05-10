@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create false && \
-          poetry install --no-root --no-interaction --no-ansi --with=test
+          poetry install --no-interaction --no-ansi --with=test
       - name: black lint
         uses: psf/black@stable
         with:
@@ -37,12 +37,12 @@ jobs:
         run: |
           # stop the build if there are any-flake8 comments
           flake8
-      - name: Perform Type Checking With mypy
-        run: |
-          mypy .
       - name: Test with pytest
         run: |
           pytest -m "not integration" --cov=./ --cov-report=xml -r sx
+      - name: Perform Type Checking With mypy
+        run: |
+          mypy .
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:

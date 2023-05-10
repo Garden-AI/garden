@@ -1,18 +1,36 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "garden-ai"
-version = "0.1.0"
+version = "0.0.0" # placeholder
 description = "Garden: tools to simplify access to scientific AI advances."
-authors = ["Your Name <you@example.com>"]
-license = "Apache-2.0"
+# note to contributors: feel free to add yourselves to this list 🌱
+maintainers = [
+  "Owen Price Skelly",
+  "Will Engler",
+  "Ben Blaiszik",
+  "Ben Galewsky",
+  "Eric Blau",
+  "Steve Barnard"
+]
+authors = [
+  "Garden Team <labs@globus.org>",
+]
+license = "MIT"
 readme = "README.md"
 include = ["templates"]
+homepage = "https://thegardens.ai"
+repository = "https://github.com/Garden-AI/garden"
+documentation = "https://garden-ai.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
 python = "^3.8"
 requests = "^2.20.0"
 globus-sdk = "^3.12.0"
 pydantic = "^1.10.2"
-typer = {extras = ["all"], version = "^0.7.0"}
+typer = { extras = ["all"], version = "^0.7.0" }
 beartype = "^0.12.0"
 jinja2 = "^3.1.2"
 mlflow = "2.2.1"
@@ -20,19 +38,19 @@ mlflow = "2.2.1"
 # Specifying a recent version of it helps avoid install issues on M1 Macs
 numba = "^0.56"
 boto3 = "^1.26.77"
-dparse = {extras = ["conda"], version = "^0.6.2"}
+dparse = { extras = ["conda"], version = "^0.6.2" }
 pyyaml = "^6.0"
 packaging = "^23.0"
 globus-compute-sdk = "^2.0.0"
 # Be sure to add additional flavors as optional below as support is added and update tool.poetry.extras
-torch = { version = "^2.0.0", optional = true}
+torch = { version = "^2.0.0", optional = true }
 tensorflow = { version = "^2.11.0", optional = true, python = ">=3.8,<3.12" }
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
 
 [tool.poetry.group.test]
-optional=true
+optional = true
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
@@ -43,11 +61,9 @@ mypy = "^0.981"
 types-requests = "^2.20.0"
 safety = "^2.3.1"
 types-pyyaml = "^6.0.12.8"
-torch = { version = "^2.0.0"}
+torch = { version = "^2.0.0" }
 tensorflow = { version = "^2.11.0", python = ">=3.8,<3.12" }
-coverage = {extras = ["toml"], version = "^7.2.3"}
-
-
+coverage = { extras = ["toml"], version = "^7.2.3" }
 
 [tool.poetry.group.develop.dependencies]
 sphinx = "4.3.2"
@@ -56,23 +72,6 @@ pre-commit = "^3.1.1"
 black = "^23.1.0"
 isort = "^5.12.0"
 
-[tool.isort]
-profile = "black"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.mypy]
-plugins = ["pydantic.mypy"]
-exclude = "/fixtures/"
-
-[tool.pytest.ini_options]
-markers = [
-        "integration: deselect with '-m \"not integration\"' to run unit tests only.",
-        "cli: deselect with '-m \"not cli\"' to disable CLI tests."
-]
-
 [tool.poetry.extras]
 # Be sure to add additional flavors to below as support is added and in the flavors array
 # Optional dependencies that can be added through `poetry install --extras "torch tensorflow"` etc. or `poetry install --extras "flavors"`
@@ -80,6 +79,19 @@ markers = [
 torch = ["torch"]
 tensorflow = ["tensorflow"]
 flavors = ["tensorflow", "torch"]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+exclude = "/fixtures/"
+
+[tool.pytest.ini_options]
+markers = [
+  "integration: deselect with '-m \"not integration\"' to run unit tests only.",
+  "cli: deselect with '-m \"not cli\"' to disable CLI tests."
+]
 
 [tool.coverage.run]
 source = ["garden_ai/"]
