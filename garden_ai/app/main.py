@@ -24,7 +24,7 @@ def show_version(show: bool):
     """Display the installed version and quit."""
     if show:
         rich.print(f"garden-ai {__version__}")
-    raise typer.Exit()
+        raise typer.Exit()
 
 
 @app.callback()
