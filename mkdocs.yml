@@ -1,0 +1,12 @@
+site_name: Garden-AI
+nav:
+  - Home: index.md
+  - User Guide:
+      - Introduction: user_guide/introduction.md
+      - Installation: user_guide/installation.md
+  - Developer Guide:
+      - Contributing: developer_guide/contributing.md
+  - Architecture Overview: architecture_overview.md
+  - API Reference: api_reference.md
+  - Changelog: changelog.md
+theme: readthedocs
