@@ -7,6 +7,19 @@ nav:
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
   - Architecture Overview: architecture_overview.md
-  - API Reference: api_reference.md
+  - API Reference:
+    - Models: Models.md
+    - Steps: Steps.md
+    - Pipelines: Pipelines.md
+    - Gardens: Gardens.md
   - Changelog: changelog.md
-theme: readthedocs
+theme: material
+plugins:
+  - search
+  - callouts
+  - mkdocstrings
+markdown_extensions:
+  - nl2br
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

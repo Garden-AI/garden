@@ -1,10 +1,9 @@
 # Contributing to Garden
 
-We're excited you're interested in contributing to Garden! This project is all about making it easier for the scientific community to adhere to FAIR (Findable, Accessible, Interoperable, Reusable) principles for AI/ML models. Through the concept of "Pipelines" and "Gardens", we aim to provide a platform for reproducible research and a discoverable metadata hub linking scientific ML models with publications, metrics, known limitations, and code. If you can DOI it, you can do it!
+We're excited you're interested in contributing to Garden! This project is all about making it easier for the scientific community to adhere to FAIR (Findable, Accessible, Interoperable, Reusable) principles for AI/ML models. Garden is an initiative by [Globus Labs](https://labs.globus.org) at UChicago and leverages Globus computing and data storage resources such as Globus Compute (formerly funcx).
 
-Garden is an initiative by Globus Labs at UChicago and leverages Globus computing and data storage resources such as Globus Compute (formerly funcx).
 
-## Getting Started
+## Installation
 
 The Garden project is hosted on GitHub, and we use the `poetry` tool for package and dependency management. To get started, clone the repository and use `poetry` to install dependencies:
 
@@ -14,9 +13,15 @@ cd garden
 poetry install --with=test,develop
 ```
 
+Note that installing the test and develop groups won't install specific ML libraries such as `tensorflow` or `pytorch`, which tend to cause problems -- install these with `poetry install --all-extras`, or specific flavors with `poetry install --extras "tensorflow"` etc.
+
+You also might encounter problems with the `poetry.lock` file, which we keep under version control -- feel free to generate a new one with `poetry lock --no-update` and include the changes in your PR, even if `pyproject.toml` doesn't change.
+
+
 ## Code of Conduct
 
 We believe in creating a welcoming and inclusive environment for all contributors. With that in mind, all contributors are expected to follow the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/).
+
 
 ## Contribution Guidelines
 
@@ -36,7 +41,7 @@ We welcome contributions of all types and levels, whether you're fixing bugs, ad
 
 ## Coding Standards
 
-Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format code with `black`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install). Then run `pre-commit install` from the garden directory.
+Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format code with `black`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install) -- this should already be installed if you ran `poetry install --with=develop`, though `pre-commit` may not be on your path. Then run `pre-commit install` from the garden directory.
 
 ## Testing
 
@@ -46,6 +51,6 @@ We use `pytest` for testing. After making changes, make sure all tests pass. You
 poetry run pytest -m "not integration"
 ```
 
-Integration tests may be useful as a reference, but at the current stage in the project's development not as likely to pass for outside contributors and are not currently part of the CI build.
+Integration tests may be useful as a reference, but at the current stage in the project's development not likely to pass for outside contributors and are not currently part of the CI build.
 
-New contributions should include tests. If you're adding a new feature, write tests that cover your feature. If you're fixing a bug, write a test that would have caught the bug.
+**New contributions should include tests.** If you're adding a new feature, write tests that cover your feature. If you're fixing a bug, write a test that would have caught the bug.

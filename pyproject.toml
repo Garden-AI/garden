@@ -8,6 +8,7 @@ version = "0.0.0" # placeholder
 description = "Garden: tools to simplify access to scientific AI advances."
 # note to contributors: feel free to add yourselves to this list 🌱
 maintainers = [
+  "Globus Labs <labs@globus.org>",
   "Owen Price Skelly",
   "Will Engler",
   "Ben Blaiszik",
@@ -61,8 +62,6 @@ mypy = "^0.981"
 types-requests = "^2.20.0"
 safety = "^2.3.1"
 types-pyyaml = "^6.0.12.8"
-torch = { version = "^2.0.0" }
-tensorflow = { version = "^2.11.0", python = ">=3.8,<3.12" }
 coverage = { extras = ["toml"], version = "^7.2.3" }
 
 [tool.poetry.group.develop.dependencies]
@@ -71,6 +70,12 @@ sphinx-rtd-theme = "^1.0.0"
 pre-commit = "^3.1.1"
 black = "^23.1.0"
 isort = "^5.12.0"
+mkdocs = "^1.4.3"
+mkdocs-callouts = "^1.9.0"
+mkdocs-extensions = "^0.1.2"
+pymdown-extensions = "^10.0.1"
+mkdocs-material = "^9.1.13"
+mkdocstrings = {extras = ["python"], version = "^0.21.2"}
 
 [tool.poetry.extras]
 # Be sure to add additional flavors to below as support is added and in the flavors array
