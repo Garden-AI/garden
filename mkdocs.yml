@@ -17,7 +17,13 @@ theme: material
 plugins:
   - search
   - callouts
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            group_by_category: true
+            show_category_heading: true
+            show_bases: false
 markdown_extensions:
   - nl2br
   - admonition

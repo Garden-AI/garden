@@ -25,7 +25,7 @@ logger = logging.getLogger()
 
 
 class Garden(BaseModel):
-    """Object representation of a Garden™.
+    """Object representation of a Garden.
 
     Required Attributes
     --------------------
