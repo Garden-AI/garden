@@ -1,3 +1,4 @@
+import os
 import pathlib
 import pickle
 from enum import Enum
@@ -6,7 +7,6 @@ from typing import List
 
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
-import os
 from pydantic import BaseModel, Field, validator
 
 from garden_ai.utils.misc import read_conda_deps
@@ -38,17 +38,19 @@ class DatasetConnection(BaseModel):
 
 class LocalModel(BaseModel):
     """
-    The ``LocalModel`` class represents a trained ML model
-    that a user wants to register with Garden.
+    The ``LocalModel`` class represents a pre-trained ML model that a user wants to register with Garden.
 
-    Args:
-    model_name (str) A short and descriptive name of the model
-    flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
-    extra_pip_requirements (List[str]), optional
-        A list of additional pip requirements needed to load and/or run the model.
-        Defaults to None.
-    local_path (str): Where the model is located on disk. Can be a file or a directory depending on the flavor.
-    user_email (str): The email address of the user uploading the model.
+    Attributes:
+        model_name (str):
+            A short and descriptive name of the model. Model names can only contain alphanumeric characters, hyphens, and underscores.
+        flavor (str):
+            The framework used for this model. One of "sklearn", "tensorflow", or "torch".
+        extra_pip_requirements (List[str]):
+            A list of additional pip requirements needed to load and/or run the model.
+        local_path (str):
+            Where the model is located on disk. Can be a file or a directory depending on the flavor.
+        user_email (str):
+            The email address of the user uploading the model.
 
     """
 
@@ -84,17 +86,17 @@ class LocalModel(BaseModel):
 
 class RegisteredModel(BaseModel):
     """
-    The ``RegisteredModel`` class represents all the metadata
-    we want to publicly expose about an ML model that has been registered with Garden.
+    The ``RegisteredModel`` class represents all the metadata we want to \
+    publicly expose about an ML model that has been registered with Garden.
 
-    Args:
-    model_name (str): A short and descriptive name of the model
-    version (str): Version string like "1" or "2" for this model.
-    flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
-    connections (List[DatasetConnection]):
-        A list of dataset records that the model was trained on.
-    local_path (str): Where the model is located on disk. Can be a file or a directory depending on the flavor.
-    user_email (str): The email address of the user uploading the model.
+    Attributes:
+        model_name (str): A short and descriptive name of the model
+        version (str): Version string like "1" or "2" for this model.
+        flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
+        connections (List[DatasetConnection]):
+            A list of dataset records that the model was trained on.
+        local_path (str): Where the model is located on disk. Can be a file or a directory depending on the flavor.
+        user_email (str): The email address of the user uploading the model.
 
     """
 
@@ -115,21 +117,18 @@ class RegisteredModel(BaseModel):
 def upload_to_model_registry(local_model: LocalModel) -> RegisteredModel:
     """Upload a model to Garden-AI's MLflow model registry.
 
-    Parameters
-    ----------
-    local_model : LocalModel
-        The model to upload.
+    Args:
+        local_model: The model to upload.
 
-    Returns
-    -------
-    RegisteredModel
-        Includes the full model_uri, which can be used to fetch the model with a call to ``Model(...)``.
+    Returns:
+        RegisteredModel with the full model_uri, which can be used to fetch the \
+        model with a call to ``Model(...)``.
 
-    Raises
-    ------
-    ModelUploadException
-        If an error occurs during the upload process, such as failure to open or
-        parse the model, or failure to retrieve the latest version of the model.
+    Raises:
+        ModelUploadException:
+            If an error occurs during the upload process, such as failure to \
+            open or parse the model, or failure to retrieve the latest version \
+            of the model.
     """
     _push_model_to_registry(local_model)
     return _assemble_metadata(local_model)
@@ -242,39 +241,38 @@ class _Model:
 def Model(full_model_name: str) -> _Model:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
-    Tip: This is meant to be used as a "default argument" in a
-    ``@step``-decorated function. This allows the step to collect model-specific
-    dependencies, including any user-specified dependencies when the model was
-    registered.
+    Tip:
+        This is meant to be used as a "default argument" in a `@step`-decorated \
+        function. This allows the step to collect model-specific dependencies, \
+        including any user-specified dependencies when the model was registered.
 
     Example:
-    --------
-        ```python
-        import garden_ai
-        from garden_ai import step
-        ....
-        # OK for preceding step to return only a DataFrame
-        @step
-        def run_inference(
-            my_data: pd.DataFrame,  # no default
-            my_model = garden_ai.Model("me@uni.edu-myModel/2"),  # NOTE: used as default
-        ) -> MyResultType:
-        '''Run inference on DataFrame `my_data`, returned by previous step.'''
+    ```python
+    import garden_ai
+    from garden_ai import step
+    ....
+    # OK for preceding step to return only a DataFrame
+    @step
+    def run_inference(
+        my_data: pd.DataFrame,  # no default
+        my_model = garden_ai.Model("me@uni.edu-myModel/2"),  # NOTE: used as default
+    ) -> MyResultType:
+    '''Run inference on DataFrame `my_data`, returned by previous step.'''
 
-            result = my_model.predict(my_data)
-            return result
-        ```
+        result = my_model.predict(my_data)
+        return result
+    ```
 
     Notes:
-    ------
-    The object returned by this function waits as long as possible - i.e. until
-    the model actually needs to make a prediction - to actually deserialize the
-    registered model. This is done so that ``Model('me@uni.edu-myModel/2)`` in a
-    step (like above) an argument default is lighter-weight when the function itself
-    is serialized for remote execution of a pipeline.
+        The object returned by this function waits as long as possible - i.e. \
+        until the model actually needs to make a prediction - to actually \
+        deserialize the registered model. This is done so that \
+        ``Model('me@uni.edu-myModel/2)`` in a step (like above) an argument \
+        default is lighter-weight when the function itself is serialized for \
+        remote execution of a pipeline.
 
-    This function is also memoized, so the same object (which, being lazy, may
-    or may not have actually loaded the model yet) will be returned if it is
-    called multiple times with the same model_full_name.
+        This function is also memoized, so the same object (which, being lazy, \
+        may or may not have actually loaded the model yet) will be returned if \
+        it is called multiple times with the same model_full_name.
     """
     return _Model(full_model_name)

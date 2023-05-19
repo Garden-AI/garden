@@ -16,6 +16,7 @@ import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
 
+from garden_ai._version import __version__
 from garden_ai.app.console import console
 from garden_ai.datacite import (
     Contributor,
@@ -34,28 +35,68 @@ from garden_ai.utils.misc import (
     safe_compose,
     validate_pip_lines,
 )
-from garden_ai._version import __version__
 
 logger = logging.getLogger()
 
 
 @dataclass(config=DataclassConfig)
 class Pipeline:
-    """
-    The ``Pipeline`` class represents a sequence of steps
-    that form a pipeline. It has a list of authors, a title,
-    and a list of steps. The __call__ method can be used
-    to execute the pipeline by calling each Step in order
-    with the output of the previous Step as the input to the
-    next Step. The register method can be used to register
-    each Step in the pipeline.
+    """The `Pipeline` class represents a sequence of simpler `steps` composed \
+    together to perform a more complex task, typically running inference with a \
+    pretrained AI/ML Model.
 
-    Args:
-    authors (List[str]): A list of the authors of the pipeline.
-    title (str): The title of the pipeline.
-    steps (List[Step]): A list of the steps in the pipeline.
-    model_uris (List[str]): A list of model uris used in the pipeline.
+    See also: [RegisteredPipeline][garden_ai.pipelines.RegisteredPipeline]
 
+    Attributes:
+        title:
+            Human-readable title, as should appear in citations. (required)
+        authors:
+            The main researchers involved in producing the Pipeline. At least \
+            one author is required in order to register a DOI. Personal name \
+            format should be: "Family, Given". Order is preserved. (at least one required)
+        year:
+            Year that should appear in citations. Required, defaults to current year.
+        steps:
+            Pipeline's steps in the order they should be invoked. Input/output \
+            type annotations must agree. (at least one required)
+        contributors:
+            Acknowledge contributors to the development of this pipeline. These\
+            should be distinct from `authors`.
+        description:
+            Human-readable description of the pipeline.
+        short_name:
+            Python identifier (i.e. variable name) to be used when accessing the \
+            pipeline as an attribute on a Garden, e.g. \
+            `my_garden.pipeline_short_name(...)`. Inferred from pipeline source \
+            code if not specified.
+        version:
+            optional, defaults to "0.0.1".
+        tags:
+            tags, keywords or key phrases pertaining to the pipeline.
+        requirements_file:
+            full path/to/requirements.txt containing any additional dependencies\
+            of the pipeline. Dependencies should be pinned.
+        python_version:
+            If set, the version of python to use in the container. If unset, \
+            tries to infer the version used by models in the pipeline or the \
+            user's current version as a fallback.
+        doi:
+            Should not be set by users. DOI minted with DataCite.
+        func_uuid:
+            Should not be set by users. Globus Compute function UUID corresponding to \
+            the pipeline's composed steps.
+        pip_dependencies:
+            Optional, populated by contents of `requirements_file` if specified. \
+            Contains the currently installed version of the garden-ai package by \
+            default, so that the sdk is pinned in the container.
+        conda_dependencies:
+            Optional, populated by `requirements_file` if it points to a \
+            conda.yml environment file.
+        model_uris:
+            Optional, collected from steps' metadata.
+        uuid:
+            Populated by default, should not be set or modified by users. Used \
+            to keep local storage coherent with the module defining a pipeline.
     """
 
     title: str = Field(...)
@@ -66,7 +107,7 @@ class Pipeline:
     uuid: UUID = Field(default_factory=uuid4)
     func_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
-    version: str = "0.0.1"
+    version: Optional[str] = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
     requirements_file: Optional[str] = Field(None)
@@ -200,36 +241,25 @@ class Pipeline:
 
         To run a Pipeline on a remote endpoint, see ``RegisteredPipeline``.
 
-        Parameters
-        ----------
-        *args : Any
-            Input data passed through the first step in the pipeline
-        **kwargs : Any
-            Additional keyword arguments passed directly to the first step in
-            the pipeline.
+        Args:
+            *args : Any
+                Input data passed through the first step in the pipeline
+            **kwargs : Any
+                Additional keyword arguments passed directly to the first step in the pipeline.
+        Returns:
+            Results from the pipeline's composed steps called with the given input data.
 
-        Returns
-        -------
-        Any
-            Results from the pipeline's composed steps called with the given
-            input data.
-
-        Raises
-        ------
-        Exception
-            Any exceptions raised over the course of executing the pipeline
-            function.
-
+        Raises:
+            Exception:
+                Any exception raised over the course of executing the pipeline's composed steps.
         """
         return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):
-        """Finish initializing the pipeline after validators have run.
-
-        - Build a single composite function from this pipeline's steps
-        - Update metadata like signature, authors w/r/t underlying steps
-        - Infer conda and pip dependencies from steps and requirements file
-        """
+        # Finish initializing the pipeline after validators have run.
+        # - Build a single composite function from this pipeline's steps
+        # - Update metadata like signature, authors w/r/t underlying steps
+        # - Infer conda and pip dependencies from steps and requirements file
         self._composed_steps = reduce(safe_compose, reversed(self.steps))
         self.__signature__ = signature(self._composed_steps)
         self._sync_author_metadata()
@@ -246,17 +276,16 @@ class Pipeline:
         return
 
     def json(self) -> JSON:
+        """Helper: serialize pipeline metadata to JSON string."""
         self._sync_author_metadata()
         return json.dumps(self, default=garden_json_encoder)
 
     def datacite_json(self) -> JSON:
-        """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string.
+        """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
+        # Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        # https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+        # The JSON returned by this method would be the "attributes" part of a DataCite request body.
 
-        Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
-        https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
-
-        The JSON returned by this method would be the "attributes" part of a DataCite request body.
-        """
         self._sync_author_metadata()
         return DataciteSchema(
             types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
@@ -277,6 +306,7 @@ class Pipeline:
         ).json()
 
     def dict(self) -> Dict[str, Any]:
+        """Helper: serialize pipeline metadata to dictionary."""
         d = {}
         for key in self.__dataclass_fields__:
             val = getattr(self, key)
@@ -287,15 +317,32 @@ class Pipeline:
 
 
 class RegisteredPipeline(BaseModel):
-    """Metadata of a completed and registered ``Pipeline`` object.
+    """Metadata of a completed and registered `Pipeline` object. Can be added to a Garden and execute on a remote Globus Compute endpoint.
 
-    Unlike a plain ``Pipeline``, this object's ``__call__`` executes a
-    registered function remotely.
+    Unlike `Pipelines`, `RegisteredPipelines` can be described completely by JSON (since they don't need direct references to functions).
 
-    Note that this has no direct references to the underlying steps/function
-    objects, so it cannot be used to execute a pipeline locally.
+    Note:
+        Attributes are nearly identical to [Pipeline][garden_ai.pipelines.Pipeline], with a few exceptions.
 
-    Otherwise, all fields should be the same.
+    Attributes:
+        title:
+        authors:
+        year:
+        steps (list[dict]):
+            metadata of pipeline steps, rather than steps themselves.
+        contributors:
+        description:
+        short_name:
+        version:
+        tags:
+        python_version:
+        doi:
+        func_uuid:
+        pip_dependencies:
+        conda_dependencies:
+        model_uris:
+        uuid:
+            Required, should not be set or modified.
     """
 
     uuid: UUID = Field(...)
@@ -321,36 +368,26 @@ class RegisteredPipeline(BaseModel):
         self,
         *args: Any,
         endpoint: Union[UUID, str] = None,
-        timeout=None,
         **kwargs: Any,
     ) -> Any:
         """Remotely execute this ``RegisteredPipeline``'s function from its uuid. An endpoint must be specified.
 
-        Parameters
-        ----------
-        *args : Any
-            Input data passed through the first step in the pipeline
-        endpoint : Union[UUID, str, None]
-            A valid globus compute endpoint UUID
-        timeout : Optional[int]
-            time (in seconds) to wait for results. Pass `None` to wait
-            indefinitely (default behavior).
-        **kwargs : Any
-            Additional keyword arguments passed directly to the first step in
-            the pipeline.
+        Args:
+            *args (Any):
+                Input data passed through the first step in the pipeline
+            endpoint (UUID | str | None):
+                Where to run the pipeline. Must be a valid Globus Compute endpoint UUID.
+            **kwargs (Any):
+                Additional keyword arguments passed directly to the first step in the pipeline.
 
-        Returns
-        -------
-        Any
-            Results from the pipeline's composed steps called with the given
-            input data.
+        Returns:
+            Results from the pipeline's composed steps called with the given input data.
 
-        Raises
-        ------
-        ValueError
-            If no endpoint is specified
-        Exception
-            Any exceptions raised over the course of executing the pipeline
+        Raises:
+            ValueError:
+                If no endpoint is specified
+            Exception:
+                Any exceptions raised over the course of executing the pipeline
 
         """
         if not endpoint:
@@ -377,6 +414,13 @@ class RegisteredPipeline(BaseModel):
 
     @classmethod
     def from_pipeline(cls, pipeline: Pipeline) -> RegisteredPipeline:
+        """Helper: instantiate a `RegisteredPipeline` directly from a `Pipeline` instance.
+
+        Raises:
+            ValidationError:
+                If any fields required by `RegisteredPipeline` but not \
+                `Pipeline` (e.g. `doi`, `func_uuid`) are not set.
+        """
         # note: we want every RegisteredPipeline to be re-constructible
         # from mere json, so as a sanity check we use pipeline.json() instead of
         # pipeline.dict() directly
@@ -385,7 +429,7 @@ class RegisteredPipeline(BaseModel):
         return cls(**data)
 
     def collect_models(self) -> List[RegisteredModel]:
-        """Collect the RegisteredModel objects that are present in the local DB"""
+        """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_uris`."""
         from .local_data import get_local_model_by_uri
 
         models = []
@@ -403,20 +447,16 @@ class RegisteredPipeline(BaseModel):
     def expanded_metadata(self) -> Dict[str, Any]:
         """Helper: build the "complete" metadata dict with nested ``Model`` metadata.
 
-        Notes
-        ------
-        When serializing normally with ``registered_pipeline.{dict(), json()}``, only the
-        uris of the models in the pipeline are included.
+        Notes:
+            When serializing normally with ``registered_pipeline.{dict(), \
+            json()}``, only the uris of the models in the pipeline are included. \
+            This returns a superset of `registered_pipeline.dict()`, so that the \
+            following holds: \
+                `pipeline == Registered_Pipeline(**pipeline.expanded_metadata()) == Registered_Pipeline(**pipeline.dict())`
 
-        This returns a superset of ``registered_pipeline.dict()``, so that the following holds:
-
-            pipeline == Registered_Pipeline(**pipeline.expanded_metadata()) == Registered_Pipeline(**pipeline.dict())
-
-        Returns
-        -------
-        Dict[str, Any]  ``RegisteredPipeline`` metadata dict augmented with a list of ``RegisteredModel`` metadata
+        Returns:
+            ``RegisteredPipeline`` metadata dict augmented with a list of ``RegisteredModel`` metadata
         """
-
         data = self.dict()
         data["models"] = [m.dict() for m in self.collect_models()]
         return data
