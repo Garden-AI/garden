@@ -317,9 +317,9 @@ class Pipeline:
 
 
 class RegisteredPipeline(BaseModel):
-    """Metadata of a completed and registered `Pipeline` object. Capabable of being added to a Garden and executing on a remote Globus Compute endpoint.
+    """Metadata of a completed and registered `Pipeline` object. Can be added to a Garden and execute on a remote Globus Compute endpoint.
 
-    Also unlike `Pipelines`, `RegisteredPipelines` can be described completely by JSON (since they don't need direct references to functions).
+    Unlike `Pipelines`, `RegisteredPipelines` can be described completely by JSON (since they don't need direct references to functions).
 
     Note:
         Attributes are nearly identical to [Pipeline][garden_ai.pipelines.Pipeline], with a few exceptions.
