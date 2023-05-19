@@ -215,3 +215,52 @@ def register(
     func_uuid = client.register_pipeline(user_pipeline, container_uuid)
     console.print(f"Created function {func_uuid}")
     console.print("Done! Pipeline is registered.")
+
+
+@pipeline_app.command()
+def shell(
+    file_location: str,
+    requirements: str,
+    env_name: str,
+):
+    import os
+    import subprocess
+    import tempfile
+
+    # Create a virtual environment in the temp directory using a context manager 
+    # on exit closes and removes itself unless flagged not to
+    temp_dir = os.path.join(os.path.sep, "tmp", env_name)
+    os.makedirs(temp_dir, exist_ok=True)
+    subprocess.run(["python", "-m", "venv", temp_dir])
+
+    # Install the requirements
+    print("Installing requirements...")
+    subprocess.run(
+        [
+            os.path.join(temp_dir, "bin", "pip"),
+            "install",
+            "-r",
+            requirements,
+        ]
+    )
+
+    # Activate the environment
+    activate_script = os.path.join(temp_dir, "bin", "activate")
+    if os.path.isfile(activate_script):
+        activate_command = f"source {activate_script}"
+    else:
+        activate_command = f"{activate_script}"
+    print("Environment activated. You can now test the installed packages.")
+
+    # Prompt for input to test the environment
+    prompt_message = "Please enter input to test the environment: "
+    user_input = input(prompt_message)
+
+    # Deactivate the environment
+    print("Environment deactivated.")
+
+    # Clean up the temporary directory
+    print("Cleaning up temporary directory...")
+    os.rmdir(temp_dir)
+
+    print("Pipeline environment testing complete.")
