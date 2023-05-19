@@ -225,7 +225,7 @@ class GardenClient:
                 subjects=["Peas"]
             )
             pea_garden.year = 1863
-            pea_garden.subjects += ["Genetics"] # (didn't have the word for it earlier)
+            pea_garden.tags += ["Genetics"] # (didn't have the word for it earlier)
         """
         data = dict(kwargs)
         if authors:
