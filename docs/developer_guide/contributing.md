@@ -43,6 +43,41 @@ We welcome contributions of all types and levels, whether you're fixing bugs, ad
 
 Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format code with `black`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install) -- this should already be installed if you ran `poetry install --with=develop`, though `pre-commit` may not be on your path. Then run `pre-commit install` from the garden directory.
 
+## Documentation
+We use [mkdocs](https://www.mkdocs.org/user-guide/configuration/) to build this documentation, which should have been installed as a dependency if you ran `poetry install --with=develop`. To preview the docs locally, `poetry run mkdocs serve` (or just `mkdocs serve` in an active `poetry shell`). A documentation preview will also be linked automatically whenever you open a new PR.
+
+### Docstrings / API documentation
+We use the mkdocs extension `mkdocstrings` to parse google-style python docstrings and build some API docs automatically. The actual contents of the generated docs page is configured in the corresponding `.md` file, e.g.:
+
+```
+<!--- docs/Pipelines.md --->
+::: garden_ai.pipelines
+    options:
+        show_root_heading: True
+        show_object_full_path: True
+        members:
+            - Pipeline
+            - RegisteredPipeline
+```
+The mkdocstrings options are documented [here](https://mkdocstrings.github.io/python/usage/configuration/general/).
+
+This also means you can do a few things inside of docstrings to add some polish to the auto-generated docs:
+
+- To link to another object's automatically generated docs from within a docstring, you can use `[link text][dotted.path.to.object]`.
+- You can also use certain keywords such as `Attributes:` or `Raises:` in docstrings to generate e.g. a nicely formatted table of attributes on a class. These keywords/syntax are documented [here](https://mkdocstrings.github.io/griffe/docstrings/).
+- Using the same syntax with a non-keyword (e.g. `Notes:`) will generate an admonition/callout instead.
+
+> [!NOTE] Admonition
+> You can generate admonitions from within docstrings like so:
+> ```python
+>  """
+>  ...
+>   Admonition:
+>     You can generate admonitions from within docstrings like so:
+>  """
+> ```
+>
+
 ## Testing
 
 We use `pytest` for testing. After making changes, make sure all tests pass. You can run unit tests using the following command:
