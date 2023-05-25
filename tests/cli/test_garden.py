@@ -5,6 +5,8 @@ from garden_ai import local_data
 from garden_ai.app.main import app
 from garden_ai.client import GardenClient
 
+import re
+
 runner = CliRunner()
 
 
@@ -13,6 +15,7 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
     mocker.patch("garden_ai.app.garden.local_data.put_local_garden").return_value = None
+    mock_client.create_garden.return_value = garden_all_fields
 
     command = [
         "garden",
@@ -35,6 +38,9 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     kwargs = mock_client.create_garden.call_args.kwargs
     for key in kwargs:
         assert kwargs[key] == getattr(garden_all_fields, key)
+
+    # regular expression to parse out ANSI escape sequences from rich print
+    assert garden_all_fields.doi in re.compile(r"\x1b[^m]*m").sub("", result.stdout)
 
 
 @pytest.mark.cli
