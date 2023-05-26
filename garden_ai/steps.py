@@ -8,7 +8,7 @@ from functools import update_wrapper, wraps
 from inspect import Parameter, Signature, signature
 from typing import Any, Callable, Dict, List, Optional
 
-from pydantic import Field, ValidationError, validator
+from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
@@ -192,16 +192,17 @@ class Step:
         # passing an arbitrary callable directly to the Step constructor, but
         # because only plain python can be decorated, if they're using the
         # decorator this shouldn't be problematic.
-        func = values["func"]
-        try:
-            return inspect.getsource(func)
-        except (OSError, TypeError) as e:
-            raise ValueError(
-                f"Could not find python source code for {func}. If using a \
-            builtin or externally-defined function as a step, best practice is \
-            to use @step to decorate a minimal function that invokes it, rather \
-            than using it as a step directly."
-            ) from e
+        if "func" in values:
+            func = values["func"]
+            try:
+                return inspect.getsource(func)
+            except (OSError, TypeError) as e:
+                raise ValueError(
+                    f"Could not find python source code for {func}. If using a \
+                builtin or externally-defined function as a step, best practice is \
+                to use @step to decorate a minimal function that invokes it, rather \
+                than using it as a step directly."
+                ) from e
 
     def json(self) -> JSON:
         return json.dumps(self, default=garden_json_encoder)
