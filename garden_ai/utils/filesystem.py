@@ -2,6 +2,8 @@ from pathlib import Path
 import importlib.util
 from garden_ai import Pipeline
 
+from mlflow import MlflowException  # type: ignore
+
 
 class PipelineLoadException(Exception):
     """Exception raised when a container build request fails"""
@@ -31,6 +33,11 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
+    except MlflowException as e:
+        raise PipelineLoadException(
+            "Failed to load model, please use a model registered with garden.\nMlflowException: "
+            + str(e)
+        ) from e
     except Exception as e:
         raise PipelineLoadException("Could not execute the Python code") from e
 
