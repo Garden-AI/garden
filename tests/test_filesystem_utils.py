@@ -2,6 +2,7 @@ import pytest
 
 from garden_ai.utils.filesystem import (
     PipelineLoadException,
+    PipelineLoadMlFlowException,
     load_pipeline_from_python_file,
 )
 from garden_ai import Pipeline
@@ -29,4 +30,12 @@ def test_load_pipeline_from_invalid_file():
 def test_load_pipeline_from_nonexistent_pipeline():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/not_actually_a_file.py")
     with pytest.raises(PipelineLoadException):
+        load_pipeline_from_python_file(fixture_file_path)
+
+
+def test_load_pipeline_from_invalid_model_pipeline():
+    fixture_file_path = get_fixture_file_path(
+        "fixture_pipeline/invalid_model_pipeline.py"
+    )
+    with pytest.raises(PipelineLoadMlFlowException):
         load_pipeline_from_python_file(fixture_file_path)

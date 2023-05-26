@@ -11,6 +11,12 @@ class PipelineLoadException(Exception):
     pass
 
 
+class PipelineLoadMlFlowException(Exception):
+    """Exception raised when a MlFlow model load fails"""
+
+    pass
+
+
 def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     """
     Dynamically import a pipeline object from a user's pipeline file.
@@ -34,7 +40,7 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     try:
         spec.loader.exec_module(module)
     except MlflowException as e:
-        raise PipelineLoadException(
+        raise PipelineLoadMlFlowException(
             "Failed to load model, please use a model registered with garden.\nMlflowException: "
             + str(e)
         ) from e
