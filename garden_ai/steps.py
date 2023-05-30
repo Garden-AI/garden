@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import typing
@@ -59,8 +60,9 @@ class Step:
             The main researchers involved in producing the Step, for citation and discoverability purposes.
         model_uris (List[str]):
             A reference to the models used in this step, if any. Model identifiers are as stored in MLFlow (not including the 'models:/' prefix).
-        uuid (UUID):
-            short for "uuid"
+        source (Optional[str]):
+            Should not be set by users. Consists of the plain python source code \
+            used to define `func`, if possible.
 
     Raises:
         TypeError:
@@ -95,6 +97,7 @@ class Step:
     pip_dependencies: List[str] = Field(default_factory=list)
     python_version: Optional[str] = Field(None)
     model_uris: List[str] = Field(default_factory=list)
+    source: Optional[str] = Field(None)
 
     def __post_init_post_parse__(self):
         # like __post_init__, but called after pydantic validation
@@ -179,6 +182,25 @@ class Step:
                 "https://github.com/beartype/beartype#compliance"
             )
         return f
+
+    @validator("source", always=True, pre=False)
+    def has_findable_source(cls, _, values):
+        # ignores any prior value for the "source" field, populating it with the
+        # found source of `func`.  There are tons of edge cases if the user is
+        # passing an arbitrary callable directly to the Step constructor, but
+        # because only plain python can be decorated, if they're using the
+        # decorator this shouldn't be problematic.
+        if "func" in values:
+            func = values["func"]
+            try:
+                return inspect.getsource(func)
+            except (OSError, TypeError) as e:
+                raise ValueError(
+                    f"Could not find python source code for {func}. If using a \
+builtin or externally-defined function as a step, best practice is \
+to use @step to decorate a minimal function that invokes it, rather \
+than using it as a step directly."
+                ) from e
 
     def json(self) -> JSON:
         return json.dumps(self, default=garden_json_encoder)
