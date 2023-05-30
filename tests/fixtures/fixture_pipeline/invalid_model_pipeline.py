@@ -2,7 +2,6 @@
 from garden_ai import GardenClient, Model, Pipeline, step
 import typing
 
-client = GardenClient()
 ##################################### STEPS #####################################
 """
 Brief notes on steps (see docs for more detail):
@@ -59,15 +58,15 @@ REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
 
 ################################### PIPELINE ####################################
 
-crystal_pipeline: Pipeline = client.create_pipeline(
-    title="Crystal Pipeline",
+fixture_pipeline = Pipeline(
+    title="Invalid model fixture pipeline",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
-    authors=["SciencePerson, Alice"],
+    authors=["Garden Team"],
     contributors=[],
-    description="Pipeline for predicting crystal structure",
+    description="",
     version="0.0.1",
     year=2023,
     tags=[],
-    uuid="9ead6c9b-b267-4632-8b4c-0d0d0ec8a9f1",  # WARNING: DO NOT EDIT UUID
+    uuid="b537520b-e86e-45bf-8566-4555a72b0b08",  # WARNING: DO NOT EDIT UUID
 )
