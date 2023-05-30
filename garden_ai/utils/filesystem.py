@@ -2,6 +2,7 @@ from pathlib import Path
 import importlib.util
 from garden_ai import Pipeline
 
+import mlflow  # type: ignore
 from mlflow import MlflowException
 from garden_ai.mlmodel import ScaffoldedModelException
 
