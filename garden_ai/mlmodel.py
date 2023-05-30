@@ -18,6 +18,12 @@ class ModelUploadException(Exception):
     pass
 
 
+class ScaffoldedModelException(Exception):
+    """Exception raised when a user attempts to upload a scaffolded pipeline with the model name 'YOUR MODEL's NAME HERE'"""
+
+    pass
+
+
 class ModelFlavor(Enum):
     SKLEARN = "sklearn"
     PYTORCH = "pytorch"
@@ -193,6 +199,14 @@ class _Model:
         self.model = None
         self.model_full_name = model_full_name
         self.model_uri = f"models:/{model_full_name}"
+
+        # check if model name is 'YOUR MODEL's NAME HERE'
+        # lets users know if they are trying to upload a scaffolded pipeline.
+        if self.model_full_name == "YOUR MODEL's NAME HERE":
+            raise ScaffoldedModelException(
+                "Invlaid model name. Using scaffolded pipeline model name."
+            )
+
         # extract dependencies without loading model into memory
         # make it easier for steps to infer
         conda_yml = mlflow.pyfunc.get_model_dependencies(self.model_uri, format="conda")
