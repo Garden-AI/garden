@@ -40,9 +40,7 @@ def another_step(data: object) -> object:
 @step
 def run_inference(
     input_arg: object,
-    model=Model(
-        "this is not a model name, no one will name a model this, it is for tests"
-    ),
+    model=Model("YOUR MODEL's NAME HERE"),
 ) -> object:
     pass
 
