@@ -4,8 +4,6 @@ from typer.testing import CliRunner
 from garden_ai.app.main import app
 from garden_ai.client import GardenClient
 
-from typer import BadParameter
-
 runner = CliRunner()
 
 
