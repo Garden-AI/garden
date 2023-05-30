@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 from garden_ai.app.main import app
 from garden_ai.client import GardenClient
 
-from typer import BadParameter  # type: ignore
+from typer import BadParameter
 
 runner = CliRunner()
 
@@ -67,6 +67,6 @@ def test_scaffolded_model_upload(mocker, tmp_path):
         "uc-435t/abcde",
     ]
 
-    # check that a user can register a model with name "YOUR MODEL's NAME HERE"
+    # check that a user can't register a model with name "YOUR MODEL's NAME HERE"
     result = runner.invoke(app, command)
     assert result.exit_code == 2

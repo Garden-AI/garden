@@ -6,7 +6,7 @@ from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
 )
 
-from garden_ai.mlmodel import ScaffoldedModelException  # type: ignore
+from garden_ai.mlmodel import ScaffoldedModelException
 
 from garden_ai import Pipeline
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
