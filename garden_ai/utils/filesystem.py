@@ -42,7 +42,9 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
         spec.loader.exec_module(module)
     except ScaffoldedModelException as e:
         raise ScaffoldedModelException(
-            "Failed to load model. It looks like you are trying to register a scaffolded pipeline. Please replace YOUR MODEL's NAME HERE in your pipeline.py with the name of a registered Garden model.\nFor more information on how to use Garden, please read our docs: https://garden-ai.readthedocs.io/en/latest/"
+            "Failed to load model. It looks like you are trying to register a scaffolded pipeline."
+            + " Please replace YOUR MODEL's NAME HERE in your pipeline.py with the name of a registered Garden model."
+            + "\nFor more information on how to use Garden, please read our docs: https://garden-ai.readthedocs.io/en/latest/"
         ) from e
     except MlflowException as e:
         raise PipelineLoadMlFlowException(
