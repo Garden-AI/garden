@@ -62,9 +62,7 @@ class Step:
             A reference to the models used in this step, if any. Model identifiers are as stored in MLFlow (not including the 'models:/' prefix).
         source (Optional[str]):
             Should not be set by users. Consists of the plain python source code \
-            used to define `func`, if possible. If not possible (e.g. builtin \
-            functions which don't have python source), the likely import \
-            statement used to bring `func` into the current scope.
+            used to define `func`, if possible.
 
     Raises:
         TypeError:
@@ -199,9 +197,9 @@ class Step:
             except (OSError, TypeError) as e:
                 raise ValueError(
                     f"Could not find python source code for {func}. If using a \
-                builtin or externally-defined function as a step, best practice is \
-                to use @step to decorate a minimal function that invokes it, rather \
-                than using it as a step directly."
+builtin or externally-defined function as a step, best practice is \
+to use @step to decorate a minimal function that invokes it, rather \
+than using it as a step directly."
                 ) from e
 
     def json(self) -> JSON:
