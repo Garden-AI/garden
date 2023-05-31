@@ -18,6 +18,12 @@ class ModelUploadException(Exception):
     pass
 
 
+class PossibleOldToken(ModelUploadException):
+    """Exception raised when an attempt to upload a model to ML Flow fails, possibly due to an expired token"""
+
+    pass
+
+
 class ModelFlavor(Enum):
     SKLEARN = "sklearn"
     PYTORCH = "pytorch"
@@ -114,7 +120,7 @@ class RegisteredModel(BaseModel):
         self.model_uri = f"{self.namespaced_model_name}/{self.version}"
 
 
-def upload_to_model_registry(local_model: LocalModel) -> RegisteredModel:
+def upload_to_model_registry(local_model: LocalModel, retry: bool = False) -> RegisteredModel:
     """Upload a model to Garden-AI's MLflow model registry.
 
     Args:
@@ -130,11 +136,11 @@ def upload_to_model_registry(local_model: LocalModel) -> RegisteredModel:
             open or parse the model, or failure to retrieve the latest version \
             of the model.
     """
-    _push_model_to_registry(local_model)
+    _push_model_to_registry(local_model, retry)
     return _assemble_metadata(local_model)
 
 
-def _push_model_to_registry(local_model: LocalModel):
+def _push_model_to_registry(local_model: LocalModel, retry: bool = False):
     flavor, local_path = local_model.flavor, local_model.local_path
     try:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
@@ -168,6 +174,8 @@ def _push_model_to_registry(local_model: LocalModel):
     except pickle.PickleError as e:
         raise ModelUploadException("Could not parse model at " + local_path) from e
     except mlflow.MlflowException as e:
+        if not retry:
+            raise PossibleOldToken from e
         raise ModelUploadException("Could not upload model.") from e
 
 

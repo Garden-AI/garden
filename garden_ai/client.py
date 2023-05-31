@@ -37,7 +37,7 @@ from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundExcept
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
-from garden_ai.mlmodel import LocalModel, RegisteredModel, upload_to_model_registry
+from garden_ai.mlmodel import LocalModel, RegisteredModel, PossibleOldToken, upload_to_model_registry
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -260,7 +260,13 @@ class GardenClient:
         return pipeline
 
     def register_model(self, local_model: LocalModel) -> RegisteredModel:
-        registered_model = upload_to_model_registry(local_model)
+        try:
+            registered_model = upload_to_model_registry(local_model)
+        except PossibleOldToken:
+            self.garden_authorizer._get_new_access_token()
+            self._set_up_mlflow_env()
+            registered_model = upload_to_model_registry(local_model, True)
+
         local_data.put_local_model(registered_model)
         return registered_model
 
