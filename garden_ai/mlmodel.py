@@ -10,10 +10,17 @@ from mlflow.pyfunc import load_model  # type: ignore
 from pydantic import BaseModel, Field, validator
 
 from garden_ai.utils.misc import read_conda_deps
+from garden_ai import GardenConstants
 
 
 class ModelUploadException(Exception):
     """Exception raised when an attempt to upload a model to ML Flow fails"""
+
+    pass
+
+
+class PipelineLoadScaffoldedException(Exception):
+    """Exception raised when a user attempts to load model with the name SCAFFOLDED_MODEL_NAME"""
 
     pass
 
@@ -193,6 +200,11 @@ class _Model:
         self.model = None
         self.model_full_name = model_full_name
         self.model_uri = f"models:/{model_full_name}"
+
+        # raises error if user trys to load model with the name SCAFFOLDED_MODEL_NAME
+        if self.model_full_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
+            raise PipelineLoadScaffoldedException("Invalid model name.")
+
         # extract dependencies without loading model into memory
         # make it easier for steps to infer
         conda_yml = mlflow.pyfunc.get_model_dependencies(self.model_uri, format="conda")
