@@ -20,7 +20,7 @@ class ModelUploadException(Exception):
 
 
 class PipelineLoadScaffoldedException(Exception):
-    """Exception raised when a user attempts to load model with the scaffolded pipeline model name"""
+    """Exception raised when a user attempts to load model with the name SCAFFOLDED_MODEL_NAME"""
 
     pass
 
@@ -201,7 +201,7 @@ class _Model:
         self.model_full_name = model_full_name
         self.model_uri = f"models:/{model_full_name}"
 
-        # raises error if user trys to load model with the SCAFFOLDED_MODEL_NAME
+        # raises error if user trys to load model with the name SCAFFOLDED_MODEL_NAME
         if self.model_full_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
             raise PipelineLoadScaffoldedException("Invalid model name.")
 
