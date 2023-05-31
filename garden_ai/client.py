@@ -117,8 +117,12 @@ class GardenClient:
         self.compute_client = self._make_compute_client()
         self._set_up_mlflow_env()
 
+    def _get_garden_access_token(self):
+        self.garden_authorizer.ensure_valid_token()
+        return self.garden_authorizer.access_token
+
     def _set_up_mlflow_env(self):
-        os.environ["MLFLOW_TRACKING_TOKEN"] = self.garden_authorizer.access_token
+        os.environ["MLFLOW_TRACKING_TOKEN"] = self._get_garden_access_token()
         os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
         _request_header_provider_registry.register(BinaryContentTypeHeaderProvider)
 
@@ -265,13 +269,7 @@ class GardenClient:
         return pipeline
 
     def register_model(self, local_model: LocalModel) -> RegisteredModel:
-        try:
-            registered_model = upload_to_model_registry(local_model)
-        except PossibleOldToken:
-            self.garden_authorizer._get_new_access_token()
-            self._set_up_mlflow_env()
-            registered_model = upload_to_model_registry(local_model, True)
-
+        registered_model = upload_to_model_registry(local_model)
         local_data.put_local_model(registered_model)
         return registered_model
 
