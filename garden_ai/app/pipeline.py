@@ -219,30 +219,44 @@ def register(
 
 @pipeline_app.command()
 def shell(
-    file_location: str,
-    requirements: str,
-    env_name: str,
+    pipeline_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline implementation."),
+    ),
+    requirements_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline requirements."),
+    ),
+    env_name: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=False,
+        help=("The name for your pipeline's virtual environment."),
+    ),
+    remove_upon_completion: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=False,
+        resolve_path=True,
+        help=("Remove the temporary environment upon completion."),
+    ),
 ):
     import os
     import subprocess
     import tempfile
 
-    # Create a virtual environment in the temp directory using a context manager 
+    # Create a virtual environment in the temp directory using a context manager
     # on exit closes and removes itself unless flagged not to
-    temp_dir = os.path.join(os.path.sep, "tmp", env_name)
-    os.makedirs(temp_dir, exist_ok=True)
-    subprocess.run(["python", "-m", "venv", temp_dir])
-
-    # Install the requirements
-    print("Installing requirements...")
-    subprocess.run(
-        [
-            os.path.join(temp_dir, "bin", "pip"),
-            "install",
-            "-r",
-            requirements,
-        ]
-    )
+    temp_dir = os.path.join(os.path.sep, tempfile.gettempdir(), env_name)
+    # os.makedirs(temp_dir, exist_ok=True)
+    print(f"Setting up environment in {temp_dir} ...")
+    subprocess.run(["python3", "-m", "venv", temp_dir])
 
     # Activate the environment
     activate_script = os.path.join(temp_dir, "bin", "activate")
@@ -250,17 +264,34 @@ def shell(
         activate_command = f"source {activate_script}"
     else:
         activate_command = f"{activate_script}"
-    print("Environment activated. You can now test the installed packages.")
+    # Install the requirements
+    print("Installing requirements...")
+    # subprocess.run(
+    #     [
+    #         os.path.join(temp_dir, "bin", "pip"),
+    #         "install",
+    #         "-r",
+    #         requirements_file,
+    #     ]
+    # )
 
     # Prompt for input to test the environment
-    prompt_message = "Please enter input to test the environment: "
-    user_input = input(prompt_message)
+    # prompt_message = "Please enter input to test the environment: "
+    # # user_input = input(prompt_message)
+
+    # Enter the shell
+    subprocess.run(activate_command, shell=True)
+    # Start Python shell in the virtual environment
+    print("Starting Python shell...")
+    python_command = os.path.join(temp_dir, "bin", "python")
+    subprocess.run([python_command], shell=True)
 
     # Deactivate the environment
     print("Environment deactivated.")
 
     # Clean up the temporary directory
+    # require input
     print("Cleaning up temporary directory...")
-    os.rmdir(temp_dir)
+    # os.rmdir(temp_dir)
 
     print("Pipeline environment testing complete.")
