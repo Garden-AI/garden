@@ -40,7 +40,6 @@ from garden_ai.mlflow_bandaid.binary_header_provider import (
 from garden_ai.mlmodel import (
     LocalModel,
     RegisteredModel,
-    PossibleOldToken,
     upload_to_model_registry,
 )
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
