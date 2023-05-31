@@ -1,0 +1,2 @@
+class GardenConstants:
+    SCAFFOLDED_MODEL_NAME = "YOUR MODEL'S NAME HERE"

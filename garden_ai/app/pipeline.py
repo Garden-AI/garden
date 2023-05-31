@@ -10,12 +10,17 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console
+from garden_ai import GardenConstants
 
+from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
+    PipelineLoadMlFlowException,
 )
+
 from garden_ai.utils.misc import clean_identifier
+
 
 logger = logging.getLogger()
 
@@ -31,7 +36,11 @@ def template_pipeline(short_name: str, pipeline: Pipeline) -> str:
     """populate jinja2 template with starter code for creating a pipeline"""
     env = jinja2.Environment(loader=jinja2.PackageLoader("garden_ai"))
     template = env.get_template("pipeline")
-    return template.render(short_name=short_name, pipeline=pipeline)
+    return template.render(
+        short_name=short_name,
+        pipeline=pipeline,
+        scaffolded_model_name=GardenConstants.SCAFFOLDED_MODEL_NAME,
+    )
 
 
 @pipeline_app.callback()
@@ -203,7 +212,11 @@ def register(
         raise typer.Exit(code=1)
     try:
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
-    except PipelineLoadException as e:
+    except (
+        PipelineLoadException,
+        PipelineLoadMlFlowException,
+        PipelineLoadScaffoldedException,
+    ) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise typer.Exit(code=1) from e
 

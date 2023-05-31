@@ -71,11 +71,6 @@ def register(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
 
-    if name == "YOUR MODEL's NAME HERE":
-        raise typer.BadParameter(
-            "Model name 'YOUR MODEL's NAME HERE' is reserved for scaffolded pipeline example. Please change your model name to something else."
-        )
-
     only_one_dataset_option_provided = (dataset_url and not dataset_doi) or (
         dataset_doi and not dataset_url
     )

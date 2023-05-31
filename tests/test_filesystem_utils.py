@@ -1,12 +1,11 @@
 import pytest
 
+from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
     PipelineLoadException,
     PipelineLoadMlFlowException,
     load_pipeline_from_python_file,
 )
-
-from garden_ai.mlmodel import ScaffoldedModelException
 
 from garden_ai import Pipeline
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
@@ -46,5 +45,5 @@ def test_load_pipeline_from_invalid_model_pipeline():
 
 def test_load_pipeline_from_scaffolded_pipeline():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/scaffolded_pipeline.py")
-    with pytest.raises(ScaffoldedModelException):
+    with pytest.raises(PipelineLoadScaffoldedException):
         load_pipeline_from_python_file(fixture_file_path)

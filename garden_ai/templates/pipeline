@@ -39,7 +39,7 @@ def another_step(data: object) -> object:
 @step
 def run_inference(
     input_arg: object,
-    model=Model("YOUR MODEL's NAME HERE"),
+    model=Model("{{ scaffolded_model_name }}"),
 ) -> object:
     pass
 
