@@ -2,11 +2,13 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+import time
 
 import jinja2
 import typer
 from rich import print
 from rich.prompt import Prompt
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console
@@ -250,43 +252,51 @@ def shell(
     import os
     import subprocess
     import tempfile
+    import sys
 
     # Create a virtual environment in the temp directory using a context manager
     # on exit closes and removes itself unless flagged not to
+    # current_dir = os.getcwd()
     temp_dir = os.path.join(os.path.sep, tempfile.gettempdir(), env_name)
     # os.makedirs(temp_dir, exist_ok=True)
     print(f"Setting up environment in {temp_dir} ...")
     subprocess.run(["python3", "-m", "venv", temp_dir])
 
     # Activate the environment
-    activate_script = os.path.join(temp_dir, "bin", "activate")
-    if os.path.isfile(activate_script):
-        activate_command = f"source {activate_script}"
-    else:
-        activate_command = f"{activate_script}"
-    # Install the requirements
-    print("Installing requirements...")
-    # subprocess.run(
-    #     [
-    #         os.path.join(temp_dir, "bin", "pip"),
-    #         "install",
-    #         "-r",
-    #         requirements_file,
-    #     ]
-    # )
+    if sys.platform == "win32":
+        activate_script = os.path.join(temp_dir, "Scripts", "activate.bat")
+    elif sys.platform == "darwin":
+        activate_script = os.path.join(temp_dir, "bin", "activate")
 
-    # Prompt for input to test the environment
-    # prompt_message = "Please enter input to test the environment: "
-    # # user_input = input(prompt_message)
+    subprocess.run(f"source {activate_script}", shell=True)
 
-    # Enter the shell
-    subprocess.run(activate_command, shell=True)
+    subprocess.run(
+        f"{temp_dir}/bin/python3 -m pip install -q --upgrade pip",
+        check=True,
+        shell=True,
+    )
+
+    # Install the requirements with nice spinner
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        progress.add_task(description="Installing requirements...", total=None)
+
+        subprocess.run(
+            f"{temp_dir}/bin/pip install -q -r {requirements_file}",
+            check=True,
+            shell=True,
+        )
+
     # Start Python shell in the virtual environment
-    print("Starting Python shell...")
+    print("Starting Garden Test Shell...")
     python_command = os.path.join(temp_dir, "bin", "python")
-    subprocess.run([python_command], shell=True)
+    subprocess.run([python_command, "-q"])
 
     # Deactivate the environment
+    # subprocess.run("deactivate", shell=True,)
     print("Environment deactivated.")
 
     # Clean up the temporary directory
@@ -294,4 +304,4 @@ def shell(
     print("Cleaning up temporary directory...")
     # os.rmdir(temp_dir)
 
-    print("Pipeline environment testing complete.")
+    print("Garden pipeline testing complete.")
