@@ -120,7 +120,9 @@ class RegisteredModel(BaseModel):
         self.model_uri = f"{self.namespaced_model_name}/{self.version}"
 
 
-def upload_to_model_registry(local_model: LocalModel, retry: bool = False) -> RegisteredModel:
+def upload_to_model_registry(
+    local_model: LocalModel, retry: bool = False
+) -> RegisteredModel:
     """Upload a model to Garden-AI's MLflow model registry.
 
     Args:

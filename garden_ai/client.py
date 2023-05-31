@@ -37,7 +37,12 @@ from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundExcept
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
-from garden_ai.mlmodel import LocalModel, RegisteredModel, PossibleOldToken, upload_to_model_registry
+from garden_ai.mlmodel import (
+    LocalModel,
+    RegisteredModel,
+    PossibleOldToken,
+    upload_to_model_registry,
+)
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
