@@ -1,7 +1,7 @@
 import os
 import sys
 from collections import namedtuple
-from typing import Any, List, Tuple, Union
+from typing import Any, Iterable, List, Tuple, Union
 
 import pytest
 from pydantic import ValidationError
@@ -103,6 +103,17 @@ def test_auto_input_output_metadata():
 
     assert lovingly_annotated.input_info == "This step LOVES accepting arguments"
     assert lovingly_annotated.output_info == "it also returns important results"
+
+
+def test_steps_collect_source():
+    with pytest.raises(ValidationError):
+        # won't be able to find source (or annotations) for builtins
+        builtin_sum_step = Step(func=sum)
+
+    # ... but this is fine
+    @step
+    def builtin_sum_step(xs: Iterable) -> Union[int, float]:
+        return sum(xs)
 
 
 @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import typing
@@ -27,95 +28,62 @@ class DataclassConfig:
 class Step:
     """The ``Step`` class (via the ``@step`` decorator) wraps a callable for use as a single step in a ``Pipeline``.
 
-    **IMPORTANT**: When included in a ``Pipeline``, all ``Step``s will be checked
-    for composability with respect to their argument- and return-type
-    annotations.  This requires that the decorated function has complete
-    argument- and return-type annotations; a ``Step`` will fail to initialize with
-    an exception if this condition is not met. Note that there is (currently) no
-    type-checking at runtime; annotations are taken in good faith.
+    IMPORTANT:
+        When included in a ``Pipeline``, all steps will be checked for \
+        composability with respect to their argument- and return-type \
+        annotations.  This requires that the decorated function has complete \
+        argument- and return-type annotations; a ``Step`` will fail to \
+        initialize with an exception if this condition is not met. Note that \
+        there is (currently) no type-checking at runtime. \
+        See "Notes" below for additional discussion on composing steps which \
+        may take multiple arguments by returning a properly-typed `tuple` as a result.
 
-    See "Notes" below for additional discussion on composing steps with multiple
-    arguments by returning a properly-typed ``tuple`` as a result.
+    Attributes:
+        func (Callable):
+            The well-annotated function that should be called when this ``Step`` \
+            is reached in its ``Pipeline``, which is passed the output of the \
+            previous step (if one exists) as input. This is the only required \
+            attribute, all others are optional or should not be modified.
+        title (str):
+            An official name or title for the Step. Currently, ``func.__name__`` is used as a default.
+        description (str):
+            A human-readable description of the step. Currently, ``func.__doc__`` is used as a default.
+        input_info (str):
+            Human-readable description of the input data and/or relevant
+            characteristics that *should* hold true for this step's input (e.g.
+            dimensions of a matrix or column names of a dataframe).
+        output_info (str):
+            Human-readable description of the output data and/or relevant
+            characteristics that *will* hold true for this step's output (e.g.
+            dimensions of a matrix or column names of a dataframe).
+        authors (List[str]):
+            The main researchers involved in producing the Step, for citation and discoverability purposes.
+        model_uris (List[str]):
+            A reference to the models used in this step, if any. Model identifiers are as stored in MLFlow (not including the 'models:/' prefix).
+        source (Optional[str]):
+            Should not be set by users. Consists of the plain python source code \
+            used to define `func`, if possible.
 
-    Attributes
-    ----------
-    func: Callable
-        ``func`` is whatever should be called when this ``Step`` is reached in its
-        ``Pipeline``, and is passed the output of the previous step (if one
-        exists) as argument(s).  Typically a plain python function, but a
-        callable object with a sufficiently-annotated ``__call__`` magic method is
-        also acceptable. When the ``@step`` decorator is used, ``func`` will be the
-        decorated function. To be composable as a Step, the following are
-        *required*:
-            1. For all but the first Step in a pipeline, ``func`` must only
-               require positional arguments, each of which must be annotated
-            2. For any but the last Step in a pipeline, ``func`` must return
-               either a single object (if subsequent Step has a single
-               positional arg) or a tuple (if subsequent Step has multiple
-               positional args)
+    Raises:
+        TypeError:
+            If ``func`` has any arguments without annotations, is missing a return annotation, or uses ``None`` or ``Any`` as annotation.
 
-    title: str
-        An official name or title for the Step. Currently, ``func.__name__`` is
-        used as a default.
+    Notes:
+        Due to python's flexible `*args` syntax, function composition can be \
+        ambiguous -- e.g. if we wish to compose `f` with `g`, and `g` returns a \
+        tuple of values, should that tuple be passed to `f` as a tuple (i.e. \
+        ``f(g(*args))``), or should it be unpacked as individual arguments to \
+        `f` (i.e. `f(*g(*args))`, noting the extra `*`)?
 
-    description: str
-        A human-readable description of the step. Currently, ``func.__doc__`` is
-        used as a default.
-
-    input_info: str
-        Human-readable description of the input data and/or relevant
-        characteristics that *should* hold true for this step's input (e.g.
-        dimensions of a matrix or column names of a dataframe). Currently,
-        ``typing.get_type_hints(func, include_extras=True)`` is used for the
-        default.
-
-    output_info: str
-        Human-readable description of the output data and/or relevant
-        characteristics that *will* hold true for this step's output (e.g.
-        dimensions of a matrix or column names of a dataframe). Currently,
-        ``typing.get_type_hints(func, include_extras=True)`` is used for the
-        default.
-
-
-    authors: List[str]
-        The main researchers involved in producing the Step, for citation and discoverability
-        purposes.
-
-    model_uris: List[str]
-        A reference to the models used in this step, if any.
-        Model identifiers as stored in MLFlow (not including the 'models:/' prefix).
-
-    uuid: UUID
-        short for "uuid"
-
-    Raises
-    ------
-    TypeError
-        If ``func`` has any arguments without annotations, is missing a return
-        annotation, or uses ``None`` or ``Any`` as annotation.
-
-    Notes
-    -----
-    We require annotations because we need ``Step``s to be composable functions
-    in their respective ``Pipeline``s. However, due to python's highly flexible
-    ``*args`` syntax, function composition is inherently ambiguous -- e.g. if we
-    wish to compose ``f`` with ``g`,` and ``g` returns a tuple of values, should
-    that tuple be passed to ``f`` as a tuple (i.e. ``f(g(*args))``), or should
-    it be unpacked as individual arguments to ``f`` (i.e. ``f(*g(*args))``,
-    noting the extra ``*``)?
-
-    To resolve this ambiguity, we could either (a) restrict the set of acceptable
-    callables to be only those with a single argument and a single return value, or
-    (b) rely on thorough function annotations to disambiguate. While best practices
-    are likely to stick to single-input-single-output ``Step``s, we currently try
-    to support (b) by composing steps together differently if ``g` seems to be
-    returning an "argument tuple" for ``f`` as follows:
-        - ``g` has a return annotation indicating the types within the tuple:
-            e.g. ``def g(...) -> tuple[str, int, pd.DataFrame]``
-        - ``f`` has exactly those argument annotations, in the same order:
-            e.g. ``def f(x: str, y: int, z: pd.DataFrame) -> ...``
-        - if both are true, compose ``f`` with ``g`` by **unpacking the tuple when it returns**:
-            e.g. ``f(*g(*args))`` (noting the extra ``*``), otherwise ``f(g(*args))`` - like any other Step.
+        To resolve this ambiguity, we could either (a) restrict the set of \
+        acceptable  callables to be only those with a single argument and a \
+        single return value, or  (b) rely on function annotations to \
+        disambiguate. While best practices  are likely to stick to simpler, \
+        single-input-single-output `Step`s, we currently try  to support (b) by \
+        composing steps together differently if `g` seems to be returning an \
+        "argument tuple" for `f`. For example, if `g` returns `... -> tuple[T1, \
+        T2, T3]` and `f` is annotated `def f(a: T1, b: T2, c: T3)`, we unpack \
+        `g`'s output before passing it to `f`.
     """
 
     func: Callable
@@ -129,6 +97,7 @@ class Step:
     pip_dependencies: List[str] = Field(default_factory=list)
     python_version: Optional[str] = Field(None)
     model_uris: List[str] = Field(default_factory=list)
+    source: Optional[str] = Field(None)
 
     def __post_init_post_parse__(self):
         # like __post_init__, but called after pydantic validation
@@ -214,6 +183,25 @@ class Step:
             )
         return f
 
+    @validator("source", always=True, pre=False)
+    def has_findable_source(cls, _, values):
+        # ignores any prior value for the "source" field, populating it with the
+        # found source of `func`.  There are tons of edge cases if the user is
+        # passing an arbitrary callable directly to the Step constructor, but
+        # because only plain python can be decorated, if they're using the
+        # decorator this shouldn't be problematic.
+        if "func" in values:
+            func = values["func"]
+            try:
+                return inspect.getsource(func)
+            except (OSError, TypeError) as e:
+                raise ValueError(
+                    f"Could not find python source code for {func}. If using a \
+builtin or externally-defined function as a step, best practice is \
+to use @step to decorate a minimal function that invokes it, rather \
+than using it as a step directly."
+                ) from e
+
     def json(self) -> JSON:
         return json.dumps(self, default=garden_json_encoder)
 
@@ -226,12 +214,12 @@ class Step:
 
 
 def step(func: Callable = None, **kwargs):
-    """Helper: provide ``@step(...)`` decorator for creation of ``Step``s."""
+    """Helper: provide `@step` /`@step(...)` decorator for creation of `Steps`."""
     # note:
-    # The ``Step`` class itself could also technically be used as a decorator,
+    # The capital-S `Step class itself could also technically be used as a decorator,
     # but would run into trouble as soon as you tried passing any arguments:
-    # this definition means ``@step`` and ``@step(...)`` are equivalent decorators,
-    # because ``@Step`` and ``@Step(...)`` could not be.
+    # this definition means `@step` and `@step(...)` are equivalent decorators,
+    # because `@Step` and `@Step(...)` could not be.
     if func is not None:
         # called like ``@step``
         # (or ``my_func = step(my_func, **kwargs)``)

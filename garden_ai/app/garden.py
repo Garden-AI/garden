@@ -141,6 +141,14 @@ def create(
     if verbose:
         metadata = json.dumps(local_data.get_local_garden_by_uuid(garden.uuid))
         rich.print_json(metadata)
+
+    if garden.doi:
+        rich.print(f"Garden '{garden.title}' created with DOI: {garden.doi}")
+    else:
+        rich.print(
+            f"Garden '{garden.title}' created but missing DOI. Given UUID: {garden.uuid}"
+        )
+
     return
 
 

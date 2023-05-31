@@ -14,12 +14,9 @@ build:
     post_create_environment:
       - pip install poetry==1.2.2
       - poetry config virtualenvs.create false
-      - poetry install --no-root --no-interaction --no-ansi
+    post_install:
+      - poetry install --no-root --no-interaction --no-ansi --with=develop
 
-      # Build documentation in the docs/ directory with Sphinx
-sphinx:
-   configuration: docs/conf.py
-
-# If using Sphinx, optionally build your docs in additional formats such as PDF
-# formats:
-#    - pdf
+      # Build documentation in the docs/ directory with mkdocs
+mkdocs:
+  configuration: mkdocs.yml
