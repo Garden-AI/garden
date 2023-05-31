@@ -49,7 +49,7 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
             "\nFor more information on how to use Garden, please read our docs: "
             "https://garden-ai.readthedocs.io/en/latest/"
         )
-        raise PipelineLoadScaffoldedException(error_message)
+        raise PipelineLoadScaffoldedException(error_message) from e
     except MlflowException as e:
         raise PipelineLoadMlFlowException(str(e)) from e
     except Exception as e:
