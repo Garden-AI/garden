@@ -51,7 +51,7 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
         )
         raise PipelineLoadScaffoldedException(error_message) from e
     except MlflowException as e:
-        raise PipelineLoadMlFlowException(str(e)) from e
+        raise PipelineLoadMlFlowException("\nMlflowException: " + str(e)) from e
     except Exception as e:
         raise PipelineLoadException("Could not execute the Python code") from e
 
