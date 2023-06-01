@@ -9,6 +9,17 @@ def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path
     from_record = local_data.get_local_garden_by_uuid(uuid)
     assert from_record == garden_all_fields
 
+    garden_fields = ["uuid", "doi", "title"]
+    garden_rows = [
+        (str(garden_all_fields.uuid), garden_all_fields.doi, garden_all_fields.title)
+    ]
+    (
+        from_record_garden_rows,
+        from_record_garden_fields,
+    ) = local_data.get_local_garden_data(fields=["doi", "title"])
+    assert from_record_garden_fields == garden_fields
+    assert from_record_garden_rows == garden_rows
+
 
 def test_local_storage_pipeline(
     mocker, garden_client, registered_pipeline_toy_example, tmp_path
@@ -19,6 +30,21 @@ def test_local_storage_pipeline(
     uuid = registered_pipeline_toy_example.uuid
     from_record = local_data.get_local_pipeline_by_uuid(uuid)
     assert from_record == registered_pipeline_toy_example
+
+    pipeline_fields = ["uuid", "doi", "title"]
+    pipeline_rows = [
+        (
+            str(registered_pipeline_toy_example.uuid),
+            registered_pipeline_toy_example.doi,
+            registered_pipeline_toy_example.title,
+        )
+    ]
+    (
+        from_record_pipeline_rows,
+        from_record_pipeline_fields,
+    ) = local_data.get_local_pipeline_data(fields=["doi", "title"])
+    assert from_record_pipeline_fields == pipeline_fields
+    assert from_record_pipeline_rows == pipeline_rows
 
 
 def test_local_storage_keyerror(
@@ -53,3 +79,17 @@ def test_local_storage_model(mocker, database_with_model, second_draft_of_model)
         "test@example.com-unit-test-model/1"
     )
     assert overwritten_model is None
+
+    model_fields = ["model_uri", "model_name", "flavor"]
+    model_rows = [
+        (
+            second_draft_of_model.model_uri,
+            second_draft_of_model.model_name,
+            second_draft_of_model.flavor,
+        )
+    ]
+    from_record_model_rows, from_record_model_fields = local_data.get_local_model_data(
+        fields=["model_name", "flavor"]
+    )
+    assert from_record_model_fields == model_fields
+    assert from_record_model_rows == model_rows

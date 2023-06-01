@@ -41,6 +41,28 @@ def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
         assert kwargs[key] == getattr(pipeline_toy_example, key)
 
 
+@pytest.mark.cli
+def test_pipeline_list(database_with_connected_pipeline, tmp_path, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+
+    pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    pipeline_title = "Fixture pipeline"
+    pipeline_doi = "10.23677/jx31-gx98"
+
+    command = [
+        "pipeline",
+        "list",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert pipeline_uuid in result.stdout
+    assert pipeline_title in result.stdout
+    assert pipeline_doi in result.stdout
+
+
 def test_clean_identifier():
     possible_name = "".join(random.choices(string.printable, k=50))
     valid_name = clean_identifier(possible_name)

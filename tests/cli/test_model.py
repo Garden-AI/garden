@@ -41,3 +41,25 @@ def test_model_upload(mocker, tmp_path):
     assert dataset_connection.doi == "uc-435t/abcde"
     assert dataset_connection.url == "example.com/123456"
     assert dataset_connection.repository == "Foundry"
+
+
+@pytest.mark.cli
+def test_model_list(database_with_connected_pipeline, tmp_path, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+
+    model_uri = "willengler@uchicago.edu-will-test-model/3"
+    model_name = "will-test-model"
+    model_flavor = "sklearn"
+
+    command = [
+        "model",
+        "list",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert model_uri in result.stdout
+    assert model_name in result.stdout
+    assert model_flavor in result.stdout
