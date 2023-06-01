@@ -228,7 +228,6 @@ class Pipeline:
         }
 
         for step in self.steps:
-            self.model_uris += step.model_uris
             for r in step.pip_dependencies:
                 requirement = Requirement(r)
                 # warn about step requirements we're ignoring in favor of the pipeline's
@@ -238,13 +237,13 @@ class Pipeline:
                 )
                 if would_ignore_req:
                     logger.warning(
-                        f"Warning: step {step.__name__} suggested requirement '{requirement}', which is also required by the pipeline. "
+                        f"Warning: step {step.__name__} has inferred a requirement '{requirement}', which is also required by the pipeline. "
                         f"Only the pipeline's explicit requirement ({explicit_requirements[requirement.name]}) will be used."
                     )
                 # warn about potentially missing requirements
                 elif requirement.name not in explicit_requirements:
                     logger.warning(
-                        f"Warning: step {step.__name__} suggested requirement '{requirement}', which is not required by the pipeline. "
+                        f"Warning: step {step.__name__} has inferred a requirement '{requirement}', which is not required by the pipeline. "
                         f"If this package needs to be present in the container, please add '{requirement.name}' to the pipeline's requirements.txt "
                     )
 
@@ -253,7 +252,7 @@ class Pipeline:
             for r in step.conda_dependencies:
                 if r not in self.conda_dependencies:
                     logger.warning(
-                        f"Warning: step {step.__name__} suggested conda requirement '{r}', which is not required by the pipeline. "
+                        f"Warning: step {step.__name__} has inferred a conda requirement '{r}', which is not required by the pipeline. "
                         f"If this package needs to be present in the container, please add '{r}' to the pipeline's requirements."
                     )
 
@@ -262,7 +261,7 @@ class Pipeline:
 
         self.python_version = py_versions["pipeline"] or py_versions["system"]
         self.conda_dependencies = list(set(self.conda_dependencies))
-        self.pip_dependencies = list(set(validate_pip_lines(self.pip_dependencies)))
+        self.pip_dependencies = list(set(self.pip_dependencies))
 
         distinct_py_versions = set(
             py_versions[k] for k in py_versions if py_versions[k]
