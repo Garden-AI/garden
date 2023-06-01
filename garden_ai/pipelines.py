@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
+from packaging.requirements import InvalidRequirement, Requirement
 from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
 
@@ -178,10 +179,19 @@ class Pipeline:
             )
         return req_file
 
-    def _collect_requirements(self):
-        """collect requirements to pass to globus compute container service.
+    @validator("pip_dependencies", each_item=True)
+    def pip_deps_parsable(cls, pip_dep):
+        try:
+            _ = Requirement(pip_dep)
+        except InvalidRequirement as e:
+            raise ValueError(f"Could not parse pip dependency '{pip_dep}'") from e
+        return pip_dep
 
-        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies, self.model_uris``
+    def _collect_requirements(self):
+        """collect requirements to pass to Globus Compute container service.
+
+        Populates attributes `self.python_version, self.pip_dependencies, self.conda_dependencies` per
+        `self.requirements_file`, as well as `self.model_uris` from steps' metadata.
         """
 
         # mapping of python-version-witness: python-version (collected for warning msg below)
