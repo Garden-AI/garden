@@ -12,7 +12,7 @@ Broadly speaking, `step` and `Model` are lower-level abstractions for users to b
 A `Step` is the smallest "unit of code" usable to the Garden framework. A step is just a single function or callable that performs a specific task - such as pre-processing data or running inference - wrapped in some additional metadata (such as input/output type annotations) so that it can be composed with other steps in a Pipeline.
 
 > [!NOTE]
-> If your step references a `Model`, the step will attempt to collect its dependencies as part of its metadata.
+> If your step references a `Model`, the step will attempt to infer its dependencies as part of its metadata. These inferred dependencies won't be included in the container unless explicitly required by an enclosing `Pipeline`, but a warning will be logged for any apparent incompatibilities or mismatches.
 
 In other words, the only user code a `Pipeline` can "see" is the code contained in its steps, so its steps need to contain *all* of the code necessary to run it.
 
