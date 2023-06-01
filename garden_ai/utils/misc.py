@@ -259,13 +259,6 @@ def validate_pip_lines(lines: List[str]) -> List[str]:
             logger.warning(f"Could not parse requirement line: {line}")
             raise
 
-    # hack: user-dependencies like `examol @ git+https://github.com/exalearn/ExaMol.git`,
-    # which are not on pypi, should be read _before_ a line saying
-    # `examol==0.0.1` so pip won't worry that it's not on pypi, otherwise
-    # pip will claim it could not be installed.
-
-    # sorts s.t. url-based installs are read first
-    requirements.sort(key=lambda requirement: requirement.url is None)
     return [str(r) for r in requirements]
 
 
