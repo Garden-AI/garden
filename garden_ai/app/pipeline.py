@@ -5,12 +5,14 @@ from typing import List, Optional
 
 import jinja2
 import typer
+import rich
 from rich import print
 from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console
 from garden_ai import GardenConstants
+from garden_ai import local_data
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
@@ -228,3 +230,16 @@ def register(
     func_uuid = client.register_pipeline(user_pipeline, container_uuid)
     console.print(f"Created function {func_uuid}")
     console.print("Done! Pipeline is registered.")
+
+
+@pipeline_app.command(no_args_is_help=False, help="Lists all local Pipelines.")
+def list():
+    console = rich.console.Console()
+    console.print("\n")
+    table = rich.table.Table(title="Local Pipelines")
+    data, fields = local_data.get_local_pipeline_data(fields=["title", "doi"])
+    for f in fields:
+        table.add_column(f)
+    for d in data:
+        table.add_row(*(d))
+    console.print(table)

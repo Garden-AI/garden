@@ -3,6 +3,7 @@ from typing import Optional, List
 
 from garden_ai.client import GardenClient
 from garden_ai.mlmodel import DatasetConnection, LocalModel, ModelFlavor
+from garden_ai import local_data
 
 import typer
 import rich
@@ -96,3 +97,16 @@ def register(
     rich.print(
         f"Successfully uploaded your model! The full name to include in your pipeline is '{model_uri}'"
     )
+
+
+@model_app.command(no_args_is_help=False, help="Lists all local Models.")
+def list():
+    console = rich.console.Console()
+    console.print("\n")
+    table = rich.table.Table(title="Local Models")
+    data, fields = local_data.get_local_model_data(fields=["model_name", "flavor"])
+    for f in fields:
+        table.add_column(f)
+    for d in data:
+        table.add_row(*(d))
+    console.print(table)

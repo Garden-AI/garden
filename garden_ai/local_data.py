@@ -2,7 +2,7 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 from uuid import UUID
 
 from garden_ai.gardens import Garden
@@ -147,6 +147,78 @@ def _delete_old_model_versions(model_name: str):
             del models_by_uri[k]
     data[ResourceType.MODEL.value] = models_by_uri
     _write_local_db(data)
+
+
+def _get_local_resource(resource_type: ResourceType, fields: List) -> (List, List):
+    resource_table_cols = [resource_type_to_id_key[resource_type]]
+    resource_table_cols.extend(fields)
+
+    data = _read_local_db()
+    resource_data = data.get(resource_type.value)
+    if resource_data is not None:
+        resource_table_rows = []
+        for r_id, r_data in resource_data.items():
+            resource_table_row = [r_id]
+            for f in fields:
+                if r_data[f] is None:
+                    resource_table_row.append("None")
+                else:
+                    resource_table_row.append(r_data[f])
+            resource_table_rows.append(tuple(resource_table_row))
+        return (resource_table_rows, resource_table_cols)
+    else:
+        return ([], resource_table_cols)
+
+
+def get_local_garden_data(fields: List) -> (List, List):
+    """Helper: fetch all gardens from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    fields List
+        A list of the fields you want included in the output.
+
+    Returns
+    -------
+    (List, List)
+        Returns two lists, the first being the rows of the resorce table,
+        the second being the colum names of the resource table.
+    """
+    return _get_local_resource(resource_type=ResourceType.GARDEN, fields=fields)
+
+
+def get_local_pipeline_data(fields: List) -> (List, List):
+    """Helper: fetch all pipelines from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    fields List
+        A list of the fields you want included in the output.
+
+    Returns
+    -------
+    (List, List)
+        Returns two lists, the first being the rows of the resorce table,
+        the second being the colum names of the resource table.
+    """
+    return _get_local_resource(resource_type=ResourceType.PIPELINE, fields=fields)
+
+
+def get_local_model_data(fields: List) -> (List, List):
+    """Helper: fetch all models from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    fields List
+        A list of the fields you want included in the output.
+
+    Returns
+    -------
+    (List, List)
+        Returns two lists, the first being the rows of the resorce table,
+        the second being the colum names of the resource table.
+    """
+    return _get_local_resource(resource_type=ResourceType.MODEL, fields=fields)
 
 
 def put_local_garden(garden: Garden):

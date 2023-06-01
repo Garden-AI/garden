@@ -298,6 +298,19 @@ def publish(
         raise typer.Exit(code=1) from e
 
 
+@garden_app.command(no_args_is_help=False, help="Lists all local Gardens.")
+def list():
+    console = rich.console.Console()
+    console.print("\n")
+    table = rich.table.Table(title="Local Gardens")
+    data, fields = local_data.get_local_garden_data(fields=["doi", "title"])
+    for f in fields:
+        table.add_column(f)
+    for d in data:
+        table.add_row(*(d))
+    console.print(table)
+
+
 def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
     if "/" in pipeline_id:
         pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
