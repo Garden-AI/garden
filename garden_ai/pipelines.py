@@ -34,7 +34,6 @@ from garden_ai.utils.misc import (
     garden_json_encoder,
     read_conda_deps,
     safe_compose,
-    validate_pip_lines,
 )
 
 logger = logging.getLogger()
