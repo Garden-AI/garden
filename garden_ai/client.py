@@ -37,7 +37,11 @@ from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundExcept
 from garden_ai.mlflow_bandaid.binary_header_provider import (
     BinaryContentTypeHeaderProvider,
 )
-from garden_ai.mlmodel import LocalModel, RegisteredModel, upload_to_model_registry
+from garden_ai.mlmodel import (
+    LocalModel,
+    RegisteredModel,
+    upload_to_model_registry,
+)
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -112,8 +116,12 @@ class GardenClient:
         self.compute_client = self._make_compute_client()
         self._set_up_mlflow_env()
 
+    def _get_garden_access_token(self):
+        self.garden_authorizer.ensure_valid_token()
+        return self.garden_authorizer.access_token
+
     def _set_up_mlflow_env(self):
-        os.environ["MLFLOW_TRACKING_TOKEN"] = self.garden_authorizer.access_token
+        os.environ["MLFLOW_TRACKING_TOKEN"] = self._get_garden_access_token()
         os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
         _request_header_provider_registry.register(BinaryContentTypeHeaderProvider)
 
