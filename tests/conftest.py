@@ -206,8 +206,14 @@ def tmp_conda_yml(tmp_path):
       - python=3.8
       - flask=2.1.1
       - pandas>=1.3.0
-      - numpy==1.21.2
-      - scikit-learn>=0.24.2
+    - pip:
+      - mlflow<3,>=2.2
+      - cloudpickle==2.2.1
+      - numpy==1.23.5
+      - psutil==5.9.4
+      - scikit-learn==1.2.2
+      - fake-package==9.9.9
+
     """
     file_path = tmp_path / "conda.yml"
     with open(file_path, "w") as f:
