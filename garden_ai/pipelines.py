@@ -199,6 +199,7 @@ class Pipeline:
             "system": ".".join(map(str, sys.version_info[:3])),
             "pipeline": self.python_version,
         }
+        # collect explicit pipeline dependencies for the container
         if self.requirements_file:
             if self.requirements_file.endswith((".yml", ".yaml")):
                 py_version, conda_deps, pip_deps = read_conda_deps(
@@ -219,9 +220,43 @@ class Pipeline:
                     deps.extend(d["line"] for d in parsed["resolved_dependencies"])
                     self.pip_dependencies += set(deps)
 
+        # inspect steps to warn about possible dependency issues, but don't keep them for container.
+        # step requirements are typically inferred (via mlflow) from their models, which is
+        # prone to breaking (e.g. https://github.com/Garden-AI/garden/issues/135)
+        explicit_requirements = {
+            Requirement(r).name: Requirement(r) for r in self.pip_dependencies
+        }
+
         for step in self.steps:
-            self.conda_dependencies += step.conda_dependencies
-            self.pip_dependencies += step.pip_dependencies
+            self.model_uris += step.model_uris
+            for r in step.pip_dependencies:
+                requirement = Requirement(r)
+                # warn about step requirements we're ignoring in favor of the pipeline's
+                would_ignore_req = (
+                    requirement.name in explicit_requirements
+                    and requirement != explicit_requirements[requirement.name]
+                )
+                if would_ignore_req:
+                    logger.warning(
+                        f"Warning: step {step.__name__} suggested requirement '{requirement}', which is also required by the pipeline. "
+                        f"Only the pipeline's explicit requirement ({explicit_requirements[requirement.name]}) will be used."
+                    )
+                # warn about potentially missing requirements
+                elif requirement.name not in explicit_requirements:
+                    logger.warning(
+                        f"Warning: step {step.__name__} suggested requirement '{requirement}', which is not required by the pipeline. "
+                        f"If this package needs to be present in the container, please add '{requirement.name}' to the pipeline's requirements.txt "
+                    )
+
+            # same for conda deps -- note that these were likely explicitly added,
+            # since mlflow-inferred requirements usually aren't conda.
+            for r in step.conda_dependencies:
+                if r not in self.conda_dependencies:
+                    logger.warning(
+                        f"Warning: step {step.__name__} suggested conda requirement '{r}', which is not required by the pipeline. "
+                        f"If this package needs to be present in the container, please add '{r}' to the pipeline's requirements."
+                    )
+
             self.model_uris += step.model_uris
             py_versions[step.__name__] = step.python_version
 
