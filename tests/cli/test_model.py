@@ -63,3 +63,27 @@ def test_model_list(database_with_connected_pipeline, tmp_path, mocker):
     assert model_uri in result.stdout
     assert model_name in result.stdout
     assert model_flavor in result.stdout
+
+
+@pytest.mark.cli
+def test_model_show(database_with_connected_pipeline, tmp_path, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+
+    model_uri = "willengler@uchicago.edu-will-test-model/3"
+    model_name = "will-test-model"
+    model_flavor = "sklearn"
+
+    command = [
+        "model",
+        "show",
+        "--model",
+        model_uri,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert model_uri in result.stdout
+    assert model_name in result.stdout
+    assert model_flavor in result.stdout

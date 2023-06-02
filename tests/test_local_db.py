@@ -44,6 +44,7 @@ def test_get_local_garden_table(mocker, garden_client, garden_all_fields, tmp_pa
     test_table = local_data.get_local_garden_table(
         fields=garden_fields[1:], table_name=garden_table_name
     )
+    assert table.__dict__ == test_table.__dict__
 
 
 def test_local_storage_pipeline(
