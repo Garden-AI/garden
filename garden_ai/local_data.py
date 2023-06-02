@@ -151,7 +151,7 @@ def _delete_old_model_versions(model_name: str):
 
 
 def _get_local_resource_table(
-    resource_type: ResourceType, fields: List, table_name: str
+    resource_type: ResourceType, fields: List[str], table_name: str
 ) -> Table:
     table = Table(title=table_name)
 
@@ -202,7 +202,7 @@ def _get_local_resource_json(
             return None
 
 
-def get_local_garden_table(fields: List, table_name: str) -> Table:
+def get_local_garden_table(fields: List[str], table_name: str) -> Table:
     """Helper: fetch all gardens from ~/.garden/data.json and outputs a rich table to print.
 
     Parameters
@@ -222,7 +222,7 @@ def get_local_garden_table(fields: List, table_name: str) -> Table:
     )
 
 
-def get_local_pipeline_table(fields: List, table_name: str) -> Table:
+def get_local_pipeline_table(fields: List[str], table_name: str) -> Table:
     """Helper: fetch all pipelines from ~/.garden/data.json and outputs a rich table to print.
 
     Parameters
@@ -242,7 +242,7 @@ def get_local_pipeline_table(fields: List, table_name: str) -> Table:
     )
 
 
-def get_local_model_table(fields: List, table_name: str) -> Table:
+def get_local_model_table(fields: List[str], table_name: str) -> Table:
     """Helper: fetch all models from ~/.garden/data.json and outputs a rich table to print.
 
     Parameters
