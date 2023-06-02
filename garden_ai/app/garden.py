@@ -14,8 +14,6 @@ from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 
-from garden_ai.utils.misc import garden_json_encoder
-
 
 logger = logging.getLogger()
 
@@ -307,12 +305,9 @@ def list():
 
     console = rich.console.Console()
     console.print("\n")
-    table = rich.table.Table(title="Local Gardens")
-    data, fields = local_data.get_local_garden_data(fields=["doi", "title"])
-    for f in fields:
-        table.add_column(f)
-    for d in data:
-        table.add_row(*(d))
+    table = local_data.get_local_garden_table(
+        fields=["doi", "title"], table_name="Local Gardens"
+    )
     console.print(table)
 
 

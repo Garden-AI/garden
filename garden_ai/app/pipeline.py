@@ -238,12 +238,9 @@ def list():
 
     console = rich.console.Console()
     console.print("\n")
-    table = rich.table.Table(title="Local Pipelines")
-    data, fields = local_data.get_local_pipeline_data(fields=["doi", "title"])
-    for f in fields:
-        table.add_column(f)
-    for d in data:
-        table.add_row(*(d))
+    table = local_data.get_local_pipeline_table(
+        fields=["doi", "title"], table_name="Local Pipelines"
+    )
     console.print(table)
 
 

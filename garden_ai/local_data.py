@@ -4,6 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional, Union, List
 from uuid import UUID
+from rich.table import Table
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
@@ -149,12 +150,17 @@ def _delete_old_model_versions(model_name: str):
     _write_local_db(data)
 
 
-def _get_local_resource(resource_type: ResourceType, fields: List) -> (List, List):
+def _get_local_resource_table(
+    resource_type: ResourceType, fields: List, table_name: str
+) -> Table:
+    table = Table(title=table_name)
+
     resource_table_cols = [resource_type_to_id_key[resource_type]]
     resource_table_cols.extend(fields)
 
     data = _read_local_db()
     resource_data = data.get(resource_type.value)
+
     if resource_data is not None:
         resource_table_rows = []
         for r_id, r_data in resource_data.items():
@@ -165,87 +171,98 @@ def _get_local_resource(resource_type: ResourceType, fields: List) -> (List, Lis
                 else:
                     resource_table_row.append(r_data[f])
             resource_table_rows.append(tuple(resource_table_row))
-        return (resource_table_rows, resource_table_cols)
+        for col in resource_table_cols:
+            table.add_column(col)
+        for row in resource_table_rows:
+            table.add_row(*(row))
     else:
-        return ([], resource_table_cols)
+        for col in resource_table_cols:
+            table.add_column(col)
+
+    return table
 
 
-def _get_resource_json_by_id(
+def _get_resource_json(
     id_: Union[UUID, str], resource_type: ResourceType
-) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
+) -> Optional[Dict]:
     data = _read_local_db()
-    id_ = str(id_)
-    resources = data.get(resource_type.value, {})
-    if resources and id_ in resources:
-        return resources[id_]
+    if "/" in id_ and resource_type is not ResourceType.MODEL:
+        resources_by_uuid = data.get(resource_type.value, {})
+        resources_by_doi = _reindex_by_doi(resources_by_uuid)
+        if resources_by_doi and id_ in resources_by_doi:
+            return resources_by_doi[id_]
+        else:
+            return None
     else:
-        return None
+        id_ = str(id_)
+        resources = data.get(resource_type.value, {})
+        if resources and id_ in resources:
+            return resources[id_]
+        else:
+            return None
 
 
-def _get_resource_json_by_doi(
-    doi: str, resource_type: ResourceType
-) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
-    data = _read_local_db()
-    resources_by_uuid = data.get(resource_type.value, {})
-    resources_by_doi = _reindex_by_doi(resources_by_uuid)
-    if resources_by_doi and doi in resources_by_doi:
-        return resources_by_doi[doi]
-    else:
-        return None
-
-
-def get_local_garden_data(fields: List) -> (List, List):
-    """Helper: fetch all gardens from ~/.garden/data.json and outputs rows and col names lists for rich to print.
+def get_local_garden_table(fields: List, table_name: str) -> Table:
+    """Helper: fetch all gardens from ~/.garden/data.json and outputs a rich table to print.
 
     Parameters
     ----------
     fields List
         A list of the garden fields you want included as cols in the table.
+    table_name str
+        Name of the rich table
 
     Returns
     -------
-    (List, List)
-        Returns two lists, the first being the rows of a rich table,
-        the second being the colum names of a rich table.
+    Table
+        Returns a rich table of all local gardens.
     """
-    return _get_local_resource(resource_type=ResourceType.GARDEN, fields=fields)
+    return _get_local_resource_table(
+        resource_type=ResourceType.GARDEN, fields=fields, table_name=table_name
+    )
 
 
-def get_local_pipeline_data(fields: List) -> (List, List):
-    """Helper: fetch all pipelines from ~/.garden/data.json and outputs rows and col names lists for rich to print.
+def get_local_pipeline_table(fields: List, table_name: str) -> Table:
+    """Helper: fetch all pipelines from ~/.garden/data.json and outputs a rich table to print.
 
     Parameters
     ----------
     fields List
         A list of the pipeline fields you want included as cols in the table.
+    table_name str
+        Name of the rich table
 
     Returns
     -------
-    (List, List)
-        Returns two lists, the first being the rows of a rich table,
-        the second being the colum names of a rich table.
+    Table
+        Returns a rich table of all local pipelines.
     """
-    return _get_local_resource(resource_type=ResourceType.PIPELINE, fields=fields)
+    return _get_local_resource_table(
+        resource_type=ResourceType.PIPELINE, fields=fields, table_name=table_name
+    )
 
 
-def get_local_model_data(fields: List) -> (List, List):
-    """Helper: fetch all models from ~/.garden/data.json and outputs rows and col names lists for rich to print.
+def get_local_model_table(fields: List, table_name: str) -> Table:
+    """Helper: fetch all models from ~/.garden/data.json and outputs a rich table to print.
 
     Parameters
     ----------
     fields List
         A list of the model fields you want included as cols in the table.
+    table_name str
+        Name of the rich table
 
     Returns
     -------
-    (List, List)
-        Returns two lists, the first being the rows of a rich table,
-        the second being the colum names of a rich table.
+    Table
+        Returns a rich table of all local models.
     """
-    return _get_local_resource(resource_type=ResourceType.MODEL, fields=fields)
+    return _get_local_resource_table(
+        resource_type=ResourceType.MODEL, fields=fields, table_name=table_name
+    )
 
 
-def get_local_garden_json(garden_id: Union[UUID, str]) -> Optional[Garden]:
+def get_local_garden_json(garden_id: Union[UUID, str]) -> Optional[Dict]:
     """Helper: fetch a single Garden record from ~/.garden/data.json and return the json for it.
 
     Parameters
@@ -258,15 +275,10 @@ def get_local_garden_json(garden_id: Union[UUID, str]) -> Optional[Garden]:
     Optional[Dict]
         If successful, returns the json of a local Garden.
     """
-    if "/" in garden_id:
-        return _get_resource_json_by_doi(garden_id, ResourceType.GARDEN)  # type: ignore
-    else:
-        return _get_resource_json_by_id(garden_id, ResourceType.GARDEN)  # type: ignore
+    return _get_resource_json(garden_id, ResourceType.GARDEN)  # type: ignore
 
 
-def get_local_pipeline_json(
-    pipeline_id: Union[UUID, str]
-) -> Optional[RegisteredPipeline]:
+def get_local_pipeline_json(pipeline_id: Union[UUID, str]) -> Optional[Dict]:
     """Helper: fetch a single pipeline record from ~/.garden/data.json and return the json for it.
 
     Parameters
@@ -279,13 +291,10 @@ def get_local_pipeline_json(
     Optional[Dict]
         If successful, returns the json of a local pipeline.
     """
-    if "/" in pipeline_id:
-        return _get_resource_json_by_doi(pipeline_id, ResourceType.PIPELINE)  # type: ignore
-    else:
-        return _get_resource_json_by_id(pipeline_id, ResourceType.PIPELINE)  # type: ignore
+    return _get_resource_json(pipeline_id, ResourceType.PIPELINE)  # type: ignore
 
 
-def get_local_model_json(model_uri: str):
+def get_local_model_json(model_uri: str) -> Optional[Dict]:
     """Helper: fetch a single model record from ~/.garden/data.json and return the json for it.
 
     Parameters
@@ -298,7 +307,7 @@ def get_local_model_json(model_uri: str):
     Optional[Dict]
         If successful, returns the json of a local model.
     """
-    return _get_resource_json_by_id(model_uri, ResourceType.MODEL)  # type: ignore
+    return _get_resource_json(model_uri, ResourceType.MODEL)  # type: ignore
 
 
 def put_local_garden(garden: Garden):

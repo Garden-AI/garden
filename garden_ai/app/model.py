@@ -108,12 +108,9 @@ def list():
 
     console = rich.console.Console()
     console.print("\n")
-    table = rich.table.Table(title="Local Models")
-    data, fields = local_data.get_local_model_data(fields=["model_name", "flavor"])
-    for f in fields:
-        table.add_column(f)
-    for d in data:
-        table.add_row(*(d))
+    table = local_data.get_local_model_table(
+        fields=["model_name", "flavor"], table_name="Local Models"
+    )
     console.print(table)
 
 
