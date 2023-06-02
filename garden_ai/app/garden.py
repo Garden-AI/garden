@@ -14,6 +14,9 @@ from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 
+from garden_ai.utils.misc import garden_json_encoder
+
+
 logger = logging.getLogger()
 
 garden_app = typer.Typer(name="garden", no_args_is_help=True)
@@ -298,8 +301,10 @@ def publish(
         raise typer.Exit(code=1) from e
 
 
-@garden_app.command(no_args_is_help=False, help="Lists all local Gardens.")
+@garden_app.command(no_args_is_help=False)
 def list():
+    """Lists all local Gardens."""
+
     console = rich.console.Console()
     console.print("\n")
     table = rich.table.Table(title="Local Gardens")
@@ -309,6 +314,26 @@ def list():
     for d in data:
         table.add_row(*(d))
     console.print(table)
+
+
+@garden_app.command(no_args_is_help=True)
+def show(
+    garden_id: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        prompt="Please enter the UUID or DOI of a garden",
+        help="The UUID or DOI of the garden you want to show",
+        rich_help_panel="Required",
+    ),
+):
+    """Shows all info for one Garden"""
+
+    garden_json = local_data.get_local_garden_json(garden_id)
+    if not garden_json:
+        logger.fatal(f"Could not find garden with id {garden_id}")
+        raise typer.Exit(code=1)
+    rich.print_json(data=garden_json)
 
 
 def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:

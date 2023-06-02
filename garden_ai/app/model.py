@@ -7,8 +7,11 @@ from garden_ai import local_data
 
 import typer
 import rich
+import logging
 
 model_app = typer.Typer(name="model", no_args_is_help=True)
+
+logger = logging.getLogger()
 
 
 @model_app.callback()
@@ -99,8 +102,10 @@ def register(
     )
 
 
-@model_app.command(no_args_is_help=False, help="Lists all local Models.")
+@model_app.command(no_args_is_help=False)
 def list():
+    """Lists all local models."""
+
     console = rich.console.Console()
     console.print("\n")
     table = rich.table.Table(title="Local Models")
@@ -110,3 +115,23 @@ def list():
     for d in data:
         table.add_row(*(d))
     console.print(table)
+
+
+@model_app.command(no_args_is_help=True)
+def show(
+    model_id: str = typer.Option(
+        ...,
+        "-m",
+        "--model",
+        prompt="Please enter the URI of a model",
+        help="The Model URI of the model you want to show",
+        rich_help_panel="Required",
+    ),
+):
+    """Shows all info for one model"""
+
+    model_json = local_data.get_local_model_json(model_id)
+    if not model_json:
+        logger.fatal(f"Could not find model with URI {model_id}")
+        raise typer.Exit(code=1)
+    rich.print_json(data=model_json)
