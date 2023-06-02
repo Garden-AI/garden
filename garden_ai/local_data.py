@@ -182,9 +182,7 @@ def _get_local_resource_table(
     return table
 
 
-def _get_local_resource_json(
-    id_: Union[UUID, str], resource_type: ResourceType
-) -> Optional[Dict]:
+def _get_local_resource_json(id_: str, resource_type: ResourceType) -> Optional[Dict]:
     data = _read_local_db()
     if "/" in id_ and resource_type is not ResourceType.MODEL:
         resources_by_uuid = data.get(resource_type.value, {})
@@ -275,7 +273,7 @@ def get_local_garden_json(garden_id: Union[UUID, str]) -> Optional[Dict]:
     Optional[Dict]
         If successful, returns the json of a local Garden.
     """
-    return _get_local_resource_json(garden_id, ResourceType.GARDEN)  # type: ignore
+    return _get_local_resource_json(str(garden_id), ResourceType.GARDEN)  # type: ignore
 
 
 def get_local_pipeline_json(pipeline_id: Union[UUID, str]) -> Optional[Dict]:
@@ -291,7 +289,7 @@ def get_local_pipeline_json(pipeline_id: Union[UUID, str]) -> Optional[Dict]:
     Optional[Dict]
         If successful, returns the json of a local pipeline.
     """
-    return _get_local_resource_json(pipeline_id, ResourceType.PIPELINE)  # type: ignore
+    return _get_local_resource_json(str(pipeline_id), ResourceType.PIPELINE)  # type: ignore
 
 
 def get_local_model_json(model_uri: str) -> Optional[Dict]:
@@ -307,7 +305,7 @@ def get_local_model_json(model_uri: str) -> Optional[Dict]:
     Optional[Dict]
         If successful, returns the json of a local model.
     """
-    return _get_local_resource_json(model_uri, ResourceType.MODEL)  # type: ignore
+    return _get_local_resource_json(str(model_uri), ResourceType.MODEL)  # type: ignore
 
 
 def put_local_garden(garden: Garden):
