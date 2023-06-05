@@ -21,7 +21,6 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from mlflow.tracking.request_header.registry import _request_header_provider_registry
 from rich import print
 from rich.prompt import Prompt
 
