@@ -136,7 +136,7 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("format", ["tf", "h5"])
+@pytest.mark.parametrize("save_format", ["tf", "h5"])
 def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format):
     # as if model.pkl already existed on disk
 
