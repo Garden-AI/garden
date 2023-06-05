@@ -305,14 +305,12 @@ def test_pipeline_collects_own_requirements(
     assert "python=" not in "".join(pipeline_using_step_with_model.conda_dependencies)
 
 
-def test_pipeline_collects_step_requirements(
+def test_pipeline_does_not_collect_step_requirements(
     pipeline_using_step_with_model, step_with_model
 ):
-    for step_dependency in step_with_model.conda_dependencies:
-        assert step_dependency in pipeline_using_step_with_model.conda_dependencies
-
-    for step_dependency in step_with_model.pip_dependencies:
-        assert step_dependency in pipeline_using_step_with_model.pip_dependencies
+    assert step_with_model in pipeline_using_step_with_model.steps
+    assert "fake-package==9.9.9" in step_with_model.pip_dependencies
+    assert "fake-package==9.9.9" not in pipeline_using_step_with_model.pip_dependencies
 
 
 def test_pipeline_collects_step_models(pipeline_using_step_with_model):
