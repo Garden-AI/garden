@@ -160,6 +160,7 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model):
     downloaded_model = Model(registered_model.model_uri)
     assert hasattr(downloaded_model, "predict")
 
+
 @pytest.mark.integration
 def test_mlflow_tensorflow_h5_register(tmp_path, toy_tensorflow_model):
     # as if model.pkl already existed on disk
