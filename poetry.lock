@@ -1989,7 +1989,7 @@ cloudpickle = "<3"
 databricks-cli = ">=0.8.7,<1"
 docker = ">=4.0.0,<7"
 entrypoints = "<1"
-Flask = ">=2.2.5,<3"
+Flask = "<3"
 gitpython = ">=2.1.0,<4"
 gunicorn = {version = "<21", markers = "platform_system != \"Windows\""}
 importlib-metadata = ">=3.7.0,<4.7.0 || >4.7.0,<7"

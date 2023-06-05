@@ -136,38 +136,13 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
 
 
 @pytest.mark.integration
-def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model):
+@pytest.mark.parametrize("format", ["tf", "h5"])
+def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format):
     # as if model.pkl already existed on disk
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "tensorflowtest"
-    toy_tensorflow_model.save(model_path)
-
-    # simulate `$ garden-ai model register test-model-name tmp_path/tensorflowtest`
-    name = "tf-test-model-name"
-    # actually register the model
-    client = GardenClient()
-    local_model = LocalModel(
-        local_path=str(model_path),
-        model_name=name,
-        extra_pip_requirements=None,
-        flavor="tensorflow",
-        user_email="foo@example.com",
-    )
-    registered_model = client.register_model(local_model)
-
-    # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
-    assert hasattr(downloaded_model, "predict")
-
-
-@pytest.mark.integration
-def test_mlflow_tensorflow_h5_register(tmp_path, toy_tensorflow_model):
-    # as if model.pkl already existed on disk
-
-    tmp_path.mkdir(exist_ok=True)
-    model_path = tmp_path / "tensorflowtest"
-    toy_tensorflow_model.save(model_path, save_format="h5")
+    toy_tensorflow_model.save(model_path, save_format=save_format)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/tensorflowtest`
     name = "tf-test-model-name"
