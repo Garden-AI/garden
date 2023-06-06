@@ -21,7 +21,6 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from mlflow.tracking.request_header.registry import _request_header_provider_registry
 from rich import print
 from rich.prompt import Prompt
 
@@ -34,9 +33,6 @@ from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
 
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
-from garden_ai.mlflow_bandaid.binary_header_provider import (
-    BinaryContentTypeHeaderProvider,
-)
 from garden_ai.mlmodel import (
     LocalModel,
     RegisteredModel,
@@ -123,7 +119,6 @@ class GardenClient:
     def _set_up_mlflow_env(self):
         os.environ["MLFLOW_TRACKING_TOKEN"] = self._get_garden_access_token()
         os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
-        _request_header_provider_registry.register(BinaryContentTypeHeaderProvider)
 
     def _make_compute_client(self):
         scope_to_authorizer = {
