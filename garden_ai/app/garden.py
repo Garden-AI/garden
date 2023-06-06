@@ -316,17 +316,19 @@ def show(
     garden_ids: List[str] = typer.Argument(
         ...,
         help="The UUIDs or DOIs of the Gardens you want to show the local data for. "
-        "e.g. ``garden show garden1_uuid garden2_doi``",
+        "e.g. ``garden show garden1_uuid garden2_doi`` will show the local data for both Gardens listed.",
     ),
 ):
     """Shows all info for some Gardens"""
-    rich.print("\n")
     for garden_id in garden_ids:
+        try:
+            garden_json_str = json.dumps(
+                _get_garden(garden_id), default=garden_json_encoder
+            )
+            garden_json = json.loads(garden_json_str)
+        except Exception as e:
+            continue  # could not find resource, checking next item in list
         rich.print(f"Garden: {garden_id} local data:")
-        garden_json_str = json.dumps(
-            _get_garden(garden_id), default=garden_json_encoder
-        )
-        garden_json = json.loads(garden_json_str)
         rich.print_json(data=garden_json)
         rich.print("\n")
 

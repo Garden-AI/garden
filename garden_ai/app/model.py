@@ -126,15 +126,19 @@ def show(
     model_ids: List[str] = typer.Argument(
         ...,
         help="The URIs of the models you want to show the local data for. "
-        "e.g. ``model show email@addr.ess-model-name/2 garden2_doi email@addr.ess-model-name-2/4``",
+        "e.g. ``model show email@addr.ess-model-name/2 garden2_doi email@addr.ess-model-name-2/4`` will show the local data for both models listed.",
     ),
 ):
     """Shows all info for some Models"""
-    rich.print("\n")
     for model_id in model_ids:
+        try:
+            model_json_str = json.dumps(
+                _get_model(model_id), default=garden_json_encoder
+            )
+            model_json = json.loads(model_json_str)
+        except Exception as e:
+            continue  # could not find resource, checking next item in list
         rich.print(f"Model: {model_id} local data:")
-        model_json_str = json.dumps(_get_model(model_id), default=garden_json_encoder)
-        model_json = json.loads(model_json_str)
         rich.print_json(data=model_json)
         rich.print("\n")
 

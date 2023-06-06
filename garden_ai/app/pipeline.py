@@ -250,27 +250,18 @@ def show(
     pipeline_ids: List[str] = typer.Argument(
         ...,
         help="The UUIDs or DOIs of the pipelines you want to show the local data for. "
-        "e.g. ``pipeline show pipeline1_uuid pipeline2_doi``",
+        "e.g. ``pipeline show pipeline1_uuid pipeline2_doi`` will show the local data for both pipelines listed.",
     ),
 ):
     """Shows all info for some Gardens"""
-    rich.print("\n")
     for pipeline_id in pipeline_ids:
+        try:
+            pipeline_json_str = json.dumps(
+                _get_pipeline(pipeline_id), default=garden_json_encoder
+            )
+            pipeline_json = json.loads(pipeline_json_str)
+        except Exception as e:
+            continue  # could not find resource, checking next item in list
         rich.print(f"Pipeline: {pipeline_id} local data:")
-        pipeline_json_str = json.dumps(
-            _get_pipeline(pipeline_id), default=garden_json_encoder
-        )
-        pipeline_json = json.loads(pipeline_json_str)
         rich.print_json(data=pipeline_json)
         rich.print("\n")
-
-
-def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
-    if "/" in pipeline_id:
-        pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
-    else:
-        pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
-    if not pipeline:
-        logger.fatal(f"Could not find pipeline with id {pipeline_id}")
-        raise typer.Exit(code=1)
-    return pipeline
