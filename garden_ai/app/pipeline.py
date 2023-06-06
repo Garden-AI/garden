@@ -10,7 +10,7 @@ import json
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import GardenClient, Pipeline, step, GardenConstants
+from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.garden import _get_pipeline
 from garden_ai.utils.misc import garden_json_encoder
@@ -236,11 +236,15 @@ def register(
 @pipeline_app.command(no_args_is_help=False)
 def list():
     """Lists all local pipelines."""
+    pipelines_key = local_data.resource_type_to_id_key[local_data.ResourceType.PIPELINE]
 
-    console.print("\n")
+    resource_table_cols = [pipelines_key, "doi", "title"]
+    table_name = "Local Pipelines"
+
     table = get_local_pipeline_rich_table(
-        fields=["doi", "title"], table_name="Local Pipelines"
+        resource_table_cols=resource_table_cols, table_name=table_name
     )
+    console.print("\n")
     console.print(table)
 
 

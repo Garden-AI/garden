@@ -113,11 +113,15 @@ def register(
 @model_app.command(no_args_is_help=False)
 def list():
     """Lists all local models."""
+    models_key = local_data.resource_type_to_id_key[local_data.ResourceType.MODEL]
 
-    console.print("\n")
+    resource_table_cols = [models_key, "model_name", "flavor"]
+    table_name = "Local Models"
+
     table = get_local_model_rich_table(
-        fields=["model_name", "flavor"], table_name="Local Models"
+        resource_table_cols=resource_table_cols, table_name=table_name
     )
+    console.print("\n")
     console.print(table)
 
 

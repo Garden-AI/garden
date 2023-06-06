@@ -303,11 +303,15 @@ def publish(
 @garden_app.command(no_args_is_help=False)
 def list():
     """Lists all local Gardens."""
+    gardens_key = local_data.resource_type_to_id_key[local_data.ResourceType.GARDEN]
 
-    console.print("\n")
+    resource_table_cols = [gardens_key, "doi", "title"]
+    table_name = "Local Gardens"
+
     table = get_local_garden_rich_table(
-        fields=["doi", "title"], table_name="Local Gardens"
+        resource_table_cols=resource_table_cols, table_name=table_name
     )
+    console.print("\n")
     console.print(table)
 
 
