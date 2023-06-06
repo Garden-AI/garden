@@ -6,13 +6,15 @@ from typing import List, Optional
 import jinja2
 import typer
 import rich
+import json
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import GardenClient, Pipeline, step
-from garden_ai.app.console import console
-from garden_ai import GardenConstants
-from garden_ai import local_data
+from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
+from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.app.console import console, get_local_pipeline_rich_table
+from garden_ai.app.garden import _get_pipeline
+from garden_ai.utils.misc import garden_json_encoder
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
@@ -236,9 +238,8 @@ def register(
 def list():
     """Lists all local pipelines."""
 
-    console = rich.console.Console()
     console.print("\n")
-    table = local_data.get_local_pipeline_table(
+    table = get_local_pipeline_rich_table(
         fields=["doi", "title"], table_name="Local Pipelines"
     )
     console.print(table)
@@ -253,11 +254,23 @@ def show(
     ),
 ):
     """Shows all info for some Gardens"""
+    rich.print("\n")
     for pipeline_id in pipeline_ids:
         rich.print(f"Pipeline: {pipeline_id} local data:")
-        pipeline_json = local_data.get_local_pipeline_json(pipeline_id)
-        if not pipeline_json:
-            logger.fatal(f"Could not find local pipeline with id: {pipeline_id}")
-            raise typer.Exit(code=1)
+        pipeline_json_str = json.dumps(
+            _get_pipeline(pipeline_id), default=garden_json_encoder
+        )
+        pipeline_json = json.loads(pipeline_json_str)
         rich.print_json(data=pipeline_json)
         rich.print("\n")
+
+
+def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
+    if "/" in pipeline_id:
+        pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
+    else:
+        pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
+    if not pipeline:
+        logger.fatal(f"Could not find pipeline with id {pipeline_id}")
+        raise typer.Exit(code=1)
+    return pipeline

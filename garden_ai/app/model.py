@@ -1,13 +1,21 @@
 from pathlib import Path
 from typing import Optional, List
 
-from garden_ai.client import GardenClient
-from garden_ai.mlmodel import DatasetConnection, LocalModel, ModelFlavor
 from garden_ai import local_data
+from garden_ai.client import GardenClient
+from garden_ai.mlmodel import (
+    DatasetConnection,
+    LocalModel,
+    ModelFlavor,
+    RegisteredModel,
+)
+from garden_ai.app.console import console, get_local_model_rich_table
+from garden_ai.utils.misc import garden_json_encoder
 
 import typer
 import rich
 import logging
+import json
 
 model_app = typer.Typer(name="model", no_args_is_help=True)
 
@@ -106,9 +114,8 @@ def register(
 def list():
     """Lists all local models."""
 
-    console = rich.console.Console()
     console.print("\n")
-    table = local_data.get_local_model_table(
+    table = get_local_model_rich_table(
         fields=["model_name", "flavor"], table_name="Local Models"
     )
     console.print(table)
@@ -123,11 +130,18 @@ def show(
     ),
 ):
     """Shows all info for some Models"""
+    rich.print("\n")
     for model_id in model_ids:
         rich.print(f"Model: {model_id} local data:")
-        model_json = local_data.get_local_model_json(model_id)
-        if not model_json:
-            logger.fatal(f"Could not find local model with id: {model_id}")
-            raise typer.Exit(code=1)
+        model_json_str = json.dumps(_get_model(model_id), default=garden_json_encoder)
+        model_json = json.loads(model_json_str)
         rich.print_json(data=model_json)
         rich.print("\n")
+
+
+def _get_model(model_id: str) -> RegisteredModel:
+    model = local_data.get_local_model_by_uri(model_id)
+    if not model:
+        logger.fatal(f"Could not find model with id {model_id}")
+        raise typer.Exit(code=1)
+    return model

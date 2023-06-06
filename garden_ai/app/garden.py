@@ -13,7 +13,8 @@ from garden_ai.client import GardenClient
 from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
-
+from garden_ai.app.console import console, get_local_garden_rich_table
+from garden_ai.utils.misc import garden_json_encoder
 
 logger = logging.getLogger()
 
@@ -303,9 +304,8 @@ def publish(
 def list():
     """Lists all local Gardens."""
 
-    console = rich.console.Console()
     console.print("\n")
-    table = local_data.get_local_garden_table(
+    table = get_local_garden_rich_table(
         fields=["doi", "title"], table_name="Local Gardens"
     )
     console.print(table)
@@ -320,12 +320,13 @@ def show(
     ),
 ):
     """Shows all info for some Gardens"""
+    rich.print("\n")
     for garden_id in garden_ids:
         rich.print(f"Garden: {garden_id} local data:")
-        garden_json = local_data.get_local_garden_json(garden_id)
-        if not garden_json:
-            logger.fatal(f"Could not find local garden with id: {garden_id}")
-            raise typer.Exit(code=1)
+        garden_json_str = json.dumps(
+            _get_garden(garden_id), default=garden_json_encoder
+        )
+        garden_json = json.loads(garden_json_str)
         rich.print_json(data=garden_json)
         rich.print("\n")
 
