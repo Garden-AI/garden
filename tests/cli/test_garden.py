@@ -78,7 +78,6 @@ def test_garden_show(database_with_connected_pipeline, tmp_path, mocker):
     command = [
         "garden",
         "show",
-        "--garden",
         garden_uuid,
     ]
     result = runner.invoke(app, command)
@@ -91,8 +90,8 @@ def test_garden_show(database_with_connected_pipeline, tmp_path, mocker):
     command = [
         "garden",
         "show",
-        "-g",
         garden_doi,
+        garden_uuid,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0

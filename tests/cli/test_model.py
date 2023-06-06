@@ -78,7 +78,19 @@ def test_model_show(database_with_connected_pipeline, tmp_path, mocker):
     command = [
         "model",
         "show",
-        "--model",
+        model_uri,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert model_uri in result.stdout
+    assert model_name in result.stdout
+    assert model_flavor in result.stdout
+
+    command = [
+        "model",
+        "show",
+        model_uri,
         model_uri,
     ]
     result = runner.invoke(app, command)

@@ -116,19 +116,18 @@ def list():
 
 @model_app.command(no_args_is_help=True)
 def show(
-    model_id: str = typer.Option(
+    model_ids: List[str] = typer.Argument(
         ...,
-        "-m",
-        "--model",
-        prompt="Please enter the URI of a model",
-        help="The Model URI of the model you want to show",
-        rich_help_panel="Required",
+        help="The URIs of the models you want to show the local data for. "
+        "e.g. ``model show email@addr.ess-model-name/2 garden2_doi email@addr.ess-model-name-2/4``",
     ),
 ):
-    """Shows all info for one model"""
-
-    model_json = local_data.get_local_model_json(model_id)
-    if not model_json:
-        logger.fatal(f"Could not find model with URI {model_id}")
-        raise typer.Exit(code=1)
-    rich.print_json(data=model_json)
+    """Shows all info for some Models"""
+    for model_id in model_ids:
+        rich.print(f"Model: {model_id} local data:")
+        model_json = local_data.get_local_model_json(model_id)
+        if not model_json:
+            logger.fatal(f"Could not find local model with id: {model_id}")
+            raise typer.Exit(code=1)
+        rich.print_json(data=model_json)
+        rich.print("\n")

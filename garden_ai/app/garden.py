@@ -313,22 +313,21 @@ def list():
 
 @garden_app.command(no_args_is_help=True)
 def show(
-    garden_id: str = typer.Option(
+    garden_ids: List[str] = typer.Argument(
         ...,
-        "-g",
-        "--garden",
-        prompt="Please enter the UUID or DOI of a garden",
-        help="The UUID or DOI of the garden you want to show",
-        rich_help_panel="Required",
+        help="The UUIDs or DOIs of the Gardens you want to show the local data for. "
+        "e.g. ``garden show garden1_uuid garden2_doi``",
     ),
 ):
-    """Shows all info for one Garden"""
-
-    garden_json = local_data.get_local_garden_json(garden_id)
-    if not garden_json:
-        logger.fatal(f"Could not find garden with id {garden_id}")
-        raise typer.Exit(code=1)
-    rich.print_json(data=garden_json)
+    """Shows all info for some Gardens"""
+    for garden_id in garden_ids:
+        rich.print(f"Garden: {garden_id} local data:")
+        garden_json = local_data.get_local_garden_json(garden_id)
+        if not garden_json:
+            logger.fatal(f"Could not find local garden with id: {garden_id}")
+            raise typer.Exit(code=1)
+        rich.print_json(data=garden_json)
+        rich.print("\n")
 
 
 def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:

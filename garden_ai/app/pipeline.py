@@ -262,3 +262,22 @@ def show(
         logger.fatal(f"Could not find pipeline with the id {pipeline_id}")
         raise typer.Exit(code=1)
     rich.print_json(data=pipeline_json)
+
+
+@pipeline_app.command(no_args_is_help=True)
+def show(
+    pipeline_ids: List[str] = typer.Argument(
+        ...,
+        help="The UUIDs or DOIs of the pipelines you want to show the local data for. "
+        "e.g. ``pipeline show pipeline1_uuid pipeline2_doi``",
+    ),
+):
+    """Shows all info for some Gardens"""
+    for pipeline_id in pipeline_ids:
+        rich.print(f"Pipeline: {pipeline_id} local data:")
+        pipeline_json = local_data.get_local_pipeline_json(pipeline_id)
+        if not pipeline_json:
+            logger.fatal(f"Could not find local pipeline with id: {pipeline_id}")
+            raise typer.Exit(code=1)
+        rich.print_json(data=pipeline_json)
+        rich.print("\n")
