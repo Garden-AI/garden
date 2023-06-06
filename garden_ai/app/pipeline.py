@@ -246,26 +246,6 @@ def list():
 
 @pipeline_app.command(no_args_is_help=True)
 def show(
-    pipeline_id: str = typer.Option(
-        ...,
-        "-p",
-        "--pipeline",
-        prompt="Please enter the UUID or DOI of a pipeline",
-        help="The UUID or DOI of a pipeline you want to show",
-        rich_help_panel="Required",
-    ),
-):
-    """Shows all info for one pipeline"""
-
-    pipeline_json = local_data.get_local_pipeline_json(pipeline_id)
-    if not pipeline_json:
-        logger.fatal(f"Could not find pipeline with the id {pipeline_id}")
-        raise typer.Exit(code=1)
-    rich.print_json(data=pipeline_json)
-
-
-@pipeline_app.command(no_args_is_help=True)
-def show(
     pipeline_ids: List[str] = typer.Argument(
         ...,
         help="The UUIDs or DOIs of the pipelines you want to show the local data for. "
