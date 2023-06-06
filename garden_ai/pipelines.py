@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
+from packaging.requirements import InvalidRequirement, Requirement
 from pydantic import BaseModel, Field, PrivateAttr, validator
 from pydantic.dataclasses import dataclass
 
@@ -33,7 +34,6 @@ from garden_ai.utils.misc import (
     garden_json_encoder,
     read_conda_deps,
     safe_compose,
-    validate_pip_lines,
 )
 
 logger = logging.getLogger()
@@ -178,10 +178,19 @@ class Pipeline:
             )
         return req_file
 
-    def _collect_requirements(self):
-        """collect requirements to pass to globus compute container service.
+    @validator("pip_dependencies", each_item=True)
+    def pip_deps_parsable(cls, pip_dep):
+        try:
+            _ = Requirement(pip_dep)
+        except InvalidRequirement as e:
+            raise ValueError(f"Could not parse pip dependency '{pip_dep}'") from e
+        return pip_dep
 
-        Populates attributes: ``self.python_version, self.pip_dependencies, self.conda_dependencies, self.model_uris``
+    def _collect_requirements(self):
+        """collect requirements to pass to Globus Compute container service.
+
+        Populates attributes `self.python_version, self.pip_dependencies, self.conda_dependencies` per
+        `self.requirements_file`, as well as `self.model_uris` from steps' metadata.
         """
 
         # mapping of python-version-witness: python-version (collected for warning msg below)
@@ -189,6 +198,7 @@ class Pipeline:
             "system": ".".join(map(str, sys.version_info[:3])),
             "pipeline": self.python_version,
         }
+        # collect explicit pipeline dependencies for the container
         if self.requirements_file:
             if self.requirements_file.endswith((".yml", ".yaml")):
                 py_version, conda_deps, pip_deps = read_conda_deps(
@@ -209,15 +219,48 @@ class Pipeline:
                     deps.extend(d["line"] for d in parsed["resolved_dependencies"])
                     self.pip_dependencies += set(deps)
 
+        # inspect steps to warn about possible dependency issues, but don't keep them for container.
+        # step requirements are typically inferred (via mlflow) from their models, which is
+        # prone to breaking (e.g. https://github.com/Garden-AI/garden/issues/135)
+        explicit_requirements = {
+            Requirement(r).name: Requirement(r) for r in self.pip_dependencies
+        }
+
         for step in self.steps:
-            self.conda_dependencies += step.conda_dependencies
-            self.pip_dependencies += step.pip_dependencies
+            for r in step.pip_dependencies:
+                requirement = Requirement(r)
+                # warn about step requirements we're ignoring in favor of the pipeline's
+                would_ignore_req = (
+                    requirement.name in explicit_requirements
+                    and requirement != explicit_requirements[requirement.name]
+                )
+                if would_ignore_req:
+                    logger.warning(
+                        f"Warning: step {step.__name__} has inferred a requirement '{requirement}', which is also required by the pipeline. "
+                        f"Only the pipeline's explicit requirement ({explicit_requirements[requirement.name]}) will be used."
+                    )
+                # warn about potentially missing requirements
+                elif requirement.name not in explicit_requirements:
+                    logger.warning(
+                        f"Warning: step {step.__name__} has inferred a requirement '{requirement}', which is not required by the pipeline. "
+                        f"If this package needs to be present in the container, please add '{requirement.name}' to the pipeline's requirements.txt "
+                    )
+
+            # same for conda deps -- note that these were likely explicitly added,
+            # since mlflow-inferred requirements usually aren't conda.
+            for r in step.conda_dependencies:
+                if r not in self.conda_dependencies:
+                    logger.warning(
+                        f"Warning: step {step.__name__} has inferred a conda requirement '{r}', which is not required by the pipeline. "
+                        f"If this package needs to be present in the container, please add '{r}' to the pipeline's requirements."
+                    )
+
             self.model_uris += step.model_uris
             py_versions[step.__name__] = step.python_version
 
         self.python_version = py_versions["pipeline"] or py_versions["system"]
         self.conda_dependencies = list(set(self.conda_dependencies))
-        self.pip_dependencies = list(set(validate_pip_lines(self.pip_dependencies)))
+        self.pip_dependencies = list(set(self.pip_dependencies))
 
         distinct_py_versions = set(
             py_versions[k] for k in py_versions if py_versions[k]
