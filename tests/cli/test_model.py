@@ -90,7 +90,7 @@ def test_model_show(database_with_connected_pipeline, tmp_path, mocker):
     command = [
         "model",
         "show",
-        model_uri,
+        "not_a_model_uri",
         model_uri,
     ]
     result = runner.invoke(app, command)

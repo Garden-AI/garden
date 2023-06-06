@@ -100,6 +100,19 @@ def test_garden_show(database_with_connected_pipeline, tmp_path, mocker):
     assert garden_title in result.stdout
     assert garden_doi in result.stdout
 
+    command = [
+        "garden",
+        "show",
+        "not_a_garden_id",
+        garden_uuid,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert garden_uuid in result.stdout
+    assert garden_title in result.stdout
+    assert garden_doi in result.stdout
+
 
 @pytest.mark.cli
 @pytest.mark.parametrize("use_doi", [True, False])

@@ -89,6 +89,18 @@ def test_pipeline_show(database_with_connected_pipeline, tmp_path, mocker):
         "pipeline",
         "show",
         pipeline_doi,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert pipeline_uuid in result.stdout
+    assert pipeline_title in result.stdout
+    assert pipeline_doi in result.stdout
+
+    command = [
+        "pipeline",
+        "show",
+        "not_a_pipeline_id",
         pipeline_uuid,
     ]
     result = runner.invoke(app, command)
