@@ -1,8 +1,6 @@
-import pytest
 from rich.table import Table
 from typer.testing import CliRunner
 
-from garden_ai.app.main import app
 from garden_ai import local_data
 from garden_ai.app.console import (
     get_local_garden_rich_table,
