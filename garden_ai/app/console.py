@@ -16,11 +16,11 @@ def _get_rich_resource_table(
         for resource_obj in resource_objs:
             resource_table_row = []
             for field in resource_table_cols:
-                lookup = getattr(resource_obj, field)
-                if lookup is None:
+                lookup_attr = getattr(resource_obj, field)
+                if lookup_attr is None:
                     resource_table_row.append("None")
                 else:
-                    resource_table_row.append(str(lookup))
+                    resource_table_row.append(str(lookup_attr))
             resource_table_rows.append(tuple(resource_table_row))
         for col in resource_table_cols:
             table.add_column(col)
@@ -36,7 +36,7 @@ def _get_rich_resource_table(
 def get_local_garden_rich_table(
     resource_table_cols: List[str], table_name: str
 ) -> Table:
-    """Helper: fetch all gardens from ~/.garden/data.json and outputs a rich table to print.
+    """Helper: fetch all gardens from ~/.garden/data.json and returns a rich table to print.
 
     Parameters
     ----------
@@ -63,7 +63,7 @@ def get_local_garden_rich_table(
 def get_local_pipeline_rich_table(
     resource_table_cols: List[str], table_name: str
 ) -> Table:
-    """Helper: fetch all pipelines from ~/.garden/data.json and outputs a rich table to print.
+    """Helper: fetch all pipelines from ~/.garden/data.json and returns a rich table to print.
 
     Parameters
     ----------
@@ -90,7 +90,7 @@ def get_local_pipeline_rich_table(
 def get_local_model_rich_table(
     resource_table_cols: List[str], table_name: str
 ) -> Table:
-    """Helper: fetch all models from ~/.garden/data.json and outputs a rich table to print.
+    """Helper: fetch all models from ~/.garden/data.json and returns a rich table to print.
 
     Parameters
     ----------

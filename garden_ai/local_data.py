@@ -151,7 +151,7 @@ def _delete_old_model_versions(model_name: str):
 
 def _get_resource_by_type(
     resource_type: ResourceType,
-) -> Optional[Union[List[Garden], List[RegisteredPipeline], List[RegisteredModel]]]:
+) -> Union[List[Garden], List[RegisteredPipeline], List[RegisteredModel], None]:
     data = _read_local_db()
     resource_data = data.get(resource_type.value, {})
     resource_objs = []
@@ -304,7 +304,6 @@ def get_all_local_models() -> Optional[List[RegisteredModel]]:
 
     Returns
     -------
-
     Optional[RegisteredModel]
         If successful, a list of all the RegisteredModel objects in data.json.
     """
