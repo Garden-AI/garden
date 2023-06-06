@@ -136,7 +136,7 @@ def show(
                 _get_model(model_id), default=garden_json_encoder
             )
             model_json = json.loads(model_json_str)
-        except:
+        except Exception:
             continue  # could not find resource, checking next item in list
         rich.print(f"Model: {model_id} local data:")
         rich.print_json(data=model_json)

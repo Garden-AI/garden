@@ -259,7 +259,7 @@ def show(
                 _get_pipeline(pipeline_id), default=garden_json_encoder
             )
             pipeline_json = json.loads(pipeline_json_str)
-        except:
+        except Exception:
             continue  # could not find resource, checking next item in list
         rich.print(f"Pipeline: {pipeline_id} local data:")
         rich.print_json(data=pipeline_json)
