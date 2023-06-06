@@ -10,8 +10,7 @@ import json
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
-from garden_ai.pipelines import RegisteredPipeline
+from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.garden import _get_pipeline
 from garden_ai.utils.misc import garden_json_encoder
@@ -260,7 +259,7 @@ def show(
                 _get_pipeline(pipeline_id), default=garden_json_encoder
             )
             pipeline_json = json.loads(pipeline_json_str)
-        except Exception as e:
+        except:
             continue  # could not find resource, checking next item in list
         rich.print(f"Pipeline: {pipeline_id} local data:")
         rich.print_json(data=pipeline_json)

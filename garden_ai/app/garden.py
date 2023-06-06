@@ -326,7 +326,7 @@ def show(
                 _get_garden(garden_id), default=garden_json_encoder
             )
             garden_json = json.loads(garden_json_str)
-        except Exception as e:
+        except:
             continue  # could not find resource, checking next item in list
         rich.print(f"Garden: {garden_id} local data:")
         rich.print_json(data=garden_json)
