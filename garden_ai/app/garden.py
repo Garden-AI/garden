@@ -254,7 +254,11 @@ def add_pipeline(
     """Add a registered pipeline to a garden"""
 
     garden = _get_garden(garden_id)
+    if not garden:
+        raise typer.Exit(code=1)
     to_add = _get_pipeline(pipeline_id)
+    if not to_add:
+        raise typer.Exit(code=1)
 
     if to_add in garden.pipelines:
         if pipeline_alias:
@@ -288,6 +292,8 @@ def publish(
 
     client = GardenClient()
     garden = _get_garden(garden_id)
+    if not garden:
+        raise typer.Exit(code=1)
     if not garden.doi:
         garden.doi = client._mint_doi(garden)
         local_data.put_local_garden(garden)
@@ -324,17 +330,11 @@ def show(
     """Shows all info for some Gardens"""
 
     for garden_id in garden_ids:
-        if "/" in garden_id:
-            garden = local_data.get_local_garden_by_doi(garden_id)
-        else:
-            garden = local_data.get_local_garden_by_uuid(garden_id)
-
+        garden = _get_garden(garden_id)
         if garden:
             rich.print(f"Garden: {garden_id} local data:")
-            rich.print_json(data=json.loads(garden.json()))
+            rich.print_json(json=garden.json())
             rich.print("\n")
-        else:
-            rich.print(f"Could not find garden with id {garden_id}\n")
 
 
 def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
@@ -343,8 +343,8 @@ def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
     else:
         pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
     if not pipeline:
-        logger.fatal(f"Could not find pipeline with id {pipeline_id}")
-        raise typer.Exit(code=1)
+        logger.warning(f"Could not find pipeline with id {pipeline_id}")
+        return None
     return pipeline
 
 
@@ -354,8 +354,8 @@ def _get_garden(garden_id: str) -> Garden:
     else:
         garden = local_data.get_local_garden_by_uuid(garden_id)
     if not garden:
-        logger.fatal(f"Could not find garden with id {garden_id}")
-        raise typer.Exit(code=1)
+        logger.warning(f"Could not find garden with id {garden_id}")
+        return None
     return garden
 
 

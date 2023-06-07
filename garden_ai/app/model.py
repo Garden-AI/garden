@@ -134,10 +134,9 @@ def show(
 
     for model_id in model_ids:
         model = local_data.get_local_model_by_uri(model_id)
-
         if model:
             rich.print(f"Model: {model_id} local data:")
-            rich.print_json(data=json.loads(model.json()))
+            rich.print_json(json=model.json())
             rich.print("\n")
         else:
             rich.print(f"Could not find model with id {model_id}\n")

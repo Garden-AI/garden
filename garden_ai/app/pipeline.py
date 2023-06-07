@@ -12,6 +12,7 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
 from garden_ai.app.console import console, get_local_pipeline_rich_table
+from garden_ai.app.garden import _get_pipeline
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
@@ -256,14 +257,10 @@ def show(
     """Shows all info for some Gardens"""
 
     for pipeline_id in pipeline_ids:
-        if "/" in pipeline_id:
-            pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
-        else:
-            pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
-
+        pipeline = _get_pipeline(pipeline_id)
         if pipeline:
             rich.print(f"Pipeline: {pipeline_id} local data:")
-            rich.print_json(data=json.loads(pipeline.json()))
+            rich.print_json(json=pipeline.json())
             rich.print("\n")
         else:
             rich.print(f"Could not find pipeline with id {pipeline_id}\n")
