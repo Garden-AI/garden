@@ -7,10 +7,8 @@ from garden_ai.mlmodel import (
     DatasetConnection,
     LocalModel,
     ModelFlavor,
-    RegisteredModel,
 )
 from garden_ai.app.console import console, get_local_model_rich_table
-from garden_ai.utils.misc import garden_json_encoder
 
 import typer
 import rich

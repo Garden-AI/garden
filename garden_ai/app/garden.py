@@ -14,7 +14,6 @@ from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.app.console import console, get_local_garden_rich_table
-from garden_ai.utils.misc import garden_json_encoder
 
 logger = logging.getLogger()
 

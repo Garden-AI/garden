@@ -12,7 +12,6 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
 from garden_ai.app.console import console, get_local_pipeline_rich_table
-from garden_ai.utils.misc import garden_json_encoder
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
