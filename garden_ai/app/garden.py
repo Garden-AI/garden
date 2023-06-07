@@ -13,6 +13,7 @@ from garden_ai.client import GardenClient
 from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.app.console import console, get_local_garden_rich_table
 
 logger = logging.getLogger()
 
@@ -253,7 +254,11 @@ def add_pipeline(
     """Add a registered pipeline to a garden"""
 
     garden = _get_garden(garden_id)
+    if not garden:
+        raise typer.Exit(code=1)
     to_add = _get_pipeline(pipeline_id)
+    if not to_add:
+        raise typer.Exit(code=1)
 
     if to_add in garden.pipelines:
         if pipeline_alias:
@@ -287,6 +292,8 @@ def publish(
 
     client = GardenClient()
     garden = _get_garden(garden_id)
+    if not garden:
+        raise typer.Exit(code=1)
     if not garden.doi:
         garden.doi = client._mint_doi(garden)
         local_data.put_local_garden(garden)
@@ -298,25 +305,57 @@ def publish(
         raise typer.Exit(code=1) from e
 
 
-def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
+@garden_app.command(no_args_is_help=False)
+def list():
+    """Lists all local Gardens."""
+
+    resource_table_cols = ["uuid", "doi", "title"]
+    table_name = "Local Gardens"
+
+    table = get_local_garden_rich_table(
+        resource_table_cols=resource_table_cols, table_name=table_name
+    )
+    console.print("\n")
+    console.print(table)
+
+
+@garden_app.command(no_args_is_help=True)
+def show(
+    garden_ids: List[str] = typer.Argument(
+        ...,
+        help="The UUIDs or DOIs of the Gardens you want to show the local data for. "
+        "e.g. ``garden show garden1_uuid garden2_doi`` will show the local data for both Gardens listed.",
+    ),
+):
+    """Shows all info for some Gardens"""
+
+    for garden_id in garden_ids:
+        garden = _get_garden(garden_id)
+        if garden:
+            rich.print(f"Garden: {garden_id} local data:")
+            rich.print_json(json=garden.json())
+            rich.print("\n")
+
+
+def _get_pipeline(pipeline_id: str) -> Optional[RegisteredPipeline]:
     if "/" in pipeline_id:
         pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
     else:
         pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
     if not pipeline:
-        logger.fatal(f"Could not find pipeline with id {pipeline_id}")
-        raise typer.Exit(code=1)
+        logger.warning(f"Could not find pipeline with id {pipeline_id}")
+        return None
     return pipeline
 
 
-def _get_garden(garden_id: str) -> Garden:
+def _get_garden(garden_id: str) -> Optional[Garden]:
     if "/" in garden_id:
         garden = local_data.get_local_garden_by_doi(garden_id)
     else:
         garden = local_data.get_local_garden_by_uuid(garden_id)
     if not garden:
-        logger.fatal(f"Could not find garden with id {garden_id}")
-        raise typer.Exit(code=1)
+        logger.warning(f"Could not find garden with id {garden_id}")
+        return None
     return garden
 
 
