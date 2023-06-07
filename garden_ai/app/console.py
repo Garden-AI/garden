@@ -14,11 +14,12 @@ def _get_rich_resource_table(
     for col in resource_table_cols:
         table.add_column(col)
 
-    for resource_obj in resource_objs:
-        row = []
-        for field in resource_table_cols:
-            row.append(str(getattr(resource_obj, field)))
-        table.add_row(*(tuple(row)))
+    if resource_objs:
+        for resource_obj in resource_objs:
+            row = []
+            for field in resource_table_cols:
+                row.append(str(getattr(resource_obj, field)))
+            table.add_row(*(tuple(row)))
 
     return table
 
