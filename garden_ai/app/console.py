@@ -19,7 +19,7 @@ def _get_rich_resource_table(
             row = []
             for field in resource_table_cols:
                 row.append(str(getattr(resource_obj, field)))
-            table.add_row(*(tuple(row)))
+            table.add_row(*row)
 
     return table
 
