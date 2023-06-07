@@ -1,7 +1,7 @@
 ---
 alias: Architecture Overview
 ---
-## Architecture Overview
+## Overview
 
 The Garden project is structured around four core concepts: `Gardens`, `Pipelines`, `steps`, and `Models`. Each of these is represented by one or more classes in our SDK.
 

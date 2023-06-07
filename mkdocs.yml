@@ -4,9 +4,10 @@ nav:
   - User Guide:
       - Introduction: user_guide/introduction.md
       - Installation: user_guide/installation.md
+      - Tutorial: user_guide/tutorial.md
+  - Overview: architecture_overview.md
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
-  - Architecture Overview: architecture_overview.md
   - API Reference:
     - Models: Models.md
     - Steps: Steps.md
