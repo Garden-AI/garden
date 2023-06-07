@@ -337,7 +337,7 @@ def show(
             rich.print("\n")
 
 
-def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
+def _get_pipeline(pipeline_id: str) -> Optional[RegisteredPipeline]:
     if "/" in pipeline_id:
         pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
     else:
@@ -348,7 +348,7 @@ def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
     return pipeline
 
 
-def _get_garden(garden_id: str) -> Garden:
+def _get_garden(garden_id: str) -> Optional[Garden]:
     if "/" in garden_id:
         garden = local_data.get_local_garden_by_doi(garden_id)
     else:
