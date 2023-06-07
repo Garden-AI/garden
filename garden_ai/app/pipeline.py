@@ -263,7 +263,7 @@ def show(
 
         if pipeline:
             rich.print(f"Pipeline: {pipeline_id} local data:")
-            rich.print_json(data=json.loads(pipeline.json()))
+            rich.print_json(json=pipeline.json())
             rich.print("\n")
         else:
             rich.print(f"Could not find pipeline with id {pipeline_id}\n")

@@ -137,7 +137,7 @@ def show(
 
         if model:
             rich.print(f"Model: {model_id} local data:")
-            rich.print_json(data=json.loads(model.json()))
+            rich.print_json(json=model.json())
             rich.print("\n")
         else:
             rich.print(f"Could not find model with id {model_id}\n")

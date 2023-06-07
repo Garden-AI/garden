@@ -331,7 +331,7 @@ def show(
 
         if garden:
             rich.print(f"Garden: {garden_id} local data:")
-            rich.print_json(data=json.loads(garden.json()))
+            rich.print_json(json=garden.json())
             rich.print("\n")
         else:
             rich.print(f"Could not find garden with id {garden_id}\n")
