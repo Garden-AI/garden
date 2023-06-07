@@ -13,7 +13,7 @@ This tutorial will guide you through developing a Garden from scratch: registeri
 
 We start by developing a Pipeline, which will contain of all the code necessary to e.g. clean some input data and make a prediction using the pre-trained model we want to make reproducible and accessible by others.
 
-A pipeline is typically defined in its own python module/file, and the `garden-ai pipeline create` command will generate a partially-filled `pipeline_name/pipeline.py` file, with templated starter code you can easily fill in. For example:
+A pipeline is typically defined in its own python module or file, and the `garden-ai pipeline create` command will generate a partially-filled `pipeline_name/pipeline.py` file, with templated starter code you can easily complete. For example:
 
 ```bash
 garden-ai pipeline create looking_glass_pipeline \
@@ -60,7 +60,7 @@ looking_glass_pipeline: Pipeline = client.create_pipeline(
 
 
 > [!NOTE] Note
-> The only code that will be serialized and registered as part of the pipeline is code that appears _in the body_ of one of its steps; this means that you should put your imports like `import pandas as pd` in the _body_ of the functions that use them, not at the top level of the module.
+> The only code that will be serialized and registered as part of the pipeline is code that appears _in the body_ of one of its steps; this means that you should put your imports like `import pandas as pd` inside the functions that use them, not at the top level of the module where they'd otherwise go.
 
 > [!NOTE] Note
 > Eventually, the pipeline will be accessed from a Garden using the same variable name found in this python file, e.g. `my_garden.looking_glass_pipeline(...)`. To customize this, you can specify a different `short_name` as a kwarg in the constructor (setting the pipeline's name in any Garden) or by specifying an `--alias` when you add the pipeline to a Garden (setting its name for only that Garden).
