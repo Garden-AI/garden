@@ -9,7 +9,7 @@ import rich
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
+from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.garden import _get_pipeline
 
