@@ -6,7 +6,6 @@ from typing import List, Optional
 import jinja2
 import typer
 import rich
-import json
 from rich import print
 from rich.prompt import Prompt
 

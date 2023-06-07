@@ -13,7 +13,6 @@ from garden_ai.app.console import console, get_local_model_rich_table
 import typer
 import rich
 import logging
-import json
 
 model_app = typer.Typer(name="model", no_args_is_help=True)
 
