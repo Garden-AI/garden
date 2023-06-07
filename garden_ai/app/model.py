@@ -113,9 +113,8 @@ def register(
 @model_app.command(no_args_is_help=False)
 def list():
     """Lists all local models."""
-    models_key = local_data.resource_type_to_id_key[local_data.ResourceType.MODEL]
 
-    resource_table_cols = [models_key, "model_name", "flavor"]
+    resource_table_cols = ["model_uri", "model_name", "flavor"]
     table_name = "Local Models"
 
     table = get_local_model_rich_table(
@@ -130,26 +129,17 @@ def show(
     model_ids: List[str] = typer.Argument(
         ...,
         help="The URIs of the models you want to show the local data for. "
-        "e.g. ``model show email@addr.ess-model-name/2 garden2_doi email@addr.ess-model-name-2/4`` will show the local data for both models listed.",
+        "e.g. ``model show email@addr.ess-model-name/2 email@addr.ess-model-name-2/4`` will show the local data for both models listed.",
     ),
 ):
     """Shows all info for some Models"""
+
     for model_id in model_ids:
-        try:
-            model_json_str = json.dumps(
-                _get_model(model_id), default=garden_json_encoder
-            )
-            model_json = json.loads(model_json_str)
-        except Exception:
-            continue  # could not find resource, checking next item in list
-        rich.print(f"Model: {model_id} local data:")
-        rich.print_json(data=model_json)
-        rich.print("\n")
+        model = local_data.get_local_model_by_uri(model_id)
 
-
-def _get_model(model_id: str) -> RegisteredModel:
-    model = local_data.get_local_model_by_uri(model_id)
-    if not model:
-        logger.fatal(f"Could not find model with id {model_id}")
-        raise typer.Exit(code=1)
-    return model
+        if model:
+            rich.print(f"Model: {model_id} local data:")
+            rich.print_json(data=json.loads(model.json()))
+            rich.print("\n")
+        else:
+            rich.print(f"Could not find model with id {model_id}\n")

@@ -1,5 +1,4 @@
 from rich.table import Table
-from typer.testing import CliRunner
 
 from garden_ai import local_data
 from garden_ai.app.console import (
@@ -7,8 +6,6 @@ from garden_ai.app.console import (
     get_local_pipeline_rich_table,
     get_local_model_rich_table,
 )
-
-runner = CliRunner()
 
 
 def test_get_local_garden_table(mocker, garden_client, garden_all_fields, tmp_path):

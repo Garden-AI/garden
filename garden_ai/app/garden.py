@@ -303,9 +303,8 @@ def publish(
 @garden_app.command(no_args_is_help=False)
 def list():
     """Lists all local Gardens."""
-    gardens_key = local_data.resource_type_to_id_key[local_data.ResourceType.GARDEN]
 
-    resource_table_cols = [gardens_key, "doi", "title"]
+    resource_table_cols = ["uuid", "doi", "title"]
     table_name = "Local Gardens"
 
     table = get_local_garden_rich_table(
@@ -324,17 +323,19 @@ def show(
     ),
 ):
     """Shows all info for some Gardens"""
+
     for garden_id in garden_ids:
-        try:
-            garden_json_str = json.dumps(
-                _get_garden(garden_id), default=garden_json_encoder
-            )
-            garden_json = json.loads(garden_json_str)
-        except Exception:
-            continue  # could not find resource, checking next item in list
-        rich.print(f"Garden: {garden_id} local data:")
-        rich.print_json(data=garden_json)
-        rich.print("\n")
+        if "/" in garden_id:
+            garden = local_data.get_local_garden_by_doi(garden_id)
+        else:
+            garden = local_data.get_local_garden_by_uuid(garden_id)
+
+        if garden:
+            rich.print(f"Garden: {garden_id} local data:")
+            rich.print_json(data=json.loads(garden.json()))
+            rich.print("\n")
+        else:
+            rich.print(f"Could not find garden with id {garden_id}\n")
 
 
 def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:

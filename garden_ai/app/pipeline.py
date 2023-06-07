@@ -12,7 +12,6 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenClient, Pipeline, step, GardenConstants, local_data
 from garden_ai.app.console import console, get_local_pipeline_rich_table
-from garden_ai.app.garden import _get_pipeline
 from garden_ai.utils.misc import garden_json_encoder
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
@@ -236,9 +235,8 @@ def register(
 @pipeline_app.command(no_args_is_help=False)
 def list():
     """Lists all local pipelines."""
-    pipelines_key = local_data.resource_type_to_id_key[local_data.ResourceType.PIPELINE]
 
-    resource_table_cols = [pipelines_key, "doi", "title"]
+    resource_table_cols = ["uuid", "doi", "title"]
     table_name = "Local Pipelines"
 
     table = get_local_pipeline_rich_table(
@@ -257,14 +255,16 @@ def show(
     ),
 ):
     """Shows all info for some Gardens"""
+
     for pipeline_id in pipeline_ids:
-        try:
-            pipeline_json_str = json.dumps(
-                _get_pipeline(pipeline_id), default=garden_json_encoder
-            )
-            pipeline_json = json.loads(pipeline_json_str)
-        except Exception:
-            continue  # could not find resource, checking next item in list
-        rich.print(f"Pipeline: {pipeline_id} local data:")
-        rich.print_json(data=pipeline_json)
-        rich.print("\n")
+        if "/" in pipeline_id:
+            pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
+        else:
+            pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
+
+        if pipeline:
+            rich.print(f"Pipeline: {pipeline_id} local data:")
+            rich.print_json(data=json.loads(pipeline.json()))
+            rich.print("\n")
+        else:
+            rich.print(f"Could not find pipeline with id {pipeline_id}\n")

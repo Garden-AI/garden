@@ -11,24 +11,14 @@ def _get_rich_resource_table(
 ) -> Table:
     table = Table(title=table_name)
 
-    if resource_objs is not None:
-        resource_table_rows = []
-        for resource_obj in resource_objs:
-            resource_table_row = []
-            for field in resource_table_cols:
-                lookup_attr = getattr(resource_obj, field)
-                if lookup_attr is None:
-                    resource_table_row.append("None")
-                else:
-                    resource_table_row.append(str(lookup_attr))
-            resource_table_rows.append(tuple(resource_table_row))
-        for col in resource_table_cols:
-            table.add_column(col)
-        for row in resource_table_rows:
-            table.add_row(*(row))
-    else:
-        for col in resource_table_cols:
-            table.add_column(col)
+    for col in resource_table_cols:
+        table.add_column(col)
+
+    for resource_obj in resource_objs:
+        row = []
+        for field in resource_table_cols:
+            row.append(str(getattr(resource_obj, field)))
+        table.add_row(*(tuple(row)))
 
     return table
 
