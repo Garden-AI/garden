@@ -246,66 +246,71 @@ def shell(
     import tempfile
     import sys
 
-    # Create a virtual environment in the temp directory
-    temp_dir = os.path.join(os.path.sep, tempfile.gettempdir(), env_name)
-    print(f"Setting up environment in {temp_dir} ...")
-    subprocess.run(["python3", "-m", "venv", temp_dir])
+    try:
+        # Create a virtual environment in the temp directory
+        temp_dir = os.path.join(os.path.sep, tempfile.gettempdir(), env_name)
+        print(f"Setting up environment in {temp_dir} ...")
+        subprocess.run(["python3", "-m", "venv", temp_dir])
 
-    # Activate the environment os dependent
-    if sys.platform == "win32":
-        activate_script = os.path.join(temp_dir, "Scripts", "activate.bat")
-    elif sys.platform == "darwin":
-        activate_script = os.path.join(temp_dir, "bin", "activate")
+        # Activate the environment os dependent
+        if sys.platform == "win32":
+            activate_script = os.path.join(temp_dir, "Scripts", "activate.bat")
+        elif sys.platform == "darwin":
+            activate_script = os.path.join(temp_dir, "bin", "activate")
 
-    subprocess.run(f"source {activate_script}", shell=True)
+        subprocess.run(f"source {activate_script}", shell=True)
 
-    # Upgrade pip in the virtual environment quietly
-    subprocess.run(
-        f"{temp_dir}/bin/python3 -m pip install -q --upgrade pip",
-        check=True,
-        shell=True,
-    )
-
-    # Install the requirements with nice spinner
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task(description="Installing requirements...", total=None)
-
+        # Upgrade pip in the virtual environment quietly
         subprocess.run(
-            f"{temp_dir}/bin/pip install -q -r {requirements_file}",
+            f"{temp_dir}/bin/python3 -m pip install -q --upgrade pip",
             check=True,
             shell=True,
         )
 
-    # Start Python shell in the virtual environment with the pipeline file
-    print("Starting Garden test shell. Loading your pipeline one moment...")
-    python_command = os.path.join(temp_dir, "bin", "python")
-    subprocess.run([python_command, "-i", pipeline_file])
-
-    # Clean up prompt for the temporary environment
-    cleanup = typer.confirm(
-        "Would you like to cleanup (delete) the virtual environment?"
-    )
-    if cleanup:
+        # Install the requirements with nice spinner
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             transient=True,
         ) as progress:
-            progress.add_task(
-                description="Removing up virtual environment...", total=None
+            progress.add_task(description="Installing requirements...", total=None)
+
+            subprocess.run(
+                f"{temp_dir}/bin/pip install -q -r {requirements_file}",
+                check=True,
+                shell=True,
             )
-            import shutil
 
-            shutil.rmtree(
-                temp_dir
-            )  # Remove the directory listed under temp_dir not the actual tmp directory
-    else:
-        print(
-            f"Virtual environment at {temp_dir} still remains and can be used for futher testing or manual removal."
+        # Start Python shell in the virtual environment with the pipeline file
+        print("Starting Garden test shell. Loading your pipeline one moment...")
+        python_command = os.path.join(temp_dir, "bin", "python")
+        subprocess.run([python_command, "-i", pipeline_file])
+
+        # Clean up prompt for the temporary environment
+        cleanup = typer.confirm(
+            "Would you like to cleanup (delete) the virtual environment?"
         )
+        if cleanup:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(
+                    description="Removing up virtual environment...", total=None
+                )
+                import shutil
 
-    print("Garden pipeline testing complete.")
+                shutil.rmtree(
+                    temp_dir
+                )  # Remove the directory listed under temp_dir not the actual tmp directory
+        else:
+            print(
+                f"Virtual environment at {temp_dir} still remains and can be used for futher testing or manual removal."
+            )
+
+        print("Local Garden pipeline shell testing complete.")
+
+    except Exception as e:
+        # MVP error handling
+        print(f"An error occurred: {e}")
