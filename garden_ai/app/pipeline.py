@@ -231,7 +231,7 @@ def register(
     console.print(f"Created function {func_uuid}")
     console.print("Done! Pipeline is registered.")
 
-    
+
 @pipeline_app.command()
 def shell(
     pipeline_file: Path = typer.Argument(
@@ -329,7 +329,7 @@ def shell(
         # MVP error handling
         print(f"An error occurred: {e}")
 
-        
+
 @pipeline_app.command(no_args_is_help=False)
 def list():
     """Lists all local pipelines."""
