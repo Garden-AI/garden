@@ -271,6 +271,8 @@ def shell(
             activate_script = os.path.join(temp_dir, "Scripts", "activate.bat")
         elif sys.platform == "darwin":
             activate_script = os.path.join(temp_dir, "bin", "activate")
+        else:
+            activate_script = os.path.join(temp_dir, "bin", "activate")
 
         subprocess.run(f"source {activate_script}", shell=True)
 
