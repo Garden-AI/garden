@@ -228,7 +228,7 @@ def register(
     console.print(f"Created container {container_uuid}")
     func_uuid = client.register_pipeline(user_pipeline, container_uuid)
     console.print(f"Created function {func_uuid}")
-    console.print("Done! Pipeline is registered.")
+    console.print(f"Done! Pipeline was registered with doi {user_pipeline.doi}.")
 
 
 @pipeline_app.command(no_args_is_help=False)
