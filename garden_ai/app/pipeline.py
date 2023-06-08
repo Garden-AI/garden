@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-import time
 
 import jinja2
 import typer
