@@ -5,18 +5,24 @@ from typing import List, Optional
 
 import jinja2
 import typer
+import rich
 from rich import print
 from rich.prompt import Prompt
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from garden_ai import GardenClient, Pipeline, step
-from garden_ai.app.console import console
+from garden_ai import GardenClient, Pipeline, step, GardenConstants
+from garden_ai.app.console import console, get_local_pipeline_rich_table
+from garden_ai.app.garden import _get_pipeline
 
+from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
+    PipelineLoadMlFlowException,
 )
+
 from garden_ai.utils.misc import clean_identifier
+
 
 logger = logging.getLogger()
 
@@ -32,7 +38,11 @@ def template_pipeline(short_name: str, pipeline: Pipeline) -> str:
     """populate jinja2 template with starter code for creating a pipeline"""
     env = jinja2.Environment(loader=jinja2.PackageLoader("garden_ai"))
     template = env.get_template("pipeline")
-    return template.render(short_name=short_name, pipeline=pipeline)
+    return template.render(
+        short_name=short_name,
+        pipeline=pipeline,
+        scaffolded_model_name=GardenConstants.SCAFFOLDED_MODEL_NAME,
+    )
 
 
 @pipeline_app.callback()
@@ -204,7 +214,11 @@ def register(
         raise typer.Exit(code=1)
     try:
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
-    except PipelineLoadException as e:
+    except (
+        PipelineLoadException,
+        PipelineLoadMlFlowException,
+        PipelineLoadScaffoldedException,
+    ) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise typer.Exit(code=1) from e
 
@@ -217,7 +231,7 @@ def register(
     console.print(f"Created function {func_uuid}")
     console.print("Done! Pipeline is registered.")
 
-
+    
 @pipeline_app.command()
 def shell(
     pipeline_file: Path = typer.Argument(
@@ -314,3 +328,37 @@ def shell(
     except Exception as e:
         # MVP error handling
         print(f"An error occurred: {e}")
+
+        
+@pipeline_app.command(no_args_is_help=False)
+def list():
+    """Lists all local pipelines."""
+
+    resource_table_cols = ["uuid", "doi", "title"]
+    table_name = "Local Pipelines"
+
+    table = get_local_pipeline_rich_table(
+        resource_table_cols=resource_table_cols, table_name=table_name
+    )
+    console.print("\n")
+    console.print(table)
+
+
+@pipeline_app.command(no_args_is_help=True)
+def show(
+    pipeline_ids: List[str] = typer.Argument(
+        ...,
+        help="The UUIDs or DOIs of the pipelines you want to show the local data for. "
+        "e.g. ``pipeline show pipeline1_uuid pipeline2_doi`` will show the local data for both pipelines listed.",
+    ),
+):
+    """Shows all info for some Gardens"""
+
+    for pipeline_id in pipeline_ids:
+        pipeline = _get_pipeline(pipeline_id)
+        if pipeline:
+            rich.print(f"Pipeline: {pipeline_id} local data:")
+            rich.print_json(json=pipeline.json())
+            rich.print("\n")
+        else:
+            rich.print(f"Could not find pipeline with id {pipeline_id}\n")

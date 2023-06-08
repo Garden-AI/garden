@@ -10,10 +10,17 @@ from mlflow.pyfunc import load_model  # type: ignore
 from pydantic import BaseModel, Field, validator
 
 from garden_ai.utils.misc import read_conda_deps
+from garden_ai import GardenConstants
 
 
 class ModelUploadException(Exception):
     """Exception raised when an attempt to upload a model to ML Flow fails"""
+
+    pass
+
+
+class PipelineLoadScaffoldedException(Exception):
+    """Exception raised when a user attempts to load model with the name SCAFFOLDED_MODEL_NAME"""
 
     pass
 
@@ -141,7 +148,7 @@ def _push_model_to_registry(local_model: LocalModel):
             with open(local_path, "rb") as f:
                 loaded_model = pickle.load(f)
                 log_model_variant = mlflow.sklearn.log_model
-        elif flavor == ModelFlavor.TENSORFLOW.value and pathlib.Path(local_path).is_dir:
+        elif flavor == ModelFlavor.TENSORFLOW.value:
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             # ignore cpu guard info on tf import require before tf import
             from tensorflow import keras  # type: ignore
@@ -149,7 +156,7 @@ def _push_model_to_registry(local_model: LocalModel):
             loaded_model = keras.models.load_model(local_path)
             log_model_variant = (
                 mlflow.tensorflow.log_model
-            )  # TODO explore artifact path, sigs, and HDf5
+            )  # TODO explore artifact path and sigs
         elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
             import torch  # type: ignore
 
@@ -193,6 +200,11 @@ class _Model:
         self.model = None
         self.model_full_name = model_full_name
         self.model_uri = f"models:/{model_full_name}"
+
+        # raises error if user trys to load model with the name SCAFFOLDED_MODEL_NAME
+        if self.model_full_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
+            raise PipelineLoadScaffoldedException("Invalid model name.")
+
         # extract dependencies without loading model into memory
         # make it easier for steps to infer
         conda_yml = mlflow.pyfunc.get_model_dependencies(self.model_uri, format="conda")
