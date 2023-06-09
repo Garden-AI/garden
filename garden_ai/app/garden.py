@@ -227,7 +227,7 @@ def add_pipeline(
         ...,
         "-g",
         "--garden",
-        prompt="Please enter the UUID or DOI of a garden",
+        prompt="Please enter the DOI of a garden",
         help="The name of the garden you want to add a pipeline to",
         rich_help_panel="Required",
     ),
@@ -235,7 +235,7 @@ def add_pipeline(
         ...,
         "-p",
         "--pipeline",
-        prompt="Please enter a the UUID or DOI of a pipeline",
+        prompt="Please enter the DOI of a pipeline",
         help="The name of the pipeline you want to add",
         rich_help_panel="Required",
     ),
@@ -265,7 +265,7 @@ def add_pipeline(
             )
             garden.rename_pipeline(old_name, pipeline_alias)
     else:
-        garden.pipeline_ids += [to_add.uuid]
+        garden.pipeline_ids += [to_add.doi]
         if pipeline_alias:
             garden.rename_pipeline(to_add.short_name, pipeline_alias)
     local_data.put_local_garden(garden)
@@ -278,8 +278,8 @@ def publish(
         ...,
         "-g",
         "--garden",
-        prompt="Please enter the UUID or DOI of a garden",
-        help="The UUID or DOI of the garden you want to publish",
+        prompt="Please enter the DOI of a garden",
+        help="The DOI of the garden you want to publish",
         rich_help_panel="Required",
     ),
 ):
@@ -299,10 +299,7 @@ def publish(
 
 
 def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
-    if "/" in pipeline_id:
-        pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
-    else:
-        pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
+    pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
     if not pipeline:
         logger.fatal(f"Could not find pipeline with id {pipeline_id}")
         raise typer.Exit(code=1)
@@ -310,10 +307,7 @@ def _get_pipeline(pipeline_id: str) -> RegisteredPipeline:
 
 
 def _get_garden(garden_id: str) -> Garden:
-    if "/" in garden_id:
-        garden = local_data.get_local_garden_by_doi(garden_id)
-    else:
-        garden = local_data.get_local_garden_by_uuid(garden_id)
+    garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
         logger.fatal(f"Could not find garden with id {garden_id}")
         raise typer.Exit(code=1)
