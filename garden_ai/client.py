@@ -235,7 +235,11 @@ class GardenClient:
             data["authors"] = authors
         if title:
             data["title"] = title
-        return Garden(**data)
+
+        garden = Garden(**data)
+        if not garden.doi:
+            garden.doi = self._mint_doi(garden)
+        return garden
 
     def create_pipeline(
         self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
@@ -259,6 +263,9 @@ class GardenClient:
         if record:
             logger.info("Found pre-registered pipeline. Reusing DOI.")
             pipeline.doi = record.doi
+
+        if not pipeline.doi:
+            pipeline.doi = self._mint_doi(pipeline)
 
         return pipeline
 
@@ -350,15 +357,13 @@ class GardenClient:
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def get_registered_pipeline(
-        self, identifier: Union[UUID, str]
-    ) -> RegisteredPipeline:
-        """Return a callable ``RegisteredPipeline`` corresponding to the given uuid/doi.
+    def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
+        """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
 
         Parameters
         ----------
-        identifier : Union[UUID, str]
-            The previously registered pipeline's DOI or UUID. Raises an
+        doi : str
+            The previously registered pipeline's DOI. Raises an
             exception if not found.
 
         Returns
@@ -373,15 +378,11 @@ class GardenClient:
         PipelineNotFoundException
             Raised when no known pipeline exists with the given identifier.
         """
-        is_doi = "/" in str(identifier)
-        if is_doi:
-            registered = local_data.get_local_pipeline_by_doi(str(identifier))
-        else:
-            registered = local_data.get_local_pipeline_by_uuid(identifier)
+        registered = local_data.get_local_pipeline_by_doi(doi)
 
         if registered is None:
             raise PipelineNotFoundException(
-                f"Could not find any pipelines with identifier {identifier}."
+                f"Could not find any pipelines with DOI {doi}."
             )
 
         self._set_up_mlflow_env()
@@ -402,13 +403,13 @@ class GardenClient:
     def get_email(self) -> str:
         return local_data._get_user_email()
 
-    def get_local_garden(self, identifier: Union[UUID, str]) -> Garden:
-        """Return a registered ``Garden`` corresponding to the given uuid/doi.
+    def get_local_garden(self, doi: str) -> Garden:
+        """Return a registered ``Garden`` corresponding to the given doi.
 
         Any ``RegisteredPipelines`` registered to the Garden will be callable
         as attributes on the garden by their (registered) short_name, e.g.
             ```python
-                my_garden = client.get_local_garden('garden-doi-or-uuid')
+                my_garden = client.get_local_garden('garden-doi')
                 #  pipeline would have been registered with short_name='my_pipeline'
                 my_garden.my_pipeline(*args, endpoint='where-to-execute')
             ```
@@ -417,20 +418,16 @@ class GardenClient:
 
         Parameters
         ----------
-        identifier : Union[UUID, str]
-            The previously registered Garden's DOI or UUID. Raises an
+        doi : str
+            The previously registered Garden's DOI. Raises an
             exception if not found.
 
         """
-        is_doi = "/" in str(identifier)
-        if is_doi:
-            registered = local_data.get_local_garden_by_doi(str(identifier))
-        else:
-            registered = local_data.get_local_garden_by_uuid(identifier)
+        registered = local_data.get_local_garden_by_doi(doi)
 
         if registered is None:
             raise GardenNotFoundException(
-                f"Could not find any Gardens with identifier {identifier}."
+                f"Could not find any Gardens with identifier {doi}."
             )
         self._set_up_mlflow_env()
         registered._env_vars = {
@@ -457,25 +454,19 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, identifier: str) -> Garden:
+    def get_published_garden(self, doi: str) -> Garden:
         """
         Queries Globus Search for the garden with this DOI.
 
         Parameters
         ----------
-        identifier: The doi or uuid of the garden you want.
+        doi: The doi of the garden you want.
 
         Returns
         -------
         Garden populated with metadata from remote metadata record.
 
         """
-        is_doi = "/" in str(identifier)
-        if is_doi:
-            return garden_search.get_remote_garden_by_doi(
-                identifier, self._fresh_mlflow_vars(), self.search_client
-            )
-        else:
-            return garden_search.get_remote_garden_by_uuid(
-                identifier, self._fresh_mlflow_vars(), self.search_client
-            )
+        return garden_search.get_remote_garden_by_doi(
+            doi, self._fresh_mlflow_vars(), self.search_client
+        )
