@@ -56,7 +56,7 @@ class Garden(BaseModel):
             garden's pipelines.  Takes aliases into account (set when adding \
             pipeline via CLI or using `rename_pipeline` method.)
 
-        pipeline_ids: List[UUID] = Field(default_factory=list)
+        pipeline_ids: List[str] = Field(default_factory=list)
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
@@ -108,7 +108,7 @@ class Garden(BaseModel):
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
     uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
-    pipeline_ids: List[UUID] = Field(default_factory=list)
+    pipeline_ids: List[str] = Field(default_factory=list)
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
     _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
@@ -149,12 +149,12 @@ class Garden(BaseModel):
         for meta in pipeline_metadata:
             try:
                 pipeline = RegisteredPipeline(**meta)
-                if pipeline.uuid in self.pipeline_ids:
+                if pipeline.doi in self.pipeline_ids:
                     pipeline._env_vars = self._env_vars
                     pipelines.append(pipeline)
                 else:
                     logger.warning(
-                        f"Remote pipeline {pipeline.uuid} not present in pipeline id list."
+                        f"Remote pipeline {pipeline.doi} not present in pipeline id list."
                     )
             except ValidationError as e:
                 logger.warning(
@@ -174,14 +174,14 @@ class Garden(BaseModel):
             A list of RegisteredPipeline objects.
         """
 
-        from .local_data import PipelineNotFoundException, get_local_pipeline_by_uuid
+        from .local_data import PipelineNotFoundException, get_local_pipeline_by_doi
 
         pipelines = []
-        for uuid in self.pipeline_ids:
-            pipeline = get_local_pipeline_by_uuid(uuid)
+        for doi in self.pipeline_ids:
+            pipeline = get_local_pipeline_by_doi(doi)
             if pipeline is None:
                 raise PipelineNotFoundException(
-                    f"Could not find registered pipeline with id {uuid}."
+                    f"Could not find registered pipeline with id {doi}."
                 )
             # set env vars for pipeline to use when remotely executing
             pipeline._env_vars = self._env_vars
