@@ -47,7 +47,7 @@ def test_garden_can_access_pipeline_as_attribute(
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
-    garden = local_data.get_local_garden_by_uuid("e1a3b50b-4efc-42c8-8422-644f4f858b87")
+    garden = local_data.get_local_garden_by_doi("10.23677/fake-doi")
     assert isinstance(garden.fixture_pipeline, RegisteredPipeline)
 
 

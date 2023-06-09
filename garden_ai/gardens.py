@@ -4,7 +4,6 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
-from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, PrivateAttr, ValidationError, validator
 
@@ -107,7 +106,6 @@ class Garden(BaseModel):
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
-    uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
     pipeline_ids: List[str] = Field(default_factory=list)
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
     _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
@@ -194,7 +192,7 @@ class Garden(BaseModel):
         """
         Helper method: builds the "complete" metadata dictionary with nested `Pipeline` and `step` metadata.
 
-        When serializing normally with `garden.{dict(), json()}`, only the UUIDs of the pipelines in the garden are included.
+        When serializing normally with `garden.{dict(), json()}`, only the DOIs of the pipelines in the garden are included.
 
         This method returns a superset of `garden.dict()`, so that the following holds:
             valid_garden == Garden(**valid_garden.expanded_metadata()) == Garden(**valid_garden.dict())

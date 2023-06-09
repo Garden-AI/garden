@@ -246,7 +246,7 @@ class GardenClient:
     ) -> Pipeline:
         """Initialize and return a pipeline object.
 
-        If this pipeline's UUID has been used before to register a function for
+        If this pipeline's DOI has been used before to register a function for
         remote execution, reuse the (funcx/globus compute) ID for consistency.
 
         NOTE: this means that local modifications to a pipeline will not be
@@ -259,7 +259,7 @@ class GardenClient:
             data["title"] = title
 
         pipeline = Pipeline(**data)
-        record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
+        record = local_data.get_local_pipeline_by_doi(pipeline.doi)
         if record:
             logger.info("Found pre-registered pipeline. Reusing DOI.")
             pipeline.doi = record.doi
@@ -303,23 +303,11 @@ class GardenClient:
         if not test:
             raise NotImplementedError
 
-        def get_existing_doi() -> Optional[str]:
-            # check for existing doi, either on object or in db
-            registered_obj: Optional[Union[Garden, RegisteredPipeline]]
-            if isinstance(obj, Garden):
-                registered_obj = local_data.get_local_garden_by_uuid(obj.uuid)
-            else:
-                registered_obj = local_data.get_local_pipeline_by_uuid(obj.uuid)
-
-            return registered_obj.doi if registered_obj else None
-
-        existing_doi = obj.doi or get_existing_doi()
-
-        if existing_doi and not force:
+        if obj.doi and not force:
             logger.info(
                 "existing DOI found, not requesting new DOI. Pass `force=true` to override this behavior."
             )
-            return existing_doi
+            return obj.doi
 
         logger.info("Requesting DOI")
         url = f"{GARDEN_ENDPOINT}/doi"

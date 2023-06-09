@@ -176,7 +176,7 @@ def garden_all_fields(registered_pipeline_toy_example):
     pea_garden.version = "0.0.1"
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
     pea_garden.doi = "10.26311/fake-doi"
-    pea_garden.pipeline_ids += [registered_pipeline_toy_example.uuid]
+    pea_garden.pipeline_ids += [registered_pipeline_toy_example.doi]
     pea_garden.validate()
     return pea_garden
 
