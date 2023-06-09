@@ -1,7 +1,6 @@
 {
   "pipelines": {
-    "b537520b-e86e-45bf-8566-4555a72b0b08": {
-      "uuid": "b537520b-e86e-45bf-8566-4555a72b0b08",
+    "10.23677/jx31-gx98": {
       "doi": "10.23677/jx31-gx98",
       "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
       "title": "Fixture pipeline",
@@ -83,7 +82,7 @@
     }
   },
   "gardens": {
-    "e1a3b50b-4efc-42c8-8422-644f4f858b87": {
+    "10.23677/fake-doi": {
       "authors": [
         "Will Engler"
       ],
@@ -96,8 +95,7 @@
       "language": "en",
       "tags": [],
       "version": "0.0.1",
-      "pipeline_ids": [],
-      "uuid": "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+      "pipeline_ids": []
     }
   }
 }
