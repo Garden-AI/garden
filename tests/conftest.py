@@ -149,7 +149,7 @@ def pipeline_toy_example(tmp_requirements_txt):
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
         requirements_file=str(tmp_requirements_txt),
-        doi="10.26311/fake-doi"
+        doi="10.26311/fake-doi",
     )
 
     # the complete pipeline is now also callable by itself
@@ -263,7 +263,7 @@ def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
         requirements_file=str(tmp_requirements_txt),
-        doi="10.26311/fake-doi"
+        doi="10.26311/fake-doi",
     )
 
     return pea_edibility_pipeline
