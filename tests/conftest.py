@@ -172,7 +172,7 @@ def garden_all_fields(registered_pipeline_toy_example):
         authors=["Mendel, Gregor"],
         title="Experiments on Plant Hybridization",
         contributors=["St. Thomas Abbey"],
-        doi="10.26311/fake-doi"
+        doi="10.26311/fake-doi",
     )
     pea_garden.year = "1863"
     pea_garden.language = "en"
