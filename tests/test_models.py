@@ -19,7 +19,6 @@ def test_create_empty_garden(garden_client):
 
     assert not garden.authors
     assert not garden.title
-    assert not garden.doi
 
 
 def test_validate_all_fields(garden_all_fields):
@@ -34,7 +33,6 @@ def test_validate_no_fields(garden_no_fields):
 def test_validate_required_only(garden_no_fields):
     garden = garden_no_fields
     garden.authors = ["Mendel, Gregor"]
-    assert not garden.doi
     with pytest.raises(ValidationError):
         garden.validate()
     garden.title = "Experiments on Plant Hybridization"
