@@ -22,7 +22,7 @@ def test_get_by_doi_valid(mocker, valid_search_by_subject):
 
 def test_get_by_doi_none_found(mocker, empty_search_by_doi):
     mock_search_client = mocker.MagicMock(SearchClient)
-    mock_search_client.search = mocker.Mock(
+    mock_search_client.get_subject = mocker.Mock(
         return_value=MockSearchResult(empty_search_by_doi)
     )
     with pytest.raises(garden_search.RemoteGardenException):
