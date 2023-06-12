@@ -100,7 +100,7 @@ class Pipeline:
     authors: List[str] = Field(...)
     steps: Tuple[Step, ...] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    doi: Optional[str] = None
+    doi: str = Field(...)
     func_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
     version: Optional[str] = "0.0.1"

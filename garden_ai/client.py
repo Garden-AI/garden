@@ -235,9 +235,10 @@ class GardenClient:
             data["authors"] = authors
         if title:
             data["title"] = title
+        data["doi"] = data.get("doi") or "placeholder"
 
         garden = Garden(**data)
-        if not garden.doi:
+        if garden.doi == "placeholder":
             garden.doi = self._mint_doi(garden)
         return garden
 
@@ -257,6 +258,7 @@ class GardenClient:
             data["authors"] = authors
         if title:
             data["title"] = title
+        data["doi"] = data.get("doi") or "placeholder"
 
         pipeline = Pipeline(**data)
         record = local_data.get_local_pipeline_by_doi(pipeline.doi)
@@ -264,7 +266,7 @@ class GardenClient:
             logger.info("Found pre-registered pipeline. Reusing DOI.")
             pipeline.doi = record.doi
 
-        if not pipeline.doi:
+        if pipeline.doi == "placeholder":
             pipeline.doi = self._mint_doi(pipeline)
 
         return pipeline
