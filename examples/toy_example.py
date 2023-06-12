@@ -1,4 +1,4 @@
-from garden_ai import GardenClient, step, Pipeline, Garden
+from garden_ai import GardenClient, step, Garden
 from typing import List
 import os
 
