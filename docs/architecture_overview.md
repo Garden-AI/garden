@@ -1,7 +1,7 @@
 ---
 alias: Architecture Overview
 ---
-## Architecture Overview
+## Overview
 
 The Garden project is structured around four core concepts: `Gardens`, `Pipelines`, `steps`, and `Models`. Each of these is represented by one or more classes in our SDK.
 
@@ -144,7 +144,7 @@ Here's how a `Garden` is typically created using the Garden CLI:
 ```bash
 garden-ai garden create \
 	--title "Garden of Live Flowers" \
-	--author "Queen of Hearts" --year 1871
+	--author "The Red Queen" --year 1871
 ```
 
 

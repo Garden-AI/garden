@@ -303,6 +303,9 @@ def publish(
         logger.fatal(f"Could not publish garden {garden_id}")
         logger.fatal(e.error_data)
         raise typer.Exit(code=1) from e
+    console.print(
+        f"Successfully published garden {garden.title} with DOI {garden.doi}!"
+    )
 
 
 @garden_app.command(no_args_is_help=False)
