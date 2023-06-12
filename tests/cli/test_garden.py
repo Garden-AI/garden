@@ -44,80 +44,63 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
 
 
 @pytest.mark.cli
-@pytest.mark.parametrize("use_doi", [True, False])
-def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker, use_doi):
+def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker):
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_unconnected_pipeline
     )
 
-    garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
-    pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    garden_doi = "10.23677/fake-doi"
     pipeline_doi = "10.23677/jx31-gx98"
 
-    def run_test_with_ids(garden_id, pipeline_id):
-        before_addition = local_data.get_local_garden_by_uuid(garden_id)
-        assert len(before_addition.pipeline_ids) == 0
+    before_addition = local_data.get_local_garden_by_doi(garden_doi)
+    assert len(before_addition.pipeline_ids) == 0
 
-        command = ["garden", "add-pipeline", "-g", garden_id, "-p", pipeline_id]
-        result = runner.invoke(app, command)
-        assert result.exit_code == 0
+    command = ["garden", "add-pipeline", "-g", garden_doi, "-p", pipeline_doi]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
 
-        garden_after_addition = local_data.get_local_garden_by_uuid(garden_id)
-        # expanded metadata includes "pipelines" attribute
-        after_addition = garden_after_addition.expanded_metadata()
-        assert len(after_addition["pipelines"]) == 1
-        assert str(after_addition["pipelines"][0]["uuid"]) == pipeline_uuid
-        assert after_addition["pipelines"][0]["doi"] == pipeline_doi
-
-    if use_doi:
-        run_test_with_ids(garden_uuid, pipeline_doi)
-    else:
-        run_test_with_ids(garden_uuid, pipeline_uuid)
+    garden_after_addition = local_data.get_local_garden_by_doi(garden_doi)
+    # expanded metadata includes "pipelines" attribute
+    after_addition = garden_after_addition.expanded_metadata()
+    assert len(after_addition["pipelines"]) == 1
+    assert after_addition["pipelines"][0]["doi"] == pipeline_doi
 
 
 @pytest.mark.cli
-@pytest.mark.parametrize("use_doi", [True, False])
-def test_garden_publish(database_with_connected_pipeline, mocker, use_doi):
+def test_garden_publish(database_with_connected_pipeline, mocker):
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
 
-    garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
     garden_doi = "10.23677/fake-doi"
-    pipeline_uuid = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    pipeline_doi = "10.23677/jx31-gx98"
     mock_client._mint_doi.return_value = garden_doi
 
-    def run_test_with_id(garden_id):
-        command = [
-            "garden",
-            "publish",
-            "-g",
-            garden_id,
-        ]
-        result = runner.invoke(app, command)
-        assert result.exit_code == 0
+    command = [
+        "garden",
+        "publish",
+        "-g",
+        garden_doi,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
 
-        mock_client.publish_garden_metadata.assert_called_once()
+    mock_client.publish_garden_metadata.assert_called_once()
 
-        args = mock_client.publish_garden_metadata.call_args.args
-        garden = args[0]
-        # Confirm that expanded gardens include pipelines
-        denormalized_garden_metadata = garden.expanded_metadata()
-        assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
-        assert (
-            str(denormalized_garden_metadata["pipelines"][0]["uuid"]) == pipeline_uuid
-        )
-        # Confirm that pipelines within expanded gardens contain models
-        model = denormalized_garden_metadata["pipelines"][0]["models"][0]
-        assert model["version"] == "3"
-        assert len(model["connections"]) == 1
-
-    if use_doi:
-        run_test_with_id(garden_doi)
-    else:
-        run_test_with_id(garden_uuid)
+    args = mock_client.publish_garden_metadata.call_args.args
+    garden = args[0]
+    # Confirm that expanded gardens include pipelines
+    denormalized_garden_metadata = garden.expanded_metadata()
+    assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
+    assert (
+        str(denormalized_garden_metadata["pipelines"][0]["doi"]) == pipeline_doi
+    )
+    # Confirm that pipelines within expanded gardens contain models
+    model = denormalized_garden_metadata["pipelines"][0]["models"][0]
+    assert model["version"] == "3"
+    assert len(model["connections"]) == 1
 
 
 @pytest.mark.cli
@@ -126,12 +109,12 @@ def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
 
-    garden_id = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
-    pipeline_id = "b537520b-e86e-45bf-8566-4555a72b0b08"
+    garden_doi = "10.23677/fake-doi"
+    pipeline_doi = "10.23677/jx31-gx98"
     pipeline_old_name = "fixture_pipeline"
     pipeline_alias = "fixed_ur_pipeline"
 
-    before_addition = local_data.get_local_garden_by_uuid(garden_id)
+    before_addition = local_data.get_local_garden_by_doi(garden_doi)
     assert len(before_addition.pipelines) == 1
     assert hasattr(before_addition, pipeline_old_name)
     assert not hasattr(before_addition, pipeline_alias)
@@ -140,15 +123,15 @@ def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker
         "garden",
         "add-pipeline",
         "-g",
-        garden_id,
+        garden_doi,
         "-p",
-        pipeline_id,
+        pipeline_doi,
         "-a",
         pipeline_alias,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    after_addition = local_data.get_local_garden_by_uuid(garden_id)
+    after_addition = local_data.get_local_garden_by_doi(garden_doi)
     assert not hasattr(after_addition, pipeline_old_name)
     assert hasattr(after_addition, pipeline_alias)
