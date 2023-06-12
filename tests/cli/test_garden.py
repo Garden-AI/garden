@@ -94,9 +94,7 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
     # Confirm that expanded gardens include pipelines
     denormalized_garden_metadata = garden.expanded_metadata()
     assert denormalized_garden_metadata["pipelines"][0]["steps"] is not None
-    assert (
-        str(denormalized_garden_metadata["pipelines"][0]["doi"]) == pipeline_doi
-    )
+    assert str(denormalized_garden_metadata["pipelines"][0]["doi"]) == pipeline_doi
     # Confirm that pipelines within expanded gardens contain models
     model = denormalized_garden_metadata["pipelines"][0]["models"][0]
     assert model["version"] == "3"
