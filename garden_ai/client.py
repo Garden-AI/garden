@@ -335,6 +335,28 @@ class GardenClient:
         else:
             return doi
 
+    def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
+        logger.info("Requesting update to DOI")
+        url = f"{GARDEN_ENDPOINT}/doi"
+
+        header = {
+            "Content-Type": "application/vnd.api+json",
+            "Authorization": self.garden_authorizer.get_authorization_header(),
+        }
+        metadata = json.loads(obj.datacite_json())
+        payload = {"data": {"type": "dois", "attributes": metadata}}
+        r = requests.put(
+            url,
+            headers=header,
+            json=payload,
+        )
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            logger.error(f"{r.text}")
+            raise
+        logger.info("Update request succeeded")
+
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
         return built_container_uuid
@@ -343,6 +365,7 @@ class GardenClient:
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         pipeline.doi = self._mint_doi(pipeline)
+        self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
         return func_uuid
@@ -436,6 +459,7 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
+        self._update_datacite(garden)
         return garden_search.publish_garden_metadata(garden, self.search_client)
 
     def search(self, query: str) -> str:
