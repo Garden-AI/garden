@@ -60,6 +60,7 @@ REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
 
 fixture_pipeline = Pipeline(
     title="Invalid model fixture pipeline",
+    doi="10.26311/fake-doi",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
     authors=["Garden Team"],

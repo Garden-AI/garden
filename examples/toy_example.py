@@ -69,6 +69,7 @@ pea_edibility_pipeline = Pipeline(
     steps=(split_peas, make_soup, rate_soup),
     authors=pea_garden.authors,
     requirements_file=os.path.dirname(os.path.abspath(__file__)) + "/requirements.txt",
+    doi=client._mint_doi()
 )
 
 # the complete pipeline is now also callable by itself
