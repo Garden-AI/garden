@@ -64,12 +64,11 @@ def rate_soup(soup_sample: Soup) -> float:
 rate_soup.contributors += ["Friar Hugo", "Sister Constance"]
 
 
-pea_edibility_pipeline = Pipeline(
+pea_edibility_pipeline = client.create_pipeline(
     title="Concept: a pipeline for soup",
     steps=(split_peas, make_soup, rate_soup),
     authors=pea_garden.authors,
     requirements_file=os.path.dirname(os.path.abspath(__file__)) + "/requirements.txt",
-    doi=client._mint_doi(),
 )
 
 # the complete pipeline is now also callable by itself
