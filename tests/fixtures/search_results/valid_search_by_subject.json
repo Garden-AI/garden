@@ -1,1 +1,84 @@
-{"subject": "28b3e49c-b342-4f15-90a8-c98fe2d75105", "@version": "2019-08-27", "@datatype": "GMetaResult", "entries": [{"content": {"authors": ["Mendel, Gregor"], "contributors": ["Friar Hugo", "Sister Constance", "St. Thomas Abbey", "Abbot Mortimer"], "title": "Experiments on Plant Hybridization", "doi": "10.26311/fake-doi", "description": "\nThis Garden houses sophisticated ML pipelines for Big Pea Data extraction\nand classification. It consists of a 2-hectare plot behind the monastery,\nand a 30,000-plant dataset.\n", "resourceTypeGeneral": "Other", "publisher": "Garden", "year": "1863", "language": "en", "tags": [], "version": "0.0.1", "pipelines": [{"title": "Concept: a pipeline for soup", "authors": ["Mendel, Gregor"], "steps": [{"func": "split_peas: (ps: List) -> List[tuple]", "authors": ["Sister Constance"], "contributors": [], "title": "split_peas", "description": null, "input_info": null, "output_info": null, "uuid": "6bfa3755-8b34-4f97-9ad1-3397b5bc7c70"}, {"func": "make_soup: (splits: List[tuple]) -> __main__.Soup", "authors": ["Friar Hugo"], "contributors": [], "title": "make_soup", "description": null, "input_info": null, "output_info": null, "uuid": "1acd74f5-d107-4843-a96e-7c36e4c9825b"}, {"func": "rate_soup: (soup_sample: __main__.Soup) -> float", "authors": ["Abbot Mortimer"], "contributors": ["Friar Hugo", "Sister Constance"], "title": "rate_soup", "description": null, "input_info": "a spoonful of Soup object", "output_info": null, "uuid": "d2bdc5bc-43b5-4e62-97d3-4722d1a0ddf1"}], "contributors": ["Sister Constance", "Abbot Mortimer", "Friar Hugo"], "doi": null, "uuid": "46aacb84-3431-469c-98c0-6beb2536f122"}], "garden_id": "28b3e49c-b342-4f15-90a8-c98fe2d75105"}, "entry_id": null, "matched_principal_sets": []}]}
+{
+    "subject": "10.26311/fake-doi",
+    "@version": "2019-08-27",
+    "@datatype": "GMetaResult",
+    "entries": [
+        {
+            "content": {
+                "authors": [
+                    "Mendel, Gregor"
+                ],
+                "contributors": [
+                    "Friar Hugo",
+                    "Sister Constance",
+                    "St. Thomas Abbey",
+                    "Abbot Mortimer"
+                ],
+                "title": "Experiments on Plant Hybridization",
+                "doi": "10.26311/fake-doi",
+                "description": "\nThis Garden houses sophisticated ML pipelines for Big Pea Data extraction\nand classification. It consists of a 2-hectare plot behind the monastery,\nand a 30,000-plant dataset.\n",
+                "resourceTypeGeneral": "Other",
+                "publisher": "Garden",
+                "year": "1863",
+                "language": "en",
+                "tags": [],
+                "version": "0.0.1",
+                "pipelines": [
+                    {
+                        "title": "Concept: a pipeline for soup",
+                        "authors": [
+                            "Mendel, Gregor"
+                        ],
+                        "steps": [
+                            {
+                                "func": "split_peas: (ps: List) -> List[tuple]",
+                                "authors": [
+                                    "Sister Constance"
+                                ],
+                                "contributors": [],
+                                "title": "split_peas",
+                                "description": null,
+                                "input_info": null,
+                                "output_info": null
+                            },
+                            {
+                                "func": "make_soup: (splits: List[tuple]) -> __main__.Soup",
+                                "authors": [
+                                    "Friar Hugo"
+                                ],
+                                "contributors": [],
+                                "title": "make_soup",
+                                "description": null,
+                                "input_info": null,
+                                "output_info": null
+                            },
+                            {
+                                "func": "rate_soup: (soup_sample: __main__.Soup) -> float",
+                                "authors": [
+                                    "Abbot Mortimer"
+                                ],
+                                "contributors": [
+                                    "Friar Hugo",
+                                    "Sister Constance"
+                                ],
+                                "title": "rate_soup",
+                                "description": null,
+                                "input_info": "a spoonful of Soup object",
+                                "output_info": null
+                            }
+                        ],
+                        "contributors": [
+                            "Sister Constance",
+                            "Abbot Mortimer",
+                            "Friar Hugo"
+                        ],
+                        "doi": null
+                    }
+                ],
+                "garden_id": "28b3e49c-b342-4f15-90a8-c98fe2d75105"
+            },
+            "entry_id": null,
+            "matched_principal_sets": []
+        }
+    ]
+}
