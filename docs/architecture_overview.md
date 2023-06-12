@@ -100,7 +100,6 @@ looking_glass_pipeline: Pipeline = client.create_pipeline(
     contributors=["Dum, Tweedle"],
     description="Makes you feel a little sorry for the poor oysters",
     tags=["Carpentry", "Walrus Studies"],
-    uuid="50039c98-b6c6-415a-b11b-9a0845c0a9b8",
 )
 ```
 
@@ -132,7 +131,7 @@ garden-ai garden add-pipeline \
 
 ### [Gardens](Gardens.md)
 
-Finally, a `Garden` is how we make all this work _discoverable_: a garden is user-curated collection of related pipelines, each potentially associated with a scientific ML model. All that a `Garden` "really is" is a set of `Pipeline` citations (more specifically, `RegisteredPipeline` IDs/DOIs) that you can conveniently run.
+Finally, a `Garden` is how we make all this work _discoverable_: a garden is user-curated collection of related pipelines, each potentially associated with a scientific ML model. All that a `Garden` "really is" is a set of `Pipeline` citations (more specifically, `RegisteredPipeline` DOIs) that you can conveniently run.
 
 
 > [!NOTE]
