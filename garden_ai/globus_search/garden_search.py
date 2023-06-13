@@ -1,5 +1,5 @@
 import json
-import time
+import requests
 
 from garden_ai.gardens import Garden
 from globus_sdk import SearchClient, GlobusAPIError, GlobusHTTPResponse
@@ -62,22 +62,14 @@ def get_remote_garden_by_doi(
     return garden
 
 
-def publish_garden_metadata(
-    garden: Garden, search_client: SearchClient
-) -> GlobusHTTPResponse:
+def publish_garden_metadata(garden: Garden, endpoint: str) -> GlobusHTTPResponse:
     garden_meta = json.loads(garden.expanded_json())
-    gmeta_ingest = {
-        "subject": garden_meta["uuid"],
-        "visible_to": ["all_authenticated_users"],
-        "content": garden_meta,
-    }
-
-    publish_result = search_client.create_entry(GARDEN_INDEX_UUID, gmeta_ingest)
-
-    task_result = search_client.get_task(publish_result["task_id"])
-    while not task_result["state"] in {"FAILED", "SUCCESS"}:
-        time.sleep(5)
-        task_result = search_client.get_task(publish_result["task_id"])
+    res = requests.post(f"{endpoint}/publish", json=garden_meta)
+    try:
+        res.raise_for_status()
+        task_result = res.json()
+    except requests.HTTPError:
+        raise
     return task_result
 
 
