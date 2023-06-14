@@ -10,7 +10,7 @@ GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
 
 
 class RemoteGardenException(Exception):
-    """Exception raised when a requested Garden cannot be found"""
+    """Exception raised when a requested Garden cannot be found or published"""
 
 
 def get_remote_garden_by_uuid(
@@ -65,12 +65,11 @@ def get_remote_garden_by_doi(
 def publish_garden_metadata(garden: Garden, endpoint: str) -> GlobusHTTPResponse:
     garden_meta = json.loads(garden.expanded_json())
     res = requests.post(f"{endpoint}/publish", json=garden_meta)
-    try:
-        res.raise_for_status()
-        task_result = res.json()
-    except requests.HTTPError:
-        raise
-    return task_result
+    if res.status_code >= 400:
+        raise RemoteGardenException(
+            f"Request to Garden backend to publish garden failed with error: {res.status_code} {res.json()['message']}."
+        )
+    return res.json()
 
 
 def search_gardens(query: str, search_client: SearchClient) -> str:
