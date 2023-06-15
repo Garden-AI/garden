@@ -18,6 +18,8 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
     GlobusHTTPResponse,
+    ClientCredentialsAuthorizer,
+    ConfidentialAppAuthClient,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
@@ -56,7 +58,8 @@ class AuthException(Exception):
 
 
 GardenScopes = ScopeBuilder(
-    "0948a6b0-a622-4078-b0a4-bfd6d77d65cf", known_url_scopes=["action_all"]
+    "0948a6b0-a622-4078-b0a4-bfd6d77d65cf",
+    known_url_scopes=["action_all", "test_scope"],
 )
 
 
@@ -87,27 +90,49 @@ class GardenClient:
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
-        self.auth_client = (
-            NativeAppAuthClient(self.client_id) if not auth_client else auth_client
-        )
-        self.openid_authorizer = self._create_authorizer(
-            AuthClient.scopes.resource_server
-        )
-        self.groups_authorizer = self._create_authorizer(
-            GroupsClient.scopes.resource_server
-        )
-        self.search_authorizer = self._create_authorizer(
-            SearchClient.scopes.resource_server
-        )
-        self.compute_authorizer = self._create_authorizer(COMPUTE_RESOURCE_SERVER_NAME)
-        self.search_client = (
-            SearchClient(authorizer=self.search_authorizer)
-            if not search_client
-            else search_client
-        )
-        self.garden_authorizer = self._create_authorizer(
-            GardenClient.scopes.resource_server
-        )
+        if isinstance(auth_client, ConfidentialAppAuthClient):
+            self.auth_client = auth_client
+            self.openid_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client,
+                f"{AuthClient.scopes.openid} {AuthClient.scopes.email}",
+            )
+            self.groups_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, GroupsClient.scopes.view_my_groups_and_memberships
+            )
+            self.search_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, SearchClient.scopes.all
+            )
+            self.compute_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, Client.FUNCX_SCOPE
+            )
+            self.search_client = SearchClient(authorizer=self.search_authorizer)
+            self.garden_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, GardenClient.scopes.test_scope
+            )
+        else:
+            self.auth_client = (
+                NativeAppAuthClient(self.client_id) if not auth_client else auth_client
+            )
+            self.openid_authorizer = self._create_authorizer(
+                AuthClient.scopes.resource_server
+            )
+            self.groups_authorizer = self._create_authorizer(
+                GroupsClient.scopes.resource_server
+            )
+            self.search_authorizer = self._create_authorizer(
+                SearchClient.scopes.resource_server
+            )
+            self.compute_authorizer = self._create_authorizer(
+                COMPUTE_RESOURCE_SERVER_NAME
+            )
+            self.search_client = (
+                SearchClient(authorizer=self.search_authorizer)
+                if not search_client
+                else search_client
+            )
+            self.garden_authorizer = self._create_authorizer(
+                GardenClient.scopes.resource_server
+            )
 
         self.compute_client = self._make_compute_client()
         self._set_up_mlflow_env()
