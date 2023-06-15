@@ -15,6 +15,9 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
     name: build
+    env:
+      GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
+      GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
