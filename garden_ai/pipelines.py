@@ -127,9 +127,10 @@ class Pipeline:
 
     @root_validator(pre=True)
     def doi_omitted(cls, values):
-        assert (
-            "doi" in values
-        ), "It looks like you may have tried to initialize a pipeline using its bare class, to make a pipeline please see `GardenClient.create_pipeline`."
+        assert "doi" in values, (
+            "It looks like you may have tried to initialize a pipeline using its bare class, "
+            "to make a pipeline please see `GardenClient.create_pipeline`."
+        )
         return values
 
     @validator("short_name")
