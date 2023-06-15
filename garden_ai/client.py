@@ -477,7 +477,7 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
-        return garden_search.publish_garden_metadata(garden, self.search_client)
+        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT)
 
     def search(self, query: str) -> str:
         """
