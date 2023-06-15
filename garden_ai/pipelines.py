@@ -14,7 +14,7 @@ from uuid import UUID
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
 from packaging.requirements import InvalidRequirement, Requirement
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai._version import __version__
@@ -124,6 +124,13 @@ class Pipeline:
         up at the class level, so can't be set dynamically for different instances.
         """
         raise NotImplementedError
+
+    @root_validator(pre=True)
+    def doi_omitted(cls, values):
+        assert (
+            "doi" in values
+        ), "It looks like you may have tried to initialize a pipeline using its bare class, to make a pipeline please see `GardenClient.create_pipeline`."
+        return values
 
     @validator("short_name")
     def is_valid_identifier(cls, name: Optional[str]) -> Optional[str]:

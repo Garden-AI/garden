@@ -5,7 +5,14 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError, validator
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    ValidationError,
+    root_validator,
+    validator,
+)
 
 from garden_ai.utils.misc import JSON, garden_json_encoder
 
@@ -110,6 +117,13 @@ class Garden(BaseModel):
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
     _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
+
+    @root_validator(pre=True)
+    def doi_omitted(cls, values):
+        assert (
+            "doi" in values
+        ), "It looks like you may have tried to initialize a garden using its bare class, to make a garden please see `GardenClient.create_garden`."
+        return values
 
     @validator("year")
     def valid_year(cls, year):
