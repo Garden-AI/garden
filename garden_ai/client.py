@@ -27,7 +27,7 @@ from rich import print
 from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
-from garden_ai import local_data
+from garden_ai import local_data, GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
@@ -143,6 +143,8 @@ class GardenClient:
                 self.auth_client, GardenClient.scopes.test_scope
             )
 
+            local_data._store_user_email(GardenConstants.GARDEN_TEST_EMAIL)
+
         self.compute_client = self._make_compute_client()
         self._set_up_mlflow_env()
 
@@ -170,7 +172,7 @@ class GardenClient:
                 AuthClient.scopes.email,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.all,
-                GardenClient.scopes.action_all,
+                GardenClient.scopes.test_scope,
                 Client.FUNCX_SCOPE,
             ],
             refresh_tokens=True,

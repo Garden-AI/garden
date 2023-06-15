@@ -327,11 +327,6 @@ def second_draft_of_model():
 
 
 @pytest.fixture
-def is_gha():
-    return os.getenv("GITHUB_ACTIONS")
-
-
-@pytest.fixture
 def cc_grant_tuple():
     client_id = os.getenv("GARDEN_API_CLIENT_ID")
     client_secret = os.getenv("GARDEN_API_CLIENT_SECRET")
