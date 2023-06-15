@@ -152,8 +152,18 @@ def test_client_credentials_grant(is_gha, cc_grant_tuple):
 
         assert isinstance(gc.auth_client, ConfidentialAppAuthClient)
 
-        gc.auth_client.oauth2_validate_token(gc.openid_authorizer.access_token)
-        gc.auth_client.oauth2_validate_token(gc.groups_authorizer.access_token)
-        gc.auth_client.oauth2_validate_token(gc.search_authorizer.access_token)
-        gc.auth_client.oauth2_validate_token(gc.compute_authorizer.access_token)
-        gc.auth_client.oauth2_validate_token(gc.garden_authorizer.access_token)
+        assert gc.auth_client.oauth2_validate_token(gc.openid_authorizer.access_token)[
+            "active"
+        ]
+        assert gc.auth_client.oauth2_validate_token(gc.groups_authorizer.access_token)[
+            "active"
+        ]
+        assert gc.auth_client.oauth2_validate_token(gc.search_authorizer.access_token)[
+            "active"
+        ]
+        assert gc.auth_client.oauth2_validate_token(gc.compute_authorizer.access_token)[
+            "active"
+        ]
+        assert gc.auth_client.oauth2_validate_token(gc.garden_authorizer.access_token)[
+            "active"
+        ]
