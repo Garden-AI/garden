@@ -449,7 +449,8 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
-        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT)
+        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
+        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT, header)
 
     def search(self, query: str) -> str:
         """
