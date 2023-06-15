@@ -2,7 +2,7 @@ import json
 import requests
 
 from garden_ai.gardens import Garden
-from globus_sdk import SearchClient, GlobusAPIError, GlobusHTTPResponse
+from globus_sdk import SearchClient, GlobusAPIError
 from pydantic import ValidationError
 
 # garden-dev index
