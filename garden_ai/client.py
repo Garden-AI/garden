@@ -17,7 +17,6 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
-    GlobusHTTPResponse,
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
 )
