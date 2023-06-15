@@ -1,5 +1,4 @@
 import pytest
-from typer.testing import CliRunner
 
 from garden_ai import GardenClient
 from garden_ai.client import AuthException
@@ -12,9 +11,6 @@ from globus_sdk import (
     ConfidentialAppAuthClient,
 )
 from globus_compute_sdk import Client
-from garden_ai.app.main import app
-
-runner = CliRunner()
 
 
 def test_client_no_previous_tokens(

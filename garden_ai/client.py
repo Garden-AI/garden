@@ -90,6 +90,9 @@ class GardenClient:
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
+        # If auth_client is type ConfidentialAppAuthClient, then we want to make our autherizers with
+        # ClientCredentialsAuthorizer to do a Client Credentials Grant. Otherwise we do an
+        # Authorization Code Grant and make RefreshTokenAuthorizer.
         if isinstance(auth_client, ConfidentialAppAuthClient):
             self.auth_client = auth_client
             self.openid_authorizer = ClientCredentialsAuthorizer(
