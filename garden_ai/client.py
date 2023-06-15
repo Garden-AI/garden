@@ -17,7 +17,6 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
-    GlobusHTTPResponse,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
@@ -439,7 +438,7 @@ class GardenClient:
         }
         return registered
 
-    def publish_garden_metadata(self, garden: Garden) -> GlobusHTTPResponse:
+    def publish_garden_metadata(self, garden: Garden) -> None:
         """
         Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
         to discover status, and returns the Task document.
