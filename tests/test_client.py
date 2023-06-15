@@ -1,8 +1,20 @@
 import pytest
+from typer.testing import CliRunner
 
 from garden_ai import GardenClient
 from garden_ai.client import AuthException
-from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse, SearchClient
+from globus_sdk import (
+    AuthAPIError,
+    AuthClient,
+    OAuthTokenResponse,
+    SearchClient,
+    ClientCredentialsAuthorizer,
+    ConfidentialAppAuthClient,
+)
+from globus_compute_sdk import Client
+from garden_ai.app.main import app
+
+runner = CliRunner()
 
 
 def test_client_no_previous_tokens(
@@ -122,3 +134,30 @@ def test_client_invalid_auth_token(
     # Call the Garden constructor and expect an auth exception
     with pytest.raises(AuthException):
         GardenClient(auth_client=mock_auth_client)
+
+
+def test_client_credentials_grant(is_gha, cc_grant_tuple):
+    # Must run as github action to get client id and client secret from env vars
+    if is_gha:
+        client_id = cc_grant_tuple[0]
+        client_secret = cc_grant_tuple[1]
+
+        confidential_client = ConfidentialAppAuthClient(client_id, client_secret)
+        gc = GardenClient(auth_client=confidential_client)
+
+        assert isinstance(gc.openid_authorizer, ClientCredentialsAuthorizer)
+        assert isinstance(gc.groups_authorizer, ClientCredentialsAuthorizer)
+        assert isinstance(gc.search_authorizer, ClientCredentialsAuthorizer)
+        assert isinstance(gc.compute_authorizer, ClientCredentialsAuthorizer)
+        assert isinstance(gc.garden_authorizer, ClientCredentialsAuthorizer)
+
+        assert isinstance(gc.compute_client, Client)
+        assert isinstance(gc.search_client, SearchClient)
+
+        assert isinstance(gc.auth_client, ConfidentialAppAuthClient)
+
+        gc.auth_client.oauth2_validate_token(gc.openid_authorizer.access_token)
+        gc.auth_client.oauth2_validate_token(gc.groups_authorizer.access_token)
+        gc.auth_client.oauth2_validate_token(gc.search_authorizer.access_token)
+        gc.auth_client.oauth2_validate_token(gc.compute_authorizer.access_token)
+        gc.auth_client.oauth2_validate_token(gc.garden_authorizer.access_token)

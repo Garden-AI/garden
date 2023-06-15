@@ -1,6 +1,7 @@
 from typing import List
 
 import pytest
+import os
 from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
@@ -323,6 +324,18 @@ def second_draft_of_model():
             )
         ],
     )
+
+
+@pytest.fixture
+def is_gha():
+    return os.getenv("GITHUB_ACTIONS")
+
+
+@pytest.fixture
+def cc_grant_tuple():
+    client_id = os.getenv("GARDEN_API_CLIENT_ID")
+    client_secret = os.getenv("GARDEN_API_CLIENT_SECRET")
+    return (client_id, client_secret)
 
 
 # Fixture JSON responses from the Search API
