@@ -17,7 +17,6 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
-    GlobusHTTPResponse,
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
 )
@@ -475,7 +474,7 @@ class GardenClient:
         }
         return registered
 
-    def publish_garden_metadata(self, garden: Garden) -> GlobusHTTPResponse:
+    def publish_garden_metadata(self, garden: Garden) -> None:
         """
         Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
         to discover status, and returns the Task document.
@@ -485,7 +484,8 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
-        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT)
+        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
+        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT, header)
 
     def search(self, query: str) -> str:
         """
