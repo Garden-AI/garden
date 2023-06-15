@@ -6,7 +6,7 @@ def test_auto_doi_garden(garden_client, garden_no_fields):
     garden = garden_no_fields
     garden.authors = ["pytest"]
     garden.title = "DOI request test (Garden)"
-    garden.doi = garden_client._mint_doi(garden)
+    garden.doi = garden_client._mint_draft_doi()
     assert garden.doi
 
 
@@ -15,5 +15,5 @@ def test_auto_doi_pipelines(garden_client, pipeline_toy_example):
     pipe = pipeline_toy_example
     pipe.authors = ["pytest"]
     pipe.title = "DOI request test (Pipeline)"
-    garden_client._mint_doi(pipe)
+    pipe.doi = garden_client._mint_draft_doi()
     assert pipe.doi

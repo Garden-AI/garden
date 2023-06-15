@@ -76,7 +76,7 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
 
     garden_doi = "10.23677/fake-doi"
     pipeline_doi = "10.23677/jx31-gx98"
-    mock_client._mint_doi.return_value = garden_doi
+    mock_client._mint_draft_doi.return_value = garden_doi
 
     command = [
         "garden",

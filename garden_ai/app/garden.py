@@ -283,9 +283,6 @@ def publish(
 
     client = GardenClient()
     garden = _get_garden(garden_id)
-    if not garden.doi:
-        garden.doi = client._mint_doi(garden)
-        local_data.put_local_garden(garden)
     try:
         client.publish_garden_metadata(garden)
     except SearchAPIError as e:
