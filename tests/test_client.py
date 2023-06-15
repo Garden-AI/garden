@@ -10,7 +10,7 @@ from globus_sdk import (
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
 )
-from globus_compute_sdk import Client
+from globus_compute_sdk import Client  # type: ignore
 
 
 def test_client_no_previous_tokens(

@@ -79,7 +79,9 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-        self, auth_client: AuthClient = None, search_client: SearchClient = None
+        self,
+        auth_client: Union[AuthClient, ConfidentialAppAuthClient] = None,
+        search_client: SearchClient = None,
     ):
         key_store_path = Path(os.path.expanduser("~/.garden"))
         key_store_path.mkdir(exist_ok=True)
@@ -90,29 +92,14 @@ class GardenClient:
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
-        # If auth_client is type ConfidentialAppAuthClient, then we want to make our autherizers with
-        # ClientCredentialsAuthorizer to do a Client Credentials Grant. Otherwise we do an
-        # Authorization Code Grant and make RefreshTokenAuthorizer.
-        if isinstance(auth_client, ConfidentialAppAuthClient):
-            self.auth_client = auth_client
-            self.openid_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client,
-                f"{AuthClient.scopes.openid} {AuthClient.scopes.email}",
-            )
-            self.groups_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, GroupsClient.scopes.view_my_groups_and_memberships
-            )
-            self.search_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, SearchClient.scopes.all
-            )
-            self.compute_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, Client.FUNCX_SCOPE
-            )
-            self.search_client = SearchClient(authorizer=self.search_authorizer)
-            self.garden_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, GardenClient.scopes.test_scope
-            )
-        else:
+        # If auth_client is type AuthClient or None, do an
+        # Authorization Code Grant and make RefreshTokenAuthorizers.
+        # If auth_client is type ConfidentialAppAuthClient, do a
+        # Client Credentials Grant and make ClientCredentialsAuthorizers
+        if (
+            isinstance(auth_client, AuthClient)
+            and not isinstance(auth_client, ConfidentialAppAuthClient)
+        ) or not auth_client:
             self.auth_client = (
                 NativeAppAuthClient(self.client_id) if not auth_client else auth_client
             )
@@ -135,6 +122,25 @@ class GardenClient:
             )
             self.garden_authorizer = self._create_authorizer(
                 GardenClient.scopes.resource_server
+            )
+        elif isinstance(auth_client, ConfidentialAppAuthClient):
+            self.auth_client = auth_client
+            self.openid_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client,
+                f"{AuthClient.scopes.openid} {AuthClient.scopes.email}",
+            )
+            self.groups_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, GroupsClient.scopes.view_my_groups_and_memberships
+            )
+            self.search_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, SearchClient.scopes.all
+            )
+            self.compute_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, Client.FUNCX_SCOPE
+            )
+            self.search_client = SearchClient(authorizer=self.search_authorizer)
+            self.garden_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, GardenClient.scopes.test_scope
             )
 
         self.compute_client = self._make_compute_client()
