@@ -57,6 +57,7 @@ REQUIREMENTS_FILE = str((Path(__file__).parent / "requirements.txt").resolve())
 
 fixture_pipeline: Pipeline = client.create_pipeline(
     title="Fixture pipeline",
+    doi="10.26311/fake-doi",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
     authors=["Garden Team"],

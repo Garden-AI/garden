@@ -48,6 +48,7 @@ REQUIREMENTS_FILE = str((Path(__file__).parent / "requirements.txt").resolve())
 
 soup_edibility_predictor: Pipeline = client.create_pipeline(
     title="soup edibility predictor",
+    doi="10.26311/fake-doi",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
     authors=["Me"],
