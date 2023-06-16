@@ -304,7 +304,7 @@ def publish(
         client.publish_garden_metadata(garden)
     except RemoteGardenException as e:
         logger.fatal(f"Could not publish garden {garden_id}")
-        logger.fatal(e.error_data)
+        logger.fatal(str(e))
         raise typer.Exit(code=1) from e
     console.print(
         f"Successfully published garden {garden.title} with DOI {garden.doi}!"
