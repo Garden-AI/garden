@@ -128,8 +128,8 @@ class Pipeline:
     @root_validator(pre=True)
     def doi_omitted(cls, values):
         assert "doi" in values, (
-            "It looks like you may have tried to initialize a pipeline using its bare class, "
-            "to make a pipeline please see `GardenClient.create_pipeline`."
+            "It seems like no DOI has been minted yet for this `Pipeline`. If you were trying to create a new `Pipeline`, "
+            "use `GardenClient.create_pipeline` to initialize a publishable `Pipeline` with a draft DOI."
         )
         return values
 

@@ -120,9 +120,10 @@ class Garden(BaseModel):
 
     @root_validator(pre=True)
     def doi_omitted(cls, values):
-        assert (
-            "doi" in values
-        ), "It looks like you may have tried to initialize a garden using its bare class, to make a garden please see `GardenClient.create_garden`."
+        assert "doi" in values, (
+            "It seems like no DOI has been minted yet for this `Garden`. If you were trying to create a new `Garden`, "
+            "use `GardenClient.create_garden` to initialize a publishable `Garden` with a draft DOI."
+        )
         return values
 
     @validator("year")
