@@ -308,7 +308,7 @@ class GardenClient:
         else:
             return doi
 
-    def _update_datacite(self, obj: Union[Garden, Pipeline], publish: bool) -> None:
+    def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
         logger.info("Requesting update to DOI")
         url = f"{GARDEN_ENDPOINT}/doi"
 
@@ -317,8 +317,7 @@ class GardenClient:
             "Authorization": self.garden_authorizer.get_authorization_header(),
         }
         metadata = json.loads(obj.datacite_json())
-        if publish:
-            metadata.update(event="publish", url="https://thegardens.ai")
+        metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
         payload = {"data": {"type": "dois", "attributes": metadata}}
         r = requests.put(
             url,
@@ -336,12 +335,10 @@ class GardenClient:
         built_container_uuid = build_container(self.compute_client, pipeline)
         return built_container_uuid
 
-    def register_pipeline(
-        self, pipeline: Pipeline, container_uuid: str, make_doi_public: bool = False
-    ) -> str:
+    def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
-        self._update_datacite(pipeline, make_doi_public)
+        self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
         return func_uuid
@@ -425,9 +422,7 @@ class GardenClient:
         }
         return registered
 
-    def publish_garden_metadata(
-        self, garden: Garden, make_doi_public: bool = False
-    ) -> GlobusHTTPResponse:
+    def publish_garden_metadata(self, garden: Garden) -> GlobusHTTPResponse:
         """
         Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
         to discover status, and returns the Task document.
@@ -437,7 +432,7 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
-        self._update_datacite(garden, make_doi_public)
+        self._update_datacite(garden)
         return garden_search.publish_garden_metadata(garden, self.search_client)
 
     def search(self, query: str) -> str:
