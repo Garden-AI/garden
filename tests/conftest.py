@@ -23,6 +23,14 @@ def auto_mock_GardenClient_set_up_mlflow_env(mocker):
     mocker.patch("garden_ai.client.GardenClient._set_up_mlflow_env")
 
 
+@pytest.fixture(autouse=True)
+def auto_mock_GardenClient_set_up_mlflow_env(mocker):
+    mocker.patch(
+        "garden_ai.client.GardenClient._mint_draft_doi",
+        return_value="10.26311/fake-doi",
+    )
+
+
 @pytest.fixture
 def mock_authorizer_tuple(mocker):
     mock_authorizer = mocker.Mock()
