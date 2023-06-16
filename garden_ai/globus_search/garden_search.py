@@ -1,8 +1,8 @@
 import json
-import time
+import requests
 
 from garden_ai.gardens import Garden
-from globus_sdk import SearchClient, GlobusAPIError, GlobusHTTPResponse
+from globus_sdk import SearchClient, GlobusAPIError
 from pydantic import ValidationError
 
 # garden-dev index
@@ -10,7 +10,7 @@ GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
 
 
 class RemoteGardenException(Exception):
-    """Exception raised when a requested Garden cannot be found"""
+    """Exception raised when a requested Garden cannot be found or published"""
 
 
 def get_remote_garden_by_doi(
@@ -39,23 +39,16 @@ def get_remote_garden_by_doi(
     return garden
 
 
-def publish_garden_metadata(
-    garden: Garden, search_client: SearchClient
-) -> GlobusHTTPResponse:
+def publish_garden_metadata(garden: Garden, endpoint: str, header: dict) -> None:
     garden_meta = json.loads(garden.expanded_json())
-    gmeta_ingest = {
-        "subject": garden_meta["doi"],
-        "visible_to": ["all_authenticated_users"],
-        "content": garden_meta,
-    }
-
-    publish_result = search_client.create_entry(GARDEN_INDEX_UUID, gmeta_ingest)
-
-    task_result = search_client.get_task(publish_result["task_id"])
-    while not task_result["state"] in {"FAILED", "SUCCESS"}:
-        time.sleep(5)
-        task_result = search_client.get_task(publish_result["task_id"])
-    return task_result
+    res = requests.post(
+        f"{endpoint}/garden-search-record", headers=header, json=garden_meta
+    )
+    if res.status_code >= 400:
+        raise RemoteGardenException(
+            f"Request to Garden backend to publish garden failed with error: {res.status_code} {res.json()['message']}."
+        )
+    return None
 
 
 def search_gardens(query: str, search_client: SearchClient) -> str:

@@ -1,13 +1,22 @@
 from pathlib import Path
 from typing import Optional, List
 
+from garden_ai import local_data
 from garden_ai.client import GardenClient
-from garden_ai.mlmodel import DatasetConnection, LocalModel, ModelFlavor
+from garden_ai.mlmodel import (
+    DatasetConnection,
+    LocalModel,
+    ModelFlavor,
+)
+from garden_ai.app.console import console, get_local_model_rich_table
 
 import typer
 import rich
+import logging
 
 model_app = typer.Typer(name="model", no_args_is_help=True)
+
+logger = logging.getLogger()
 
 
 @model_app.callback()
@@ -96,3 +105,37 @@ def register(
     rich.print(
         f"Successfully uploaded your model! The full name to include in your pipeline is '{model_uri}'"
     )
+
+
+@model_app.command(no_args_is_help=False)
+def list():
+    """Lists all local models."""
+
+    resource_table_cols = ["model_uri", "model_name", "flavor"]
+    table_name = "Local Models"
+
+    table = get_local_model_rich_table(
+        resource_table_cols=resource_table_cols, table_name=table_name
+    )
+    console.print("\n")
+    console.print(table)
+
+
+@model_app.command(no_args_is_help=True)
+def show(
+    model_ids: List[str] = typer.Argument(
+        ...,
+        help="The URIs of the models you want to show the local data for. "
+        "e.g. ``model show email@addr.ess-model-name/2 email@addr.ess-model-name-2/4`` will show the local data for both models listed.",
+    ),
+):
+    """Shows all info for some Models"""
+
+    for model_id in model_ids:
+        model = local_data.get_local_model_by_uri(model_id)
+        if model:
+            rich.print(f"Model: {model_id} local data:")
+            rich.print_json(json=model.json())
+            rich.print("\n")
+        else:
+            rich.print(f"Could not find model with id {model_id}\n")

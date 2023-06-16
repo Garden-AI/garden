@@ -2,7 +2,7 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
@@ -127,6 +127,20 @@ def _delete_old_model_versions(model_name: str):
     _write_local_db(data)
 
 
+def _get_resource_by_type(
+    resource_type: ResourceType,
+) -> Optional[List[Union[Garden, RegisteredPipeline, RegisteredModel]]]:
+    data = _read_local_db()
+    resource_data = data.get(resource_type.value, {})
+    resource_objs = []
+    if resource_data:
+        for key, val in resource_data.items():
+            resource_objs.append(_make_obj_from_record(val, resource_type))
+        return resource_objs
+    else:
+        return None
+
+
 def put_local_garden(garden: Garden):
     """Helper: write a record to 'local database' for a given Garden
     Overwrites any existing entry with the same doi in ~/.garden/data.json.
@@ -199,3 +213,45 @@ def put_local_model(model: RegisteredModel):
 
 def get_local_model_by_uri(model_uri: str):
     return _get_resource_by_id(model_uri, ResourceType.MODEL)  # type: ignore
+
+
+def get_all_local_gardens() -> Optional[List[Garden]]:
+    """Helper: fetch all Garden records from ~/.garden/data.json.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    Optional[Garden]
+        If successful, a list of all the Garden objects in data.json.
+    """
+    return _get_resource_by_type(ResourceType.GARDEN)  # type: ignore
+
+
+def get_all_local_pipelines() -> Optional[List[RegisteredPipeline]]:
+    """Helper: fetch all pipeline records from ~/.garden/data.json.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    Optional[RegisteredPipeline]
+        If successful, a list of all the RegisteredPipeline objects in data.json.
+    """
+    return _get_resource_by_type(ResourceType.PIPELINE)  # type: ignore
+
+
+def get_all_local_models() -> Optional[List[RegisteredModel]]:
+    """Helper: fetch all model records from ~/.garden/data.json.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    Optional[RegisteredModel]
+        If successful, a list of all the RegisteredModel objects in data.json.
+    """
+    return _get_resource_by_type(ResourceType.MODEL)  # type: ignore

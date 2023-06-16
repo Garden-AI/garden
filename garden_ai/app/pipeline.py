@@ -5,12 +5,14 @@ from typing import List, Optional
 
 import jinja2
 import typer
+import rich
 from rich import print
 from rich.prompt import Prompt
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from garden_ai import GardenClient, Pipeline, step
-from garden_ai.app.console import console
-from garden_ai import GardenConstants
+from garden_ai import GardenClient, Pipeline, step, GardenConstants
+from garden_ai.app.console import console, get_local_pipeline_rich_table
+from garden_ai.app.garden import _get_pipeline
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
@@ -227,4 +229,138 @@ def register(
     console.print(f"Created container {container_uuid}")
     func_uuid = client.register_pipeline(user_pipeline, container_uuid)
     console.print(f"Created function {func_uuid}")
-    console.print("Done! Pipeline is registered.")
+    console.print(f"Done! Pipeline was registered with doi {user_pipeline.doi}.")
+
+
+@pipeline_app.command()
+def shell(
+    pipeline_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline implementation."),
+    ),
+    requirements_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline requirements."),
+    ),
+    env_name: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=False,
+        help=("The name to give your pipeline's virtual environment."),
+    ),
+):
+    import os
+    import subprocess
+    import tempfile
+    import sys
+
+    try:
+        # Create a virtual environment in the temp directory
+        temp_dir = os.path.join(os.path.sep, tempfile.gettempdir(), env_name)
+        print(f"Setting up environment in {temp_dir} ...")
+        subprocess.run(["python3", "-m", "venv", temp_dir])
+
+        # Activate the environment os dependent
+        if sys.platform == "win32":
+            activate_script = os.path.join(temp_dir, "Scripts", "activate.bat")
+        elif sys.platform == "darwin":
+            activate_script = os.path.join(temp_dir, "bin", "activate")
+        else:
+            activate_script = os.path.join(temp_dir, "bin", "activate")
+
+        subprocess.run(f"source {activate_script}", shell=True)
+
+        # Upgrade pip in the virtual environment quietly
+        subprocess.run(
+            f"{temp_dir}/bin/python3 -m pip install -q --upgrade pip",
+            check=True,
+            shell=True,
+        )
+
+        # Install the requirements with nice spinner
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            progress.add_task(description="Installing requirements...", total=None)
+
+            subprocess.run(
+                f"{temp_dir}/bin/pip install -q -r {requirements_file}",
+                check=True,
+                shell=True,
+            )
+
+        # Start Python shell in the virtual environment with the pipeline file
+        print("Starting Garden test shell. Loading your pipeline one moment...")
+        python_command = os.path.join(temp_dir, "bin", "python")
+        subprocess.run([python_command, "-i", pipeline_file])
+
+        # Clean up prompt for the temporary environment
+        cleanup = typer.confirm(
+            "Would you like to cleanup (delete) the virtual environment?"
+        )
+        if cleanup:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(
+                    description="Removing up virtual environment...", total=None
+                )
+                import shutil
+
+                shutil.rmtree(
+                    temp_dir
+                )  # Remove the directory listed under temp_dir not the actual tmp directory
+        else:
+            print(
+                f"Virtual environment at {temp_dir} still remains and can be used for futher testing or manual removal."
+            )
+
+        print("Local Garden pipeline shell testing complete.")
+
+    except Exception as e:
+        # MVP error handling
+        print(f"An error occurred: {e}")
+
+
+@pipeline_app.command(no_args_is_help=False)
+def list():
+    """Lists all local pipelines."""
+
+    resource_table_cols = ["uuid", "doi", "title"]
+    table_name = "Local Pipelines"
+
+    table = get_local_pipeline_rich_table(
+        resource_table_cols=resource_table_cols, table_name=table_name
+    )
+    console.print("\n")
+    console.print(table)
+
+
+@pipeline_app.command(no_args_is_help=True)
+def show(
+    pipeline_ids: List[str] = typer.Argument(
+        ...,
+        help="The UUIDs or DOIs of the pipelines you want to show the local data for. "
+        "e.g. ``pipeline show pipeline1_uuid pipeline2_doi`` will show the local data for both pipelines listed.",
+    ),
+):
+    """Shows all info for some Gardens"""
+
+    for pipeline_id in pipeline_ids:
+        pipeline = _get_pipeline(pipeline_id)
+        if pipeline:
+            rich.print(f"Pipeline: {pipeline_id} local data:")
+            rich.print_json(json=pipeline.json())
+            rich.print("\n")
+        else:
+            rich.print(f"Could not find pipeline with id {pipeline_id}\n")

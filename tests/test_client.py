@@ -1,8 +1,20 @@
 import pytest
 
+import os
+
 from garden_ai import GardenClient
 from garden_ai.client import AuthException
-from globus_sdk import AuthAPIError, AuthClient, OAuthTokenResponse, SearchClient
+from globus_sdk import (
+    AuthAPIError,
+    AuthClient,
+    OAuthTokenResponse,
+    SearchClient,
+    ClientCredentialsAuthorizer,
+    ConfidentialAppAuthClient,
+)
+from globus_compute_sdk import Client  # type: ignore
+
+is_gha = os.getenv("GITHUB_ACTIONS")
 
 
 def test_client_no_previous_tokens(
@@ -49,7 +61,7 @@ def test_client_no_previous_tokens(
             "email",
             "urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships",
             "urn:globus:auth:scope:search.api.globus.org:all",
-            "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all",
+            "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/test_scope",
             "https://auth.globus.org/scopes/facd7ccc-c5f4-42aa-916b-a0e270e2c2a9/all",
         ],
     )
@@ -122,3 +134,40 @@ def test_client_invalid_auth_token(
     # Call the Garden constructor and expect an auth exception
     with pytest.raises(AuthException):
         GardenClient(auth_client=mock_auth_client)
+
+
+@pytest.mark.skipif((not is_gha), reason="Test only works in Github Actions.")
+def test_client_credentials_grant(cc_grant_tuple):
+    # Must run as github action to get client id and client secret from env vars
+    client_id = cc_grant_tuple[0]
+    client_secret = cc_grant_tuple[1]
+
+    confidential_client = ConfidentialAppAuthClient(client_id, client_secret)
+    gc = GardenClient(auth_client=confidential_client)
+
+    assert isinstance(gc.openid_authorizer, ClientCredentialsAuthorizer)
+    assert isinstance(gc.groups_authorizer, ClientCredentialsAuthorizer)
+    assert isinstance(gc.search_authorizer, ClientCredentialsAuthorizer)
+    assert isinstance(gc.compute_authorizer, ClientCredentialsAuthorizer)
+    assert isinstance(gc.garden_authorizer, ClientCredentialsAuthorizer)
+
+    assert isinstance(gc.compute_client, Client)
+    assert isinstance(gc.search_client, SearchClient)
+
+    assert isinstance(gc.auth_client, ConfidentialAppAuthClient)
+
+    assert gc.auth_client.oauth2_validate_token(gc.openid_authorizer.access_token)[
+        "active"
+    ]
+    assert gc.auth_client.oauth2_validate_token(gc.groups_authorizer.access_token)[
+        "active"
+    ]
+    assert gc.auth_client.oauth2_validate_token(gc.search_authorizer.access_token)[
+        "active"
+    ]
+    assert gc.auth_client.oauth2_validate_token(gc.compute_authorizer.access_token)[
+        "active"
+    ]
+    assert gc.auth_client.oauth2_validate_token(gc.garden_authorizer.access_token)[
+        "active"
+    ]

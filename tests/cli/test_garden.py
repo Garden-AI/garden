@@ -43,6 +43,76 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     assert garden_all_fields.doi in re.compile(r"\x1b[^m]*m").sub("", result.stdout)
 
 
+def test_garden_list(database_with_connected_pipeline, tmp_path, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+
+    garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    garden_title = "Will Test Garden"
+    garden_doi = "10.23677/fake-doi"
+
+    command = [
+        "garden",
+        "list",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert garden_uuid in result.stdout
+    assert garden_title in result.stdout
+    assert garden_doi in result.stdout
+
+
+@pytest.mark.cli
+def test_garden_show(database_with_connected_pipeline, tmp_path, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+    )
+
+    garden_uuid = "e1a3b50b-4efc-42c8-8422-644f4f858b87"
+    garden_title = "Will Test Garden"
+    garden_doi = "10.23677/fake-doi"
+
+    command = [
+        "garden",
+        "show",
+        garden_uuid,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert garden_uuid in result.stdout
+    assert garden_title in result.stdout
+    assert garden_doi in result.stdout
+
+    command = [
+        "garden",
+        "show",
+        garden_doi,
+        garden_uuid,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert garden_uuid in result.stdout
+    assert garden_title in result.stdout
+    assert garden_doi in result.stdout
+
+    command = [
+        "garden",
+        "show",
+        "not_a_garden_id",
+        garden_uuid,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    assert garden_uuid in result.stdout
+    assert garden_title in result.stdout
+    assert garden_doi in result.stdout
+
+
 @pytest.mark.cli
 def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker):
     mocker.patch(

@@ -77,11 +77,11 @@ mkdocstrings = {extras = ["python"], version = "^0.21.2"}
 
 [tool.poetry.extras]
 # Be sure to add additional flavors to below as support is added and in the flavors array
-# Optional dependencies that can be added through `poetry install --extras "torch tensorflow"` etc. or `poetry install --extras "flavors"`
+# Optional dependencies that can be added through `poetry install --extras "torch tensorflow"` etc. or `poetry install --extras "all"`
 # `poetry install --all-extras` will install all extras located in tool.poetry.extras
 torch = ["torch"]
 tensorflow = ["tensorflow"]
-flavors = ["tensorflow", "torch"]
+all = ["tensorflow", "torch"]
 
 [tool.isort]
 profile = "black"
