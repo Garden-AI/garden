@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import shutil
 import time
 from pathlib import Path
 from typing import List, Optional, Union
@@ -26,17 +27,22 @@ from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
 from garden_ai import local_data
+from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
+from garden_ai.backend_client import BackendClient
+from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
     LocalModel,
     RegisteredModel,
     upload_to_model_registry,
+    stage_model_for_upload,
+    clear_mlflow_staging_directory,
 )
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
@@ -78,7 +84,7 @@ class GardenClient:
     def __init__(
         self, auth_client: AuthClient = None, search_client: SearchClient = None
     ):
-        key_store_path = Path(os.path.expanduser("~/.garden"))
+        key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
         self.auth_key_store = SimpleJSONFileAdapter(
             os.path.join(key_store_path, "tokens.json")
@@ -108,6 +114,7 @@ class GardenClient:
         self.garden_authorizer = self._create_authorizer(
             GardenClient.scopes.resource_server
         )
+        self.backend_client = BackendClient(self.garden_authorizer)
 
         self.compute_client = self._make_compute_client()
         self._set_up_mlflow_env()
@@ -263,9 +270,29 @@ class GardenClient:
         return pipeline
 
     def register_model(self, local_model: LocalModel) -> RegisteredModel:
-        registered_model = upload_to_model_registry(local_model)
-        local_data.put_local_model(registered_model)
-        return registered_model
+        if "S3_UPLOAD_FEATURE_FLAG" in os.environ:
+            try:
+                # Create directory in MLModel format
+                model_directory = stage_model_for_upload(local_model)
+                # Push contents of directory to S3
+                upload_mlmodel_to_s3(model_directory, local_model, self.backend_client)
+            finally:
+                try:
+                    clear_mlflow_staging_directory()
+                except Exception as e:
+                    logger.error(
+                        "Could not clean up model staging directory. Check permissions on ~/.garden/mlflow"
+                    )
+                    logger.error("Original exception: " + str(e))
+                    # We can still proceed, there is just some cruft in the user's home directory.
+                    pass
+            registered_model = RegisteredModel(**local_model.dict(), version="1")
+            local_data.put_local_model(registered_model)
+            return registered_model
+        else:
+            registered_model = upload_to_model_registry(local_model)
+            local_data.put_local_model(registered_model)
+            return registered_model
 
     def _mint_doi(
         self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
