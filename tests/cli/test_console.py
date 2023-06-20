@@ -13,10 +13,10 @@ def test_get_local_garden_table(mocker, garden_client, garden_all_fields, tmp_pa
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
     local_data.put_local_garden(garden_all_fields)
 
-    garden_cols = ["uuid", "doi", "title"]
+    garden_cols = ["doi", "title", "description"]
     garden_table_name = "Local Gardens"
     garden_rows = [
-        (str(garden_all_fields.uuid), garden_all_fields.doi, garden_all_fields.title)
+        (garden_all_fields.doi, garden_all_fields.title, garden_all_fields.description)
     ]
     table = Table(title=garden_table_name)
 
@@ -38,13 +38,13 @@ def test_get_local_pipeline_table(
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
     local_data.put_local_pipeline(registered_pipeline_toy_example)
 
-    pipeline_cols = ["uuid", "doi", "title"]
+    pipeline_cols = ["doi", "title", "description"]
     pipeline_table_name = "Local Pipelines"
     pipeline_rows = [
         (
-            str(registered_pipeline_toy_example.uuid),
             registered_pipeline_toy_example.doi,
             registered_pipeline_toy_example.title,
+            registered_pipeline_toy_example.description,
         )
     ]
     table = Table(title=pipeline_table_name)
