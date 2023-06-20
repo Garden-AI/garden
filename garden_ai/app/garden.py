@@ -308,7 +308,7 @@ def publish(
 def list():
     """Lists all local Gardens."""
 
-    resource_table_cols = ["uuid", "doi", "title"]
+    resource_table_cols = ["doi", "title", "description"]
     table_name = "Local Gardens"
 
     table = get_local_garden_rich_table(
@@ -330,8 +330,8 @@ def _get_pipeline(pipeline_id: str) -> Optional[RegisteredPipeline]:
 def show(
     garden_ids: List[str] = typer.Argument(
         ...,
-        help="The UUIDs or DOIs of the Gardens you want to show the local data for. "
-        "e.g. ``garden show garden1_uuid garden2_doi`` will show the local data for both Gardens listed.",
+        help="The DOIs of the Gardens you want to show the local data for. "
+        "e.g. ``garden show garden1_doi garden2_doi`` will show the local data for both Gardens listed.",
     ),
 ):
     """Shows all info for some Gardens"""

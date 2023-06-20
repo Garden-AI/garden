@@ -336,7 +336,7 @@ def shell(
 def list():
     """Lists all local pipelines."""
 
-    resource_table_cols = ["uuid", "doi", "title"]
+    resource_table_cols = ["doi", "title", "description"]
     table_name = "Local Pipelines"
 
     table = get_local_pipeline_rich_table(
@@ -350,8 +350,8 @@ def list():
 def show(
     pipeline_ids: List[str] = typer.Argument(
         ...,
-        help="The UUIDs or DOIs of the pipelines you want to show the local data for. "
-        "e.g. ``pipeline show pipeline1_uuid pipeline2_doi`` will show the local data for both pipelines listed.",
+        help="The DOIs of the pipelines you want to show the local data for. "
+        "e.g. ``pipeline show pipeline1_doi pipeline2_doi`` will show the local data for both pipelines listed.",
     ),
 ):
     """Shows all info for some Gardens"""
