@@ -270,6 +270,8 @@ class GardenClient:
             data["authors"] = authors
         if title:
             data["title"] = title
+        data["doi"] = data.get("doi") or self._mint_draft_doi()
+
         return Garden(**data)
 
     def create_pipeline(
@@ -277,7 +279,7 @@ class GardenClient:
     ) -> Pipeline:
         """Initialize and return a pipeline object.
 
-        If this pipeline's UUID has been used before to register a function for
+        If this pipeline's DOI has been used before to register a function for
         remote execution, reuse the (funcx/globus compute) ID for consistency.
 
         NOTE: this means that local modifications to a pipeline will not be
@@ -288,35 +290,22 @@ class GardenClient:
             data["authors"] = authors
         if title:
             data["title"] = title
+        data["doi"] = data.get("doi") or self._mint_draft_doi()
 
-        pipeline = Pipeline(**data)
-        record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
-        if record:
-            logger.info("Found pre-registered pipeline. Reusing DOI.")
-            pipeline.doi = record.doi
-
-        return pipeline
+        return Pipeline(**data)
 
     def register_model(self, local_model: LocalModel) -> RegisteredModel:
         registered_model = upload_to_model_registry(local_model)
         local_data.put_local_model(registered_model)
         return registered_model
 
-    def _mint_doi(
-        self, obj: Union[Garden, Pipeline], force: bool = False, test: bool = True
-    ) -> str:
-        """Register a new "findable" doi with DataCite via Garden backend.
+    def _mint_draft_doi(self, test: bool = True) -> str:
+        """Register a new draft doi with DataCite via Garden backend.
 
         Expects environment variable GARDEN_ENDPOINT to be set (not including `/doi`).
 
         Parameters
         ----------
-        obj : Union[Garden, Pipeline]
-            the Pipeline or Garden object wanting a new DOI.
-        force : bool
-            Mint a new DOI even if one exists (note that old ones stay
-            "findable" forever - see
-            https://support.datacite.org/docs/best-practices-for-datacite-members)
         test : bool
             toggle which garden backend endpoint to hit; we do not yet have a
             test endpoint so test=True raises NotImplementedError.
@@ -325,40 +314,21 @@ class GardenClient:
         ------
         NotImplementedError
             see `test`
-
         """
 
         if not test:
             raise NotImplementedError
 
-        def get_existing_doi() -> Optional[str]:
-            # check for existing doi, either on object or in db
-            registered_obj: Optional[Union[Garden, RegisteredPipeline]]
-            if isinstance(obj, Garden):
-                registered_obj = local_data.get_local_garden_by_uuid(obj.uuid)
-            else:
-                registered_obj = local_data.get_local_pipeline_by_uuid(obj.uuid)
-
-            return registered_obj.doi if registered_obj else None
-
-        existing_doi = obj.doi or get_existing_doi()
-
-        if existing_doi and not force:
-            logger.info(
-                "existing DOI found, not requesting new DOI. Pass `force=true` to override this behavior."
-            )
-            return existing_doi
-
-        logger.info("Requesting DOI")
+        logger.info("Requesting draft DOI")
         url = f"{GARDEN_ENDPOINT}/doi"
 
         header = {
             "Content-Type": "application/vnd.api+json",
             "Authorization": self.garden_authorizer.get_authorization_header(),
         }
-        metadata = json.loads(obj.datacite_json())
-        metadata.update(event="publish", url="https://thegardens.ai")
-        payload = {"data": {"type": "dois", "attributes": metadata}}
+        payload = {
+            "data": {"type": "dois", "attributes": {}}
+        }  # required data is filled in on the backend
         r = requests.post(
             url,
             headers=header,
@@ -373,6 +343,29 @@ class GardenClient:
         else:
             return doi
 
+    def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
+        logger.info("Requesting update to DOI")
+        url = f"{GARDEN_ENDPOINT}/doi"
+
+        header = {
+            "Content-Type": "application/vnd.api+json",
+            "Authorization": self.garden_authorizer.get_authorization_header(),
+        }
+        metadata = json.loads(obj.datacite_json())
+        metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
+        payload = {"data": {"type": "dois", "attributes": metadata}}
+        r = requests.put(
+            url,
+            headers=header,
+            json=payload,
+        )
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            logger.error(f"{r.text}")
+            raise
+        logger.info("Update request succeeded")
+
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
         return built_container_uuid
@@ -380,20 +373,18 @@ class GardenClient:
     def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
-        pipeline.doi = self._mint_doi(pipeline)
+        self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def get_registered_pipeline(
-        self, identifier: Union[UUID, str]
-    ) -> RegisteredPipeline:
-        """Return a callable ``RegisteredPipeline`` corresponding to the given uuid/doi.
+    def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
+        """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
 
         Parameters
         ----------
-        identifier : Union[UUID, str]
-            The previously registered pipeline's DOI or UUID. Raises an
+        doi : str
+            The previously registered pipeline's DOI. Raises an
             exception if not found.
 
         Returns
@@ -408,15 +399,11 @@ class GardenClient:
         PipelineNotFoundException
             Raised when no known pipeline exists with the given identifier.
         """
-        is_doi = "/" in str(identifier)
-        if is_doi:
-            registered = local_data.get_local_pipeline_by_doi(str(identifier))
-        else:
-            registered = local_data.get_local_pipeline_by_uuid(identifier)
+        registered = local_data.get_local_pipeline_by_doi(doi)
 
         if registered is None:
             raise PipelineNotFoundException(
-                f"Could not find any pipelines with identifier {identifier}."
+                f"Could not find any pipelines with DOI {doi}."
             )
 
         self._set_up_mlflow_env()
@@ -437,13 +424,13 @@ class GardenClient:
     def get_email(self) -> str:
         return local_data._get_user_email()
 
-    def get_local_garden(self, identifier: Union[UUID, str]) -> Garden:
-        """Return a registered ``Garden`` corresponding to the given uuid/doi.
+    def get_local_garden(self, doi: str) -> Garden:
+        """Return a registered ``Garden`` corresponding to the given doi.
 
         Any ``RegisteredPipelines`` registered to the Garden will be callable
         as attributes on the garden by their (registered) short_name, e.g.
             ```python
-                my_garden = client.get_local_garden('garden-doi-or-uuid')
+                my_garden = client.get_local_garden('garden-doi')
                 #  pipeline would have been registered with short_name='my_pipeline'
                 my_garden.my_pipeline(*args, endpoint='where-to-execute')
             ```
@@ -452,20 +439,16 @@ class GardenClient:
 
         Parameters
         ----------
-        identifier : Union[UUID, str]
-            The previously registered Garden's DOI or UUID. Raises an
+        doi : str
+            The previously registered Garden's DOI. Raises an
             exception if not found.
 
         """
-        is_doi = "/" in str(identifier)
-        if is_doi:
-            registered = local_data.get_local_garden_by_doi(str(identifier))
-        else:
-            registered = local_data.get_local_garden_by_uuid(identifier)
+        registered = local_data.get_local_garden_by_doi(doi)
 
         if registered is None:
             raise GardenNotFoundException(
-                f"Could not find any Gardens with identifier {identifier}."
+                f"Could not find any Gardens with identifier {doi}."
             )
         self._set_up_mlflow_env()
         registered._env_vars = {
@@ -484,6 +467,7 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
+        self._update_datacite(garden)
         header = {"Authorization": self.garden_authorizer.get_authorization_header()}
         return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT, header)
 
@@ -493,25 +477,19 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, identifier: str) -> Garden:
+    def get_published_garden(self, doi: str) -> Garden:
         """
         Queries Globus Search for the garden with this DOI.
 
         Parameters
         ----------
-        identifier: The doi or uuid of the garden you want.
+        doi: The doi of the garden you want.
 
         Returns
         -------
         Garden populated with metadata from remote metadata record.
 
         """
-        is_doi = "/" in str(identifier)
-        if is_doi:
-            return garden_search.get_remote_garden_by_doi(
-                identifier, self._fresh_mlflow_vars(), self.search_client
-            )
-        else:
-            return garden_search.get_remote_garden_by_uuid(
-                identifier, self._fresh_mlflow_vars(), self.search_client
-            )
+        return garden_search.get_remote_garden_by_doi(
+            doi, self._fresh_mlflow_vars(), self.search_client
+        )

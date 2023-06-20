@@ -24,6 +24,14 @@ def auto_mock_GardenClient_set_up_mlflow_env(mocker):
     mocker.patch("garden_ai.client.GardenClient._set_up_mlflow_env")
 
 
+@pytest.fixture(autouse=True)
+def auto_mock_GardenClient_mint_draft_doi(mocker):
+    mocker.patch(
+        "garden_ai.client.GardenClient._mint_draft_doi",
+        return_value="10.26311/fake-doi",
+    )
+
+
 @pytest.fixture
 def mock_authorizer_tuple(mocker):
     mock_authorizer = mocker.Mock()
@@ -113,15 +121,16 @@ def compute_client(mocker):
 @pytest.fixture
 def garden_title_authors_doi_only():
     pea_garden = Garden(
-        authors=["Mendel, Gregor"], title="Experiments on Plant Hybridization"
+        authors=["Mendel, Gregor"],
+        title="Experiments on Plant Hybridization",
+        doi="10.26311/fake-doi",
     )
-    pea_garden.doi = "10.26311/fake-doi"
     return pea_garden
 
 
 @pytest.fixture
 def garden_no_fields():
-    return Garden()
+    return Garden(doi="10.26311/fake-doi")  # DOI is required to instantiate
 
 
 @pytest.fixture
@@ -150,6 +159,7 @@ def pipeline_toy_example(tmp_requirements_txt):
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
         requirements_file=str(tmp_requirements_txt),
+        doi="10.26311/fake-doi",
     )
 
     # the complete pipeline is now also callable by itself
@@ -171,13 +181,13 @@ def garden_all_fields(registered_pipeline_toy_example):
         authors=["Mendel, Gregor"],
         title="Experiments on Plant Hybridization",
         contributors=["St. Thomas Abbey"],
+        doi="10.26311/fake-doi",
     )
     pea_garden.year = "1863"
     pea_garden.language = "en"
     pea_garden.version = "0.0.1"
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
-    pea_garden.doi = "10.26311/fake-doi"
-    pea_garden.pipeline_ids += [registered_pipeline_toy_example.uuid]
+    pea_garden.pipeline_ids += [registered_pipeline_toy_example.doi]
     pea_garden.validate()
     return pea_garden
 
@@ -263,6 +273,7 @@ def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
         requirements_file=str(tmp_requirements_txt),
+        doi="10.26311/fake-doi",
     )
 
     return pea_edibility_pipeline

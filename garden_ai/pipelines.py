@@ -9,12 +9,12 @@ from functools import reduce
 from inspect import signature
 from keyword import iskeyword
 from typing import Any, Dict, List, Optional, Tuple, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
 from packaging.requirements import InvalidRequirement, Requirement
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
 
 from garden_ai._version import __version__
@@ -94,17 +94,13 @@ class Pipeline:
             conda.yml environment file.
         model_uris:
             Optional, collected from steps' metadata.
-        uuid:
-            Populated by default, should not be set or modified by users. Used \
-            to keep local storage coherent with the module defining a pipeline.
     """
 
     title: str = Field(...)
     authors: List[str] = Field(...)
     steps: Tuple[Step, ...] = Field(...)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    doi: Optional[str] = None
-    uuid: UUID = Field(default_factory=uuid4)
+    doi: str = Field(...)
     func_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
     version: Optional[str] = "0.0.1"
@@ -128,6 +124,14 @@ class Pipeline:
         up at the class level, so can't be set dynamically for different instances.
         """
         raise NotImplementedError
+
+    @root_validator(pre=True)
+    def doi_omitted(cls, values):
+        assert "doi" in values, (
+            "It seems like no DOI has been minted yet for this `Pipeline`. If you were trying to create a new `Pipeline`, "
+            "use `GardenClient.create_pipeline` to initialize a publishable `Pipeline` with a draft DOI."
+        )
+        return values
 
     @validator("short_name")
     def is_valid_identifier(cls, name: Optional[str]) -> Optional[str]:
@@ -384,11 +388,8 @@ class RegisteredPipeline(BaseModel):
         pip_dependencies:
         conda_dependencies:
         model_uris:
-        uuid:
-            Required, should not be set or modified.
     """
 
-    uuid: UUID = Field(...)
     doi: str = Field(...)
     func_uuid: Optional[UUID] = Field(...)
     title: str = Field(...)
@@ -413,7 +414,7 @@ class RegisteredPipeline(BaseModel):
         endpoint: Union[UUID, str] = None,
         **kwargs: Any,
     ) -> Any:
-        """Remotely execute this ``RegisteredPipeline``'s function from its uuid. An endpoint must be specified.
+        """Remotely execute this ``RegisteredPipeline``'s function from the function uuid. An endpoint must be specified.
 
         Args:
             *args (Any):

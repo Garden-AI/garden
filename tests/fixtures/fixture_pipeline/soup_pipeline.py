@@ -48,6 +48,7 @@ REQUIREMENTS_FILE = str((Path(__file__).parent / "requirements.txt").resolve())
 
 soup_edibility_predictor: Pipeline = client.create_pipeline(
     title="soup edibility predictor",
+    doi="10.26311/fake-doi",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
     authors=["Me"],
@@ -55,6 +56,5 @@ soup_edibility_predictor: Pipeline = client.create_pipeline(
     description="Big Pea Data as in big peas, not like big data",
     version="0.0.1",
     year=2023,
-    tags=["you're it"],
-    uuid="c9df58fa-2df2-490e-849f-9e9a94265f8e",  # WARNING: DO NOT EDIT UUID
+    tags=["you're it"]
 )

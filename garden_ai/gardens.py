@@ -4,9 +4,15 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
-from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, PrivateAttr, ValidationError, validator
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    ValidationError,
+    root_validator,
+    validator,
+)
 
 from garden_ai.utils.misc import JSON, garden_json_encoder
 
@@ -56,7 +62,7 @@ class Garden(BaseModel):
             garden's pipelines.  Takes aliases into account (set when adding \
             pipeline via CLI or using `rename_pipeline` method.)
 
-        pipeline_ids: List[UUID] = Field(default_factory=list)
+        pipeline_ids: List[str] = Field(default_factory=list)
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
@@ -100,18 +106,25 @@ class Garden(BaseModel):
     title: str = cast(str, Field(default_factory=lambda: None))
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
-    doi: Optional[str] = Field(default=None)
+    doi: str = Field(...)
     description: Optional[str] = Field(None)
     publisher: str = "Garden-AI"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
-    uuid: UUID = Field(default_factory=uuid4, allow_mutation=False)
-    pipeline_ids: List[UUID] = Field(default_factory=list)
+    pipeline_ids: List[str] = Field(default_factory=list)
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
     _pipelines: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
+
+    @root_validator(pre=True)
+    def doi_omitted(cls, values):
+        assert "doi" in values, (
+            "It seems like no DOI has been minted yet for this `Garden`. If you were trying to create a new `Garden`, "
+            "use `GardenClient.create_garden` to initialize a publishable `Garden` with a draft DOI."
+        )
+        return values
 
     @validator("year")
     def valid_year(cls, year):
@@ -149,12 +162,12 @@ class Garden(BaseModel):
         for meta in pipeline_metadata:
             try:
                 pipeline = RegisteredPipeline(**meta)
-                if pipeline.uuid in self.pipeline_ids:
+                if pipeline.doi in self.pipeline_ids:
                     pipeline._env_vars = self._env_vars
                     pipelines.append(pipeline)
                 else:
                     logger.warning(
-                        f"Remote pipeline {pipeline.uuid} not present in pipeline id list."
+                        f"Remote pipeline {pipeline.doi} not present in pipeline id list."
                     )
             except ValidationError as e:
                 logger.warning(
@@ -174,14 +187,14 @@ class Garden(BaseModel):
             A list of RegisteredPipeline objects.
         """
 
-        from .local_data import PipelineNotFoundException, get_local_pipeline_by_uuid
+        from .local_data import PipelineNotFoundException, get_local_pipeline_by_doi
 
         pipelines = []
-        for uuid in self.pipeline_ids:
-            pipeline = get_local_pipeline_by_uuid(uuid)
+        for doi in self.pipeline_ids:
+            pipeline = get_local_pipeline_by_doi(doi)
             if pipeline is None:
                 raise PipelineNotFoundException(
-                    f"Could not find registered pipeline with id {uuid}."
+                    f"Could not find registered pipeline with id {doi}."
                 )
             # set env vars for pipeline to use when remotely executing
             pipeline._env_vars = self._env_vars
@@ -194,7 +207,7 @@ class Garden(BaseModel):
         """
         Helper method: builds the "complete" metadata dictionary with nested `Pipeline` and `step` metadata.
 
-        When serializing normally with `garden.{dict(), json()}`, only the UUIDs of the pipelines in the garden are included.
+        When serializing normally with `garden.{dict(), json()}`, only the DOIs of the pipelines in the garden are included.
 
         This method returns a superset of `garden.dict()`, so that the following holds:
             valid_garden == Garden(**valid_garden.expanded_metadata()) == Garden(**valid_garden.dict())

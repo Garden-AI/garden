@@ -143,15 +143,11 @@ def create(
     local_data.put_local_garden(garden)
 
     if verbose:
-        metadata = json.dumps(local_data.get_local_garden_by_uuid(garden.uuid))
+        metadata = json.dumps(local_data.get_local_garden_by_doi(garden.doi))
         rich.print_json(metadata)
 
     if garden.doi:
         rich.print(f"Garden '{garden.title}' created with DOI: {garden.doi}")
-    else:
-        rich.print(
-            f"Garden '{garden.title}' created but missing DOI. Given UUID: {garden.uuid}"
-        )
 
     return
 
@@ -231,7 +227,7 @@ def add_pipeline(
         ...,
         "-g",
         "--garden",
-        prompt="Please enter the UUID or DOI of a garden",
+        prompt="Please enter the DOI of a garden",
         help="The name of the garden you want to add a pipeline to",
         rich_help_panel="Required",
     ),
@@ -239,7 +235,7 @@ def add_pipeline(
         ...,
         "-p",
         "--pipeline",
-        prompt="Please enter a the UUID or DOI of a pipeline",
+        prompt="Please enter the DOI of a pipeline",
         help="The name of the pipeline you want to add",
         rich_help_panel="Required",
     ),
@@ -273,7 +269,7 @@ def add_pipeline(
             )
             garden.rename_pipeline(old_name, pipeline_alias)
     else:
-        garden.pipeline_ids += [to_add.uuid]
+        garden.pipeline_ids += [to_add.doi]
         if pipeline_alias:
             garden.rename_pipeline(to_add.short_name, pipeline_alias)
     local_data.put_local_garden(garden)
@@ -286,8 +282,8 @@ def publish(
         ...,
         "-g",
         "--garden",
-        prompt="Please enter the UUID or DOI of a garden",
-        help="The UUID or DOI of the garden you want to publish",
+        prompt="Please enter the DOI of a garden",
+        help="The DOI of the garden you want to publish",
         rich_help_panel="Required",
     ),
 ):
@@ -297,9 +293,6 @@ def publish(
     garden = _get_garden(garden_id)
     if not garden:
         raise typer.Exit(code=1)
-    if not garden.doi:
-        garden.doi = client._mint_doi(garden)
-        local_data.put_local_garden(garden)
     try:
         client.publish_garden_metadata(garden)
     except RemoteGardenException as e:
@@ -315,7 +308,7 @@ def publish(
 def list():
     """Lists all local Gardens."""
 
-    resource_table_cols = ["uuid", "doi", "title"]
+    resource_table_cols = ["doi", "title", "description"]
     table_name = "Local Gardens"
 
     table = get_local_garden_rich_table(
@@ -325,12 +318,20 @@ def list():
     console.print(table)
 
 
+def _get_pipeline(pipeline_id: str) -> Optional[RegisteredPipeline]:
+    pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
+    if not pipeline:
+        logger.warning(f"Could not find pipeline with id {pipeline_id}")
+        return None
+    return pipeline
+
+
 @garden_app.command(no_args_is_help=True)
 def show(
     garden_ids: List[str] = typer.Argument(
         ...,
-        help="The UUIDs or DOIs of the Gardens you want to show the local data for. "
-        "e.g. ``garden show garden1_uuid garden2_doi`` will show the local data for both Gardens listed.",
+        help="The DOIs of the Gardens you want to show the local data for. "
+        "e.g. ``garden show garden1_doi garden2_doi`` will show the local data for both Gardens listed.",
     ),
 ):
     """Shows all info for some Gardens"""
@@ -343,22 +344,8 @@ def show(
             rich.print("\n")
 
 
-def _get_pipeline(pipeline_id: str) -> Optional[RegisteredPipeline]:
-    if "/" in pipeline_id:
-        pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
-    else:
-        pipeline = local_data.get_local_pipeline_by_uuid(pipeline_id)
-    if not pipeline:
-        logger.warning(f"Could not find pipeline with id {pipeline_id}")
-        return None
-    return pipeline
-
-
 def _get_garden(garden_id: str) -> Optional[Garden]:
-    if "/" in garden_id:
-        garden = local_data.get_local_garden_by_doi(garden_id)
-    else:
-        garden = local_data.get_local_garden_by_uuid(garden_id)
+    garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
         logger.warning(f"Could not find garden with id {garden_id}")
         return None

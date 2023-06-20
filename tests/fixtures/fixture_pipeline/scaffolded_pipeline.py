@@ -58,6 +58,7 @@ REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
 
 fixture_pipeline = Pipeline(
     title="Scaffolded fixture pipeline",
+    doi="10.26311/fake-doi",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
     authors=["Garden Team"],
@@ -65,6 +66,5 @@ fixture_pipeline = Pipeline(
     description="",
     version="0.0.1",
     year=2023,
-    tags=[],
-    uuid="b537520b-e86e-45bf-8566-4555a72b0b08",  # WARNING: DO NOT EDIT UUID
+    tags=[]
 )
