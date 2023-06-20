@@ -482,16 +482,15 @@ class GardenClient:
 
     def publish_garden_metadata(self, garden: Garden) -> None:
         """
-        Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
-        to discover status, and returns the Task document.
-        Task document has a task["state"] field that can be FAILED or SUCCESS.
-
-        Returns
-        -------
-        https://docs.globus.org/api/search/reference/get_task/#task
+        Publishes a Garden's expanded_json to the backend /garden-search-route,
+        making it visible on our Globus Search index.
         """
-        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
-        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT, header)
+        try:
+            self.backend_client.publish_garden_metadata(garden)
+        except Exception as e:
+            raise Exception(
+                f"Request to Garden backend to publish garden failed with error: {str(e)}"
+            )
 
     def search(self, query: str) -> str:
         """

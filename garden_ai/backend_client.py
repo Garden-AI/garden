@@ -1,11 +1,14 @@
+import json
 import logging
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
+from typing import Callable
 
 import requests
 
 from garden_ai.constants import GardenConstants
+from garden_ai.gardens import Garden
 
 logger = logging.getLogger()
 
@@ -26,7 +29,7 @@ class BackendClient:
     def __init__(self, garden_authorizer):
         self.garden_authorizer = garden_authorizer
 
-    def _call(self, http_verb, resource, payload) -> dict:
+    def _call(self, http_verb: Callable, resource: str, payload: dict) -> dict:
         headers = {
             "Content-Type": "application/vnd.api+json",
             "Authorization": self.garden_authorizer.get_authorization_header(),
@@ -37,16 +40,18 @@ class BackendClient:
             resp.raise_for_status()
             return resp.json()
         except requests.HTTPError:
-            logger.error(f"{resp.text}")
+            logger.error(
+                f"Request to Garden backend failed. Status code {resp.status_code}. {resp.text}"
+            )
             raise
         except requests.exceptions.JSONDecodeError:
             logger.error(f"Could not parse response as JSON. {resp.text}")
             raise
 
-    def _post(self, resource, payload) -> dict:
+    def _post(self, resource: str, payload: dict) -> dict:
         return self._call(requests.post, resource, payload)
 
-    def _put(self, resource, payload) -> dict:
+    def _put(self, resource: str, payload: dict) -> dict:
         return self._call(requests.put, resource, payload)
 
     def mint_doi_on_datacite(self, payload: dict) -> str:
@@ -56,8 +61,9 @@ class BackendClient:
             raise Exception("Failed to mint DOI. Response was missing doi field.")
         return doi
 
-    def do_search_thing(self):
-        pass
+    def publish_garden_metadata(self, garden: Garden):
+        payload = json.loads(garden.expanded_json())
+        self._post("/garden-search-record", payload)
 
     def get_presigned_url(self, full_model_name: str, direction: PresignedUrlDirection):
         payload = {"s3_path": full_model_name, "direction": direction.value}
