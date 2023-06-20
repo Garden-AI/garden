@@ -49,8 +49,12 @@ class BackendClient:
     def _put(self, resource, payload) -> dict:
         return self._call(requests.put, resource, payload)
 
-    def do_datacite_thing(self):
-        pass
+    def mint_doi_on_datacite(self, payload: dict) -> str:
+        response_dict = self._post("/doi", payload)
+        doi = response_dict.get("doi", None)
+        if not doi:
+            raise Exception("Failed to mint DOI. Response was missing doi field.")
+        return doi
 
     def do_search_thing(self):
         pass

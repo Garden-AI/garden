@@ -342,28 +342,10 @@ class GardenClient:
             return existing_doi
 
         logger.info("Requesting DOI")
-        url = f"{GARDEN_ENDPOINT}/doi"
-
-        header = {
-            "Content-Type": "application/vnd.api+json",
-            "Authorization": self.garden_authorizer.get_authorization_header(),
-        }
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url="https://thegardens.ai")
         payload = {"data": {"type": "dois", "attributes": metadata}}
-        r = requests.post(
-            url,
-            headers=header,
-            json=payload,
-        )
-        try:
-            r.raise_for_status()
-            doi = r.json()["doi"]
-        except requests.HTTPError:
-            logger.error(f"{r.text}")
-            raise
-        else:
-            return doi
+        return self.backend_client.mint_doi_on_datacite(payload)
 
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
