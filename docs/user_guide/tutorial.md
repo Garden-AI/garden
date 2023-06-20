@@ -131,7 +131,7 @@ garden-ai garden create \
 	--author "The Red Queen" --year 1871
 ```
 
-The output of this will give you a UUID you can use to reference this garden in other commands.
+The output of this will give you a DOI you can use to reference this garden in other commands.
 
 ### Add Pipeline to Your Garden
 
