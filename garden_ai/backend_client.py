@@ -61,6 +61,9 @@ class BackendClient:
             raise Exception("Failed to mint DOI. Response was missing doi field.")
         return doi
 
+    def update_doi_on_datacite(self, payload: dict):
+        self._put("/doi", payload)
+
     def publish_garden_metadata(self, garden: Garden):
         payload = json.loads(garden.expanded_json())
         self._post("/garden-search-record", payload)

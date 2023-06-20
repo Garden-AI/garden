@@ -4,9 +4,9 @@ from garden_ai import local_data
 def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path):
     # mock to replace "~/.garden/db"
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
-    uuid = garden_all_fields.uuid
+    doi = garden_all_fields.doi
     local_data.put_local_garden(garden_all_fields)
-    from_record = local_data.get_local_garden_by_uuid(uuid)
+    from_record = local_data.get_local_garden_by_doi(doi)
     assert from_record == garden_all_fields
 
 
@@ -16,8 +16,8 @@ def test_local_storage_pipeline(
     # mock to replace "~/.garden/db"
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
     local_data.put_local_pipeline(registered_pipeline_toy_example)
-    uuid = registered_pipeline_toy_example.uuid
-    from_record = local_data.get_local_pipeline_by_uuid(uuid)
+    doi = registered_pipeline_toy_example.doi
+    from_record = local_data.get_local_pipeline_by_doi(doi)
     assert from_record == registered_pipeline_toy_example
 
 
@@ -32,10 +32,10 @@ def test_local_storage_keyerror(
     local_data.put_local_pipeline(pipeline)
 
     # can't find the garden
-    assert local_data.get_local_garden_by_uuid(garden_all_fields.uuid) is None
+    assert local_data.get_local_garden_by_doi(garden_all_fields.doi) is None
 
     # can find the pipeline
-    from_record = local_data.get_local_pipeline_by_uuid(pipeline.uuid)
+    from_record = local_data.get_local_pipeline_by_doi(pipeline.doi)
     assert from_record == pipeline
 
 

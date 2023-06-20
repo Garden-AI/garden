@@ -19,7 +19,6 @@ def test_create_empty_garden(garden_client):
 
     assert not garden.authors
     assert not garden.title
-    assert not garden.doi
 
 
 def test_validate_all_fields(garden_all_fields):
@@ -34,7 +33,6 @@ def test_validate_no_fields(garden_no_fields):
 def test_validate_required_only(garden_no_fields):
     garden = garden_no_fields
     garden.authors = ["Mendel, Gregor"]
-    assert not garden.doi
     with pytest.raises(ValidationError):
         garden.validate()
     garden.title = "Experiments on Plant Hybridization"
@@ -47,7 +45,7 @@ def test_garden_can_access_pipeline_as_attribute(
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
-    garden = local_data.get_local_garden_by_uuid("e1a3b50b-4efc-42c8-8422-644f4f858b87")
+    garden = local_data.get_local_garden_by_doi("10.23677/fake-doi")
     assert isinstance(garden.fixture_pipeline, RegisteredPipeline)
 
 
@@ -137,6 +135,7 @@ def test_pipeline_compose_union(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[str_only, wants_int_or_str],
+        doi="10.26311/fake-doi",
     )
 
     also_good = Pipeline(  # noqa: F841
@@ -144,6 +143,7 @@ def test_pipeline_compose_union(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[str_only, wants_int_or_str_old_syntax],
+        doi="10.26311/fake-doi",
     )
 
     union_order_doesnt_matter = Pipeline(  # noqa: F841
@@ -151,6 +151,7 @@ def test_pipeline_compose_union(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[wants_int_or_str, wants_int_or_str],
+        doi="10.26311/fake-doi",
     )
 
     union_syntax_doesnt_matter = Pipeline(  # noqa: F841
@@ -158,6 +159,7 @@ def test_pipeline_compose_union(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[wants_int_or_str, wants_int_or_str_old_syntax],
+        doi="10.26311/fake-doi",
     )
 
     with pytest.raises(ValidationError):
@@ -166,6 +168,7 @@ def test_pipeline_compose_union(tmp_requirements_txt):
             requirements_file=str(tmp_requirements_txt),
             title="bad pipeline",
             steps=[wants_int_or_str, str_only],
+            doi="10.26311/fake-doi",
         )
 
     with pytest.raises(ValidationError):
@@ -174,6 +177,7 @@ def test_pipeline_compose_union(tmp_requirements_txt):
             requirements_file=str(tmp_requirements_txt),
             title="bad pipeline",
             steps=[wants_int_or_str_old_syntax, str_only],
+            doi="10.26311/fake-doi",
         )
     return
 
@@ -203,6 +207,7 @@ def test_pipeline_compose_tuple(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="good pipeline",
         steps=[returns_tuple, wants_tuple_as_tuple],
+        doi="10.26311/fake-doi",
     )
 
     with pytest.raises(ValidationError):
@@ -211,6 +216,7 @@ def test_pipeline_compose_tuple(tmp_requirements_txt):
             requirements_file=str(tmp_requirements_txt),
             title="backwards pipeline",
             steps=[wants_tuple_as_tuple, returns_tuple],
+            doi="10.26311/fake-doi",
         )
 
     ugly = Pipeline(  # noqa: F841
@@ -218,6 +224,7 @@ def test_pipeline_compose_tuple(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="ugly (using *args) but allowed pipeline",
         steps=[returns_tuple, wants_tuple_as_args],
+        doi="10.26311/fake-doi",
     )
     with pytest.raises(ValidationError):
         ugly_and_bad = Pipeline(  # noqa: F841
@@ -225,6 +232,7 @@ def test_pipeline_compose_tuple(tmp_requirements_txt):
             requirements_file=str(tmp_requirements_txt),
             title="ugly (using *args) and disallowed pipeline",
             steps=[returns_tuple, wants_flipped_tuple_as_args],
+            doi="10.26311/fake-doi",
         )
 
 
@@ -339,6 +347,7 @@ def test_step_compose_ignores_defaults(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="composes tuple-as-tuple w/ default",
         steps=[returns_tuple, wants_tuple_ignoring_default],
+        doi="10.26311/fake-doi",
     )
 
     ugly = Pipeline(  # noqa: F841
@@ -346,4 +355,5 @@ def test_step_compose_ignores_defaults(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="composes tuple-as-*args w/ default",
         steps=[returns_tuple, wants_tuple_as_args_ignoring_default],
+        doi="10.26311/fake-doi",
     )

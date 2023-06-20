@@ -3,7 +3,6 @@ import logging
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional, Union, List
-from uuid import UUID
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
@@ -24,11 +23,11 @@ class LocalDataException(Exception):
 
 
 class PipelineNotFoundException(KeyError):
-    """Exception raised when a Garden references an unknown pipeline uuid"""
+    """Exception raised when a Garden references an unknown pipeline doi"""
 
 
 class GardenNotFoundException(KeyError):
-    """Exception raised when no Garden is found with a given uuid"""
+    """Exception raised when no Garden is found with a given doi"""
 
 
 class ResourceType(Enum):
@@ -38,8 +37,8 @@ class ResourceType(Enum):
 
 
 resource_type_to_id_key = {
-    ResourceType.GARDEN: "uuid",
-    ResourceType.PIPELINE: "uuid",
+    ResourceType.GARDEN: "doi",
+    ResourceType.PIPELINE: "doi",
     ResourceType.MODEL: "model_uri",
 }
 
@@ -108,35 +107,14 @@ def _make_obj_from_record(
 
 
 def _get_resource_by_id(
-    id_: Union[UUID, str], resource_type: ResourceType
+    id_: str, resource_type: ResourceType
 ) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
     data = _read_local_db()
-    id_ = str(id_)
     resources = data.get(resource_type.value, {})
     if resources and id_ in resources:
         return _make_obj_from_record(resources[id_], resource_type)
     else:
         return None
-
-
-def _get_resource_by_doi(
-    doi: str, resource_type: ResourceType
-) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
-    data = _read_local_db()
-    resources_by_uuid = data.get(resource_type.value, {})
-    resources_by_doi = _reindex_by_doi(resources_by_uuid)
-    if resources_by_doi and doi in resources_by_doi:
-        return _make_obj_from_record(resources_by_doi[doi], resource_type)
-    else:
-        return None
-
-
-def _reindex_by_doi(resources: dict) -> Dict:
-    by_doi = {}
-    for resource in resources.values():
-        if "doi" in resource:
-            by_doi[resource["doi"]] = resource
-    return by_doi
 
 
 def _delete_old_model_versions(model_name: str):
@@ -166,7 +144,7 @@ def _get_resource_by_type(
 
 def put_local_garden(garden: Garden):
     """Helper: write a record to 'local database' for a given Garden
-    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+    Overwrites any existing entry with the same doi in ~/.garden/data.json.
 
     Parameters
     ----------
@@ -179,7 +157,7 @@ def put_local_garden(garden: Garden):
 
 def put_local_pipeline(pipeline: RegisteredPipeline):
     """Helper: write a record to 'local database' for a given Pipeline
-    Overwrites any existing entry with the same uuid in ~/.garden/data.json.
+    Overwrites any existing entry with the same doi in ~/.garden/data.json.
 
     Parameters
     ----------
@@ -188,37 +166,6 @@ def put_local_pipeline(pipeline: RegisteredPipeline):
         a TypeError will be raised if not a Pipeline.
     """
     _put_resource_from_obj(pipeline, resource_type=ResourceType.PIPELINE)
-
-
-def get_local_garden_by_uuid(uuid: Union[UUID, str]) -> Optional[Garden]:
-    """Helper: fetch a Garden record from ~/.garden/data.json.
-
-    Parameters
-    ----------
-    uuid Union[UUID, str]
-        The uuid of the Garden you are fetching.
-
-    Returns
-    -------
-    Optional[Garden]
-        If successful, a dictionary in the form given by Garden.json().
-    """
-    return _get_resource_by_id(uuid, ResourceType.GARDEN)  # type: ignore
-
-
-def get_local_pipeline_by_uuid(uuid: Union[UUID, str]) -> Optional[RegisteredPipeline]:
-    """Helper: fetch a Pipeline record from ~/.garden/data.json.
-
-    Parameters
-    ----------
-    uuid Union[UUID, str]
-        The uuid of the Pipeline you are fetching.
-
-    Returns
-    -------
-    Optional[RegisteredPipeline]
-    """
-    return _get_resource_by_id(uuid, ResourceType.PIPELINE)  # type: ignore
 
 
 def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
@@ -233,7 +180,7 @@ def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
     -------
     Optional[Garden]
     """
-    return _get_resource_by_doi(doi, ResourceType.GARDEN)  # type: ignore
+    return _get_resource_by_id(doi, ResourceType.GARDEN)  # type: ignore
 
 
 def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
@@ -248,7 +195,7 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     -------
     Optional[RegisteredPipeline]
     """
-    return _get_resource_by_doi(doi, ResourceType.PIPELINE)  # type: ignore
+    return _get_resource_by_id(doi, ResourceType.PIPELINE)  # type: ignore
 
 
 def put_local_model(model: RegisteredModel):

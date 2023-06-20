@@ -1,4 +1,4 @@
-from garden_ai import GardenClient, step, Pipeline, Garden
+from garden_ai import GardenClient, step, Garden
 from typing import List
 import os
 
@@ -64,7 +64,7 @@ def rate_soup(soup_sample: Soup) -> float:
 rate_soup.contributors += ["Friar Hugo", "Sister Constance"]
 
 
-pea_edibility_pipeline = Pipeline(
+pea_edibility_pipeline = client.create_pipeline(
     title="Concept: a pipeline for soup",
     steps=(split_peas, make_soup, rate_soup),
     authors=pea_garden.authors,

@@ -65,7 +65,7 @@ def test_register_and_run_with_env_vars(
     client.register_pipeline(pipeline, container_id)
 
     # load from client, setting mlflow env vars
-    registered_pipeline = client.get_registered_pipeline(pipeline.uuid)
+    registered_pipeline = client.get_registered_pipeline(pipeline.doi)
 
     input_data = "i'm afraid of change"
     # set arbitrary other env vars
@@ -93,7 +93,7 @@ def test_register_and_run_with_model(do_not_set_mlflow_env_variables, dlhub_endp
     client.register_pipeline(pipeline, container_id)
 
     # load from client, setting mlflow env vars
-    registered_pipeline = client.get_registered_pipeline(pipeline.uuid)
+    registered_pipeline = client.get_registered_pipeline(pipeline.doi)
 
     input_soup = [1, 2, 3]
     assert registered_pipeline(input_soup, endpoint=dlhub_endpoint) == (10 / 10)

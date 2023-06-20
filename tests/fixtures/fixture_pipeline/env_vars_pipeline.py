@@ -23,6 +23,7 @@ REQUIREMENTS_FILE = (Path(__file__).parent / "requirements.txt").resolve()
 
 environment_variable_predictor: Pipeline = client.create_pipeline(
     title="environment variable predictor",
+    doi="10.26311/fake-doi",
     steps=ALL_STEPS,
     requirements_file=str(REQUIREMENTS_FILE),
     authors=["Owen"],
@@ -30,6 +31,5 @@ environment_variable_predictor: Pipeline = client.create_pipeline(
     description="tests env vars in registered pipelines",
     version="0.0.1",
     year=2023,
-    tags=[],
-    uuid="cd58f20a-d67d-4418-8894-48b5ad6fb5ab",  # WARNING: DO NOT EDIT UUID
+    tags=[]
 )

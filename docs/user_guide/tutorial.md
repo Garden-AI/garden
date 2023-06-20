@@ -48,13 +48,13 @@ def run_inference(
 # instantiate the pipeline
 looking_glass_pipeline: Pipeline = client.create_pipeline(
     title="Looking Glass Pipeline",
+    doi="10.26311/fake-doi",
     steps=(preprocessing, run_inference),  # composes the fns defined above
     requirements_file="/path/to/requirements.txt",
     authors=["Dee, Tweedle", "et al."],
     contributors=["Dum, Tweedle"],
     description="Makes you feel a little sorry for the poor oysters",
     tags=["Carpentry", "Walrus Studies"],
-    uuid="50039c98-b6c6-415a-b11b-9a0845c0a9b8",
 )
 ```
 
@@ -131,7 +131,7 @@ garden-ai garden create \
 	--author "The Red Queen" --year 1871
 ```
 
-The output of this will give you a UUID you can use to reference this garden in other commands.
+The output of this will give you a DOI you can use to reference this garden in other commands.
 
 ### Add Pipeline to Your Garden
 
@@ -139,20 +139,20 @@ You can add your registered pipeline to your newly created garden using the `gar
 
 ```bash
 garden-ai garden add-pipeline \
-	--garden='garden-uuid-abcd-12345' \
+	--garden='10.garden/doi' \
 	--pipeline='10.pipeline/doi'
 ```
 
 
 > [!NOTE] Note
-> If adding the pipeline to an already-published Garden, you can specify the Garden by either its UUID or DOI. You'll need to publish the Garden again for others to see the new Pipeline, however.
+> If adding the pipeline to an already-published Garden, you specify the Garden by its DOI. You'll need to publish the Garden again for others to see the new Pipeline, however.
 
 ### Publish Your Garden
 
 Finally, after creating your Garden and adding the pipeline, it's time to publish your Garden:
 
 ```bash
-garden-ai garden publish --garden='garden-uuid-abcd-12345'
+garden-ai garden publish --garden='10.garden/doi'
 ```
 
 The output of this command will contain a DOI, which you can use to cite and share your Garden, as shown in the next section of this tutorial.

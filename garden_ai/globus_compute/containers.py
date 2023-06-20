@@ -21,7 +21,7 @@ class BuildStatus(str, Enum):
 
 
 def build_container(compute_client: Client, pipeline: Pipeline) -> str:
-    name = str(pipeline.uuid)
+    name = str(pipeline.doi)
     cs = ContainerSpec(
         name=name,
         pip=pipeline.pip_dependencies,

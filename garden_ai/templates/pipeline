@@ -65,5 +65,5 @@ REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
     version="{{ pipeline.version }}",
     year={{ pipeline.year }},
     tags={{ pipeline.tags }},
-    uuid="{{ pipeline.uuid }}",  # WARNING: DO NOT EDIT UUID
+    doi="{{ pipeline.doi }}",  # WARNING: DO NOT EDIT DOI
 )
