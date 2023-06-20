@@ -15,7 +15,16 @@ class ComputeLoginManager:
     https://github.com/funcx-faas/funcX/blob/main/funcx_sdk/funcx/sdk/login_manager/protocol.py#L18
     """
 
-    def __init__(self, authorizers: Dict[str, globus_sdk.RefreshTokenAuthorizer]):
+    def __init__(
+        self,
+        authorizers: Dict[
+            str,
+            Union[
+                globus_sdk.RefreshTokenAuthorizer,
+                globus_sdk.ClientCredentialsAuthorizer,
+            ],
+        ],
+    ):
         self.authorizers = authorizers
 
     def get_auth_client(self) -> globus_sdk.AuthClient:

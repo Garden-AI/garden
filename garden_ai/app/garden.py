@@ -10,7 +10,10 @@ from rich.prompt import Prompt
 
 from garden_ai import local_data
 from garden_ai.client import GardenClient
-from garden_ai.globus_search.garden_search import GARDEN_INDEX_UUID
+from garden_ai.globus_search.garden_search import (
+    GARDEN_INDEX_UUID,
+    RemoteGardenException,
+)
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.app.console import console, get_local_garden_rich_table
@@ -299,9 +302,9 @@ def publish(
         local_data.put_local_garden(garden)
     try:
         client.publish_garden_metadata(garden)
-    except SearchAPIError as e:
+    except RemoteGardenException as e:
         logger.fatal(f"Could not publish garden {garden_id}")
-        logger.fatal(e.error_data)
+        logger.fatal(str(e))
         raise typer.Exit(code=1) from e
     console.print(
         f"Successfully published garden {garden.title} with DOI {garden.doi}!"

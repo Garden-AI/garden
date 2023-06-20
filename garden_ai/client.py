@@ -2,13 +2,11 @@
 import json
 import logging
 import os
-import shutil
 import time
 from pathlib import Path
 from typing import List, Optional, Union
 from uuid import UUID
 
-import requests
 import typer
 from globus_compute_sdk import Client
 from globus_sdk import (
@@ -18,7 +16,8 @@ from globus_sdk import (
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
-    GlobusHTTPResponse,
+    ClientCredentialsAuthorizer,
+    ConfidentialAppAuthClient,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
@@ -26,8 +25,7 @@ from rich import print
 from rich.prompt import Prompt
 
 import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
-from garden_ai import local_data
-from garden_ai.constants import GardenConstants
+from garden_ai import local_data, GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
@@ -62,7 +60,8 @@ class AuthException(Exception):
 
 
 GardenScopes = ScopeBuilder(
-    "0948a6b0-a622-4078-b0a4-bfd6d77d65cf", known_url_scopes=["action_all"]
+    "0948a6b0-a622-4078-b0a4-bfd6d77d65cf",
+    known_url_scopes=["action_all", "test_scope"],
 )
 
 
@@ -82,7 +81,9 @@ class GardenClient:
     scopes = GardenScopes
 
     def __init__(
-        self, auth_client: AuthClient = None, search_client: SearchClient = None
+        self,
+        auth_client: Union[AuthClient, ConfidentialAppAuthClient] = None,
+        search_client: SearchClient = None,
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
@@ -93,30 +94,61 @@ class GardenClient:
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
-        self.auth_client = (
-            NativeAppAuthClient(self.client_id) if not auth_client else auth_client
-        )
-        self.openid_authorizer = self._create_authorizer(
-            AuthClient.scopes.resource_server
-        )
-        self.groups_authorizer = self._create_authorizer(
-            GroupsClient.scopes.resource_server
-        )
-        self.search_authorizer = self._create_authorizer(
-            SearchClient.scopes.resource_server
-        )
-        self.compute_authorizer = self._create_authorizer(COMPUTE_RESOURCE_SERVER_NAME)
-        self.search_client = (
-            SearchClient(authorizer=self.search_authorizer)
-            if not search_client
-            else search_client
-        )
-        self.garden_authorizer = self._create_authorizer(
-            GardenClient.scopes.resource_server
-        )
-        self.backend_client = BackendClient(self.garden_authorizer)
+        # If auth_client is type AuthClient or None, do an
+        # Authorization Code Grant and make RefreshTokenAuthorizers.
+        # If auth_client is type ConfidentialAppAuthClient, do a
+        # Client Credentials Grant and make ClientCredentialsAuthorizers
+        if (
+            isinstance(auth_client, AuthClient)
+            and not isinstance(auth_client, ConfidentialAppAuthClient)
+        ) or not auth_client:
+            self.auth_client = (
+                NativeAppAuthClient(self.client_id) if not auth_client else auth_client
+            )
+            self.openid_authorizer = self._create_authorizer(
+                AuthClient.scopes.resource_server
+            )
+            self.groups_authorizer = self._create_authorizer(
+                GroupsClient.scopes.resource_server
+            )
+            self.search_authorizer = self._create_authorizer(
+                SearchClient.scopes.resource_server
+            )
+            self.compute_authorizer = self._create_authorizer(
+                COMPUTE_RESOURCE_SERVER_NAME
+            )
+            self.search_client = (
+                SearchClient(authorizer=self.search_authorizer)
+                if not search_client
+                else search_client
+            )
+            self.garden_authorizer = self._create_authorizer(
+                GardenClient.scopes.resource_server
+            )
+        elif isinstance(auth_client, ConfidentialAppAuthClient):
+            self.auth_client = auth_client
+            self.openid_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client,
+                f"{AuthClient.scopes.openid} {AuthClient.scopes.email}",
+            )
+            self.groups_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, GroupsClient.scopes.view_my_groups_and_memberships
+            )
+            self.search_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, SearchClient.scopes.all
+            )
+            self.compute_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, Client.FUNCX_SCOPE
+            )
+            self.search_client = SearchClient(authorizer=self.search_authorizer)
+            self.garden_authorizer = ClientCredentialsAuthorizer(
+                self.auth_client, GardenClient.scopes.test_scope
+            )
+
+            local_data._store_user_email(GardenConstants.GARDEN_TEST_EMAIL)
 
         self.compute_client = self._make_compute_client()
+        self.backend_client = BackendClient(self.garden_authorizer)
         self._set_up_mlflow_env()
 
     def _get_garden_access_token(self):
@@ -143,7 +175,7 @@ class GardenClient:
                 AuthClient.scopes.email,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.all,
-                GardenClient.scopes.action_all,
+                GardenClient.scopes.test_scope,
                 Client.FUNCX_SCOPE,
             ],
             refresh_tokens=True,
@@ -448,7 +480,7 @@ class GardenClient:
         }
         return registered
 
-    def publish_garden_metadata(self, garden: Garden) -> GlobusHTTPResponse:
+    def publish_garden_metadata(self, garden: Garden) -> None:
         """
         Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
         to discover status, and returns the Task document.
@@ -458,7 +490,8 @@ class GardenClient:
         -------
         https://docs.globus.org/api/search/reference/get_task/#task
         """
-        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT)
+        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
+        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT, header)
 
     def search(self, query: str) -> str:
         """
