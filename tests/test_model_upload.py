@@ -1,6 +1,6 @@
 import os
 
-from tests.fixtures.helpers import get_fixture_file_path
+from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 from garden_ai.mlmodel import stage_model_for_upload, LocalModel
 
 
