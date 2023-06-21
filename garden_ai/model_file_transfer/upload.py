@@ -1,8 +1,6 @@
-import json
 import os
 import shutil
 
-import boto3
 import requests
 
 from garden_ai.mlmodel import LocalModel
