@@ -348,17 +348,8 @@ class GardenClient:
         url = f"{GARDEN_ENDPOINT}/doi"
         header = {"Authorization": self.garden_authorizer.get_authorization_header()}
 
-        metadata = json.loads(
-            obj.json() if isinstance(obj, Pipeline) else obj.expanded_json()
-        )
+        metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
-
-        metadata.update(json.loads(obj.datacite_json()))
-        if metadata.get("description"):
-            del metadata["description"]
-        del metadata["authors"]
-        del metadata["title"]
-        del metadata["year"]
 
         payload = {"data": {"type": "dois", "attributes": metadata}}
         r = requests.put(
