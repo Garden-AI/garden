@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import List, Optional, Union
 from uuid import UUID
 
-import requests
 import typer
 from globus_compute_sdk import Client
 from globus_sdk import (
@@ -32,12 +31,16 @@ from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
+from garden_ai.backend_client import BackendClient
+from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
     LocalModel,
     RegisteredModel,
     upload_to_model_registry,
+    stage_model_for_upload,
+    clear_mlflow_staging_directory,
 )
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
@@ -82,7 +85,7 @@ class GardenClient:
         auth_client: Union[AuthClient, ConfidentialAppAuthClient] = None,
         search_client: SearchClient = None,
     ):
-        key_store_path = Path(os.path.expanduser("~/.garden"))
+        key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
         self.auth_key_store = SimpleJSONFileAdapter(
             os.path.join(key_store_path, "tokens.json")
@@ -145,6 +148,7 @@ class GardenClient:
             local_data._store_user_email(GardenConstants.GARDEN_TEST_EMAIL)
 
         self.compute_client = self._make_compute_client()
+        self.backend_client = BackendClient(self.garden_authorizer)
         self._set_up_mlflow_env()
 
     def _get_garden_access_token(self):
@@ -295,9 +299,29 @@ class GardenClient:
         return Pipeline(**data)
 
     def register_model(self, local_model: LocalModel) -> RegisteredModel:
-        registered_model = upload_to_model_registry(local_model)
-        local_data.put_local_model(registered_model)
-        return registered_model
+        if "S3_UPLOAD_FEATURE_FLAG" in os.environ:
+            try:
+                # Create directory in MLModel format
+                model_directory = stage_model_for_upload(local_model)
+                # Push contents of directory to S3
+                upload_mlmodel_to_s3(model_directory, local_model, self.backend_client)
+            finally:
+                try:
+                    clear_mlflow_staging_directory()
+                except Exception as e:
+                    logger.error(
+                        "Could not clean up model staging directory. Check permissions on ~/.garden/mlflow"
+                    )
+                    logger.error("Original exception: " + str(e))
+                    # We can still proceed, there is just some cruft in the user's home directory.
+                    pass
+            registered_model = RegisteredModel(**local_model.dict(), version="1")
+            local_data.put_local_model(registered_model)
+            return registered_model
+        else:
+            registered_model = upload_to_model_registry(local_model)
+            local_data.put_local_model(registered_model)
+            return registered_model
 
     def _mint_draft_doi(self, test: bool = True) -> str:
         """Register a new draft doi with DataCite via Garden backend.
@@ -308,7 +332,7 @@ class GardenClient:
         ----------
         test : bool
             toggle which garden backend endpoint to hit; we do not yet have a
-            test endpoint so test=True raises NotImplementedError.
+            test endpoint so test=False raises NotImplementedError.
 
         Raises
         ------
@@ -320,48 +344,18 @@ class GardenClient:
             raise NotImplementedError
 
         logger.info("Requesting draft DOI")
-        url = f"{GARDEN_ENDPOINT}/doi"
-
-        header = {
-            "Content-Type": "application/vnd.api+json",
-            "Authorization": self.garden_authorizer.get_authorization_header(),
-        }
         payload = {
             "data": {"type": "dois", "attributes": {}}
         }  # required data is filled in on the backend
-        r = requests.post(
-            url,
-            headers=header,
-            json=payload,
-        )
-        try:
-            r.raise_for_status()
-            doi = r.json()["doi"]
-        except requests.HTTPError:
-            logger.error(f"{r.text}")
-            raise
-        else:
-            return doi
+        return self.backend_client.mint_doi_on_datacite(payload)
 
     def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
         logger.info("Requesting update to DOI")
-        url = f"{GARDEN_ENDPOINT}/doi"
-        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
-
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
 
         payload = {"data": {"type": "dois", "attributes": metadata}}
-        r = requests.put(
-            url,
-            headers=header,
-            json=payload,
-        )
-        try:
-            r.raise_for_status()
-        except requests.HTTPError:
-            logger.error(f"{r.text}")
-            raise
+        self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
 
     def build_container(self, pipeline: Pipeline) -> str:
@@ -457,17 +451,16 @@ class GardenClient:
 
     def publish_garden_metadata(self, garden: Garden) -> None:
         """
-        Takes a garden, and publishes to the GARDEN_INDEX_UUID index.  Polls
-        to discover status, and returns the Task document.
-        Task document has a task["state"] field that can be FAILED or SUCCESS.
-
-        Returns
-        -------
-        https://docs.globus.org/api/search/reference/get_task/#task
+        Publishes a Garden's expanded_json to the backend /garden-search-route,
+        making it visible on our Globus Search index.
         """
         self._update_datacite(garden)
-        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
-        return garden_search.publish_garden_metadata(garden, GARDEN_ENDPOINT, header)
+        try:
+            self.backend_client.publish_garden_metadata(garden)
+        except Exception as e:
+            raise Exception(
+                f"Request to Garden backend to publish garden failed with error: {str(e)}"
+            )
 
     def search(self, query: str) -> str:
         """

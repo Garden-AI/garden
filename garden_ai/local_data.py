@@ -8,8 +8,9 @@ from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.mlmodel import RegisteredModel
 from garden_ai.utils.misc import garden_json_encoder
+from garden_ai.constants import GardenConstants
 
-LOCAL_STORAGE = Path("~/.garden").expanduser()
+LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
 
 logger = logging.getLogger()
