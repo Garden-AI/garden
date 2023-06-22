@@ -38,7 +38,10 @@ def test_pipeline_datacite(garden_client):
     @step
     def four() -> int:
         return 4
-    pipeline = garden_client.create_pipeline(authors=["Team, Garden"], title="Lorem Ipsum", steps=(four,))
+
+    pipeline = garden_client.create_pipeline(
+        authors=["Team, Garden"], title="Lorem Ipsum", steps=(four,)
+    )
     data = json.loads(pipeline.datacite_json())
 
     assert isinstance(data["creators"], list)
