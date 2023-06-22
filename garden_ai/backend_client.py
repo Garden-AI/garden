@@ -2,8 +2,7 @@ import json
 import logging
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional
-from typing import Callable
+from typing import Optional, Callable, Union
 
 import requests
 
@@ -35,13 +34,15 @@ class BackendClient:
     def __init__(self, garden_authorizer):
         self.garden_authorizer = garden_authorizer
 
-    def _call(self, http_verb: Callable, resource: str, payload: dict) -> dict:
+    def _call(
+        self, http_verb: Callable, resource: str, payload: dict
+    ) -> Union[dict, int]:
         headers = {"Authorization": self.garden_authorizer.get_authorization_header()}
         url = GardenConstants.GARDEN_ENDPOINT + resource
         resp = http_verb(url, headers=headers, json=payload)
         try:
             resp.raise_for_status()
-            return resp.json()
+            return resp.json() if resp.json() else resp.status_code
         except requests.HTTPError:
             logger.error(
                 f"Request to Garden backend failed. Status code {resp.status_code}. {resp.text}"
