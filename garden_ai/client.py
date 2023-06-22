@@ -37,7 +37,7 @@ from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
     LocalModel,
-    RegisteredModel,
+    ModelMetadata,
     upload_to_model_registry,
     stage_model_for_upload,
     clear_mlflow_staging_directory,
@@ -149,15 +149,15 @@ class GardenClient:
 
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
-        self._set_up_mlflow_env()
+        # self._set_up_mlflow_env()
 
     def _get_garden_access_token(self):
         self.garden_authorizer.ensure_valid_token()
         return self.garden_authorizer.access_token
 
-    def _set_up_mlflow_env(self):
-        os.environ["MLFLOW_TRACKING_TOKEN"] = self._get_garden_access_token()
-        os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
+    # def _set_up_mlflow_env(self):
+    #     os.environ["MLFLOW_TRACKING_TOKEN"] = self._get_garden_access_token()
+    #     os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
 
     def _make_compute_client(self):
         scope_to_authorizer = {
@@ -298,7 +298,7 @@ class GardenClient:
 
         return Pipeline(**data)
 
-    def register_model(self, local_model: LocalModel) -> RegisteredModel:
+    def register_model(self, local_model: LocalModel) -> ModelMetadata:
         if "S3_UPLOAD_FEATURE_FLAG" in os.environ:
             try:
                 # Create directory in MLModel format
@@ -315,7 +315,7 @@ class GardenClient:
                     logger.error("Original exception: " + str(e))
                     # We can still proceed, there is just some cruft in the user's home directory.
                     pass
-            registered_model = RegisteredModel(**local_model.dict(), version="1")
+            registered_model = ModelMetadata(**local_model.dict(), version="1")
             local_data.put_local_model(registered_model)
             return registered_model
         else:
@@ -397,6 +397,7 @@ class GardenClient:
                 f"Could not find any pipelines with DOI {doi}."
             )
 
+        # TODO: shove in download urls here
         self._set_up_mlflow_env()
         registered._env_vars = {
             "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
@@ -441,11 +442,15 @@ class GardenClient:
             raise GardenNotFoundException(
                 f"Could not find any Gardens with identifier {doi}."
             )
-        self._set_up_mlflow_env()
-        registered._env_vars = {
-            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
-            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
-        }
+        # TODO: iterate through the pipelines in the garden and inject env vars here?
+        for pipeline in registered.pipelines:
+            pass
+            # do the thing
+        # self._set_up_mlflow_env()
+        # registered._env_vars = {
+        #     "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
+        #     "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
+        # }
         return registered
 
     def publish_garden_metadata(self, garden: Garden) -> None:

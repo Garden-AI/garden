@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import typing
-from functools import update_wrapper, wraps
+from functools import update_wrapper
 from inspect import Parameter, Signature, signature
 from typing import Any, Callable, Dict, List, Optional
 
@@ -58,7 +58,7 @@ class Step:
             dimensions of a matrix or column names of a dataframe).
         authors (List[str]):
             The main researchers involved in producing the Step, for citation and discoverability purposes.
-        model_uris (List[str]):
+        model_full_names (List[str]):
             A reference to the models used in this step, if any. Model identifiers are as stored in MLFlow (not including the 'models:/' prefix).
         source (Optional[str]):
             Should not be set by users. Consists of the plain python source code \
@@ -93,10 +93,7 @@ class Step:
     description: Optional[str] = Field(None)
     input_info: Optional[str] = Field(None)
     output_info: Optional[str] = Field(None)
-    conda_dependencies: List[str] = Field(default_factory=list)
-    pip_dependencies: List[str] = Field(default_factory=list)
-    python_version: Optional[str] = Field(None)
-    model_uris: List[str] = Field(default_factory=list)
+    model_full_names: List[str] = Field(default_factory=list)
     source: Optional[str] = Field(None)
 
     def __post_init_post_parse__(self):
@@ -114,28 +111,24 @@ class Step:
             self.input_info = str(input_hints)
         if self.output_info is None:
             self.output_info = f"return: {return_hint}"
-        self._infer_model_deps()
+        self._track_models()
         return
 
     def __call__(self, *args, **kwargs):
         # keep it simple: just pass input the underlying callable.
         return self.func(*args, **kwargs)
 
-    def _infer_model_deps(self):
+    def _track_models(self):
         """
         If this step's function has a Model as a default argument, like
-        ``func(*args, model=Model(...))``, extract the dependencies for that model
-        and track them as step-level dependencies.
+        ``func(*args, model=Model(...))``, record the model name
         """
 
         sig = signature(self.func)
         for param in sig.parameters.values():
             if isinstance(param.default, _Model):
                 model = param.default
-                self.python_version = model.python_version
-                self.conda_dependencies += model.conda_dependencies
-                self.pip_dependencies += model.pip_dependencies
-                self.model_uris += [model.model_full_name]
+                self.model_full_names += [model.full_name]
         return
 
     @validator("func")
@@ -233,33 +226,3 @@ def step(func: Callable = None, **kwargs):
             return Step(**data)
 
         return wrapper
-
-
-def inference_step(model_uri: str, **kwargs):
-    """Helper: provide ``@inference_step(...)`` decorator for creation of ``Step``s.
-
-    Example:
-    --------
-        ```python
-        @inference_step(model_uri="me@uni.edu-my-model/version")
-        def my_step(data: pd.DataFrame) -> MyResultType:
-            pass  # NOTE: leave the function body empty
-
-        ## equivalent to:
-        @step
-        def my_step(
-            data: MyDataType,
-            model=garden_ai.Model("me@uni.edu-my-model/version"),
-        ) -> MyResultType:
-            return model.predict(data)
-        ```
-    """
-
-    def wrapper(f: Callable):
-        @wraps(f)  # make sure we aren't losing signature info
-        def boilerplate(*args, model=Model(model_uri), **_kwargs):
-            return model.predict(*args)
-
-        return step(boilerplate)
-
-    return wrapper

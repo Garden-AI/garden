@@ -97,7 +97,6 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
-        extra_pip_requirements=[],
         flavor="sklearn",
         user_email="foo@example.com",
     )
@@ -124,7 +123,6 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
-        extra_pip_requirements=[],
         flavor="pytorch",
         user_email="foo@example.com",
     )
@@ -151,7 +149,6 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format)
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
-        extra_pip_requirements=[],
         flavor="tensorflow",
         user_email="foo@example.com",
     )

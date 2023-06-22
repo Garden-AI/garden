@@ -27,7 +27,7 @@ from garden_ai.datacite import (
     Title,
     Types,
 )
-from garden_ai.mlmodel import RegisteredModel
+from garden_ai.mlmodel import ModelMetadata
 from garden_ai.steps import DataclassConfig, Step
 from garden_ai.utils.misc import (
     JSON,
@@ -92,7 +92,7 @@ class Pipeline:
         conda_dependencies:
             Optional, populated by `requirements_file` if it points to a \
             conda.yml environment file.
-        model_uris:
+        model_full_names:
             Optional, collected from steps' metadata.
     """
 
@@ -110,7 +110,7 @@ class Pipeline:
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default=[f"garden-ai=={__version__}"])
     conda_dependencies: List[str] = Field(default_factory=list)
-    model_uris: List[str] = Field(default_factory=list)
+    model_full_names: List[str] = Field(default_factory=list)
     short_name: Optional[str] = Field(None)
 
     def _composed_steps(*args, **kwargs):
@@ -194,14 +194,8 @@ class Pipeline:
         """collect requirements to pass to Globus Compute container service.
 
         Populates attributes `self.python_version, self.pip_dependencies, self.conda_dependencies` per
-        `self.requirements_file`, as well as `self.model_uris` from steps' metadata.
+        `self.requirements_file`, as well as `self.model_full_names` from steps' metadata.
         """
-
-        # mapping of python-version-witness: python-version (collected for warning msg below)
-        py_versions = {
-            "system": ".".join(map(str, sys.version_info[:3])),
-            "pipeline": self.python_version,
-        }
         # collect explicit pipeline dependencies for the container
         if self.requirements_file:
             if self.requirements_file.endswith((".yml", ".yaml")):
@@ -209,7 +203,7 @@ class Pipeline:
                     self.requirements_file
                 )
                 if py_version:
-                    py_versions["pipeline"] = py_version
+                    self.python_version = py_version
                 self.conda_dependencies += conda_deps
                 self.pip_dependencies += pip_deps
 
@@ -223,60 +217,21 @@ class Pipeline:
                     deps.extend(d["line"] for d in parsed["resolved_dependencies"])
                     self.pip_dependencies += set(deps)
 
-        # inspect steps to warn about possible dependency issues, but don't keep them for container.
-        # step requirements are typically inferred (via mlflow) from their models, which is
-        # prone to breaking (e.g. https://github.com/Garden-AI/garden/issues/135)
-        explicit_requirements = {
-            Requirement(r).name: Requirement(r) for r in self.pip_dependencies
-        }
-
         for step in self.steps:
-            for r in step.pip_dependencies:
-                requirement = Requirement(r)
-                # warn about step requirements we're ignoring in favor of the pipeline's
-                would_ignore_req = (
-                    requirement.name in explicit_requirements
-                    and requirement != explicit_requirements[requirement.name]
-                )
-                if would_ignore_req:
-                    logger.warning(
-                        f"Warning: step {step.__name__} has inferred a requirement '{requirement}', which is also required by the pipeline. "
-                        f"Only the pipeline's explicit requirement ({explicit_requirements[requirement.name]}) will be used."
-                    )
-                # warn about potentially missing requirements
-                elif requirement.name not in explicit_requirements:
-                    logger.warning(
-                        f"Warning: step {step.__name__} has inferred a requirement '{requirement}', which is not required by the pipeline. "
-                        f"If this package needs to be present in the container, please add '{requirement.name}' to the pipeline's requirements.txt "
-                    )
+            self.model_full_names += step.model_full_names
 
-            # same for conda deps -- note that these were likely explicitly added,
-            # since mlflow-inferred requirements usually aren't conda.
-            for r in step.conda_dependencies:
-                if r not in self.conda_dependencies:
-                    logger.warning(
-                        f"Warning: step {step.__name__} has inferred a conda requirement '{r}', which is not required by the pipeline. "
-                        f"If this package needs to be present in the container, please add '{r}' to the pipeline's requirements."
-                    )
-
-            self.model_uris += step.model_uris
-            py_versions[step.__name__] = step.python_version
-
-        self.python_version = py_versions["pipeline"] or py_versions["system"]
+        system_py_version = (".".join(map(str, sys.version_info[:3])),)
+        self.python_version = self.python_version or system_py_version
         self.conda_dependencies = list(set(self.conda_dependencies))
         self.pip_dependencies = list(set(self.pip_dependencies))
 
-        distinct_py_versions = set(
-            py_versions[k] for k in py_versions if py_versions[k]
-        )
-        if len(distinct_py_versions) > 1:
-            logger.warning(
-                "Found multiple python versions specified across this"
-                f"pipeline's dependencies: {py_versions}. {self.python_version} "
-                "will be used by default. This version can be set explicitly via "
-                "the `python_version` keyword argument in the `Pipeline` "
-                "constructor."
-            )
+        if self.python_version:
+            if self.python_version != system_py_version:
+                logger.warning(
+                    f"Pipeline specified to run with Python version {self.python_version} "
+                    f"but Garden is running under {system_py_version}. Using the Python version "
+                    f"{self.python_version} specified in the Pipeline."
+                )
         return
 
     def __call__(
@@ -300,6 +255,7 @@ class Pipeline:
             Exception:
                 Any exception raised over the course of executing the pipeline's composed steps.
         """
+        # TODO: put into env vars here for local. It should only last this process, so that's fine for local.
         return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):
@@ -387,7 +343,7 @@ class RegisteredPipeline(BaseModel):
         func_uuid:
         pip_dependencies:
         conda_dependencies:
-        model_uris:
+        model_full_names:
     """
 
     doi: str = Field(...)
@@ -406,7 +362,7 @@ class RegisteredPipeline(BaseModel):
     pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
-    model_uris: List[str] = Field(default_factory=list)
+    model_full_names: List[str] = Field(default_factory=list)
 
     def __call__(
         self,
@@ -438,6 +394,13 @@ class RegisteredPipeline(BaseModel):
             raise ValueError(
                 "A Globus Compute endpoint uuid must be specified to execute remotely."
             )
+
+        # TODO: this is the place where we need to inject URL into pipeline
+        # Ah no actually. I need to inject the env vars ... wherever we create a pipeline from the client?
+        url_env_vars = {}
+        for model_name in self.model_full_names:
+            url = generate_download_url(model_name)
+            url_env_vars[model_name] = url
 
         if self._env_vars:
             # see: utils.misc.inject_env_kwarg
@@ -472,18 +435,18 @@ class RegisteredPipeline(BaseModel):
         data = json.loads(record)
         return cls(**data)
 
-    def collect_models(self) -> List[RegisteredModel]:
-        """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_uris`."""
-        from .local_data import get_local_model_by_uri
+    def collect_models(self) -> List[ModelMetadata]:
+        """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_full_names`."""
+        from .local_data import get_local_model_by_name
 
         models = []
-        for uri in self.model_uris:
-            model = get_local_model_by_uri(uri)
+        for model_name in self.model_full_names:
+            model = get_local_model_by_name(model_name)
             if model:
                 models += [model]
             else:
                 logger.warning(
-                    f"No record in local database for model {uri}. "
+                    f"No record in local database for model {model_name}. "
                     "Published garden will not have detailed metadata for that model."
                 )
         return models

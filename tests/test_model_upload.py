@@ -12,7 +12,6 @@ def test_stage_model_for_upload(mocker, tmp_path):
     local_model = LocalModel(
         model_name="test_model",
         flavor="sklearn",
-        extra_pip_requirements=[],
         local_path=str(model_path),
         user_email="willengler@uchicago.edu",
     )

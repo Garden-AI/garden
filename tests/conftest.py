@@ -10,7 +10,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import RegisteredModel, DatasetConnection
+from garden_ai.mlmodel import ModelMetadata, DatasetConnection
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -318,7 +318,7 @@ def database_with_model(tmp_path):
 
 @pytest.fixture
 def second_draft_of_model():
-    return RegisteredModel(
+    return ModelMetadata(
         model_name="unit-test-model",
         version="2",
         user_email="test@example.com",

@@ -45,11 +45,11 @@ def test_local_storage_model(mocker, database_with_model, second_draft_of_model)
     local_data.put_local_model(second_draft_of_model)
 
     # New version of same model name should get overwritten in local DB
-    registered_model = local_data.get_local_model_by_uri(
+    registered_model = local_data.get_local_model_by_name(
         second_draft_of_model.model_uri
     )
     assert registered_model is not None
-    overwritten_model = local_data.get_local_model_by_uri(
+    overwritten_model = local_data.get_local_model_by_name(
         "test@example.com-unit-test-model/1"
     )
     assert overwritten_model is None
