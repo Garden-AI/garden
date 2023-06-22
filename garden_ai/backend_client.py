@@ -2,7 +2,7 @@ import json
 import logging
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 
 import requests
 
@@ -34,13 +34,15 @@ class BackendClient:
     def __init__(self, garden_authorizer):
         self.garden_authorizer = garden_authorizer
 
-    def _call(self, http_verb: Callable, resource: str, payload: dict) -> dict:
+    def _call(
+        self, http_verb: Callable, resource: str, payload: dict
+    ) -> Union[dict, int]:
         headers = {"Authorization": self.garden_authorizer.get_authorization_header()}
         url = GardenConstants.GARDEN_ENDPOINT + resource
         resp = http_verb(url, headers=headers, json=payload)
         try:
             resp.raise_for_status()
-            return resp.json()
+            return resp.json() if resp.json() else resp.status_code
         except requests.HTTPError:
             logger.error(
                 f"Request to Garden backend failed. Status code {resp.status_code}. {resp.text}"
@@ -50,10 +52,10 @@ class BackendClient:
             logger.error(f"Could not parse response as JSON. {resp.text}")
             raise
 
-    def _post(self, resource: str, payload: dict) -> dict:
+    def _post(self, resource: str, payload: dict) -> Union[dict, int]:
         return self._call(requests.post, resource, payload)
 
-    def _put(self, resource: str, payload: dict) -> dict:
+    def _put(self, resource: str, payload: dict) -> Union[dict, int]:
         return self._call(requests.put, resource, payload)
 
     def mint_doi_on_datacite(self, payload: dict) -> str:
