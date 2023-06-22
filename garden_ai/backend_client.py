@@ -36,10 +36,7 @@ class BackendClient:
         self.garden_authorizer = garden_authorizer
 
     def _call(self, http_verb: Callable, resource: str, payload: dict) -> dict:
-        headers = {
-            "Content-Type": "application/vnd.api+json",
-            "Authorization": self.garden_authorizer.get_authorization_header(),
-        }
+        headers = {"Authorization": self.garden_authorizer.get_authorization_header()}
         url = GardenConstants.GARDEN_ENDPOINT + resource
         resp = http_verb(url, headers=headers, json=payload)
         try:
