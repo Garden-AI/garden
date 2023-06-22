@@ -335,6 +335,7 @@ class Pipeline:
 
         self._sync_author_metadata()
         return DataciteSchema(
+            doi=self.doi,
             types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],

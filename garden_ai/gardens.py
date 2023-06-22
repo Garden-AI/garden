@@ -240,6 +240,7 @@ class Garden(BaseModel):
 
         self._sync_author_metadata()
         return DataciteSchema(  # type: ignore
+            doi=self.doi,
             types=Types(resourceType="AI/ML Garden", resourceTypeGeneral="Software"),
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],
