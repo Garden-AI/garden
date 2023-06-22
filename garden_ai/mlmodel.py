@@ -1,6 +1,7 @@
 import os
 import pathlib
 import pickle
+import shutil
 from enum import Enum
 from functools import lru_cache
 from typing import List
@@ -11,6 +12,9 @@ from pydantic import BaseModel, Field, validator
 
 from garden_ai.utils.misc import read_conda_deps
 from garden_ai import GardenConstants
+
+MODEL_STAGING_DIR = pathlib.Path(GardenConstants.GARDEN_DIR) / "mlflow"
+MODEL_STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ModelUploadException(Exception):
@@ -141,6 +145,76 @@ def upload_to_model_registry(local_model: LocalModel) -> RegisteredModel:
     return _assemble_metadata(local_model)
 
 
+def stage_model_for_upload(local_model: LocalModel) -> str:
+    """
+    Parameters
+    ----------
+    local_model: the model to be staged into an MLModel directory
+
+    Returns full path of model directory
+    -------
+    """
+    flavor, local_path = local_model.flavor, local_model.local_path
+    try:
+        if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
+            with open(local_path, "rb") as f:
+                loaded_model = pickle.load(f)
+                log_model_variant = mlflow.sklearn.log_model
+        elif flavor == ModelFlavor.TENSORFLOW.value:
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            # ignore cpu guard info on tf import require before tf import
+            from tensorflow import keras  # type: ignore
+
+            loaded_model = keras.models.load_model(local_path)
+            log_model_variant = (
+                mlflow.tensorflow.log_model
+            )  # TODO explore artifact path and sigs
+        elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
+            import torch  # type: ignore
+
+            loaded_model = torch.load(local_path)
+            log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
+        else:
+            raise ModelUploadException(f"Unsupported model flavor {flavor}")
+
+        mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
+        experiment_id = mlflow.create_experiment("local")
+
+        # The only way to derive the full directory path MLFlow creates is with this context manager.
+        with mlflow.start_run(None, experiment_id) as run:
+            experiment_id = mlflow.active_run().info.experiment_id
+            artifact_path = "model"
+            log_model_variant(
+                loaded_model,
+                artifact_path,
+                registered_model_name=local_model.namespaced_model_name,
+                extra_pip_requirements=local_model.extra_pip_requirements,
+            )
+            model_dir = os.path.join(
+                str(MODEL_STAGING_DIR),
+                experiment_id,
+                run.info.run_id,
+                "artifacts",
+                artifact_path,
+            )
+    except IOError as e:
+        raise ModelUploadException("Could not open file " + local_path) from e
+    except (pickle.PickleError, mlflow.MlflowException) as e:
+        raise ModelUploadException("Could not parse model at " + local_path) from e
+
+    return model_dir
+
+
+def clear_mlflow_staging_directory():
+    path = str(MODEL_STAGING_DIR)
+    for item in os.listdir(path):
+        item_path = os.path.join(path, item)
+        if os.path.isfile(item_path):
+            os.remove(item_path)
+        elif os.path.isdir(item_path):
+            shutil.rmtree(item_path)
+
+
 def _push_model_to_registry(local_model: LocalModel):
     flavor, local_path = local_model.flavor, local_model.local_path
     try:
@@ -220,10 +294,8 @@ class _Model:
         """download and deserialize the underlying model, if necessary."""
         if self.model is None:
             # don't clutter current directory, especially if running locally
-            local_store = pathlib.Path("~/.garden/mlflow").expanduser()
-            local_store.mkdir(parents=True, exist_ok=True)
             self.model = load_model(
-                self.model_uri, suppress_warnings=True, dst_path=local_store
+                self.model_uri, suppress_warnings=True, dst_path=MODEL_STAGING_DIR
             )
         return
 

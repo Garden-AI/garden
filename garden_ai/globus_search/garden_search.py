@@ -1,5 +1,4 @@
 import json
-import requests
 
 from garden_ai.gardens import Garden
 from globus_sdk import SearchClient, GlobusAPIError
@@ -37,18 +36,6 @@ def get_remote_garden_by_doi(
     garden._env_vars = env_vars
     garden._set_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
-
-
-def publish_garden_metadata(garden: Garden, endpoint: str, header: dict) -> None:
-    garden_meta = json.loads(garden.expanded_json())
-    res = requests.post(
-        f"{endpoint}/garden-search-record", headers=header, json=garden_meta
-    )
-    if res.status_code >= 400:
-        raise RemoteGardenException(
-            f"Request to Garden backend to publish garden failed with error: {res.status_code} {res.json()['message']}."
-        )
-    return None
 
 
 def search_gardens(query: str, search_client: SearchClient) -> str:
