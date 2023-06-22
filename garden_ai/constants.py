@@ -1,7 +1,5 @@
 import os
 
-_garden_dir = os.path.expanduser("~/.garden")
-
 
 class GardenConstants:
     SCAFFOLDED_MODEL_NAME = "YOUR MODEL'S NAME HERE"

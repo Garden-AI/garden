@@ -13,6 +13,12 @@ from garden_ai.gardens import Garden
 logger = logging.getLogger()
 
 
+class PresignedURLException(Exception):
+    """Exception raised when a backend call to generate a presigned URL fails"""
+
+    pass
+
+
 @dataclass
 class PresignedUrlResponse:
     url: str
@@ -74,10 +80,10 @@ class BackendClient:
         url = response_dict.get("url", None)
         fields = response_dict.get("fields", None)
         if not url:
-            raise Exception(
+            raise PresignedURLException(
                 "Failed to generate presigned URL for model file transfer. Response was missing url field."
             )
         if direction == PresignedUrlDirection.Upload and not fields:
             message = "Failed to generate presigned URL for model file upload. Response was missing 'fields' attribute."
-            raise Exception(message)
+            raise PresignedURLException(message)
         return PresignedUrlResponse(url, fields)

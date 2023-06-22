@@ -179,6 +179,8 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
 
         mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
         experiment_id = mlflow.create_experiment("local")
+
+        # The only way to derive the full directory path MLFlow creates is with this context manager.
         with mlflow.start_run(None, experiment_id) as run:
             experiment_id = mlflow.active_run().info.experiment_id
             artifact_path = "model"
