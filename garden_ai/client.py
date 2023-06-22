@@ -346,13 +346,24 @@ class GardenClient:
     def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
         logger.info("Requesting update to DOI")
         url = f"{GARDEN_ENDPOINT}/doi"
+        header = {"Authorization": self.garden_authorizer.get_authorization_header()}
 
-        header = {
-            "Content-Type": "application/vnd.api+json",
-            "Authorization": self.garden_authorizer.get_authorization_header(),
-        }
-        metadata = json.loads(obj.datacite_json())
-        metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
+        metadata = json.loads(
+            obj.json() if isinstance(obj, Pipeline) else obj.expanded_json()
+        )
+        metadata.update(
+            creators=[{"name": name} for name in metadata["authors"]],
+            titles=[{"title": metadata["title"]}],
+            publicationYear=metadata["year"],
+            publisher="Garden AI",
+            types={"resourceTypeGeneral": "Text"},
+            event="publish",
+            url=f"https://thegardens.ai/{obj.doi}",
+        )
+        del metadata["authors"]
+        del metadata["title"]
+        del metadata["year"]
+
         payload = {"data": {"type": "dois", "attributes": metadata}}
         r = requests.put(
             url,
