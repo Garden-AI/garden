@@ -314,6 +314,7 @@ class DataciteSchema(BaseModel):
 
     # tweaked identifiers, no longer requires at least one. (only change from generated code)
     types: Types
+    doi: str  # can be added since DOIs are guaranteed
     identifiers: List[Identifier] = Field(default_factory=list, unique_items=True)
     creators: List[Creator] = Field(..., min_items=1, unique_items=True)
     titles: List[Title] = Field(..., min_items=1, unique_items=True)
