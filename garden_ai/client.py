@@ -353,6 +353,7 @@ class GardenClient:
         logger.info("Requesting update to DOI")
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
+
         payload = {"data": {"type": "dois", "attributes": metadata}}
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")

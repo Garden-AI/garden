@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from collections import namedtuple
 from typing import Any, Iterable, List, Tuple, Union
 
@@ -23,6 +24,29 @@ def test_create_empty_garden(garden_client):
 
 def test_validate_all_fields(garden_all_fields):
     garden_all_fields.validate()
+
+
+def test_garden_datacite(garden_title_authors_doi_only):
+    data = json.loads(garden_title_authors_doi_only.datacite_json())
+
+    assert isinstance(data["creators"], list)
+    assert isinstance(data["titles"], list)
+    assert data["publisher"] == "thegardens.ai"
+
+
+def test_pipeline_datacite(garden_client):
+    @step
+    def four() -> int:
+        return 4
+
+    pipeline = garden_client.create_pipeline(
+        authors=["Team, Garden"], title="Lorem Ipsum", steps=(four,)
+    )
+    data = json.loads(pipeline.datacite_json())
+
+    assert isinstance(data["creators"], list)
+    assert isinstance(data["titles"], list)
+    assert data["publisher"] == "thegardens.ai"
 
 
 def test_validate_no_fields(garden_no_fields):

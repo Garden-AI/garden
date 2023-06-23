@@ -21,7 +21,9 @@ from .datacite import (
     Creator,
     DataciteSchema,
     Description,
+    Identifier,
     RelatedIdentifier,
+    Subject,
     Title,
     Types,
 )
@@ -240,11 +242,13 @@ class Garden(BaseModel):
 
         self._sync_author_metadata()
         return DataciteSchema(  # type: ignore
+            identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
             types=Types(resourceType="AI/ML Garden", resourceTypeGeneral="Software"),
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],
             publisher="thegardens.ai",
             publicationYear=self.year,
+            subjects=[Subject(subject=tag) for tag in self.tags],
             contributors=[
                 Contributor(name=name, contributorType="Other")
                 for name in self.contributors
@@ -252,11 +256,11 @@ class Garden(BaseModel):
             language=self.language,
             relatedIdentifiers=[
                 RelatedIdentifier(
-                    relatedIdentifier=p.doi,
+                    relatedIdentifier=doi,
                     relatedIdentifierType="DOI",
                     relationType="HasPart",
                 )
-                for p in self.pipelines
+                for doi in self.pipeline_ids
             ],
             version=self.version,
             descriptions=[

@@ -24,6 +24,8 @@ from garden_ai.datacite import (
     Creator,
     DataciteSchema,
     Description,
+    Identifier,
+    Subject,
     Title,
     Types,
 )
@@ -329,17 +331,21 @@ class Pipeline:
 
     def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
+
         # Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
         # https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+        #
         # The JSON returned by this method would be the "attributes" part of a DataCite request body.
 
         self._sync_author_metadata()
         return DataciteSchema(
+            identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
             types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],
             publisher="thegardens.ai",
             publicationYear=self.year,
+            subjects=[Subject(subject=tag) for tag in self.tags],
             contributors=[
                 Contributor(name=name, contributorType="Other")  # type: ignore
                 for name in self.contributors
