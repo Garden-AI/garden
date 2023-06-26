@@ -17,6 +17,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
 
+import garden_ai
 from garden_ai._version import __version__
 from garden_ai.app.console import console
 from garden_ai.datacite import (
@@ -239,6 +240,7 @@ class Pipeline:
     def __call__(
         self,
         *args: Any,
+        garden_client: garden_ai.GardenClient = None,
         **kwargs: Any,
     ) -> Any:
         """Call the pipeline's composed steps on the given input data.
@@ -257,7 +259,9 @@ class Pipeline:
             Exception:
                 Any exception raised over the course of executing the pipeline's composed steps.
         """
-        # TODO: put into env vars here for local. It should only last this process, so that's fine for local.
+        if not garden_client:
+            raise Exception("Missing required kwarg 'garden_client'")
+        garden_client.generate_presigned_urls_for_pipeline(self)
         return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):

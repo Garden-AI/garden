@@ -33,7 +33,6 @@ from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
 from garden_ai.backend_client import BackendClient
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
-from garden_ai.model_file_transfer.download import generate_download_url
 
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
@@ -387,7 +386,7 @@ class GardenClient:
                 f"Could not find any pipelines with DOI {doi}."
             )
 
-        pipeline._env_vars = self._generate_presigned_urls_for_pipeline(pipeline)
+        pipeline._env_vars = self.generate_presigned_urls_for_pipeline(pipeline)
         return pipeline
 
     def get_email(self) -> str:
@@ -460,10 +459,10 @@ class GardenClient:
 
     def _generate_presigned_urls_for_garden(self, garden: Garden):
         for pipeline in garden.pipelines:
-            pipeline._env_vars = self._generate_presigned_urls_for_pipeline(pipeline)
+            pipeline._env_vars = self.generate_presigned_urls_for_pipeline(pipeline)
 
-    def _generate_presigned_urls_for_pipeline(
-        self, pipeline: RegisteredPipeline
+    def generate_presigned_urls_for_pipeline(
+        self, pipeline: Union[RegisteredPipeline, Pipeline]
     ) -> dict:
         model_name_to_url = {}
         for model_name in pipeline.model_full_names:
