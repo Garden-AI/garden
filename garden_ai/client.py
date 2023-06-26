@@ -467,7 +467,6 @@ class GardenClient:
     ) -> dict:
         model_name_to_url = {}
         for model_name in pipeline.model_full_names:
-            model_name_to_url[model_name] = generate_download_url(
-                self.backend_client, model_name
-            )
+            url = self.backend_client.get_model_download_url(model_name).url
+            model_name_to_url[model_name] = url
         return model_name_to_url

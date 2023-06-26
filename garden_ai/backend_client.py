@@ -70,7 +70,9 @@ class BackendClient:
         payload = json.loads(garden.expanded_json())
         self._post("/garden-search-record", payload)
 
-    def get_presigned_url(self, full_model_name: str, direction: PresignedUrlDirection):
+    def _get_presigned_url(
+        self, full_model_name: str, direction: PresignedUrlDirection
+    ) -> PresignedUrlResponse:
         payload = {"s3_path": full_model_name, "direction": direction.value}
         response_dict = self._post("/presigned-url", payload)
         url = response_dict.get("url", None)
@@ -83,3 +85,9 @@ class BackendClient:
             message = "Failed to generate presigned URL for model file upload. Response was missing 'fields' attribute."
             raise PresignedURLException(message)
         return PresignedUrlResponse(url, fields)
+
+    def get_model_download_url(self, full_model_name: str) -> PresignedUrlResponse:
+        return self._get_presigned_url(full_model_name, PresignedUrlDirection.Download)
+
+    def get_model_upload_url(self, full_model_name: str) -> PresignedUrlResponse:
+        return self._get_presigned_url(full_model_name, PresignedUrlDirection.Upload)

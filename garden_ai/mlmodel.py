@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import pickle
@@ -6,11 +7,12 @@ from enum import Enum
 from functools import lru_cache
 from typing import List
 
+import requests
+import zipfile
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
 from pydantic import BaseModel, Field, validator
 
-from garden_ai.utils.misc import read_conda_deps
 from garden_ai import GardenConstants
 
 MODEL_STAGING_DIR = pathlib.Path(GardenConstants.GARDEN_DIR) / "mlflow"
@@ -169,18 +171,53 @@ class _Model:
             raise PipelineLoadScaffoldedException("Invalid model name.")
         return
 
+    @staticmethod
+    def download_and_stage(presigned_download_url: str, full_model_name: str) -> str:
+        download_dir = MODEL_STAGING_DIR / full_model_name
+        download_dir.mkdir(parents=True, exist_ok=True)
+        zip_filepath = str(download_dir / "model.zip")
+
+        # TODO: lots of error handling
+        response = requests.get(presigned_download_url, stream=True)
+        if response.status_code == 200:
+            with open(zip_filepath, "wb") as f:
+                f.write(response.content)
+        else:
+            print(
+                f"Failed to download file from {presigned_download_url}. HTTP status code: {response.status_code}"
+            )
+
+        extraction_dir = download_dir / "unzipped"
+        unzipped_path = str(download_dir / extraction_dir)
+        with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
+            zip_ref.extractall(unzipped_path)
+        return unzipped_path
+
+    @staticmethod
+    def get_download_url(full_model_name: str) -> str:
+        model_url_json = os.environ.get("GARDEN_MODELS", None)
+        if not model_url_json:
+            raise Exception(
+                "GARDEN_MODELS environment variable was not set. Cannot download model."
+            )
+        try:
+            model_url_dict = json.loads(model_url_json)
+            return model_url_dict[full_model_name]
+        except (json.JSONDecodeError, KeyError):
+            print(
+                f"Could not find url for model {full_model_name} in GARDEN_MODELS env var contents {model_url_json}"
+            )
+            raise
+
     def _lazy_load_model(self):
         """download and deserialize the underlying model, if necessary."""
         if self.model is None:
-            # don't clutter current directory, especially if running locally
-            # TODO: this is the thing you need to really implement
             # 0: get url from env var OR invoke backend client to get url
-            #
-            # 1: stage the model to a local directory.
-            # 2: then use load_model
-            self.model = load_model(
-                self.full_name, suppress_warnings=True, dst_path=MODEL_STAGING_DIR
-            )
+            download_url = self.get_download_url(self.full_name)
+            # 1: stage the model to a local directory. (requests for download) -> unpack into local staging dir
+            local_model_path = self.download_and_stage(download_url, self.full_name)
+            # 2: then use load_model (mlflow for loading memory from fs and calling predict)
+            self.model = load_model(local_model_path, suppress_warnings=True)
         return
 
     def predict(self, data):
