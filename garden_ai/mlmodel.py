@@ -11,7 +11,7 @@ import requests
 import zipfile
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 from garden_ai import GardenConstants
 

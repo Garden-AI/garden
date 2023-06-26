@@ -12,7 +12,7 @@ from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
-from garden_ai.mlmodel import Model, _Model
+from garden_ai.mlmodel import _Model
 from garden_ai.utils.misc import JSON, garden_json_encoder
 
 logger = logging.getLogger()
