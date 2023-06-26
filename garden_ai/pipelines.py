@@ -401,13 +401,6 @@ class RegisteredPipeline(BaseModel):
                 "A Globus Compute endpoint uuid must be specified to execute remotely."
             )
 
-        # TODO: this is the place where we need to inject URL into pipeline
-        # Ah no actually. I need to inject the env vars ... wherever we create a pipeline from the client?
-        url_env_vars = {}
-        for model_name in self.model_full_names:
-            url = generate_download_url(model_name)
-            url_env_vars[model_name] = url
-
         if self._env_vars:
             # see: utils.misc.inject_env_kwarg
             kwargs = dict(kwargs)
