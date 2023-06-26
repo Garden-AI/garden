@@ -223,7 +223,7 @@ class Pipeline:
         for step in self.steps:
             self.model_full_names += step.model_full_names
 
-        system_py_version = (".".join(map(str, sys.version_info[:3])),)
+        system_py_version = ".".join(map(str, sys.version_info[:3]))
         self.python_version = self.python_version or system_py_version
         self.conda_dependencies = list(set(self.conda_dependencies))
         self.pip_dependencies = list(set(self.pip_dependencies))
@@ -259,9 +259,12 @@ class Pipeline:
             Exception:
                 Any exception raised over the course of executing the pipeline's composed steps.
         """
-        if not garden_client:
-            raise Exception("Missing required kwarg 'garden_client'")
-        garden_client.generate_presigned_urls_for_pipeline(self)
+        has_models = len(self.model_full_names) > 0
+        if has_models:
+            if not garden_client:
+                raise Exception("Missing required kwarg 'garden_client'")
+            garden_client.generate_presigned_urls_for_pipeline(self)
+
         return self._composed_steps(*args, **kwargs)
 
     def __post_init_post_parse__(self):

@@ -4,12 +4,6 @@ from garden_ai import GardenClient, Model
 from garden_ai.mlmodel import LocalModel
 
 
-@pytest.fixture(autouse=True)
-def do_not_set_mlflow_env_variables():
-    """overrides same fixture in ../conftest.py for this module only"""
-    return
-
-
 @pytest.fixture
 def toy_sklearn_model():
     from sklearn import tree  # type: ignore

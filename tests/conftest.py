@@ -20,11 +20,6 @@ def do_not_sleep(mocker):
 
 
 @pytest.fixture(autouse=True)
-def auto_mock_GardenClient_set_up_mlflow_env(mocker):
-    mocker.patch("garden_ai.client.GardenClient._set_up_mlflow_env")
-
-
-@pytest.fixture(autouse=True)
 def auto_mock_GardenClient_mint_draft_doi(mocker):
     mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
@@ -320,9 +315,8 @@ def database_with_model(tmp_path):
 def second_draft_of_model():
     return ModelMetadata(
         model_name="unit-test-model",
-        version="2",
         user_email="test@example.com",
-        flavor="sklearn",
+        flavor="pytorch",
         connections=[
             DatasetConnection(
                 **{

@@ -9,12 +9,12 @@ from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 runner = CliRunner()
 
 
-@pytest.fixture(autouse=False)
-def auto_mock_GardenClient_set_up_mlflow_env():
-    # actually, DO set mlflow env variables
-    # locally defining a fixture to override
-    # the one mocking `setup_mlflow_env`
-    pass
+# @pytest.fixture(autouse=False)
+# def auto_mock_GardenClient_set_up_mlflow_env():
+#     # actually, DO set mlflow env variables
+#     # locally defining a fixture to override
+#     # the one mocking `setup_mlflow_env`
+#     pass
 
 
 @pytest.fixture
@@ -53,9 +53,7 @@ def test_run_registered_pipeline():
 
 
 @pytest.mark.integration
-def test_register_and_run_with_env_vars(
-    do_not_set_mlflow_env_variables, dlhub_endpoint
-):
+def test_register_and_run_with_env_vars(dlhub_endpoint):
     client = GardenClient()
     # register the pipeline
     pipeline_path = get_fixture_file_path("fixture_pipeline/env_vars_pipeline.py")
@@ -82,7 +80,7 @@ def test_register_and_run_with_env_vars(
 
 
 @pytest.mark.integration
-def test_register_and_run_with_model(do_not_set_mlflow_env_variables, dlhub_endpoint):
+def test_register_and_run_with_model(dlhub_endpoint):
     client = GardenClient()
     # register the pipeline locally
     pipeline_path = get_fixture_file_path("fixture_pipeline/soup_pipeline.py")

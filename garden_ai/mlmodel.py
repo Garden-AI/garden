@@ -131,7 +131,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             log_model_variant(
                 loaded_model,
                 artifact_path,
-                registered_model_name=local_model.namespaced_model_name,
+                registered_model_name=local_model.full_name,
             )
             model_dir = os.path.join(
                 str(MODEL_STAGING_DIR),

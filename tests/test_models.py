@@ -1,14 +1,11 @@
-import os
 import sys
 import json
-from collections import namedtuple
 from typing import Any, Iterable, List, Tuple, Union
 
 import pytest
 from pydantic import ValidationError
 
 from garden_ai import Garden, Pipeline, RegisteredPipeline, Step, local_data, step
-from garden_ai.mlmodel import LocalModel, upload_to_model_registry
 
 
 def test_create_empty_garden(garden_client):
@@ -276,54 +273,58 @@ def test_sdk_pinned_in_pipeline_deps(pipeline_toy_example):
     )
 
 
-def test_upload_model(mocker, tmp_path):
-    model_dir_path = tmp_path / "models"
+# TODO: replace with test for new upload process
+# def test_upload_model(mocker, tmp_path):
+#     model_dir_path = tmp_path / "models"
+#
+#     model_dir_path.mkdir(parents=True, exist_ok=True)
+#     model_path = model_dir_path / "model.pkl"
+#     model_path.write_text("abcd")
+#
+#     # Prevents ML Flow from creating directory in /tests
+#     os.environ["MLFLOW_TRACKING_URI"] = str(tmp_path)
+#
+#     MLFlowVersionResponse = namedtuple("MLFlowVersionResponse", "version")
+#     versions_response = [MLFlowVersionResponse("1"), MLFlowVersionResponse("0")]
+#
+#     mocker.patch("pickle.load").return_value = "a deserialized model"
+#     mocker.patch("mlflow.sklearn.log_model")
+#     mocker.patch(
+#         "mlflow.tracking.MlflowClient.get_latest_versions"
+#     ).return_value = versions_response
+#
+#     model_uri = "will@test.com-test_model/1"
+#     local_model = LocalModel(
+#         local_path=str(model_path),
+#         model_name="test_model",
+#         user_email="will@test.com",
+#         flavor="sklearn",
+#     )
+#
+#     registered_model = upload_to_model_registry(local_model)
+#     assert registered_model.model_uri == model_uri
+#     assert registered_model.connections == []
+#     assert registered_model.version == "1"
 
-    model_dir_path.mkdir(parents=True, exist_ok=True)
-    model_path = model_dir_path / "model.pkl"
-    model_path.write_text("abcd")
 
-    # Prevents ML Flow from creating directory in /tests
-    os.environ["MLFLOW_TRACKING_URI"] = str(tmp_path)
-
-    MLFlowVersionResponse = namedtuple("MLFlowVersionResponse", "version")
-    versions_response = [MLFlowVersionResponse("1"), MLFlowVersionResponse("0")]
-
-    mocker.patch("pickle.load").return_value = "a deserialized model"
-    mocker.patch("mlflow.sklearn.log_model")
-    mocker.patch(
-        "mlflow.tracking.MlflowClient.get_latest_versions"
-    ).return_value = versions_response
-
-    model_uri = "will@test.com-test_model/1"
-    local_model = LocalModel(
-        local_path=str(model_path),
-        model_name="test_model",
-        user_email="will@test.com",
-        flavor="sklearn",
-    )
-
-    registered_model = upload_to_model_registry(local_model)
-    assert registered_model.model_uri == model_uri
-    assert registered_model.connections == []
-    assert registered_model.version == "1"
-
-
-def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):
-    # step should have collected these when it was initialized
-    assert len(step_with_model.conda_dependencies) or len(
-        step_with_model.pip_dependencies
-    )
-
-    with open(tmp_conda_yml, "r") as f:
-        contents = f.read()
-        for dep in step_with_model.pip_dependencies:
-            assert dep in contents
-    return
+# not any more
+# def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):
+#     # step should have collected these when it was initialized
+#     assert len(step_with_model.conda_dependencies) or len(
+#         step_with_model.pip_dependencies
+#     )
+#
+#     with open(tmp_conda_yml, "r") as f:
+#         contents = f.read()
+#         for dep in step_with_model.pip_dependencies:
+#             assert dep in contents
+#     return
 
 
 def test_step_collect_model(step_with_model):
-    assert step_with_model.model_uris == ["email@addr.ess-fake-model/fake-version"]
+    assert step_with_model.model_full_names == [
+        "email@addr.ess-fake-model/fake-version"
+    ]
 
 
 def test_pipeline_collects_own_requirements(
@@ -337,16 +338,8 @@ def test_pipeline_collects_own_requirements(
     assert "python=" not in "".join(pipeline_using_step_with_model.conda_dependencies)
 
 
-def test_pipeline_does_not_collect_step_requirements(
-    pipeline_using_step_with_model, step_with_model
-):
-    assert step_with_model in pipeline_using_step_with_model.steps
-    assert "fake-package==9.9.9" in step_with_model.pip_dependencies
-    assert "fake-package==9.9.9" not in pipeline_using_step_with_model.pip_dependencies
-
-
 def test_pipeline_collects_step_models(pipeline_using_step_with_model):
-    assert pipeline_using_step_with_model.model_uris == [
+    assert pipeline_using_step_with_model.model_full_names == [
         "email@addr.ess-fake-model/fake-version"
     ]
 

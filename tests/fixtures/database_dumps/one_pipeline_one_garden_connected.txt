@@ -63,9 +63,8 @@
     }
   },
   "models": {
-    "willengler@uchicago.edu-will-test-model/3": {
+    "willengler@uchicago.edu-will-test-model": {
       "model_name": "will-test-model",
-      "version": "3",
       "user_email": "willengler@uchicago.edu",
       "flavor": "sklearn",
       "connections": [
@@ -77,8 +76,7 @@
           "url": "https://foundry-ml.org/#/datasets/10.18126%2Fwg3u-g8vu"
         }
       ],
-      "namespaced_model_name": "willengler@uchicago.edu-will-test-model",
-      "model_uri": "willengler@uchicago.edu-will-test-model/3"
+      "full_name": "willengler@uchicago.edu-will-test-model"
     }
   },
   "gardens": {
