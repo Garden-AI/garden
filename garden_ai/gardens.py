@@ -191,7 +191,6 @@ class Garden(BaseModel):
 
         from .local_data import PipelineNotFoundException, get_local_pipeline_by_doi
 
-        # TODO: do I insert the _env_vars here???
         pipelines = []
         for doi in self.pipeline_ids:
             pipeline = get_local_pipeline_by_doi(doi)
