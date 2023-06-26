@@ -11,7 +11,7 @@ import requests
 import zipfile
 import mlflow  # type: ignore
 from mlflow.pyfunc import load_model  # type: ignore
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from garden_ai import GardenConstants
 
@@ -73,6 +73,23 @@ class ModelMetadata(BaseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.full_name = f"{self.user_email}-{self.model_name}"
+
+    @validator("flavor")
+    def must_be_a_supported_flavor(cls, flavor):
+        if flavor not in [f.value for f in ModelFlavor]:
+            raise ValueError("is not a supported flavor")
+        return flavor
+
+    @validator("model_name")
+    def must_be_a_valid_model_name(cls, model_name):
+        is_valid = all(c.isalnum() or c == "-" or c == "_" for c in model_name)
+        if not is_valid:
+            error_message = (
+                "is not a valid model name. "
+                "Model names can only contain alphanumeric characters, hyphens, and underscores."
+            )
+            raise ValueError(error_message)
+        return model_name
 
 
 class LocalModel(ModelMetadata):

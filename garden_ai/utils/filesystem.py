@@ -13,12 +13,6 @@ class PipelineLoadException(Exception):
     pass
 
 
-class PipelineLoadMlFlowException(Exception):
-    """Exception raised when a MlFlow model load fails"""
-
-    pass
-
-
 def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     """
     Dynamically import a pipeline object from a user's pipeline file.
@@ -50,8 +44,6 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
             "https://garden-ai.readthedocs.io/en/latest/"
         )
         raise PipelineLoadScaffoldedException(error_message) from e
-    except MlflowException as e:
-        raise PipelineLoadMlFlowException("\nMlflowException: " + str(e)) from e
     except Exception as e:
         raise PipelineLoadException("Could not execute the Python code") from e
 

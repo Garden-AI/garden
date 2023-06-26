@@ -20,7 +20,7 @@
           "conda_dependencies": [],
           "pip_dependencies": [],
           "python_version": null,
-          "model_uris": ["willengler@uchicago.edu-will-test-model/3"]
+          "model_full_names": ["willengler@uchicago.edu-will-test-model"]
         },
         {
           "func": "another_step: (data: object) -> object",
@@ -33,7 +33,7 @@
           "conda_dependencies": [],
           "pip_dependencies": [],
           "python_version": null,
-          "model_uris": ["willengler@uchicago.edu-will-test-model/3"]
+          "model_full_names": ["willengler@uchicago.edu-will-test-model"]
         },
         {
           "func": "run_inference: (input_arg: object) -> object",
@@ -46,7 +46,7 @@
           "conda_dependencies": [],
           "pip_dependencies": [],
           "python_version": null,
-          "model_uris": ["willengler@uchicago.edu-will-test-model/3"]
+          "model_full_names": ["willengler@uchicago.edu-will-test-model"]
         }
       ],
       "contributors": [],
@@ -59,7 +59,7 @@
         "garden-ai@ git+https://github.com/garden-ai/garden.git"
       ],
       "conda_dependencies": [],
-      "model_uris": ["willengler@uchicago.edu-will-test-model/3"]
+      "model_full_names": ["willengler@uchicago.edu-will-test-model"]
     }
   },
   "models": {

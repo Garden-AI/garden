@@ -19,10 +19,6 @@ def test_model_upload(mocker, tmp_path):
         "unit-test-model",
         str(tmp_path),
         "sklearn",
-        "--extra-pip-requirements",
-        "torch==1.13.1",
-        "--extra-pip-requirements",
-        "pandas<=1.5.0",
         "--dataset-url",
         "example.com/123456",
         "--dataset-doi",
@@ -36,7 +32,6 @@ def test_model_upload(mocker, tmp_path):
     assert local_model.local_path == str(tmp_path)
     assert local_model.model_name == "unit-test-model"
     assert local_model.flavor == "sklearn"
-    assert local_model.extra_pip_requirements == ["torch==1.13.1", "pandas<=1.5.0"]
     dataset_connection = local_model.connections[0]
     assert dataset_connection.doi == "uc-435t/abcde"
     assert dataset_connection.url == "example.com/123456"
@@ -49,7 +44,7 @@ def test_model_list(database_with_connected_pipeline, tmp_path, mocker):
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
 
-    model_uri = "willengler@uchicago.edu-will-test-model/3"
+    model_full_name = "willengler@uchicago.edu-will-test-model"
     model_name = "will-test-model"
     model_flavor = "sklearn"
 
@@ -60,7 +55,7 @@ def test_model_list(database_with_connected_pipeline, tmp_path, mocker):
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    assert model_uri in result.stdout
+    assert model_full_name in result.stdout
     assert model_name in result.stdout
     assert model_flavor in result.stdout
 
@@ -71,31 +66,31 @@ def test_model_show(database_with_connected_pipeline, tmp_path, mocker):
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
 
-    model_uri = "willengler@uchicago.edu-will-test-model/3"
+    model_full_name = "willengler@uchicago.edu-will-test-model"
     model_name = "will-test-model"
     model_flavor = "sklearn"
 
     command = [
         "model",
         "show",
-        model_uri,
+        model_full_name,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    assert model_uri in result.stdout
+    assert model_full_name in result.stdout
     assert model_name in result.stdout
     assert model_flavor in result.stdout
 
     command = [
         "model",
         "show",
-        "not_a_model_uri",
-        model_uri,
+        "not_a_model_name",
+        model_full_name,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    assert model_uri in result.stdout
+    assert model_full_name in result.stdout
     assert model_name in result.stdout
     assert model_flavor in result.stdout

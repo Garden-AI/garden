@@ -18,7 +18,6 @@ from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
-    PipelineLoadMlFlowException,
 )
 
 from garden_ai.utils.misc import clean_identifier
@@ -216,7 +215,6 @@ def register(
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
     except (
         PipelineLoadException,
-        PipelineLoadMlFlowException,
         PipelineLoadScaffoldedException,
     ) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))

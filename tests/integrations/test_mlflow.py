@@ -97,7 +97,7 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
+    downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
 
 
@@ -123,7 +123,7 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
+    downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
 
 
@@ -149,5 +149,5 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format)
     registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
+    downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
