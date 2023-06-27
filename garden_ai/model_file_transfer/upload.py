@@ -5,7 +5,6 @@ import requests
 from garden_ai.mlmodel import LocalModel
 from garden_ai.backend_client import (
     BackendClient,
-    PresignedUrlDirection,
     PresignedUrlResponse,
 )
 
@@ -15,9 +14,7 @@ def upload_mlmodel_to_s3(
 ):
     # Get url from Garden API
     model_storage_path = f"{local_model.user_email}/{local_model.model_name}/model.zip"
-    presigned_url_response = backend_client.get_presigned_url(
-        model_storage_path, PresignedUrlDirection.Upload
-    )
+    presigned_url_response = backend_client.get_model_upload_url(model_storage_path)
     _upload_directory_to_s3_presigned(local_directory, presigned_url_response)
 
 
