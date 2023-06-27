@@ -240,11 +240,8 @@ class _Model:
     def _lazy_load_model(self):
         """download and deserialize the underlying model, if necessary."""
         if self.model is None:
-            # 0: get url from env var OR invoke backend client to get url
             download_url = self.get_download_url(self.full_name)
-            # 1: stage the model to a local directory. (requests for download) -> unpack into local staging dir
             local_model_path = self.download_and_stage(download_url, self.full_name)
-            # 2: then use load_model (mlflow for loading memory from fs and calling predict)
             self.model = load_model(local_model_path, suppress_warnings=True)
         return
 

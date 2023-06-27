@@ -273,54 +273,6 @@ def test_sdk_pinned_in_pipeline_deps(pipeline_toy_example):
     )
 
 
-# TODO: replace with test for new upload process
-# def test_upload_model(mocker, tmp_path):
-#     model_dir_path = tmp_path / "models"
-#
-#     model_dir_path.mkdir(parents=True, exist_ok=True)
-#     model_path = model_dir_path / "model.pkl"
-#     model_path.write_text("abcd")
-#
-#     # Prevents ML Flow from creating directory in /tests
-#     os.environ["MLFLOW_TRACKING_URI"] = str(tmp_path)
-#
-#     MLFlowVersionResponse = namedtuple("MLFlowVersionResponse", "version")
-#     versions_response = [MLFlowVersionResponse("1"), MLFlowVersionResponse("0")]
-#
-#     mocker.patch("pickle.load").return_value = "a deserialized model"
-#     mocker.patch("mlflow.sklearn.log_model")
-#     mocker.patch(
-#         "mlflow.tracking.MlflowClient.get_latest_versions"
-#     ).return_value = versions_response
-#
-#     model_uri = "will@test.com-test_model/1"
-#     local_model = LocalModel(
-#         local_path=str(model_path),
-#         model_name="test_model",
-#         user_email="will@test.com",
-#         flavor="sklearn",
-#     )
-#
-#     registered_model = upload_to_model_registry(local_model)
-#     assert registered_model.model_uri == model_uri
-#     assert registered_model.connections == []
-#     assert registered_model.version == "1"
-
-
-# not any more
-# def test_step_collect_model_requirements(step_with_model, tmp_conda_yml):
-#     # step should have collected these when it was initialized
-#     assert len(step_with_model.conda_dependencies) or len(
-#         step_with_model.pip_dependencies
-#     )
-#
-#     with open(tmp_conda_yml, "r") as f:
-#         contents = f.read()
-#         for dep in step_with_model.pip_dependencies:
-#             assert dep in contents
-#     return
-
-
 def test_step_collect_model(step_with_model):
     assert step_with_model.model_full_names == ["email@addr.ess/fake-model"]
 
