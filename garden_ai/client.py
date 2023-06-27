@@ -459,13 +459,14 @@ class GardenClient:
 
     def _generate_presigned_urls_for_garden(self, garden: Garden):
         for pipeline in garden.pipelines:
-            pipeline._env_vars = self.generate_presigned_urls_for_pipeline(pipeline)
+            pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
+            pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
 
     def generate_presigned_urls_for_pipeline(
         self, pipeline: Union[RegisteredPipeline, Pipeline]
-    ) -> dict:
+    ) -> str:
         model_name_to_url = {}
         for model_name in pipeline.model_full_names:
             url = self.backend_client.get_model_download_url(model_name).url
             model_name_to_url[model_name] = url
-        return model_name_to_url
+        return json.dumps(model_name_to_url)

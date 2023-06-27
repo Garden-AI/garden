@@ -1,6 +1,6 @@
 {
     "models": {
-        "test@example.com-unit-test-model": {
+        "test@example.com/unit-test-model": {
             "model_name": "unit-test-model",
             "user_email": "test@example.com",
             "flavor": "sklearn",
@@ -13,7 +13,7 @@
                     "url": "https://foundry-ml.org/#/datasets/10.18126%2Fwg3u-g8vu"
                 }
             ],
-            "full_name": "test@example.com-unit-test-model"
+            "full_name": "test@example.com/unit-test-model"
         }
     }
 }

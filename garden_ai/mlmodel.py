@@ -61,6 +61,7 @@ class ModelMetadata(BaseModel):
             A list of dataset records that the model was trained on.
         user_email (str): The email address of the user uploading the model.
         full_name (str): The user_email and model_name together like "foo@example.edu/my_model"
+        mlflow_name (str): The user_email and model_name together like "foo@example.edu-my_model"
 
     """
 
@@ -69,10 +70,16 @@ class ModelMetadata(BaseModel):
     flavor: str = Field(...)
     connections: List[DatasetConnection] = Field(default_factory=list)
     full_name: str = ""
+    mlflow_name: str = ""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.full_name = f"{self.user_email}-{self.model_name}"
+        # The / separator is canonical because it is nice for S3
+        # and conveys that your email is a namespace.
+        self.full_name = f"{self.user_email}/{self.model_name}"
+        # But for local MLFlow purposes, use a - separator instead
+        # because MLFlow does not like slashes.
+        self.mlflow_name = f"{self.user_email}-{self.model_name}"
 
     @validator("flavor")
     def must_be_a_supported_flavor(cls, flavor):
@@ -138,8 +145,12 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
+        # Create a folder structure for an experiment called "local" if it doesn't exist
+        # in the user's .garden directory
         mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
-        experiment_id = mlflow.create_experiment("local")
+        experiment_name = "local"
+        mlflow.set_experiment(experiment_name)
+        experiment_id = mlflow.get_experiment_by_name(experiment_name).experiment_id
 
         # The only way to derive the full directory path MLFlow creates is with this context manager.
         with mlflow.start_run(None, experiment_id) as run:
@@ -148,7 +159,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             log_model_variant(
                 loaded_model,
                 artifact_path,
-                registered_model_name=local_model.full_name,
+                registered_model_name=local_model.mlflow_name,
             )
             model_dir = os.path.join(
                 str(MODEL_STAGING_DIR),

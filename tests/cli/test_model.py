@@ -44,7 +44,7 @@ def test_model_list(database_with_connected_pipeline, tmp_path, mocker):
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
 
-    model_full_name = "willengler@uchicago.edu-will-test-model"
+    model_full_name = "willengler@uchicago.edu/will-test-model"
     model_name = "will-test-model"
     model_flavor = "sklearn"
 
@@ -66,7 +66,7 @@ def test_model_show(database_with_connected_pipeline, tmp_path, mocker):
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
 
-    model_full_name = "willengler@uchicago.edu-will-test-model"
+    model_full_name = "willengler@uchicago.edu/will-test-model"
     model_name = "will-test-model"
     model_flavor = "sklearn"
 

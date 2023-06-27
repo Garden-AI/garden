@@ -73,7 +73,10 @@ class BackendClient:
     def _get_presigned_url(
         self, full_model_name: str, direction: PresignedUrlDirection
     ) -> PresignedUrlResponse:
-        payload = {"s3_path": full_model_name, "direction": direction.value}
+        payload = {
+            "s3_path": full_model_name + "/model.zip",
+            "direction": direction.value,
+        }
         response_dict = self._post("/presigned-url", payload)
         url = response_dict.get("url", None)
         fields = response_dict.get("fields", None)

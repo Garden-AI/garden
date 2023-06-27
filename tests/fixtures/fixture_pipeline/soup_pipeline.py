@@ -24,7 +24,7 @@ def make_soup(splits: List[tuple]) -> Soup:
 @step
 def rate_soup(
     soup_sample: Soup,
-    model=Model("owenpriceskelly@uchicago.edu-toy-model/1"),
+    model=Model("owenpriceskelly@uchicago.edu/toy-model"),
 ) -> float:
     """huh, wonder what this Model is for?"""
 
@@ -56,5 +56,5 @@ soup_edibility_predictor: Pipeline = client.create_pipeline(
     description="Big Pea Data as in big peas, not like big data",
     version="0.0.1",
     year=2023,
-    tags=["you're it"]
+    tags=["you're it"],
 )

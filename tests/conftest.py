@@ -237,9 +237,7 @@ def step_with_model(mocker, tmp_conda_yml):
     @step
     def uses_model_in_default(
         arg: object,
-        default_arg_model: object = garden_ai.Model(
-            "email@addr.ess-fake-model/fake-version"
-        ),
+        default_arg_model: object = garden_ai.Model("email@addr.ess/fake-model"),
     ) -> object:
         pass
 

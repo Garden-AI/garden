@@ -9,14 +9,6 @@ from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 runner = CliRunner()
 
 
-# @pytest.fixture(autouse=False)
-# def auto_mock_GardenClient_set_up_mlflow_env():
-#     # actually, DO set mlflow env variables
-#     # locally defining a fixture to override
-#     # the one mocking `setup_mlflow_env`
-#     pass
-
-
 @pytest.fixture
 def dlhub_endpoint():
     return "86a47061-f3d9-44f0-90dc-56ddc642c000"  # real endpoint

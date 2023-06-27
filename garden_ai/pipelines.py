@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import json
 import logging
 import pathlib
@@ -20,6 +21,7 @@ from pydantic.dataclasses import dataclass
 import garden_ai
 from garden_ai._version import __version__
 from garden_ai.app.console import console
+from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
     Contributor,
     Creator,
@@ -263,7 +265,8 @@ class Pipeline:
         if has_models:
             if not garden_client:
                 raise Exception("Missing required kwarg 'garden_client'")
-            garden_client.generate_presigned_urls_for_pipeline(self)
+            pipeline_url_json = garden_client.generate_presigned_urls_for_pipeline(self)
+            os.environ[GardenConstants.URL_ENV_VAR_NAME] = pipeline_url_json
 
         return self._composed_steps(*args, **kwargs)
 

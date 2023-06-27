@@ -322,9 +322,7 @@ def test_sdk_pinned_in_pipeline_deps(pipeline_toy_example):
 
 
 def test_step_collect_model(step_with_model):
-    assert step_with_model.model_full_names == [
-        "email@addr.ess-fake-model/fake-version"
-    ]
+    assert step_with_model.model_full_names == ["email@addr.ess/fake-model"]
 
 
 def test_pipeline_collects_own_requirements(
@@ -340,7 +338,7 @@ def test_pipeline_collects_own_requirements(
 
 def test_pipeline_collects_step_models(pipeline_using_step_with_model):
     assert pipeline_using_step_with_model.model_full_names == [
-        "email@addr.ess-fake-model/fake-version"
+        "email@addr.ess/fake-model"
     ]
 
 
