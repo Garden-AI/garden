@@ -385,8 +385,8 @@ class GardenClient:
             raise PipelineNotFoundException(
                 f"Could not find any pipelines with DOI {doi}."
             )
-
-        pipeline._env_vars = self.generate_presigned_urls_for_pipeline(pipeline)
+        pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
+        pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
         return pipeline
 
     def get_email(self) -> str:
