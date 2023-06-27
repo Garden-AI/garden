@@ -4,7 +4,6 @@ from garden_ai import Pipeline
 from garden_ai import GardenConstants
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
-from mlflow import MlflowException  # type: ignore
 
 
 class PipelineLoadException(Exception):
