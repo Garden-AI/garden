@@ -308,7 +308,7 @@ class GardenClient:
                 logger.error("Original exception: " + str(e))
                 # We can still proceed, there is just some cruft in the user's home directory.
                 pass
-        registered_model = ModelMetadata(**local_model.dict(), version="1")
+        registered_model = ModelMetadata(**local_model.dict())
         local_data.put_local_model(registered_model)
         return registered_model
 

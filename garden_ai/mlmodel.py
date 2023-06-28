@@ -197,28 +197,50 @@ class _Model:
         # raises error if user tries to load model with the name SCAFFOLDED_MODEL_NAME
         if self.full_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
             raise PipelineLoadScaffoldedException("Invalid model name.")
+
+        # Not taking MODEL_STAGING_DIR from constants
+        # so that this class has no external dependencies
+        self.staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
         return
 
-    @staticmethod
-    def download_and_stage(presigned_download_url: str, full_model_name: str) -> str:
-        download_dir = MODEL_STAGING_DIR / full_model_name
-        download_dir.mkdir(parents=True, exist_ok=True)
+    def download_and_stage(
+        self, presigned_download_url: str, full_model_name: str
+    ) -> str:
+        try:
+            download_dir = self.staging_dir / full_model_name
+            download_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError as pe:
+            print(f"Could not create model staging directory: {pe}")
+            raise
+
         zip_filepath = str(download_dir / "model.zip")
 
-        # TODO: lots of error handling
-        response = requests.get(presigned_download_url, stream=True)
-        if response.status_code == 200:
+        try:
+            response = requests.get(presigned_download_url, stream=True)
+            response.raise_for_status()
+        except requests.RequestException as re:
+            print(
+                f"Could not download model from presigned url. URL: {presigned_download_url}. Error: {re}"
+            )
+            raise
+
+        try:
             with open(zip_filepath, "wb") as f:
                 f.write(response.content)
-        else:
-            print(
-                f"Failed to download file from {presigned_download_url}. HTTP status code: {response.status_code}"
-            )
+        except IOError as ioe:
+            print(f"Failed to write model to disk at location {zip_filepath}: {ioe}")
+            raise
 
         extraction_dir = download_dir / "unzipped"
         unzipped_path = str(download_dir / extraction_dir)
-        with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
-            zip_ref.extractall(unzipped_path)
+
+        try:
+            with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
+                zip_ref.extractall(unzipped_path)
+        except (FileNotFoundError, zipfile.BadZipFile) as fe:
+            print(f"Failed to unzip model directory from Garden model repository. {fe}")
+            raise
+
         return unzipped_path
 
     @staticmethod
@@ -237,12 +259,30 @@ class _Model:
             )
             raise
 
+    # Duplicated in this class so that _Model is self-contained
+    def clear_mlflow_staging_directory(self):
+        path = str(self.staging_dir)
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+
     def _lazy_load_model(self):
         """download and deserialize the underlying model, if necessary."""
         if self.model is None:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
             self.model = load_model(local_model_path, suppress_warnings=True)
+            try:
+                self.clear_mlflow_staging_directory()
+            except Exception as e:
+                print(
+                    f"Could not clean up model staging directory. Check permissions on {self.staging_dir}"
+                )
+                print(str(e))
+                pass
         return
 
     def predict(self, data):
