@@ -10,7 +10,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata, DatasetConnection
+from garden_ai.mlmodel import ModelMetadata, DatasetConnection, LocalModel
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -327,6 +327,24 @@ def second_draft_of_model():
             )
         ],
     )
+
+
+@pytest.fixture
+def local_model(second_draft_of_model, tmp_path):
+    return LocalModel(**second_draft_of_model.dict(), local_path=str(tmp_path))
+
+
+@pytest.fixture
+def model_url_env_var():
+    # Set the environment variable
+    os.environ[
+        "GARDEN_MODELS"
+    ] = '{"willengler@uchicago.edu/test_model": "presigned-url.aws.com"}'
+
+    yield  # Go run the test
+
+    # After the test, delete the environment variable
+    os.environ.pop("GARDEN_MODELS", None)
 
 
 @pytest.fixture
