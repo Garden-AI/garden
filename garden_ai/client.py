@@ -24,7 +24,6 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
 
-import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
 from garden_ai import local_data, GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
