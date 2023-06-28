@@ -35,14 +35,14 @@ You may define a pipeline which uses as many steps as you like, as long as there
 
 The `Model` class represents a pre-trained machine learning model registered with our service. It includes information about the model itself, such as its flavor (framework used to develop the model, e.g. `sklearn`), architecture, parameters, and state, as well as metadata such as links to training datasets. Currently, we support models in the following flavors: `sklearn`, `pytorch`, and `tensorflow`.
 
-Models in Garden are registered through our hosted MLflow registry, using the Garden CLI:
+Models in Garden are registered using the Garden CLI:
 
 ```bash
 garden-ai model register path/to/model.pkl --flavor=sklearn
 ```
 
 > [!NOTE]
-> The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name/1"`, which can then be referenced by steps (see example below). Repeatedly registering the same model under the same model name will increment the version suffix.
+> The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name"`, which can then be referenced by steps (see example below).
 
 Once a model has been registered, it should be used in a `Step` by referencing its name as a _**default argument**_, not in the body of the step's function. This is necessary because the `Step` collects information about the model's dependencies to pass along to the eventual container specification that the pipeline will run in.
 

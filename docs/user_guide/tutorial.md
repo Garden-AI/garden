@@ -83,7 +83,7 @@ Use the `garden-ai model register` subcommand to register your model:
 garden-ai model register "my-model-name" /path/to/model.pkl --flavor=sklearn
 ```
 
-This command will register your model with the Garden service and return a "full name" URI, consisting of your email, your model's name, and a version, e.g. `"me@institution.edu-my-model-name/1"`. This version is automatically incremented if you upload again using the same model name. This full model name is how you can reference the registered model in your pipeline code:
+This command will register your model with the Garden service and return a "full name", which is the name you chose prefixed with your email address, e.g. `"me@institution.edu/my-model-name"`. This full model name is how you can reference the registered model in your pipeline code:
 
 ```python
 ...
@@ -91,7 +91,7 @@ This command will register your model with the Garden service and return a "full
 @step
 def run_inference(
     cleaned_data: pd.DataFrame,
-    model=Model("me@institution.edu-my-model-name/1"),
+    model=Model("me@institution.edu/my-model-name"),
 ) -> np.ndarray:
     """running some inference"""
     results = model.predict(cleaned_data)
