@@ -4,12 +4,6 @@ from garden_ai import GardenClient, Model
 from garden_ai.mlmodel import LocalModel
 
 
-@pytest.fixture(autouse=True)
-def do_not_set_mlflow_env_variables():
-    """overrides same fixture in ../conftest.py for this module only"""
-    return
-
-
 @pytest.fixture
 def toy_sklearn_model():
     from sklearn import tree  # type: ignore
@@ -97,14 +91,13 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
-        extra_pip_requirements=[],
         flavor="sklearn",
         user_email="foo@example.com",
     )
     registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
+    downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
 
 
@@ -124,14 +117,13 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
-        extra_pip_requirements=[],
         flavor="pytorch",
         user_email="foo@example.com",
     )
     registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
+    downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
 
 
@@ -151,12 +143,11 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format)
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
-        extra_pip_requirements=[],
         flavor="tensorflow",
         user_email="foo@example.com",
     )
     registered_model = client.register_model(local_model)
 
     # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.model_uri)
+    downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")

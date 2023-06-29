@@ -4,17 +4,10 @@ from garden_ai import Pipeline
 from garden_ai import GardenConstants
 
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
-from mlflow import MlflowException  # type: ignore
 
 
 class PipelineLoadException(Exception):
     """Exception raised when a container build request fails"""
-
-    pass
-
-
-class PipelineLoadMlFlowException(Exception):
-    """Exception raised when a MlFlow model load fails"""
 
     pass
 
@@ -50,9 +43,8 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
             "https://garden-ai.readthedocs.io/en/latest/"
         )
         raise PipelineLoadScaffoldedException(error_message) from e
-    except MlflowException as e:
-        raise PipelineLoadMlFlowException("\nMlflowException: " + str(e)) from e
     except Exception as e:
+        print(e)
         raise PipelineLoadException("Could not execute the Python code") from e
 
     for obj_name in dir(module):

@@ -11,9 +11,6 @@ Broadly speaking, `step` and `Model` are lower-level abstractions for users to b
 
 A `Step` is the smallest "unit of code" usable to the Garden framework. A step is just a single function or callable that performs a specific task - such as pre-processing data or running inference - wrapped in some additional metadata (such as input/output type annotations) so that it can be composed with other steps in a Pipeline.
 
-> [!NOTE]
-> If your step references a `Model`, the step will attempt to infer its dependencies as part of its metadata. These inferred dependencies won't be included in the container unless explicitly required by an enclosing `Pipeline`, but a warning will be logged for any apparent incompatibilities or mismatches.
-
 In other words, the only user code a `Pipeline` can "see" is the code contained in its steps, so its steps need to contain *all* of the code necessary to run it.
 
 Rather than instantiating the `Step` class directly, steps are typically defined using the `@step` decorator. For example:
@@ -35,14 +32,14 @@ You may define a pipeline which uses as many steps as you like, as long as there
 
 The `Model` class represents a pre-trained machine learning model registered with our service. It includes information about the model itself, such as its flavor (framework used to develop the model, e.g. `sklearn`), architecture, parameters, and state, as well as metadata such as links to training datasets. Currently, we support models in the following flavors: `sklearn`, `pytorch`, and `tensorflow`.
 
-Models in Garden are registered through our hosted MLflow registry, using the Garden CLI:
+Models in Garden are registered using the Garden CLI:
 
 ```bash
 garden-ai model register path/to/model.pkl --flavor=sklearn
 ```
 
 > [!NOTE]
-> The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name/1"`, which can then be referenced by steps (see example below). Repeatedly registering the same model under the same model name will increment the version suffix.
+> The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name"`, which can then be referenced by steps (see example below).
 
 Once a model has been registered, it should be used in a `Step` by referencing its name as a _**default argument**_, not in the body of the step's function. This is necessary because the `Step` collects information about the model's dependencies to pass along to the eventual container specification that the pipeline will run in.
 
@@ -52,14 +49,14 @@ Here's an example of a step that names a registered model to perform inference:
 @step
 def run_inference(
     cleaned_data: pd.DataFrame,
-    model=Model("me@institution.edu-my-model-name/1"),
+    model=Model("me@institution.edu-my-model-name"),
 ) -> np.ndarray:
     """running some inference"""
     results = model.predict(cleaned_data)
     return results
 ```
 
-This way, your pre-trained models can be easily integrated into any pipeline and executed as part of your workflows, while ensuring that all necessary dependencies are captured and included in the runtime environment.
+This way, your pre-trained models can be easily integrated into any pipeline and executed as part of your workflows.
 
 ### [Pipelines](Pipelines.md)
 

@@ -50,15 +50,6 @@ def register(
             "Currently we support the following flavors 'sklearn', 'tensorflow', and 'pytorch'."
         ),
     ),
-    extra_pip_requirements: Optional[List[str]] = typer.Option(
-        None,
-        "--extra-pip-requirements",
-        "-r",
-        help=(
-            "Additonal package requirmeents. Add multiple like "
-            '--extra-pip-requirements "torch=1.3.1" --extra-pip-requirements "pandas<=1.5.0"'
-        ),
-    ),
     dataset_url: Optional[str] = typer.Option(
         None,
         "--dataset-url",
@@ -93,7 +84,6 @@ def register(
         local_path=str(model_path),
         model_name=name,
         flavor=flavor,
-        extra_pip_requirements=extra_pip_requirements,
         user_email=client.get_email(),
     )
     if dataset_doi and dataset_url:
@@ -101,9 +91,8 @@ def register(
         local_model.connections.append(dataset_metadata)
 
     registered_model = client.register_model(local_model)
-    model_uri = registered_model.model_uri
     rich.print(
-        f"Successfully uploaded your model! The full name to include in your pipeline is '{model_uri}'"
+        f"Successfully uploaded your model! The full name to include in your pipeline is '{registered_model.full_name}'"
     )
 
 
@@ -111,7 +100,7 @@ def register(
 def list():
     """Lists all local models."""
 
-    resource_table_cols = ["model_uri", "model_name", "flavor"]
+    resource_table_cols = ["full_name", "model_name", "flavor"]
     table_name = "Local Models"
 
     table = get_local_model_rich_table(
@@ -132,7 +121,7 @@ def show(
     """Shows all info for some Models"""
 
     for model_id in model_ids:
-        model = local_data.get_local_model_by_uri(model_id)
+        model = local_data.get_local_model_by_name(model_id)
         if model:
             rich.print(f"Model: {model_id} local data:")
             rich.print_json(json=model.json())

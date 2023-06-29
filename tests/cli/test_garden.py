@@ -149,7 +149,6 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
     assert str(denormalized_garden_metadata["pipelines"][0]["doi"]) == pipeline_doi
     # Confirm that pipelines within expanded gardens contain models
     model = denormalized_garden_metadata["pipelines"][0]["models"][0]
-    assert model["version"] == "3"
     assert len(model["connections"]) == 1
 
 

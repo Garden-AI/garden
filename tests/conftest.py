@@ -10,18 +10,13 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import RegisteredModel, DatasetConnection
+from garden_ai.mlmodel import ModelMetadata, DatasetConnection, LocalModel
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
 @pytest.fixture(autouse=True)
 def do_not_sleep(mocker):
     mocker.patch("time.sleep")
-
-
-@pytest.fixture(autouse=True)
-def auto_mock_GardenClient_set_up_mlflow_env(mocker):
-    mocker.patch("garden_ai.client.GardenClient._set_up_mlflow_env")
 
 
 @pytest.fixture(autouse=True)
@@ -242,9 +237,7 @@ def step_with_model(mocker, tmp_conda_yml):
     @step
     def uses_model_in_default(
         arg: object,
-        default_arg_model: object = garden_ai.Model(
-            "email@addr.ess-fake-model/fake-version"
-        ),
+        default_arg_model: object = garden_ai.Model("email@addr.ess/fake-model"),
     ) -> object:
         pass
 
@@ -318,11 +311,10 @@ def database_with_model(tmp_path):
 
 @pytest.fixture
 def second_draft_of_model():
-    return RegisteredModel(
+    return ModelMetadata(
         model_name="unit-test-model",
-        version="2",
         user_email="test@example.com",
-        flavor="sklearn",
+        flavor="pytorch",
         connections=[
             DatasetConnection(
                 **{
@@ -335,6 +327,24 @@ def second_draft_of_model():
             )
         ],
     )
+
+
+@pytest.fixture
+def local_model(second_draft_of_model, tmp_path):
+    return LocalModel(**second_draft_of_model.dict(), local_path=str(tmp_path))
+
+
+@pytest.fixture
+def model_url_env_var():
+    # Set the environment variable
+    os.environ[
+        "GARDEN_MODELS"
+    ] = '{"willengler@uchicago.edu/test_model": "presigned-url.aws.com"}'
+
+    yield  # Go run the test
+
+    # After the test, delete the environment variable
+    os.environ.pop("GARDEN_MODELS", None)
 
 
 @pytest.fixture

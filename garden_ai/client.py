@@ -37,8 +37,7 @@ from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
     LocalModel,
-    RegisteredModel,
-    upload_to_model_registry,
+    ModelMetadata,
     stage_model_for_upload,
     clear_mlflow_staging_directory,
 )
@@ -149,15 +148,10 @@ class GardenClient:
 
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
-        self._set_up_mlflow_env()
 
     def _get_garden_access_token(self):
         self.garden_authorizer.ensure_valid_token()
         return self.garden_authorizer.access_token
-
-    def _set_up_mlflow_env(self):
-        os.environ["MLFLOW_TRACKING_TOKEN"] = self._get_garden_access_token()
-        os.environ["MLFLOW_TRACKING_URI"] = GARDEN_ENDPOINT + "/mlflow"
 
     def _make_compute_client(self):
         scope_to_authorizer = {
@@ -298,30 +292,25 @@ class GardenClient:
 
         return Pipeline(**data)
 
-    def register_model(self, local_model: LocalModel) -> RegisteredModel:
-        if "S3_UPLOAD_FEATURE_FLAG" in os.environ:
+    def register_model(self, local_model: LocalModel) -> ModelMetadata:
+        try:
+            # Create directory in MLModel format
+            model_directory = stage_model_for_upload(local_model)
+            # Push contents of directory to S3
+            upload_mlmodel_to_s3(model_directory, local_model, self.backend_client)
+        finally:
             try:
-                # Create directory in MLModel format
-                model_directory = stage_model_for_upload(local_model)
-                # Push contents of directory to S3
-                upload_mlmodel_to_s3(model_directory, local_model, self.backend_client)
-            finally:
-                try:
-                    clear_mlflow_staging_directory()
-                except Exception as e:
-                    logger.error(
-                        "Could not clean up model staging directory. Check permissions on ~/.garden/mlflow"
-                    )
-                    logger.error("Original exception: " + str(e))
-                    # We can still proceed, there is just some cruft in the user's home directory.
-                    pass
-            registered_model = RegisteredModel(**local_model.dict(), version="1")
-            local_data.put_local_model(registered_model)
-            return registered_model
-        else:
-            registered_model = upload_to_model_registry(local_model)
-            local_data.put_local_model(registered_model)
-            return registered_model
+                clear_mlflow_staging_directory()
+            except Exception as e:
+                logger.error(
+                    "Could not clean up model staging directory. Check permissions on ~/.garden/mlflow"
+                )
+                logger.error("Original exception: " + str(e))
+                # We can still proceed, there is just some cruft in the user's home directory.
+                pass
+        registered_model = ModelMetadata(**local_model.dict())
+        local_data.put_local_model(registered_model)
+        return registered_model
 
     def _mint_draft_doi(self, test: bool = True) -> str:
         """Register a new draft doi with DataCite via Garden backend.
@@ -383,35 +372,22 @@ class GardenClient:
         -------
         RegisteredPipeline
             Instance of ``RegisteredPipeline``, which can be run on
-            a specified remote Globus Compute endpoint (and knows how to
-            set the appropriate MLFlow environment variables).
+            a specified remote Globus Compute endpoint.
 
         Raises
         ------
         PipelineNotFoundException
             Raised when no known pipeline exists with the given identifier.
         """
-        registered = local_data.get_local_pipeline_by_doi(doi)
+        pipeline = local_data.get_local_pipeline_by_doi(doi)
 
-        if registered is None:
+        if pipeline is None:
             raise PipelineNotFoundException(
                 f"Could not find any pipelines with DOI {doi}."
             )
-
-        self._set_up_mlflow_env()
-        registered._env_vars = {
-            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
-            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
-        }
-
-        return registered
-
-    def _fresh_mlflow_vars(self):
-        self._set_up_mlflow_env()
-        return {
-            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
-            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
-        }
+        pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
+        pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
+        return pipeline
 
     def get_email(self) -> str:
         return local_data._get_user_email()
@@ -436,18 +412,14 @@ class GardenClient:
             exception if not found.
 
         """
-        registered = local_data.get_local_garden_by_doi(doi)
+        garden = local_data.get_local_garden_by_doi(doi)
 
-        if registered is None:
+        if garden is None:
             raise GardenNotFoundException(
                 f"Could not find any Gardens with identifier {doi}."
             )
-        self._set_up_mlflow_env()
-        registered._env_vars = {
-            "MLFLOW_TRACKING_TOKEN": os.environ["MLFLOW_TRACKING_TOKEN"],
-            "MLFLOW_TRACKING_URI": os.environ["MLFLOW_TRACKING_URI"],
-        }
-        return registered
+        self._generate_presigned_urls_for_garden(garden)
+        return garden
 
     def publish_garden_metadata(self, garden: Garden) -> None:
         """
@@ -481,6 +453,20 @@ class GardenClient:
         Garden populated with metadata from remote metadata record.
 
         """
-        return garden_search.get_remote_garden_by_doi(
-            doi, self._fresh_mlflow_vars(), self.search_client
-        )
+        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        self._generate_presigned_urls_for_garden(garden)
+        return garden
+
+    def _generate_presigned_urls_for_garden(self, garden: Garden):
+        for pipeline in garden.pipelines:
+            pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
+            pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
+
+    def generate_presigned_urls_for_pipeline(
+        self, pipeline: Union[RegisteredPipeline, Pipeline]
+    ) -> str:
+        model_name_to_url = {}
+        for model_name in pipeline.model_full_names:
+            url = self.backend_client.get_model_download_url(model_name).url
+            model_name_to_url[model_name] = url
+        return json.dumps(model_name_to_url)

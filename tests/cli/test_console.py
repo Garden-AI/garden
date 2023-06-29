@@ -65,18 +65,11 @@ def test_get_local_model_table(mocker, database_with_model, second_draft_of_mode
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=database_with_model)
     local_data.put_local_model(second_draft_of_model)
 
-    model_cols = ["model_uri", "model_name", "flavor"]
+    model_cols = ["full_name", "model_name", "flavor"]
     model_table_name = "Local Models"
     model_rows = [
         (
-            second_draft_of_model.model_uri,
-            second_draft_of_model.model_name,
-            second_draft_of_model.flavor,
-        )
-    ]
-    model_rows = [
-        (
-            str(second_draft_of_model.model_uri),
+            str(second_draft_of_model.full_name),
             second_draft_of_model.model_name,
             second_draft_of_model.flavor,
         )

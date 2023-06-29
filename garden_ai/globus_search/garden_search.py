@@ -12,9 +12,7 @@ class RemoteGardenException(Exception):
     """Exception raised when a requested Garden cannot be found or published"""
 
 
-def get_remote_garden_by_doi(
-    doi: str, env_vars: dict, search_client: SearchClient
-) -> Garden:
+def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
     try:
         res = search_client.get_subject(GARDEN_INDEX_UUID, doi)
     except GlobusAPIError as e:
@@ -33,7 +31,6 @@ def get_remote_garden_by_doi(
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
         ) from e
-    garden._env_vars = env_vars
     garden._set_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
 

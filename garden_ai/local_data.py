@@ -6,7 +6,7 @@ from typing import Dict, Optional, Union, List
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import RegisteredModel
+from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import garden_json_encoder
 from garden_ai.constants import GardenConstants
 
@@ -39,7 +39,7 @@ class ResourceType(Enum):
 resource_type_to_id_key = {
     ResourceType.GARDEN: "doi",
     ResourceType.PIPELINE: "doi",
-    ResourceType.MODEL: "model_uri",
+    ResourceType.MODEL: "full_name",
 }
 
 
@@ -88,7 +88,7 @@ def _put_resource_from_metadata(
 
 
 def _put_resource_from_obj(
-    resource: Union[Garden, RegisteredPipeline, RegisteredModel],
+    resource: Union[Garden, RegisteredPipeline, ModelMetadata],
     resource_type: ResourceType,
 ) -> None:
     resource_metadata = resource.dict()
@@ -97,18 +97,18 @@ def _put_resource_from_obj(
 
 def _make_obj_from_record(
     record: Dict, resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline, RegisteredModel]:
+) -> Union[Garden, RegisteredPipeline, ModelMetadata]:
     if resource_type is ResourceType.GARDEN:
         return Garden(**record)
     elif resource_type is ResourceType.PIPELINE:
         return RegisteredPipeline(**record)
     else:
-        return RegisteredModel(**record)
+        return ModelMetadata(**record)
 
 
 def _get_resource_by_id(
     id_: str, resource_type: ResourceType
-) -> Optional[Union[Garden, RegisteredPipeline, RegisteredModel]]:
+) -> Optional[Union[Garden, RegisteredPipeline, ModelMetadata]]:
     data = _read_local_db()
     resources = data.get(resource_type.value, {})
     if resources and id_ in resources:
@@ -130,7 +130,7 @@ def _delete_old_model_versions(model_name: str):
 
 def _get_resource_by_type(
     resource_type: ResourceType,
-) -> Optional[List[Union[Garden, RegisteredPipeline, RegisteredModel]]]:
+) -> Optional[List[Union[Garden, RegisteredPipeline, ModelMetadata]]]:
     data = _read_local_db()
     resource_data = data.get(resource_type.value, {})
     resource_objs = []
@@ -198,7 +198,7 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     return _get_resource_by_id(doi, ResourceType.PIPELINE)  # type: ignore
 
 
-def put_local_model(model: RegisteredModel):
+def put_local_model(model: ModelMetadata):
     """Helper: write a record to 'local database' for a given RegisteredModel
     Overwrites any existing entry with the same model_name in ~/.garden/data.json.
 
@@ -212,8 +212,8 @@ def put_local_model(model: RegisteredModel):
     _put_resource_from_obj(model, resource_type=ResourceType.MODEL)
 
 
-def get_local_model_by_uri(model_uri: str):
-    return _get_resource_by_id(model_uri, ResourceType.MODEL)  # type: ignore
+def get_local_model_by_name(model_full_name: str):
+    return _get_resource_by_id(model_full_name, ResourceType.MODEL)  # type: ignore
 
 
 def get_all_local_gardens() -> Optional[List[Garden]]:
@@ -244,7 +244,7 @@ def get_all_local_pipelines() -> Optional[List[RegisteredPipeline]]:
     return _get_resource_by_type(ResourceType.PIPELINE)  # type: ignore
 
 
-def get_all_local_models() -> Optional[List[RegisteredModel]]:
+def get_all_local_models() -> Optional[List[ModelMetadata]]:
     """Helper: fetch all model records from ~/.garden/data.json.
 
     Parameters
@@ -252,7 +252,7 @@ def get_all_local_models() -> Optional[List[RegisteredModel]]:
 
     Returns
     -------
-    Optional[RegisteredModel]
+    Optional[ModelMetadata]
         If successful, a list of all the RegisteredModel objects in data.json.
     """
     return _get_resource_by_type(ResourceType.MODEL)  # type: ignore
