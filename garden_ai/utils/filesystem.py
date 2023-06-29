@@ -44,6 +44,7 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
         )
         raise PipelineLoadScaffoldedException(error_message) from e
     except Exception as e:
+        print(e)
         raise PipelineLoadException("Could not execute the Python code") from e
 
     for obj_name in dir(module):

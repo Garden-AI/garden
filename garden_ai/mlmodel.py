@@ -198,16 +198,16 @@ class _Model:
         if self.full_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
             raise PipelineLoadScaffoldedException("Invalid model name.")
 
-        # Not taking MODEL_STAGING_DIR from constants
-        # so that this class has no external dependencies
-        self.staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
         return
 
     def download_and_stage(
         self, presigned_download_url: str, full_model_name: str
     ) -> str:
         try:
-            download_dir = self.staging_dir / full_model_name
+            # Not taking MODEL_STAGING_DIR from constants
+            # so that this class has no external dependencies
+            staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
+            download_dir = staging_dir / full_model_name
             download_dir.mkdir(parents=True, exist_ok=True)
         except PermissionError as pe:
             print(f"Could not create model staging directory: {pe}")
@@ -247,7 +247,7 @@ class _Model:
     def get_download_url(full_model_name: str) -> str:
         model_url_json = os.environ.get("GARDEN_MODELS", None)
         if not model_url_json:
-            raise Exception(
+            raise KeyError(
                 "GARDEN_MODELS environment variable was not set. Cannot download model."
             )
         try:
@@ -260,8 +260,10 @@ class _Model:
             raise
 
     # Duplicated in this class so that _Model is self-contained
-    def clear_mlflow_staging_directory(self):
-        path = str(self.staging_dir)
+    @staticmethod
+    def clear_mlflow_staging_directory():
+        staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
+        path = str(staging_dir)
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
             if os.path.isfile(item_path):

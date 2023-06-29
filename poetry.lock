@@ -939,14 +939,14 @@ redis = ["redis (>=3.5.3,<5)"]
 
 [[package]]
 name = "globus-compute-sdk"
-version = "2.0.3"
+version = "2.1.0"
 description = "Globus Compute: High Performance Function Serving for Science"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "globus-compute-sdk-2.0.3.tar.gz", hash = "sha256:559bb59205269e631757bd183ccb7e80de13108b08dafcd16470649bc38530c6"},
-    {file = "globus_compute_sdk-2.0.3-py3-none-any.whl", hash = "sha256:007e5bba30e3c9b79e4dbfa6af411c4e379abcec687841394c59d0d217b86ca6"},
+    {file = "globus-compute-sdk-2.1.0.tar.gz", hash = "sha256:93ae0ac14c8c8eccc3d3e19006cbbe7f941dd7aaab39271351ec915f773bbe3c"},
+    {file = "globus_compute_sdk-2.1.0-py3-none-any.whl", hash = "sha256:35409c6851ed5b82f04c998cc044c504994d5250cea39cbed1f9e204fa425695"},
 ]
 
 [package.dependencies]
@@ -4088,4 +4088,4 @@ torch = ["torch"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "966498c4120d5fa92f6b169cbfbc986a261095673da5b960df7bee11ba7f2dce"
+content-hash = "4f18ca3bf4129de558778e0e94a2688873d26b41210968793f702566323a5ae3"
