@@ -13,8 +13,7 @@ def upload_mlmodel_to_s3(
     local_directory: str, local_model: LocalModel, backend_client: BackendClient
 ):
     # Get url from Garden API
-    model_storage_path = f"{local_model.full_name}/model.zip"
-    presigned_url_response = backend_client.get_model_upload_url(model_storage_path)
+    presigned_url_response = backend_client.get_model_upload_url(local_model.full_name)
     _upload_directory_to_s3_presigned(local_directory, presigned_url_response)
 
 
