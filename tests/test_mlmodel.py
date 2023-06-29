@@ -41,7 +41,7 @@ def test_upload_model_to_s3(mocker, local_model, tmp_path):
 
     upload_mlmodel_to_s3(fake_staging_dir, local_model, backend_client)
     backend_client.get_model_upload_url.assert_called_with(
-        "test@example.com/unit-test-model/model.zip"
+        "test@example.com/unit-test-model"
     )
     mock_upload.assert_called_with(fake_staging_dir, mock_presigned_url_response)
 
