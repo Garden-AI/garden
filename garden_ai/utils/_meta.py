@@ -2,10 +2,8 @@ import inspect
 import linecache
 import textwrap
 
-from garden_ai import Pipeline
 
-
-def __main__ify(cls):
+def redef_in_main(cls):
     """Helper: redefine a class in __main__, e.g. garden_ai._Model -> __main__._Model.
 
     This has the effect of coaxing dill into serializing both the definition and
@@ -36,7 +34,7 @@ def make_func_to_serialize(pipeline):
     """
     import __main__
 
-    __main__ify(garden_ai_compose_functions)
+    redef_in_main(garden_ai_compose_functions)
 
     functions = [step.func for step in pipeline.steps]
     return __main__.garden_ai_compose_functions(*functions)
@@ -110,6 +108,7 @@ def exec_getsource(source, globals=None, locals=None):
 
 def _load_pipeline_from_python_file(python_file):
     import __main__
+    from garden_ai import Pipeline
 
     with open(python_file, "r") as file:
         pipeline_code = file.read()
@@ -132,7 +131,7 @@ class _USER_PIPELINE_MODULE:
 
     # run the user's code as `__main__._USER_PIPELINE_MODULE` namespace
     local_namespace: dict = {}
-    exec(code_str, __main__.__dict__, local_namespace)
+    exec_getsource(code_str, __main__.__dict__, local_namespace)
     # exec(code_str, {}, local_namespace)  # TODO see if this could work
     cls = local_namespace["_USER_PIPELINE_MODULE"]
 

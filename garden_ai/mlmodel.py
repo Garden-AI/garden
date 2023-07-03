@@ -223,7 +223,7 @@ def Model(full_model_name: str) -> _Model:
     """
     import __main__
 
-    from garden_ai.utils._meta import __main__ify
+    from garden_ai.utils._meta import redef_in_main
 
-    __main__ify(_Model)
+    redef_in_main(_Model)
     return __main__._Model(full_model_name)

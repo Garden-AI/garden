@@ -125,6 +125,9 @@ class Step:
         """
 
         import __main__
+        import garden_ai.utils._meta
+
+        garden_ai.utils._meta.redef_in_main(_Model)
 
         sig = signature(self.func)
         for param in sig.parameters.values():

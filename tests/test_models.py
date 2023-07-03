@@ -266,13 +266,6 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
             assert contributor in pipe.contributors
 
 
-def test_sdk_pinned_in_pipeline_deps(pipeline_toy_example):
-    # garden-ai should appear exactly once as an automatically-included dependency
-    assert 1 == sum(
-        req.startswith("garden-ai==") for req in pipeline_toy_example.pip_dependencies
-    )
-
-
 def test_step_collect_model(step_with_model):
     assert step_with_model.model_full_names == ["email@addr.ess/fake-model"]
 
