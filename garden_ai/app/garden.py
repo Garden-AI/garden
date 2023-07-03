@@ -250,7 +250,7 @@ def add_pipeline(
         ),
     ),
 ):
-    """Add a registered pipeline to a garden"""
+    """Add a registered pipeline to a garden!"""
 
     garden = _get_garden(garden_id)
     if not garden:
