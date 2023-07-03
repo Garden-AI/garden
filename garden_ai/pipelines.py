@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 import json
 import logging
+import os
 import pathlib
 import sys
 from datetime import datetime
@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
 
 import garden_ai
-from garden_ai._version import __version__
 from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
@@ -113,7 +112,7 @@ class Pipeline:
     tags: List[str] = Field(default_factory=list, unique_items=True)
     requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
-    pip_dependencies: List[str] = Field(default=[f"garden-ai=={__version__}"])
+    pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
     model_full_names: List[str] = Field(default_factory=list)
     short_name: Optional[str] = Field(None)

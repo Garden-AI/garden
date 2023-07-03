@@ -124,9 +124,11 @@ class Step:
         ``func(*args, model=Model(...))``, record the model name
         """
 
+        import __main__
+
         sig = signature(self.func)
         for param in sig.parameters.values():
-            if isinstance(param.default, _Model):
+            if isinstance(param.default, __main__._Model):
                 model = param.default
                 self.model_full_names += [model.full_name]
         return
