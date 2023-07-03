@@ -130,9 +130,7 @@ class _USER_PIPELINE_MODULE:
     {textwrap.indent(pipeline_code, '    ')}
     """
 
-    # namespace the user's code at `__main__._USER_PIPELINE_MODULE`
-    # dill behaves most predictably when it's serializing something in
-    # __main__
+    # run the user's code as `__main__._USER_PIPELINE_MODULE` namespace
     local_namespace: dict = {}
     exec(code_str, __main__.__dict__, local_namespace)
     # exec(code_str, {}, local_namespace)  # TODO see if this could work
@@ -142,4 +140,6 @@ class _USER_PIPELINE_MODULE:
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
             return value
-    raise Exception(f"Did not find top-level pipeline object in {python_file}.")
+    raise ValueError(
+        f"Did not find top-level pipeline object defined in {python_file}."
+    )
