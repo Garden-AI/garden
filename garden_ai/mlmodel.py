@@ -224,6 +224,8 @@ def Model(full_model_name: str) -> _Model:
     try:
         from __main__ import _Model
     except ImportError:
+        # re-import only seems necessary for pytest
+        from garden_ai._model import _Model  # type: ignore
         from garden_ai.utils._meta import redef_in_main
 
         redef_in_main(_Model)
