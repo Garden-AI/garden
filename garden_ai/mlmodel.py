@@ -221,9 +221,12 @@ def Model(full_model_name: str) -> _Model:
         may or may not have actually loaded the model yet) will be returned if \
         it is called multiple times with the same model_full_name.
     """
-    import __main__
+    try:
+        from __main__ import _Model
+    except ImportError:
+        from garden_ai.utils._meta import redef_in_main
 
-    from garden_ai.utils._meta import redef_in_main
+        redef_in_main(_Model)
+        from __main__ import _Model
 
-    redef_in_main(_Model)
-    return __main__._Model(full_model_name)
+    return _Model(full_model_name)
