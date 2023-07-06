@@ -59,7 +59,9 @@ def run_garden_end_to_end(
     tf_input_data_location = os.path.abspath("./models/keras_test_input.pkl")
     torch_input_data_location = os.path.abspath("./models/torch_test_input.pkl")
 
-    model_reqs_location = os.path.abspath("./models/requirements.txt")
+    sklearn_model_reqs_location = os.path.abspath("./models/sklearn_requirements.txt")
+    tf_model_reqs_location = os.path.abspath("./models/keras_requirements.txt")
+    torch_model_reqs_location = os.path.abspath("./models/torch_requirements.txt")
 
     pipeline_template_location = os.path.abspath("./templates")
 
@@ -189,7 +191,7 @@ def run_garden_end_to_end(
             sklearn_pipeline_local = _make_pipeline_file(
                 sklearn_pipeline_name,
                 sklearn_model_full_name,
-                model_reqs_location,
+                sklearn_model_reqs_location,
                 sklearn_pipeline_path,
                 pipeline_template_name,
                 pipeline_template_location,
@@ -212,7 +214,7 @@ def run_garden_end_to_end(
             tf_pipeline_local = _make_pipeline_file(
                 tf_pipeline_name,
                 tf_model_full_name,
-                model_reqs_location,
+                tf_model_reqs_location,
                 tf_pipeline_path,
                 pipeline_template_name,
                 pipeline_template_location,
@@ -232,7 +234,7 @@ def run_garden_end_to_end(
             torch_pipeline_local = _make_pipeline_file(
                 torch_pipeline_name,
                 torch_model_full_name,
-                model_reqs_location,
+                torch_model_reqs_location,
                 torch_pipeline_path,
                 pipeline_template_name,
                 pipeline_template_location,
