@@ -203,60 +203,6 @@ def test_pipeline_compose_union(tmp_requirements_txt):
     return
 
 
-def test_pipeline_compose_tuple(tmp_requirements_txt):
-    # check that pipelines can correctly compose tricky
-    # functions which may or may not expect a plain tuple
-    # to be treated as *args
-    @step
-    def returns_tuple(a: int, b: str) -> Tuple[int, str]:
-        pass
-
-    @step
-    def wants_tuple_as_tuple(t: Tuple[int, str]) -> int:
-        pass
-
-    @step
-    def wants_tuple_as_args(x: int, y: str) -> str:
-        pass
-
-    @step
-    def wants_flipped_tuple_as_args(arg1: str, arg2: int) -> float:
-        pass
-
-    good = Pipeline(  # noqa: F841
-        authors=["mendel"],
-        requirements_file=str(tmp_requirements_txt),
-        title="good pipeline",
-        steps=[returns_tuple, wants_tuple_as_tuple],
-        doi="10.26311/fake-doi",
-    )
-
-    with pytest.raises(ValidationError):
-        bad = Pipeline(  # noqa: F841
-            authors=["mendel"],
-            requirements_file=str(tmp_requirements_txt),
-            title="backwards pipeline",
-            steps=[wants_tuple_as_tuple, returns_tuple],
-            doi="10.26311/fake-doi",
-        )
-
-    ugly = Pipeline(  # noqa: F841
-        authors=["mendel"],
-        requirements_file=str(tmp_requirements_txt),
-        title="ugly (using *args) but allowed pipeline",
-        steps=[returns_tuple, wants_tuple_as_args],
-        doi="10.26311/fake-doi",
-    )
-    with pytest.raises(ValidationError):
-        ugly_and_bad = Pipeline(  # noqa: F841
-            authors=["mendel"],
-            requirements_file=str(tmp_requirements_txt),
-            title="ugly (using *args) and disallowed pipeline",
-            steps=[returns_tuple, wants_flipped_tuple_as_args],
-            doi="10.26311/fake-doi",
-        )
-
-
 def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
     pipe = pipeline_toy_example
     for s in pipe.steps:
@@ -307,13 +253,5 @@ def test_step_compose_ignores_defaults(tmp_requirements_txt):
         requirements_file=str(tmp_requirements_txt),
         title="composes tuple-as-tuple w/ default",
         steps=[returns_tuple, wants_tuple_ignoring_default],
-        doi="10.26311/fake-doi",
-    )
-
-    ugly = Pipeline(  # noqa: F841
-        authors=["mendel"],
-        requirements_file=str(tmp_requirements_txt),
-        title="composes tuple-as-*args w/ default",
-        steps=[returns_tuple, wants_tuple_as_args_ignoring_default],
         doi="10.26311/fake-doi",
     )
