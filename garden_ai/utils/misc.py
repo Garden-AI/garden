@@ -28,34 +28,14 @@ logger = logging.getLogger()
 issubtype = beartype.door.is_subhint
 
 
-# for contrast: unsafe_compose = lambda f,g: lambda *args,**kwargs: f(g(*args, **kwargs))
 def safe_compose(f, g):
     """Helper: compose function `f` with function `g`, provided their annotations indicate compatibility.
-
     Arguments with defaults are ignored.
-
-    This is smart enough to figure out whether `g`'s result is meant as an
-    `*args` tuple for `f`, or if it's meant as a plain return value (which might
-    still be a tuple). Complains with an exception if the signatures don't match.
-
 
     Parameters
     ----------
     f : Callable
-        `f` is any callable which:
-            1. Has complete argument and return type annotations (steps are validated for this).
-            2. accepts 1 or more positional arguments, corresponding to `g`'s return type.
-            3. If `g` returns a tuple, `f` should either accept the
-                unpacked *elements* of the tuple as a list of arguments;
-                else `f` should accept a tuple itself.
-
     g : Callable
-        like `f`, `g` can be any callable which:
-            1. Has complete argument and return type annotations.
-            2. When `f` expects a single argument, returns a single python
-                object of the appropriate type.
-            3. When `f` expects multiple arguments, returns a tuple with
-                appropriately-typed elements.
 
     Raises
     ------
@@ -72,31 +52,7 @@ def safe_compose(f, g):
     )
     g_out = g_sig.return_annotation
 
-    if get_origin(g_out) is tuple and len(f_in) > 1:
-        # case 1: g returns a tuple which, *if unpacked*, may align with f's annotations
-        # for example:
-        # g defined like `def g(...) -> tuple[A, B, C]: ...`, and
-        # f defined like `def f(a: A, b: B, c: C) -> ...`
-        g_returns: tuple = get_args(g_out)
-        if all(
-            issubtype(output_type, input_type)
-            for (output_type, input_type) in zip_longest(g_returns, f_in)
-        ):
-            # note that we unpack g's output
-            def f_of_g(*args, **kwargs):
-                return f(*g(*args, **kwargs))
-
-        else:
-            raise TypeError(
-                (
-                    f"Could not compose step {f.__name__} with step {g.__name__} "
-                    "due to return type signature mismatch: "
-                    f"expected tuple[{f_in}], got {g_out}."
-                )
-            )
-    elif len(f_in) == 1:
-        # case 2: return is a single value; verify that it's the only one
-        # expected by f.
+    if len(f_in) == 1:
         if issubtype(g_out, f_in[0]):
             # note that we do NOT unpack g's output
             def f_of_g(*args, **kwargs):
@@ -106,20 +62,26 @@ def safe_compose(f, g):
             raise TypeError(
                 (
                     f"Could not compose step {f.__name__} with step {g.__name__} "
-                    "due to return type signature mismatch: "
-                    f"expected {f_in[0]}, got {g_out}."
+                    "due to return type signature mismatch: expected "
+                    f"{f_in[0]}, got {g_out}."
                 )
             )
-    else:
-        # case 3: signatures are neither single types nor equivalent tuples
+    elif len(f_in) > 1:
         raise TypeError(
             (
-                f"Could not compose {f.__name__} with step {g.__name__} due to"
-                "return type signature mismatch. Please double-check that its"
-                "return matches the argument expected by the subsequent step."
+                f"Could not compose step {f.__name__} with step {g.__name__} "
+                f"{f.__name__} has more than 1 positional (required) argument, "
+                "but only 1 would be given."
             )
         )
-
+    else:
+        raise TypeError(
+            (
+                f"Could not compose {f.__name__} with step {g.__name__}. "
+                f"{f.__name__} takes 0 positional arguments, but would be called "
+                f"on {g.__name__}'s return value."
+            )
+        )
     # give the returned function a new signature, corresponding
     # to g's input types and f's return type
     f_of_g.__signature__ = Signature(
@@ -260,26 +222,6 @@ def validate_pip_lines(lines: List[str]) -> List[str]:
             raise
 
     return [str(r) for r in requirements]
-
-
-def inject_env_kwarg(func: Callable):
-    """
-    Helper: modify a function so that it will accept an ``_env_vars`` keyword argument.
-
-    This can be used to dynamically set environment variables before executing the
-    original function, particularly useful if the function is executing remotely.
-    """
-
-    @wraps(func)
-    def inner(*args, _env_vars=None, **kwargs):
-        if _env_vars:
-            import os
-
-            for k, v in _env_vars.items():
-                os.environ[k] = v
-        return func(*args, **kwargs)
-
-    return inner
 
 
 def clean_identifier(name: str) -> str:
