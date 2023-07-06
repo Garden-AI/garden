@@ -393,7 +393,8 @@ class RegisteredPipeline(BaseModel):
             *args (Any):
                 Input data passed through the first step in the pipeline
             endpoint (UUID | str | None):
-                Where to run the pipeline. Must be a valid Globus Compute endpoint UUID. If no endpoint is specified, the DLHub default compute endpoint is used.
+                Where to run the pipeline. Must be a valid Globus Compute endpoint UUID.
+                If no endpoint is specified, the DLHub default compute endpoint is used.
             **kwargs (Any):
                 Additional keyword arguments passed directly to the first step in the pipeline.
 
