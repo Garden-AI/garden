@@ -113,7 +113,7 @@ class Pipeline:
     tags: List[str] = Field(default_factory=list, unique_items=True)
     requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
-    pip_dependencies: List[str] = Field(default=[f"garden-ai=={__version__}"])
+    pip_dependencies: List[str] = Field(default=["garden-ai@ git+https://github.com/Garden-AI/garden.git@b8deb5480f4bf4593485392610972a2e61bdafdb"])
     conda_dependencies: List[str] = Field(default_factory=list)
     model_full_names: List[str] = Field(default_factory=list)
     short_name: Optional[str] = Field(None)
@@ -401,15 +401,16 @@ class RegisteredPipeline(BaseModel):
 
         Raises:
             ValueError:
-                If no endpoint is specified
+                If no endpoint is specified -- modified to be replaced with globus compute endpoint
             Exception:
                 Any exceptions raised over the course of executing the pipeline
 
         """
         if not endpoint:
-            raise ValueError(
-                "A Globus Compute endpoint uuid must be specified to execute remotely."
-            )
+            endpoint =  '86a47061-f3d9-44f0-90dc-56ddc642c000'
+            #raise ValueError(
+             #   "A Globus Compute endpoint uuid must be specified to execute remotely."
+            #)
 
         if self._env_vars:
             # see: utils.misc.inject_env_kwarg
