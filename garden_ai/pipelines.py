@@ -194,6 +194,16 @@ class Pipeline:
             raise ValueError(f"Could not parse pip dependency '{pip_dep}'") from e
         return pip_dep
 
+    @validator("pip_dependencies", each_item=False)
+    def ensure_minimal_dependencies(cls, pip_deps):
+        import mlflow  # type: ignore
+
+        if not any(req.startswith("mlflow") for req in pip_deps):
+            pip_deps += [f"mlflow-skinny=={mlflow.__version__}"]
+        if not any(req.startswith("pandas") for req in pip_deps):
+            pip_deps += ["pandas<3"]
+        return pip_deps
+
     def _collect_requirements(self):
         """collect requirements to pass to Globus Compute container service.
 
