@@ -465,7 +465,9 @@ class GardenClient:
         )
         all_presigned_urls = self.backend_client.get_model_download_url(all_model_names)
         if len(all_model_names) == 1:
-            all_presigned_urls = [all_presigned_urls]  # this function expects a list, so convert in case of single url
+            all_presigned_urls = [
+                all_presigned_urls
+            ]  # this function expects a list, so convert in case of single url
         idx = 0
         for pipeline in garden.pipelines:
             model_name_to_url = {}
