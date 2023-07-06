@@ -19,13 +19,12 @@ class _Model:
 
         try:
             # Not taking MODEL_STAGING_DIR from constants
-            # so that this class has no external dependencies
+            # so that this class has no intra-garden dependencies
             staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
             download_dir = staging_dir / full_model_name
             download_dir.mkdir(parents=True, exist_ok=True)
         except PermissionError as pe:
-            print(f"Could not create model staging directory: {pe}")
-            raise
+            raise PermissionError("Could not create model staging directory") from pe
 
         zip_filepath = str(download_dir / "model.zip")
 
@@ -33,17 +32,17 @@ class _Model:
             response = requests.get(presigned_download_url, stream=True)
             response.raise_for_status()
         except requests.RequestException as re:
-            print(
-                f"Could not download model from presigned url. URL: {presigned_download_url}. Error: {re}"
-            )
-            raise
+            raise Exception(
+                f"Could not download model from presigned url. URL: {presigned_download_url}"
+            ) from re
 
         try:
             with open(zip_filepath, "wb") as f:
                 f.write(response.content)
         except IOError as ioe:
-            print(f"Failed to write model to disk at location {zip_filepath}: {ioe}")
-            raise
+            raise IOError(
+                f"Failed to write model to disk at location {zip_filepath}."
+            ) from ioe
 
         extraction_dir = download_dir / "unzipped"
         unzipped_path = str(download_dir / extraction_dir)
@@ -52,8 +51,9 @@ class _Model:
             with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
                 zip_ref.extractall(unzipped_path)
         except (FileNotFoundError, zipfile.BadZipFile) as fe:
-            print(f"Failed to unzip model directory from Garden model repository. {fe}")
-            raise
+            raise Exception(
+                "Failed to unzip model directory from Garden model repository."
+            ) from fe
 
         return unzipped_path
 
@@ -70,11 +70,10 @@ class _Model:
         try:
             model_url_dict = json.loads(model_url_json)
             return model_url_dict[full_model_name]
-        except (json.JSONDecodeError, KeyError):
-            print(
+        except (json.JSONDecodeError, KeyError) as e:
+            raise KeyError(
                 f"Could not find url for model {full_model_name} in GARDEN_MODELS env var contents {model_url_json}"
-            )
-            raise
+            ) from e
 
     # Duplicated in this class so that _Model is self-contained
     @staticmethod
@@ -105,11 +104,9 @@ class _Model:
             try:
                 self.clear_mlflow_staging_directory()
             except Exception as e:
-                print(
+                raise Exception(
                     f"Could not clean up model staging directory. Check permissions on {self.staging_dir}"
-                )
-                print(str(e))
-                raise
+                ) from e
         return
 
     def predict(self, data):
