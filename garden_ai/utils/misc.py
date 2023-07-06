@@ -3,9 +3,7 @@ import json
 import logging
 import re
 import sys
-from functools import wraps
 from inspect import Parameter, Signature, signature
-from itertools import zip_longest
 from keyword import iskeyword
 from typing import Callable, List, Optional, Tuple
 
@@ -13,14 +11,8 @@ import beartype.door
 import requests
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
-from typing_extensions import TypeAlias
-
-if sys.version_info < (3, 9):
-    from typing_extensions import get_args, get_origin
-else:
-    from beartype.typing import get_args, get_origin
-
 from pydantic.json import pydantic_encoder
+from typing_extensions import TypeAlias
 
 JSON: TypeAlias = str
 
@@ -28,7 +20,7 @@ logger = logging.getLogger()
 issubtype = beartype.door.is_subhint
 
 
-def safe_compose(f, g):
+def safe_compose(f: Callable, g: Callable):
     """Helper: compose function `f` with function `g`, provided their annotations indicate compatibility.
     Arguments with defaults are ignored.
 
@@ -84,8 +76,8 @@ def safe_compose(f, g):
         )
     # give the returned function a new signature, corresponding
     # to g's input types and f's return type
-    f_of_g.__signature__ = Signature(
-        parameters=g_sig.parameters.values(),
+    f_of_g.__signature__ = Signature(  # type: ignore
+        parameters=list(g_sig.parameters.values()),
         return_annotation=f_sig.return_annotation,
     )
     f_of_g.__name__ = f.__name__ + "_COMPOSED_WITH_" + g.__name__
