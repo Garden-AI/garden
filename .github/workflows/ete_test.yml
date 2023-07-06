@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["main"]
+        repository-ref: ["max/ete-test"]
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
