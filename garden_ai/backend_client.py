@@ -2,7 +2,7 @@ import json
 import logging
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Union, List
 
 import requests
 
@@ -71,8 +71,8 @@ class BackendClient:
         self._post("/garden-search-record", payload)
 
     def _get_presigned_url(
-        self, model_names: list[str], direction: PresignedUrlDirection
-    ) -> Union[PresignedUrlResponse, list[PresignedUrlResponse]]:
+        self, model_names: List[str], direction: PresignedUrlDirection
+    ) -> Union[PresignedUrlResponse, List[PresignedUrlResponse]]:
         payload = {
             "direction": direction.value,
             "batch": [name + "/model.zip" for name in model_names],
@@ -95,26 +95,26 @@ class BackendClient:
         return results if len(results) > 1 else results[0]
 
     def _get_model_url(
-        self, full_model_name: Union[str, list[str]], direction: PresignedUrlDirection
-    ) -> Union[PresignedUrlResponse, list[PresignedUrlResponse]]:
+        self, full_model_name: Union[str, List[str]], direction: PresignedUrlDirection
+    ) -> Union[PresignedUrlResponse, List[PresignedUrlResponse]]:
         if isinstance(full_model_name, str):
             full_model_name = [full_model_name]  # convert to a list of length 1
             response: PresignedUrlResponse = self._get_presigned_url(
                 full_model_name, direction
             )
         else:
-            response: list[PresignedUrlResponse] = self._get_presigned_url(
+            response: List[PresignedUrlResponse] = self._get_presigned_url(
                 full_model_name, direction
             )
 
         return response
 
     def get_model_download_url(
-        self, full_model_name: Union[str, list[str]]
-    ) -> Union[PresignedUrlResponse, list[PresignedUrlResponse]]:
+        self, full_model_name: Union[str, List[str]]
+    ) -> Union[PresignedUrlResponse, List[PresignedUrlResponse]]:
         return self._get_model_url(full_model_name, PresignedUrlDirection.Download)
 
     def get_model_upload_url(
-        self, full_model_name: Union[str, list[str]]
+        self, full_model_name: Union[str, List[str]]
     ) -> PresignedUrlResponse:
         return self._get_model_url(full_model_name, PresignedUrlDirection.Upload)
