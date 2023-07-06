@@ -2,7 +2,7 @@ import json
 import logging
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 
 import requests
 
@@ -71,26 +71,50 @@ class BackendClient:
         self._post("/garden-search-record", payload)
 
     def _get_presigned_url(
-        self, full_model_name: str, direction: PresignedUrlDirection
-    ) -> PresignedUrlResponse:
+        self, model_names: list[str], direction: PresignedUrlDirection
+    ) -> Union[PresignedUrlResponse, list[PresignedUrlResponse]]:
         payload = {
-            "s3_path": full_model_name + "/model.zip",
             "direction": direction.value,
+            "batch": [name + "/model.zip" for name in model_names],
         }
-        response_dict = self._post("/presigned-url", payload)
-        url = response_dict.get("url", None)
-        fields = response_dict.get("fields", None)
-        if not url:
-            raise PresignedURLException(
-                "Failed to generate presigned URL for model file transfer. Response was missing url field."
+        responses = self._post("/presigned-url", payload)["responses"]
+        results = []
+
+        for response in responses:
+            url = response.get("url", None)
+            fields = response.get("fields", None)
+            if not url:
+                raise PresignedURLException(
+                    "Failed to generate presigned URL for model file transfer. Response was missing url field."
+                )
+            if direction == PresignedUrlDirection.Upload and not fields:
+                message = "Failed to generate presigned URL for model file upload. Response was missing 'fields' attribute."
+                raise PresignedURLException(message)
+            results.append(PresignedUrlResponse(url, fields))
+
+        return results if len(results) > 1 else results[0]
+
+    def _get_model_url(
+        self, full_model_name: Union[str, list[str]], direction: PresignedUrlDirection
+    ) -> Union[PresignedUrlResponse, list[PresignedUrlResponse]]:
+        if isinstance(full_model_name, str):
+            full_model_name = [full_model_name]  # convert to a list of length 1
+            response: PresignedUrlResponse = self._get_presigned_url(
+                full_model_name, direction
             )
-        if direction == PresignedUrlDirection.Upload and not fields:
-            message = "Failed to generate presigned URL for model file upload. Response was missing 'fields' attribute."
-            raise PresignedURLException(message)
-        return PresignedUrlResponse(url, fields)
+        else:
+            response: list[PresignedUrlResponse] = self._get_presigned_url(
+                full_model_name, direction
+            )
 
-    def get_model_download_url(self, full_model_name: str) -> PresignedUrlResponse:
-        return self._get_presigned_url(full_model_name, PresignedUrlDirection.Download)
+        return response
 
-    def get_model_upload_url(self, full_model_name: str) -> PresignedUrlResponse:
-        return self._get_presigned_url(full_model_name, PresignedUrlDirection.Upload)
+    def get_model_download_url(
+        self, full_model_name: Union[str, list[str]]
+    ) -> Union[PresignedUrlResponse, list[PresignedUrlResponse]]:
+        return self._get_model_url(full_model_name, PresignedUrlDirection.Download)
+
+    def get_model_upload_url(
+        self, full_model_name: Union[str, list[str]]
+    ) -> PresignedUrlResponse:
+        return self._get_model_url(full_model_name, PresignedUrlDirection.Upload)

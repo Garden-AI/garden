@@ -3,9 +3,11 @@ import json
 import logging
 import os
 import time
+import operator
 from pathlib import Path
 from typing import List, Optional, Union
 from uuid import UUID
+from functools import reduce
 
 import typer
 from globus_compute_sdk import Client
@@ -458,15 +460,29 @@ class GardenClient:
         return garden
 
     def _generate_presigned_urls_for_garden(self, garden: Garden):
+        all_model_names = reduce(
+            operator.add, [pipeline.model_full_names for pipeline in garden.pipelines]
+        )
+        all_presigned_urls = self.backend_client.get_model_download_url(all_model_names)
+        idx = 0
         for pipeline in garden.pipelines:
-            pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
-            pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
+            model_name_to_url = {}
+            for model_name in pipeline.model_full_names:
+                url = all_presigned_urls[idx].url
+                model_name_to_url[model_name] = url
+                idx += 1
+            pipeline._env_vars = {
+                GardenConstants.URL_ENV_VAR_NAME: json.dumps(model_name_to_url)
+            }
 
     def generate_presigned_urls_for_pipeline(
         self, pipeline: Union[RegisteredPipeline, Pipeline]
     ) -> str:
         model_name_to_url = {}
-        for model_name in pipeline.model_full_names:
-            url = self.backend_client.get_model_download_url(model_name).url
+        all_presigned_urls = self.backend_client.get_model_download_url(
+            pipeline.model_full_names
+        )
+        for i, model_name in enumerate(pipeline.model_full_names):
+            url = all_presigned_urls[i].url
             model_name_to_url[model_name] = url
         return json.dumps(model_name_to_url)
