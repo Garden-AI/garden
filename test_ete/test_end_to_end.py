@@ -1,9 +1,9 @@
-import os, sys
-import unittest.mock as mocker
+import os, sys, shutil
 import pickle
 import jinja2
 import uuid
 import json
+import functools
 
 import typer
 from typing import Optional, Callable
@@ -12,14 +12,14 @@ from pathlib import Path
 from datetime import datetime
 from rich.prompt import Prompt
 from rich import print as rich_print
-import functools
-
+import unittest.mock as mocker
 
 import garden_ai
 from garden_ai.app.main import app
 
 from globus_compute_sdk import Client
 import globus_sdk
+
 
 t_app = typer.Typer()
 
@@ -36,7 +36,7 @@ def run_garden_end_to_end(
 
     garden_title = _make_unique_id("ETE-Test-Garden")
 
-    scaffolded_pipeline_folder_name = "pea_edibility_pipeline"
+    scaffolded_pipeline_folder_name = "ete_test_pipeline_title"
     pipeline_template_name = "ete_pipeline"
 
     sklearn_pipeline_path = os.path.join(key_store_path, "sklean_pipeline.py")
@@ -78,7 +78,18 @@ def run_garden_end_to_end(
         "description": "ETE Test Pipeline Description",
     }
 
+    local_files_list = [
+        sklearn_pipeline_path,
+        tf_pipeline_path,
+        torch_pipeline_path,
+        os.path.join(key_store_path, scaffolded_pipeline_folder_name),
+        os.path.join(key_store_path, "data.json"),
+        os.path.join(key_store_path, "tolkens.json"),
+        os.path.join(key_store_path, "model.zip.zip"),
+    ]
+
     is_gha = os.getenv("GITHUB_ACTIONS")
+    promt_for_secret = False
 
     run_sklearn = False
     run_tf = False
@@ -110,7 +121,7 @@ def run_garden_end_to_end(
     rich_print("\n[bold blue]Starting ETE Test[/bold blue]")
 
     # Cleanup any left over files generated from the test
-    # _cleanup_local_files([sklearn_pipeline_path, tf_pipeline_path, torch_pipeline_path, os.path.join(key_store_path, 'pipeline.py'), os.path.join(key_store_path, 'data.json'), os.path.join(key_store_path, 'tolkens.json')])
+    _cleanup_local_files(local_files_list)
 
     gc = None
     if ete_grant == "cc":
@@ -120,18 +131,18 @@ def run_garden_end_to_end(
             GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID")
             GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET")
         else:
-            """
-            GARDEN_API_CLIENT_ID = Prompt.ask(
-                "Please enter the GARDEN_API_CLIENT_ID here "
-            ).strip()
-            GARDEN_API_CLIENT_SECRET = Prompt.ask(
-                "Please enter the GARDEN_API_CLIENT_SECRET here "
-            ).strip()
-            """
-            with open("./templates/git_secrets.json") as json_file:
-                git_secrets = json.load(json_file)
-            GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
-            GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
+            if promt_for_secret:
+                GARDEN_API_CLIENT_ID = Prompt.ask(
+                    "Please enter the GARDEN_API_CLIENT_ID here "
+                ).strip()
+                GARDEN_API_CLIENT_SECRET = Prompt.ask(
+                    "Please enter the GARDEN_API_CLIENT_SECRET here "
+                ).strip()
+            else:
+                with open("./templates/git_secrets.json") as json_file:
+                    git_secrets = json.load(json_file)
+                GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
+                GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
 
         gc = _auth_setup_cc(GARDEN_API_CLIENT_ID, GARDEN_API_CLIENT_SECRET)
 
@@ -159,23 +170,16 @@ def run_garden_end_to_end(
         old_cwd = os.getcwd()
         os.chdir(key_store_path)
 
-        """
-        _test_run_garden_on_endpoint(
-                    gc.get_published_garden("10.23677/by2v-dp58"),
-                    sklearn_pipeline_name,
-                    sklearn_input_data_location,
-                    globus_compute_endpoint,
-                    gc,
-                )
-
-        raise Exception ("kill")
-        """
-
         # Garden create
         new_garden = _test_garden_create(example_garden_data, garden_title, runner)
 
         # Pipeline create
-        # _test_pipeline_create(example_pipeline_data, key_store_path, scaffolded_pipeline_folder_name, runner)
+        _test_pipeline_create(
+            example_pipeline_data,
+            key_store_path,
+            scaffolded_pipeline_folder_name,
+            runner,
+        )
 
         if run_sklearn:
             # Pipeline register sklearn
@@ -293,7 +297,7 @@ def run_garden_end_to_end(
         os.chdir(old_cwd)
 
     # Cleanup local files
-    # _cleanup_local_files([sklearn_pipeline_path, tf_pipeline_path, torch_pipeline_path, os.path.join(key_store_path, 'pipeline.py'), os.path.join(key_store_path, 'data.json'), os.path.join(key_store_path, 'tolkens.json')])
+    _cleanup_local_files(local_files_list)
 
 
 def _auth_setup_cc(CLIENT_ID, CLIENT_SECRET):
@@ -590,11 +594,13 @@ def _make_pipeline_file(
 
 def _cleanup_local_files(local_file_list):
     rich_print("\nDeleting leftover up local files.")
-    for file in local_file_list:
-        if os.path.isfile(file):
-            os.remove(file)
+    for path in local_file_list:
+        if os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
         else:
-            rich_print(f"Could not find file: {file}, skipping")
+            rich_print(f"Could not find path: {path}, skipping")
 
 
 def _make_unique_id(id):
