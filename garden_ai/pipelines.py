@@ -114,7 +114,6 @@ class Pipeline:
     requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
     pip_dependencies: List[str] = Field(default=[f"garden-ai=={__version__}"])
-
     conda_dependencies: List[str] = Field(default_factory=list)
     model_full_names: List[str] = Field(default_factory=list)
     short_name: Optional[str] = Field(None)
