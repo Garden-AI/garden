@@ -415,7 +415,7 @@ class RegisteredPipeline(BaseModel):
             endpoint = GardenConstants.DLHUB_ENDPOINT
 
         if self._env_vars:
-            # see: utils.misc.inject_env_kwarg
+            # see: utils._meta.inject_env_kwarg
             kwargs = dict(kwargs)
             kwargs["_env_vars"] = self._env_vars
 

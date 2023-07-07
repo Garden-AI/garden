@@ -3,7 +3,6 @@ import pathlib
 import pickle
 import shutil
 from enum import Enum
-from functools import lru_cache
 from typing import List
 
 import mlflow  # type: ignore
@@ -183,7 +182,6 @@ def clear_mlflow_staging_directory():
             shutil.rmtree(item_path)
 
 
-@lru_cache
 def Model(full_model_name: str) -> _Model:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
@@ -212,14 +210,10 @@ def Model(full_model_name: str) -> _Model:
     Notes:
         The object returned by this function waits as long as possible - i.e. \
         until the model actually needs to make a prediction - to actually \
-        deserialize the registered model. This is done so that \
+        download and deserialize the registered model. This is done so that \
         ``Model('me@uni.edu-myModel/2)`` in a step (like above) an argument \
         default is lighter-weight when the function itself is serialized for \
         remote execution of a pipeline.
-
-        This function is also memoized, so the same object (which, being lazy, \
-        may or may not have actually loaded the model yet) will be returned if \
-        it is called multiple times with the same model_full_name.
     """
     try:
         from __main__ import _Model

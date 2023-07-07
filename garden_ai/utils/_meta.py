@@ -3,12 +3,15 @@ import linecache
 import textwrap
 
 
-def redef_in_main(cls):
-    """Helper: redefine a class in __main__, e.g. garden_ai._Model -> __main__._Model.
+def redef_in_main(obj):
+    """Helper: redefine an object in __main__, e.g. garden_ai._Model -> __main__._Model.
 
     This has the effect of coaxing dill into serializing both the definition and
-    the instance of this object together, so it can be deserialized without
-    needing the definition to be available for import on the other side.
+    the instance of an object together (in the case of a class), so it can be
+    deserialized without needing the definition to be available for import on
+    the other side. We do this for the "real" function we register, too (see below)
+    in order to guarantee that there are no intra-garden references that dill might
+    try to import on the other end.
 
     This works because dill is smart enough to know that if you defined a class
     interactively (like in a repl) then it can't expect that definition to be
@@ -20,10 +23,10 @@ def redef_in_main(cls):
     """
 
     # make sure it's not already in main
-    if cls.__module__ != "__main__":
+    if obj.__module__ != "__main__":
         import __main__
 
-        s = inspect.getsource(cls)
+        s = inspect.getsource(obj)
         exec(s, __main__.__dict__)
 
 
@@ -108,6 +111,7 @@ def exec_getsource(source, globals=None, locals=None):
 
 def _load_pipeline_from_python_file(python_file):
     import __main__
+
     from garden_ai import Pipeline
 
     with open(python_file, "r") as file:
@@ -126,13 +130,12 @@ def _load_pipeline_from_python_file(python_file):
     # console).
     code_str = f"""
 class _USER_PIPELINE_MODULE:
-    {textwrap.indent(pipeline_code, '    ')}
-    """
+{textwrap.indent(pipeline_code, '    ')}
+"""
 
     # run the user's code as `__main__._USER_PIPELINE_MODULE` namespace
     local_namespace: dict = {}
     exec_getsource(code_str, __main__.__dict__, local_namespace)
-    # exec(code_str, {}, local_namespace)  # TODO see if this could work
     cls = local_namespace["_USER_PIPELINE_MODULE"]
 
     # Now, one of those class attributes is going to be a Pipeline instance
