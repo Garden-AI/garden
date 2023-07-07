@@ -10,3 +10,4 @@ class GardenConstants:
         "GARDEN_ENDPOINT",
         "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
     )
+    DLHUB_ENDPOINT = "86a47061-f3d9-44f0-90dc-56ddc642c000"

@@ -386,30 +386,24 @@ class RegisteredPipeline(BaseModel):
         endpoint: Union[UUID, str] = None,
         **kwargs: Any,
     ) -> Any:
-        """Remotely execute this ``RegisteredPipeline``'s function from the function uuid. An endpoint must be specified.
+        """Remotely execute this ``RegisteredPipeline``'s function from the function uuid.
 
         Args:
             *args (Any):
                 Input data passed through the first step in the pipeline
             endpoint (UUID | str | None):
                 Where to run the pipeline. Must be a valid Globus Compute endpoint UUID.
+                If no endpoint is specified, the DLHub default compute endpoint is used.
             **kwargs (Any):
                 Additional keyword arguments passed directly to the first step in the pipeline.
 
         Returns:
             Results from the pipeline's composed steps called with the given input data.
 
-        Raises:
-            ValueError:
-                If no endpoint is specified
-            Exception:
-                Any exceptions raised over the course of executing the pipeline
 
         """
         if not endpoint:
-            raise ValueError(
-                "A Globus Compute endpoint uuid must be specified to execute remotely."
-            )
+            endpoint = GardenConstants.DLHUB_ENDPOINT
 
         if self._env_vars:
             # see: utils.misc.inject_env_kwarg
