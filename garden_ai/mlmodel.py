@@ -1,19 +1,15 @@
-import json
 import os
 import pathlib
 import pickle
 import shutil
 from enum import Enum
-from functools import lru_cache
 from typing import List
 
-import requests
-import zipfile
 import mlflow  # type: ignore
-from mlflow.pyfunc import load_model  # type: ignore
 from pydantic import BaseModel, Field, validator
 
 from garden_ai import GardenConstants
+from garden_ai._model import _Model
 
 MODEL_STAGING_DIR = pathlib.Path(GardenConstants.GARDEN_DIR) / "mlflow"
 MODEL_STAGING_DIR.mkdir(parents=True, exist_ok=True)
@@ -186,130 +182,6 @@ def clear_mlflow_staging_directory():
             shutil.rmtree(item_path)
 
 
-class _Model:
-    def __init__(
-        self,
-        model_full_name: str,
-    ):
-        self.model = None
-        self.full_name = model_full_name
-
-        # raises error if user tries to load model with the name SCAFFOLDED_MODEL_NAME
-        if self.full_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
-            raise PipelineLoadScaffoldedException("Invalid model name.")
-
-        return
-
-    def download_and_stage(
-        self, presigned_download_url: str, full_model_name: str
-    ) -> str:
-        try:
-            # Not taking MODEL_STAGING_DIR from constants
-            # so that this class has no external dependencies
-            staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
-            download_dir = staging_dir / full_model_name
-            download_dir.mkdir(parents=True, exist_ok=True)
-        except PermissionError as pe:
-            print(f"Could not create model staging directory: {pe}")
-            raise
-
-        zip_filepath = str(download_dir / "model.zip")
-
-        try:
-            response = requests.get(presigned_download_url, stream=True)
-            response.raise_for_status()
-        except requests.RequestException as re:
-            print(
-                f"Could not download model from presigned url. URL: {presigned_download_url}. Error: {re}"
-            )
-            raise
-
-        try:
-            with open(zip_filepath, "wb") as f:
-                f.write(response.content)
-        except IOError as ioe:
-            print(f"Failed to write model to disk at location {zip_filepath}: {ioe}")
-            raise
-
-        extraction_dir = download_dir / "unzipped"
-        unzipped_path = str(download_dir / extraction_dir)
-
-        try:
-            with zipfile.ZipFile(zip_filepath, "r") as zip_ref:
-                zip_ref.extractall(unzipped_path)
-        except (FileNotFoundError, zipfile.BadZipFile) as fe:
-            print(f"Failed to unzip model directory from Garden model repository. {fe}")
-            raise
-
-        return unzipped_path
-
-    @staticmethod
-    def get_download_url(full_model_name: str) -> str:
-        model_url_json = os.environ.get("GARDEN_MODELS", None)
-        if not model_url_json:
-            raise KeyError(
-                "GARDEN_MODELS environment variable was not set. Cannot download model."
-            )
-        try:
-            model_url_dict = json.loads(model_url_json)
-            return model_url_dict[full_model_name]
-        except (json.JSONDecodeError, KeyError):
-            print(
-                f"Could not find url for model {full_model_name} in GARDEN_MODELS env var contents {model_url_json}"
-            )
-            raise
-
-    # Duplicated in this class so that _Model is self-contained
-    @staticmethod
-    def clear_mlflow_staging_directory():
-        staging_dir = pathlib.Path(os.path.expanduser("~/.garden")) / "mlflow"
-        path = str(staging_dir)
-        for item in os.listdir(path):
-            item_path = os.path.join(path, item)
-            if os.path.isfile(item_path):
-                os.remove(item_path)
-            elif os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-
-    def _lazy_load_model(self):
-        """download and deserialize the underlying model, if necessary."""
-        if self.model is None:
-            download_url = self.get_download_url(self.full_name)
-            local_model_path = self.download_and_stage(download_url, self.full_name)
-            self.model = load_model(local_model_path, suppress_warnings=True)
-            try:
-                self.clear_mlflow_staging_directory()
-            except Exception as e:
-                print(
-                    f"Could not clean up model staging directory. Check permissions on {self.staging_dir}"
-                )
-                print(str(e))
-                pass
-        return
-
-    def predict(self, data):
-        """Generate model predictions.
-
-        The underlying model will be downloaded if it hasn't already.
-
-        input data is passed directly to the underlying model via its respective
-        ``predict`` method.
-
-        Parameters
-        ----------
-        data : pd.DataFrame | pd.Series | np.ndarray | List[Any] | Dict[str, Any]
-            Input data fed to the model
-
-        Returns
-        --------
-        Results of model prediction
-
-        """
-        self._lazy_load_model()
-        return self.model.predict(data)
-
-
-@lru_cache
 def Model(full_model_name: str) -> _Model:
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
@@ -338,13 +210,19 @@ def Model(full_model_name: str) -> _Model:
     Notes:
         The object returned by this function waits as long as possible - i.e. \
         until the model actually needs to make a prediction - to actually \
-        deserialize the registered model. This is done so that \
+        download and deserialize the registered model. This is done so that \
         ``Model('me@uni.edu-myModel/2)`` in a step (like above) an argument \
         default is lighter-weight when the function itself is serialized for \
         remote execution of a pipeline.
-
-        This function is also memoized, so the same object (which, being lazy, \
-        may or may not have actually loaded the model yet) will be returned if \
-        it is called multiple times with the same model_full_name.
     """
+    try:
+        from __main__ import _Model
+    except ImportError:
+        # re-import only seems necessary for pytest
+        from garden_ai._model import _Model  # type: ignore
+        from garden_ai.utils._meta import redef_in_main
+
+        redef_in_main(_Model)
+        from __main__ import _Model
+
     return _Model(full_model_name)

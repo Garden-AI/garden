@@ -9,38 +9,37 @@ from uuid import UUID
 
 import typer
 from globus_compute_sdk import Client
+from globus_compute_sdk.serialize.concretes import DillCode
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
+    ClientCredentialsAuthorizer,
+    ConfidentialAppAuthClient,
     GroupsClient,
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
     SearchClient,
-    ClientCredentialsAuthorizer,
-    ConfidentialAppAuthClient,
 )
 from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
 
-import garden_ai.funcx_bandaid.serialization_patch  # type: ignore # noqa: F401
-from garden_ai import local_data, GardenConstants
+from garden_ai import GardenConstants, local_data
+from garden_ai.backend_client import BackendClient
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
-from garden_ai.backend_client import BackendClient
-from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
-
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
     LocalModel,
     ModelMetadata,
-    stage_model_for_upload,
     clear_mlflow_staging_directory,
+    stage_model_for_upload,
 )
+from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -160,7 +159,11 @@ class GardenClient:
             Client.FUNCX_SCOPE: self.compute_authorizer,
         }
         compute_login_manager = ComputeLoginManager(scope_to_authorizer)
-        return Client(login_manager=compute_login_manager, do_version_check=False)
+        return Client(
+            login_manager=compute_login_manager,
+            do_version_check=False,
+            code_serialization_strategy=DillCode(),
+        )
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
