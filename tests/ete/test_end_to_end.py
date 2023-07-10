@@ -26,7 +26,9 @@ GARDEN_API_CLIENT_ID and GARDEN_API_CLIENT_SECRET. For manual running ease of us
 """
 prompt_for_git_secret = False
 
-t_app = typer.Typer()
+sklearn_container_uuid = "b9cf409f-d5f2-4956-b198-0d90ffa133e6"
+tf_container_uuid = "TBD"
+torch_container_uuid = "44563f7c-5045-4b6b-8e3a-34f5c7fa781e"
 
 key_store_path = Path(os.path.expanduser("~/.garden"))
 
@@ -59,10 +61,6 @@ sklearn_model_reqs_location = os.path.abspath("./models/sklearn_requirements.txt
 tf_model_reqs_location = os.path.abspath("./models/keras_requirements.txt")
 torch_model_reqs_location = os.path.abspath("./models/torch_requirements.txt")
 
-sklearn_container_uuid = "7b048bb4-7177-4255-83b2-31a141607e8e"
-tf_container_uuid = "TBD"
-torch_container_uuid = "TBD"
-
 pipeline_template_location = os.path.abspath("./templates")
 
 example_garden_data = {
@@ -89,6 +87,9 @@ local_files_list = [
     os.path.join(key_store_path, "tokens.json"),
     os.path.join(key_store_path, "model.zip.zip"),
 ]
+
+
+t_app = typer.Typer()
 
 
 @t_app.command()

@@ -1,3 +1,2 @@
 ## Please specify all pipeline dependencies here
-garden-ai@ git+https://github.com/Garden-AI/garden.git@b8deb5480f4bf4593485392610972a2e61bdafdb
-torch
+torch==2.0.1

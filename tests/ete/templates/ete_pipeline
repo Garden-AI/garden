@@ -1,6 +1,5 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
 from garden_ai import GardenClient, Model, Pipeline, step
-from garden_ai.client import GARDEN_ENDPOINT
 import globus_sdk, typing
 
 
@@ -38,8 +37,9 @@ ALL_STEPS = (
     run_inference,
 )
 
-REQUIREMENTS_FILE = "{{ req_file_path }}"  # to specify additional dependencies, replace `None`
-                          # with an "/absolute/path/to/requirements.txt"
+REQUIREMENTS_FILE = "{{ req_file_path }}"
+# to specify additional dependencies, replace `None`
+# with an "/absolute/path/to/requirements.txt"
 
 ################################### PIPELINE ####################################
 {{ short_name }}: Pipeline = client.create_pipeline(
