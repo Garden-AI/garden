@@ -20,13 +20,17 @@ from garden_ai.app.main import app
 from globus_compute_sdk import Client
 import globus_sdk
 
+"""
+If prompt_for_git_secret is true, must have a json file ./templates/git_secrets.json containing
+GARDEN_API_CLIENT_ID and GARDEN_API_CLIENT_SECRET. For manual running ease of use.
+"""
+prompt_for_git_secret = False
 
 t_app = typer.Typer()
-prompt_for_secret = False
 
 key_store_path = Path(os.path.expanduser("~/.garden"))
 
-garden_title = _make_unique_id("ETE-Test-Garden")
+garden_title = f"ETE-Test-Garden-{str(uuid.uuid4())}"
 
 scaffolded_pipeline_folder_name = "ete_test_pipeline_title"
 pipeline_template_name = "ete_pipeline"
@@ -54,6 +58,10 @@ torch_input_data_location = os.path.abspath("./models/torch_test_input.pkl")
 sklearn_model_reqs_location = os.path.abspath("./models/sklearn_requirements.txt")
 tf_model_reqs_location = os.path.abspath("./models/keras_requirements.txt")
 torch_model_reqs_location = os.path.abspath("./models/torch_requirements.txt")
+
+sklearn_container_uuid = "7b048bb4-7177-4255-83b2-31a141607e8e"
+tf_container_uuid = "TBD"
+torch_container_uuid = "TBD"
 
 pipeline_template_location = os.path.abspath("./templates")
 
@@ -89,10 +97,25 @@ def run_garden_end_to_end(
     ete_model: Optional[str] = "sklearn",
     globus_compute_endpoint: Optional[str] = "none",
     live_print_stdout: Optional[bool] = False,
-    pre_build_container: Optional[bool] = False,
+    pre_build_container: Optional[str] = "none",
 ):
     # Set up
     rich_print("\n[bold blue]Setup ETE Test[/bold blue]")
+
+    run_sklearn = False
+    run_tf = False
+    run_torch = False
+    if ete_model == "all":
+        run_sklearn = True
+        run_tf = True
+        run_torch = True
+    elif ete_model == "sklearn":
+        run_sklearn = True
+    elif ete_model == "tf":
+        run_tf = True
+    elif ete_model == "torch":
+        run_torch = True
+
     rich_print(f"Testing with sklearn model: {run_sklearn}")
     rich_print(f"Testing with tensorflow model: {run_tf}")
     rich_print(f"Testing with pytorch model: {run_torch}")
@@ -121,7 +144,7 @@ def run_garden_end_to_end(
             GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID")
             GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET")
         else:
-            if prompt_for_secret:
+            if prompt_for_git_secret:
                 GARDEN_API_CLIENT_ID = Prompt.ask(
                     "Please enter the GARDEN_API_CLIENT_ID here "
                 ).strip()
@@ -147,9 +170,9 @@ def run_garden_end_to_end(
             "Invalid grant type; must be either CC (Client credential grant) or AT (Access token grant)."
         )
 
-    # Patch all instances of GardenClient with our new grant type one.
+    # Patch all instances of GardenClient with our new grant type one and run tests with patches.
     # If pre build container is true then also patch build_container method.
-    if pre_build_container:
+    if pre_build_container != "none":
         with mocker.patch(
             "garden_ai.app.garden.GardenClient"
         ) as mock_garden_gc, mocker.patch(
@@ -157,12 +180,22 @@ def run_garden_end_to_end(
         ) as mock_model_gc, mocker.patch(
             "garden_ai.app.pipeline.GardenClient"
         ) as mock_pipeline_gc, mocker.patch.object(
-            gc, "build_container"
+            client, "build_container"
         ) as mock_container_build:
             mock_garden_gc.return_value = client
             mock_model_gc.return_value = client
             mock_pipeline_gc.return_value = client
-            mock_container_build.return_value = sklearn_container_uuid
+
+            if pre_build_container == "sklearn":
+                mock_container_build.return_value = sklearn_container_uuid
+            elif pre_build_container == "tf":
+                mock_container_build.return_value = sklearn_container_uuid
+            elif pre_build_container == "torch":
+                mock_container_build.return_value = sklearn_container_uuid
+            else:
+                raise Exception(
+                    "Invalid container type; must be either sklearn, tf or torch."
+                )
 
             _run_test_cmds(
                 client,
@@ -170,6 +203,9 @@ def run_garden_end_to_end(
                 ete_grant,
                 ete_model,
                 globus_compute_endpoint,
+                run_sklearn,
+                run_tf,
+                run_torch,
                 GARDEN_API_CLIENT_ID,
                 GARDEN_API_CLIENT_SECRET,
             )
@@ -191,6 +227,9 @@ def run_garden_end_to_end(
                 ete_grant,
                 ete_model,
                 globus_compute_endpoint,
+                run_sklearn,
+                run_tf,
+                run_torch,
                 GARDEN_API_CLIENT_ID,
                 GARDEN_API_CLIENT_SECRET,
             )
@@ -205,23 +244,12 @@ def _run_test_cmds(
     ete_grant,
     ete_model,
     globus_compute_endpoint,
+    run_sklearn,
+    run_tf,
+    run_torch,
     GARDEN_API_CLIENT_ID,
     GARDEN_API_CLIENT_SECRET,
 ):
-    run_sklearn = False
-    run_tf = False
-    run_torch = False
-    if ete_model == "all":
-        run_sklearn = True
-        run_tf = True
-        run_torch = True
-    elif ete_model == "sklearn":
-        run_sklearn = True
-    elif ete_model == "tf":
-        run_tf = True
-    elif ete_model == "torch":
-        run_torch = True
-
     old_cwd = os.getcwd()
     os.chdir(key_store_path)
 
@@ -653,10 +681,6 @@ def _cleanup_local_files(local_file_list):
             shutil.rmtree(path)
         else:
             rich_print(f"Could not find path: {path}, skipping")
-
-
-def _make_unique_id(id):
-    return f"{id}-{str(uuid.uuid4())}"
 
 
 def _make_live_print_runner():
