@@ -141,6 +141,8 @@ class _USER_PIPELINE_MODULE:
     # Now, one of those class attributes is going to be a Pipeline instance
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
+            # use whatever identifier the user assigned the pipeline to in their code
+            value.short_name = value.short_name or name
             return value
     raise ValueError(
         f"Did not find top-level pipeline object defined in {python_file}."
