@@ -22,6 +22,65 @@ import globus_sdk
 
 
 t_app = typer.Typer()
+prompt_for_secret = False
+
+key_store_path = Path(os.path.expanduser("~/.garden"))
+
+garden_title = _make_unique_id("ETE-Test-Garden")
+
+scaffolded_pipeline_folder_name = "ete_test_pipeline_title"
+pipeline_template_name = "ete_pipeline"
+
+sklearn_pipeline_path = os.path.join(key_store_path, "sklearn_pipeline.py")
+sklearn_pipeline_name = "ETESklearnPipeline"
+sklearn_model_name = "ETE-Test-Model-Sklearn"
+
+tf_pipeline_path = os.path.join(key_store_path, "tf_pipeline.py")
+tf_pipeline_name = "ETETfPipeline"
+tf_model_name = "ETE-Test-Model-Tf"
+
+torch_pipeline_path = os.path.join(key_store_path, "torch_pipeline.py")
+torch_pipeline_name = "ETETorchPipeline"
+torch_model_name = "ETE-Test-Model-Torch"
+
+sklearn_model_location = os.path.abspath("./models/sklearn_model.pkl")
+tf_model_location = os.path.abspath("./models/keras_model")
+torch_model_location = os.path.abspath("./models/torch_model.pth")
+
+sklearn_input_data_location = os.path.abspath("./models/sklearn_test_input.pkl")
+tf_input_data_location = os.path.abspath("./models/keras_test_input.pkl")
+torch_input_data_location = os.path.abspath("./models/torch_test_input.pkl")
+
+sklearn_model_reqs_location = os.path.abspath("./models/sklearn_requirements.txt")
+tf_model_reqs_location = os.path.abspath("./models/keras_requirements.txt")
+torch_model_reqs_location = os.path.abspath("./models/torch_requirements.txt")
+
+pipeline_template_location = os.path.abspath("./templates")
+
+example_garden_data = {
+    "authors": ["Test Garden Author"],
+    "title": "ETE Test Garden Title",
+    "contributors": ["Test Garden Contributor"],
+    "year": "2023",
+    "description": "ETE Test Garden Description",
+}
+example_pipeline_data = {
+    "authors": ["Test Pipeline Author"],
+    "title": "ETE Test Pipeline Title",
+    "contributors": ["Test Pipeline Contributor"],
+    "year": "2023",
+    "description": "ETE Test Pipeline Description",
+}
+
+local_files_list = [
+    sklearn_pipeline_path,
+    tf_pipeline_path,
+    torch_pipeline_path,
+    os.path.join(key_store_path, scaffolded_pipeline_folder_name),
+    os.path.join(key_store_path, "data.json"),
+    os.path.join(key_store_path, "tokens.json"),
+    os.path.join(key_store_path, "model.zip.zip"),
+]
 
 
 @t_app.command()
@@ -30,69 +89,125 @@ def run_garden_end_to_end(
     ete_model: Optional[str] = "sklearn",
     globus_compute_endpoint: Optional[str] = "none",
     live_print_stdout: Optional[bool] = False,
+    pre_build_container: Optional[bool] = False,
 ):
     # Set up
-    key_store_path = Path(os.path.expanduser("~/.garden"))
-
-    garden_title = _make_unique_id("ETE-Test-Garden")
-
-    scaffolded_pipeline_folder_name = "ete_test_pipeline_title"
-    pipeline_template_name = "ete_pipeline"
-
-    sklearn_pipeline_path = os.path.join(key_store_path, "sklean_pipeline.py")
-    sklearn_pipeline_name = "ETESkleanPipeline"
-    sklearn_model_name = "ETE-Test-Model-Sklearn"
-
-    tf_pipeline_path = os.path.join(key_store_path, "tf_pipeline.py")
-    tf_pipeline_name = "ETETfPipeline"
-    tf_model_name = "ETE-Test-Model-Tf"
-
-    torch_pipeline_path = os.path.join(key_store_path, "torch_pipeline.py")
-    torch_pipeline_name = "ETETorchPipeline"
-    torch_model_name = "ETE-Test-Model-Torch"
-
-    sklearn_model_location = os.path.abspath("./models/sklearn_model.pkl")
-    tf_model_location = os.path.abspath("./models/keras_model")
-    torch_model_location = os.path.abspath("./models/torch_model.pth")
-
-    sklearn_input_data_location = os.path.abspath("./models/sklean_test_input.pkl")
-    tf_input_data_location = os.path.abspath("./models/keras_test_input.pkl")
-    torch_input_data_location = os.path.abspath("./models/torch_test_input.pkl")
-
-    sklearn_model_reqs_location = os.path.abspath("./models/sklearn_requirements.txt")
-    tf_model_reqs_location = os.path.abspath("./models/keras_requirements.txt")
-    torch_model_reqs_location = os.path.abspath("./models/torch_requirements.txt")
-
-    pipeline_template_location = os.path.abspath("./templates")
-
-    example_garden_data = {
-        "authors": ["Test Garden Author"],
-        "title": "ETE Test Garden Title",
-        "contributors": ["Test Garden Contributor"],
-        "year": "2023",
-        "description": "ETE Test Garden Description",
-    }
-    example_pipeline_data = {
-        "authors": ["Test Pipeline Author"],
-        "title": "ETE Test Pipeline Title",
-        "contributors": ["Test Pipeline Contributor"],
-        "year": "2023",
-        "description": "ETE Test Pipeline Description",
-    }
-
-    local_files_list = [
-        sklearn_pipeline_path,
-        tf_pipeline_path,
-        torch_pipeline_path,
-        os.path.join(key_store_path, scaffolded_pipeline_folder_name),
-        os.path.join(key_store_path, "data.json"),
-        os.path.join(key_store_path, "tolkens.json"),
-        os.path.join(key_store_path, "model.zip.zip"),
-    ]
+    rich_print("\n[bold blue]Setup ETE Test[/bold blue]")
+    rich_print(f"Testing with sklearn model: {run_sklearn}")
+    rich_print(f"Testing with tensorflow model: {run_tf}")
+    rich_print(f"Testing with pytorch model: {run_torch}")
 
     is_gha = os.getenv("GITHUB_ACTIONS")
-    promt_for_secret = False
 
+    runner = None
+    rich_print(f"CliRunner live print set to: {live_print_stdout}")
+    if live_print_stdout:
+        runner = _make_live_print_runner()
+    else:
+        runner = CliRunner()
+
+    rich_print(f"Pre build container set to: {pre_build_container}")
+    rich_print(f"garden_ai module location: {garden_ai.__file__}")
+    rich_print("\n[bold blue]Starting ETE Test[/bold blue]")
+
+    # Cleanup any left over files generated from the test
+    _cleanup_local_files(local_files_list)
+
+    client = None
+    if ete_grant == "cc":
+        # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
+        rich_print("Initializing GardenClient with CC grant.")
+        if is_gha:
+            GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID")
+            GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET")
+        else:
+            if prompt_for_secret:
+                GARDEN_API_CLIENT_ID = Prompt.ask(
+                    "Please enter the GARDEN_API_CLIENT_ID here "
+                ).strip()
+                GARDEN_API_CLIENT_SECRET = Prompt.ask(
+                    "Please enter the GARDEN_API_CLIENT_SECRET here "
+                ).strip()
+            else:
+                with open("./templates/git_secrets.json") as json_file:
+                    git_secrets = json.load(json_file)
+                GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
+                GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
+
+        client = _make_garden_client_with_cc(
+            GARDEN_API_CLIENT_ID, GARDEN_API_CLIENT_SECRET
+        )
+
+    elif ete_grant == "at":
+        # Create GardenClient normally with access token grant
+        rich_print("Initializing GardenClient with AT grant.")
+        client = _make_garden_client_with_at()
+    else:
+        raise Exception(
+            "Invalid grant type; must be either CC (Client credential grant) or AT (Access token grant)."
+        )
+
+    # Patch all instances of GardenClient with our new grant type one.
+    # If pre build container is true then also patch build_container method.
+    if pre_build_container:
+        with mocker.patch(
+            "garden_ai.app.garden.GardenClient"
+        ) as mock_garden_gc, mocker.patch(
+            "garden_ai.app.model.GardenClient"
+        ) as mock_model_gc, mocker.patch(
+            "garden_ai.app.pipeline.GardenClient"
+        ) as mock_pipeline_gc, mocker.patch.object(
+            gc, "build_container"
+        ) as mock_container_build:
+            mock_garden_gc.return_value = client
+            mock_model_gc.return_value = client
+            mock_pipeline_gc.return_value = client
+            mock_container_build.return_value = sklearn_container_uuid
+
+            _run_test_cmds(
+                client,
+                runner,
+                ete_grant,
+                ete_model,
+                globus_compute_endpoint,
+                GARDEN_API_CLIENT_ID,
+                GARDEN_API_CLIENT_SECRET,
+            )
+    else:
+        with mocker.patch(
+            "garden_ai.app.garden.GardenClient"
+        ) as mock_garden_gc, mocker.patch(
+            "garden_ai.app.model.GardenClient"
+        ) as mock_model_gc, mocker.patch(
+            "garden_ai.app.pipeline.GardenClient"
+        ) as mock_pipeline_gc:
+            mock_garden_gc.return_value = client
+            mock_model_gc.return_value = client
+            mock_pipeline_gc.return_value = client
+
+            _run_test_cmds(
+                client,
+                runner,
+                ete_grant,
+                ete_model,
+                globus_compute_endpoint,
+                GARDEN_API_CLIENT_ID,
+                GARDEN_API_CLIENT_SECRET,
+            )
+
+    # Cleanup local files
+    _cleanup_local_files(local_files_list)
+
+
+def _run_test_cmds(
+    client,
+    runner,
+    ete_grant,
+    ete_model,
+    globus_compute_endpoint,
+    GARDEN_API_CLIENT_ID,
+    GARDEN_API_CLIENT_SECRET,
+):
     run_sklearn = False
     run_tf = False
     run_torch = False
@@ -107,214 +222,149 @@ def run_garden_end_to_end(
     elif ete_model == "torch":
         run_torch = True
 
-    rich_print("\n[bold blue]Setup ETE Test[/bold blue]")
-    rich_print(f"Testing with sklearn model: {run_sklearn}")
-    rich_print(f"Testing with tensorflow model: {run_tf}")
-    rich_print(f"Testing with pytorch model: {run_torch}")
+    old_cwd = os.getcwd()
+    os.chdir(key_store_path)
 
-    runner = None
-    rich_print(f"CliRunner live print set to: {live_print_stdout}")
-    if live_print_stdout:
-        runner = _make_live_print_runner()
-    else:
-        runner = CliRunner()
+    # Garden create
+    new_garden = _test_garden_create(example_garden_data, garden_title, runner)
 
-    rich_print(f"garden_ai module location: {garden_ai.__file__}")
-    rich_print("\n[bold blue]Starting ETE Test[/bold blue]")
+    # Pipeline create
+    _test_pipeline_create(
+        example_pipeline_data,
+        key_store_path,
+        scaffolded_pipeline_folder_name,
+        runner,
+    )
 
-    # Cleanup any left over files generated from the test
-    _cleanup_local_files(local_files_list)
-
-    gc = None
-    if ete_grant == "cc":
-        # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
-        rich_print("Initializing GardenClient with CC grant.")
-        if is_gha:
-            GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID")
-            GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET")
-        else:
-            if promt_for_secret:
-                GARDEN_API_CLIENT_ID = Prompt.ask(
-                    "Please enter the GARDEN_API_CLIENT_ID here "
-                ).strip()
-                GARDEN_API_CLIENT_SECRET = Prompt.ask(
-                    "Please enter the GARDEN_API_CLIENT_SECRET here "
-                ).strip()
-            else:
-                with open("./templates/git_secrets.json") as json_file:
-                    git_secrets = json.load(json_file)
-                GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
-                GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
-
-        gc = _auth_setup_cc(GARDEN_API_CLIENT_ID, GARDEN_API_CLIENT_SECRET)
-
-    elif ete_grant == "at":
-        # Create GardenClient normally with access token grant
-        rich_print("Initializing GardenClient with AT grant.")
-        gc = _auth_setup_at()
-    else:
-        raise Exception(
-            "Invalid grant type; must be either CC (Client credential grant) or AT (Access token grant)."
+    if run_sklearn:
+        # Model register sklearn
+        sklearn_model_full_name = _test_model_register(
+            sklearn_model_location, "sklearn", sklearn_model_name, runner
         )
-
-    # Patch all instances of GardenClient with our new grant type one.
-    with mocker.patch(
-        "garden_ai.app.garden.GardenClient"
-    ) as mock_garden_gc, mocker.patch(
-        "garden_ai.app.model.GardenClient"
-    ) as mock_model_gc, mocker.patch(
-        "garden_ai.app.pipeline.GardenClient"
-    ) as mock_pipeline_gc:
-        mock_garden_gc.return_value = gc
-        mock_model_gc.return_value = gc
-        mock_pipeline_gc.return_value = gc
-
-        old_cwd = os.getcwd()
-        os.chdir(key_store_path)
-
-        # Garden create
-        new_garden = _test_garden_create(example_garden_data, garden_title, runner)
-
-        # Pipeline create
-        _test_pipeline_create(
-            example_pipeline_data,
-            key_store_path,
-            scaffolded_pipeline_folder_name,
+        # Pipeline make sklearn
+        sklearn_pipeline_local = _make_pipeline_file(
+            sklearn_pipeline_name,
+            sklearn_model_full_name,
+            sklearn_model_reqs_location,
+            sklearn_pipeline_path,
+            pipeline_template_name,
+            pipeline_template_location,
+            GARDEN_API_CLIENT_ID,
+            GARDEN_API_CLIENT_SECRET,
+            client,
+        )
+        # Pipeline register sklearn
+        sklearn_pipeline = _test_pipeline_register(
+            sklearn_pipeline_path,
+            sklearn_pipeline_local,
+            sklearn_model_full_name,
             runner,
         )
+        # Add sklearn pipeline to garden
+        _test_garden_add_pipeline(new_garden, sklearn_pipeline, runner)
 
+    if run_tf:
+        # Model register tensorflow
+        tf_model_full_name = _test_model_register(
+            tf_model_location, "tensorflow", tf_model_name, runner
+        )
+        # Pipeline make tensorflow
+        tf_pipeline_local = _make_pipeline_file(
+            tf_pipeline_name,
+            tf_model_full_name,
+            tf_model_reqs_location,
+            tf_pipeline_path,
+            pipeline_template_name,
+            pipeline_template_location,
+            GARDEN_API_CLIENT_ID,
+            GARDEN_API_CLIENT_SECRET,
+            client,
+        )
+        # Pipeline register tensorflow
+        tf_pipeline = _test_pipeline_register(
+            tf_pipeline_path, tf_pipeline_local, tf_model_full_name, runner
+        )
+        # Add tensorflow pipeline to garden
+        _test_garden_add_pipeline(new_garden, tf_pipeline, runner)
+
+    if run_torch:
+        # Model register pytorch
+        torch_model_full_name = _test_model_register(
+            torch_model_location, "pytorch", torch_model_name, runner
+        )
+        # Pipeline make pytorch
+        torch_pipeline_local = _make_pipeline_file(
+            torch_pipeline_name,
+            torch_model_full_name,
+            torch_model_reqs_location,
+            torch_pipeline_path,
+            pipeline_template_name,
+            pipeline_template_location,
+            GARDEN_API_CLIENT_ID,
+            GARDEN_API_CLIENT_SECRET,
+            client,
+        )
+        # Pipeline register pytorch
+        torch_pipeline = _test_pipeline_register(
+            torch_pipeline_path, torch_pipeline_local, torch_model_full_name, runner
+        )
+        # Add pytorch pipeline to garden
+        _test_garden_add_pipeline(new_garden, torch_pipeline, runner)
+
+    # Publish the garden
+    published_garden = _test_garden_publish(new_garden, runner)
+
+    # Search for our garden
+    _test_garden_search(published_garden, runner)
+
+    # Test run all pipelines on globus compute endpoint
+    if globus_compute_endpoint != "none":
         if run_sklearn:
-            # Pipeline register sklearn
-            sklearn_model_full_name = _test_model_register(
-                sklearn_model_location, "sklearn", sklearn_model_name, runner
-            )
-            sklearn_pipeline_local = _make_pipeline_file(
+            _test_run_garden_on_endpoint(
+                published_garden,
+                key_store_path,
                 sklearn_pipeline_name,
-                sklearn_model_full_name,
-                sklearn_model_reqs_location,
-                sklearn_pipeline_path,
-                pipeline_template_name,
-                pipeline_template_location,
-                GARDEN_API_CLIENT_ID,
-                GARDEN_API_CLIENT_SECRET,
-                gc,
+                sklearn_input_data_location,
+                globus_compute_endpoint,
+                client,
             )
-            sklearn_pipeline = _test_pipeline_register(
-                sklearn_pipeline_path,
-                sklearn_pipeline_local,
-                sklearn_model_full_name,
-                runner,
-            )
-
         if run_tf:
-            # Pipeline register tensorflow
-            tf_model_full_name = _test_model_register(
-                tf_model_location, "tensorflow", tf_model_name, runner
-            )
-            tf_pipeline_local = _make_pipeline_file(
+            _test_run_garden_on_endpoint(
+                published_garden,
+                key_store_path,
                 tf_pipeline_name,
-                tf_model_full_name,
-                tf_model_reqs_location,
-                tf_pipeline_path,
-                pipeline_template_name,
-                pipeline_template_location,
-                GARDEN_API_CLIENT_ID,
-                GARDEN_API_CLIENT_SECRET,
-                gc,
+                tf_input_data_location,
+                globus_compute_endpoint,
+                client,
             )
-            tf_pipeline = _test_pipeline_register(
-                tf_pipeline_path, tf_pipeline_local, tf_model_full_name, runner
-            )
-
         if run_torch:
-            # Pipeline register pytorch
-            torch_model_full_name = _test_model_register(
-                torch_model_location, "pytorch", torch_model_name, runner
-            )
-            torch_pipeline_local = _make_pipeline_file(
+            _test_run_garden_on_endpoint(
+                published_garden,
+                key_store_path,
                 torch_pipeline_name,
-                torch_model_full_name,
-                torch_model_reqs_location,
-                torch_pipeline_path,
-                pipeline_template_name,
-                pipeline_template_location,
-                GARDEN_API_CLIENT_ID,
-                GARDEN_API_CLIENT_SECRET,
-                gc,
+                torch_input_data_location,
+                globus_compute_endpoint,
+                client,
             )
-            torch_pipeline = _test_pipeline_register(
-                torch_pipeline_path, torch_pipeline_local, torch_model_full_name, runner
-            )
+    else:
+        rich_print("Skipping remote execution on endpoint; no endpoint given.")
 
-        if run_sklearn:
-            # Add sklearn pipeline to garden
-            _test_garden_add_pipeline(new_garden, sklearn_pipeline, runner)
-
-        if run_tf:
-            # Add tensorflow pipeline to garden
-            _test_garden_add_pipeline(new_garden, tf_pipeline, runner)
-
-        if run_torch:
-            # Add pytorch pipeline to garden
-            _test_garden_add_pipeline(new_garden, torch_pipeline, runner)
-
-        # Publish the garden
-        published_garden = _test_garden_publish(new_garden, runner)
-
-        # Search for our garden
-        _test_garden_search(published_garden, runner)
-
-        # Test run all pipelines on globus compute endpoint
-        if globus_compute_endpoint != "none":
-            if run_sklearn:
-                _test_run_garden_on_endpoint(
-                    published_garden,
-                    key_store_path,
-                    sklearn_pipeline_name,
-                    sklearn_input_data_location,
-                    globus_compute_endpoint,
-                    gc,
-                )
-            if run_tf:
-                _test_run_garden_on_endpoint(
-                    published_garden,
-                    key_store_path,
-                    tf_pipeline_name,
-                    tf_input_data_location,
-                    globus_compute_endpoint,
-                    gc,
-                )
-            if run_torch:
-                _test_run_garden_on_endpoint(
-                    published_garden,
-                    key_store_path,
-                    torch_pipeline_name,
-                    torch_input_data_location,
-                    globus_compute_endpoint,
-                    gc,
-                )
-        else:
-            rich_print("Skipping remote execution on endpoint; no endpoint given.")
-
-        os.chdir(old_cwd)
-
-    # Cleanup local files
-    _cleanup_local_files(local_files_list)
+    os.chdir(old_cwd)
 
 
-def _auth_setup_cc(CLIENT_ID, CLIENT_SECRET):
+def _make_garden_client_with_cc(CLIENT_ID, CLIENT_SECRET):
     rich_print("Starting auth setup for CC grant.")
     confidential_client = globus_sdk.ConfidentialAppAuthClient(CLIENT_ID, CLIENT_SECRET)
-    gc = garden_ai.GardenClient(auth_client=confidential_client)
+    client = garden_ai.GardenClient(auth_client=confidential_client)
     rich_print("Finished auth setup for CC grant.")
-    return gc
+    return client
 
 
-def _auth_setup_at():
+def _make_garden_client_with_at():
     rich_print("Starting auth setup for AT grant.")
-    gc = garden_ai.GardenClient()
+    client = garden_ai.GardenClient()
     rich_print("Finished auth setup for AT grant.")
-    return gc
+    return client
 
 
 def _test_garden_create(example_garden_data, unique_title, runner):
@@ -531,13 +581,13 @@ def _test_pipeline_register(pipeline_path, pipeline, model_full_name, runner):
 
 
 def _test_run_garden_on_endpoint(
-    garden, key_store_path, pipeline_name, input_file, globus_compute_endpoint, gc
+    garden, key_store_path, pipeline_name, input_file, globus_compute_endpoint, client
 ):
     rich_print("\nStarting test: [bold blue]garden remote execution[/bold blue]")
 
     with open(input_file, "rb") as f:
         Xtest = pickle.load(f)
-    test_garden = gc.get_published_garden(garden.doi)
+    test_garden = client.get_published_garden(garden.doi)
     run_pipeline = getattr(test_garden, pipeline_name)
 
     result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
@@ -557,7 +607,7 @@ def _make_pipeline_file(
     pipeline_template_location,
     GARDEN_API_CLIENT_ID,
     GARDEN_API_CLIENT_SECRET,
-    gc,
+    client,
 ):
     rich_print(f"\nMaking pipeline file: {short_name}.")
 
@@ -566,7 +616,7 @@ def _make_pipeline_file(
         """placeholder"""
         return arg
 
-    pipeline = gc.create_pipeline(
+    pipeline = client.create_pipeline(
         title=short_name,
         authors=["ETE Test Author"],
         contributors=[],
@@ -610,9 +660,11 @@ def _make_unique_id(id):
 
 
 def _make_live_print_runner():
+    """Yield a typer.testing.CliRunner to invoke the CLI."""
+    """This enables pytest to show the output in its logs on test failures."""
     """https://github.com/pallets/click/issues/737"""
 
-    class_ = CliRunner
+    cls = CliRunner
 
     def invoke_wrapper(f):
         """Augment CliRunner.invoke to emit its output to stdout."""
@@ -625,8 +677,8 @@ def _make_live_print_runner():
 
         return wrapper
 
-    class_.invoke = invoke_wrapper(class_.invoke)
-    cli_runner = class_()
+    cls.invoke = invoke_wrapper(cls.invoke)
+    cli_runner = cls()
 
     return cli_runner
 
