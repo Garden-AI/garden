@@ -104,7 +104,8 @@ def exec_getsource(source, globals=None, locals=None):
     try:
         exec(source, globals, locals)
         # you can now use inspect.getsource() on the result of exec() here
-
+    except Exception as e:
+        raise Exception(str(e)) from e
     finally:
         linecache.getlines = getlines
 
@@ -113,6 +114,8 @@ def _load_pipeline_from_python_file(python_file):
     import __main__
 
     from garden_ai import Pipeline
+    from garden_ai.mlmodel import PipelineLoadScaffoldedException
+    from garden_ai.constants import GardenConstants
 
     with open(python_file, "r") as file:
         pipeline_code = file.read()
@@ -135,12 +138,21 @@ class _USER_PIPELINE_MODULE:
 
     # run the user's code as `__main__._USER_PIPELINE_MODULE` namespace
     local_namespace: dict = {}
-    exec_getsource(code_str, __main__.__dict__, local_namespace)
-    cls = local_namespace["_USER_PIPELINE_MODULE"]
 
+    exec_getsource(code_str, __main__.__dict__, local_namespace)
+
+    cls = local_namespace["_USER_PIPELINE_MODULE"]
     # Now, one of those class attributes is going to be a Pipeline instance
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
+            if (
+                str(value.model_full_names)[2:-2]
+                == GardenConstants.SCAFFOLDED_MODEL_NAME
+            ):
+                raise PipelineLoadScaffoldedException(
+                    "Model cannot be loaded with scaffolded model name."
+                )
+            value.short_name = value.short_name or name
             return value
     raise ValueError(
         f"Did not find top-level pipeline object defined in {python_file}."
