@@ -844,16 +844,13 @@ def _make_live_print_runner():
 def _send_slack_error_message(error):
     rich_print("\n")
 
-    # is_gha = os.getenv("GITHUB_ACTIONS")
-    is_gha = True
+    is_gha = os.getenv("GITHUB_ACTIONS")
+
     if is_gha:
-        """
         git_server_url = os.getenv("GITHUB_SERVER_URL")
         git_repository = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
         git_jobs_url = f"{git_server_url}/{git_repository}/actions/runs/{git_run_id}"
-        """
-        git_jobs_url = "google.com"
 
         if error is None:
             if fast_run == False:
