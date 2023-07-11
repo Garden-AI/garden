@@ -1,15 +1,25 @@
-name: ETE Test
+name: ETE Test Full
 
+#on:
+#  schedule:
+#    - cron: "0 12 * * *"    #runs at 12:00 UTC everyday
 on: workflow_dispatch
 
 jobs:
+  get-latest-tag:
+    outputs:
+      latest-tag: ${{steps.get-latest-tag.outputs.tag}}
+    steps:
+      - uses: actions-ecosystem/action-get-latest-tag@v1
+        id: get-latest-tag
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 100
+    needs: get-latest-tag
     strategy:
       matrix:
-        python-version: ["3.8"]
-        repository-ref: ["max/ete-test"]
+        python-version: ["3.8", "3.9", "3.10"]
+        repository-ref: ["main", "${{needs.get-latest-tag.outputs.get-latest-tag}}"]
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
@@ -32,6 +42,6 @@ jobs:
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
       - name: execute py script
-        working-directory: ./test_ete
+        working-directory: ./tests/ete
         run: |
-          python3 test_end_to_end.py --ete-grant cc --ete-model sklearn --live-print-stdout
+          python3 test_end_to_end.py --ete-grant cc --ete-model all --live-print-stdout --globus-compute-endpoint ${{ secrets.GARDEN_COMPUTE_ENDPOINT }}

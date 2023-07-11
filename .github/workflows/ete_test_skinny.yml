@@ -1,0 +1,40 @@
+name: ETE Test Skinny
+
+#on:
+#  schedule:
+#    - cron: "0 * * * *"    #runs every hour everyday
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python-version: ["3.8"]
+        repository-ref: ["max/ete-test"]
+    name: build
+    env:
+      GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
+      GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
+    steps:
+      - name: checkout repo content
+        uses: actions/checkout@v2
+        with:
+            ref: ${{ matrix.repository-ref }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.2.2
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false && \
+          poetry install --no-interaction --no-ansi --with=test,develop --all-extras
+      - name: execute py script
+        working-directory: ./tests/ete
+        run: |
+          python3 test_end_to_end.py --ete-grant cc --ete-model sklearn --globus-compute-endpoint ${{ secrets.GARDEN_COMPUTE_ENDPOINT }} --live-print-stdout --pre-build-container sklearn
