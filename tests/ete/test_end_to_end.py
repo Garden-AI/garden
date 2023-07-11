@@ -6,6 +6,7 @@ import jinja2
 import uuid
 import json
 import functools
+import requests
 
 import typer
 from typing import Optional
@@ -884,7 +885,7 @@ def _send_slack_message(msg):
     slack_hook = os.getenv("SLACK_HOOK_URL")
 
     payload = '{"text": "%s"}' % msg
-    response = requests.post(slack_hook, data=payload)
+    requests.post(slack_hook, data=payload)
 
 
 if __name__ == "__main__":
