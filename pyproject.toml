@@ -91,6 +91,7 @@ plugins = ["pydantic.mypy"]
 exclude = "/fixtures/"
 
 [tool.pytest.ini_options]
+norecursedirs = "tests/ete"
 markers = [
   "integration: deselect with '-m \"not integration\"' to run unit tests only.",
   "cli: deselect with '-m \"not cli\"' to disable CLI tests."

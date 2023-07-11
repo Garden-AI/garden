@@ -1,4 +1,6 @@
-import os, sys, shutil
+import os
+import sys
+import shutil
 import pickle
 import jinja2
 import uuid
@@ -6,7 +8,7 @@ import json
 import functools
 
 import typer
-from typing import Optional, Callable
+from typing import Optional
 from typer.testing import CliRunner
 from pathlib import Path
 from datetime import datetime
@@ -17,7 +19,6 @@ import unittest.mock as mocker
 import garden_ai
 from garden_ai.app.main import app
 
-from globus_compute_sdk import Client
 import globus_sdk
 
 
@@ -261,6 +262,8 @@ def run_garden_end_to_end(
                 GARDEN_API_CLIENT_ID,
                 GARDEN_API_CLIENT_SECRET,
             )
+
+    rich_print("\n[bold blue]Finished ETE Test successfully; cleaning up[/bold blue]\n")
 
     # Cleanup local files
     _cleanup_local_files(local_files_list)
@@ -744,7 +747,7 @@ def _test_run_garden_on_endpoint(
     except Exception as error:
         global failed_on
         failed_on = "run garden on remote endpoint"
-        rich_print("Failed test: [bold blue]run garden remote[/boldblue]")
+        rich_print("Failed test: [bold blue]run garden remote[/bold blue]")
         raise error
 
 
@@ -803,7 +806,7 @@ def _make_pipeline_file(
 
 
 def _cleanup_local_files(local_file_list):
-    rich_print("\nDeleting leftover up local files.")
+    rich_print("Deleting leftover up local files.")
     for path in local_file_list:
         if os.path.isfile(path):
             rich_print(f"Deleting file: {path}")
@@ -842,8 +845,6 @@ def _make_live_print_runner():
 
 
 def _send_slack_error_message(error):
-    rich_print("\n")
-
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
@@ -853,11 +854,12 @@ def _send_slack_error_message(error):
         git_jobs_url = f"{git_server_url}/{git_repository}/actions/runs/{git_run_id}"
 
         if error is None:
-            if fast_run == False:
+            if not fast_run:
                 rich_print(
                     "The full end to end test has passed all tests; sending slack message."
                 )
-                msg = f"The full end to end test has passed all tests.\nSee Github actions run for more information:\n{git_jobs_url}"
+                msg = "The full end to end test has passed all tests."
+                +f"\nSee Github actions run for more information:\n{git_jobs_url}"
                 _send_slack_message(msg)
             else:
                 rich_print(
@@ -865,10 +867,12 @@ def _send_slack_error_message(error):
                 )
         else:
             error_msg = f"{type(error).__name__}: {str(error)}"
-            if fast_run == False:
-                msg = f"An error has occurred in the full end to end test during: `{failed_on}` ```{error_msg}```See Github actions run for more information:\n{git_jobs_url}"
+            if not fast_run:
+                msg = f"An error has occurred in the full end to end test during: `{failed_on}` ```{error_msg}```"
+                +f"See Github actions run for more information:\n{git_jobs_url}"
             else:
-                msg = f"An error has occurred in the skinny end to end test during: `{failed_on}` ```{error_msg}```See Github actions run for more information:\n{git_jobs_url}"
+                msg = f"An error has occurred in the skinny end to end test during: `{failed_on}` ```{error_msg}```"
+                +f"See Github actions run for more information:\n{git_jobs_url}"
             _send_slack_message(msg)
     else:
         rich_print("Skipping slack message; not github actions run.")
@@ -892,5 +896,6 @@ if __name__ == "__main__":
     try:
         t_app()
     except Exception as error:
+        # Catch any exceptions thown durring the test and send error msg to slack.
         _send_slack_error_message(error)
         raise error
