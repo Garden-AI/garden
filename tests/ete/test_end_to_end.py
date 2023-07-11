@@ -881,15 +881,10 @@ def _send_slack_error_message(error):
 def _send_slack_message(msg):
     rich_print(f"Sending message to slack:\n{msg}")
 
-    """
-    slack_hook = os.getenv("GARDEN_SLACK_HOOK")
+    slack_hook = os.getenv("SLACK_HOOK_URL")
 
     payload = '{"text": "%s"}' % msg
-    response = requests.post(
-            slack_hook,
-            data = payload
-        )
-    """
+    response = requests.post(slack_hook, data=payload)
 
 
 if __name__ == "__main__":
