@@ -167,22 +167,27 @@ def run_garden_end_to_end(
         global fast_run
         fast_run = True
 
-    rich_print(f"garden_ai module location: {garden_ai.__file__}")
-
     # Cleanup any left over files generated from the test
     _cleanup_local_files(local_files_list)
 
+    rich_print(f"garden_ai module location: {garden_ai.__file__}")
+
     rich_print("\n[bold blue]Starting ETE Test[/bold blue]\n")
+
+    # Change working dir to .garden
+    old_cwd = os.getcwd()
+    os.chdir(key_store_path)
 
     client = None
     if garden_grant == "cc":
         # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
-        rich_print("Initializing GardenClient with CC grant.")
         if is_gha:
-            GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID")
-            assert GARDEN_API_CLIENT_ID is not None, GARDEN_API_CLIENT_ID
-            GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET")
-            assert GARDEN_API_CLIENT_SECRET is not None, GARDEN_API_CLIENT_SECRET
+            GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID", "none")
+            GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET", "none")
+            assert (
+                GARDEN_API_CLIENT_SECRET != "none"
+                and GARDEN_API_CLIENT_SECRET != "none"
+            )
         else:
             if prompt_for_git_secret:
                 GARDEN_API_CLIENT_ID = Prompt.ask(
@@ -192,7 +197,9 @@ def run_garden_end_to_end(
                     "Please enter the GARDEN_API_CLIENT_SECRET here "
                 ).strip()
             else:
-                with open("./templates/git_secrets.json") as json_file:
+                with open(
+                    os.path.join(old_cwd, "templates/git_secrets.json")
+                ) as json_file:
                     git_secrets = json.load(json_file)
                 GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
                 GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
@@ -203,7 +210,6 @@ def run_garden_end_to_end(
 
     elif garden_grant == "at":
         # Create GardenClient normally with access token grant
-        rich_print("Initializing GardenClient with AT grant.")
         client = _make_garden_client_with_at()
     else:
         raise Exception(
@@ -280,6 +286,8 @@ def run_garden_end_to_end(
 
     rich_print("\n[bold blue]Finished ETE Test successfully; cleaning up[/bold blue]\n")
 
+    os.chdir(old_cwd)
+
     # Cleanup local files
     _cleanup_local_files(local_files_list)
 
@@ -297,10 +305,6 @@ def _run_test_cmds(
     GARDEN_API_CLIENT_ID,
     GARDEN_API_CLIENT_SECRET,
 ):
-    # Change working dir to .garden
-    old_cwd = os.getcwd()
-    os.chdir(key_store_path)
-
     # Garden create
     new_garden = _test_garden_create(example_garden_data, garden_title, runner)
 
@@ -334,6 +338,7 @@ def _run_test_cmds(
             sklearn_pipeline_path,
             sklearn_pipeline_local,
             sklearn_model_full_name,
+            "sklearn",
             runner,
         )
         # Add sklearn pipeline to garden
@@ -358,7 +363,11 @@ def _run_test_cmds(
         )
         # Pipeline register tensorflow
         tf_pipeline = _test_pipeline_register(
-            tf_pipeline_path, tf_pipeline_local, tf_model_full_name, runner
+            tf_pipeline_path,
+            tf_pipeline_local,
+            tf_model_full_name,
+            "tensorflow",
+            runner,
         )
         # Add tensorflow pipeline to garden
         _test_garden_add_pipeline(new_garden, tf_pipeline, runner)
@@ -382,7 +391,11 @@ def _run_test_cmds(
         )
         # Pipeline register pytorch
         torch_pipeline = _test_pipeline_register(
-            torch_pipeline_path, torch_pipeline_local, torch_model_full_name, runner
+            torch_pipeline_path,
+            torch_pipeline_local,
+            torch_model_full_name,
+            "pytorch",
+            runner,
         )
         # Add pytorch pipeline to garden
         _test_garden_add_pipeline(new_garden, torch_pipeline, runner)
@@ -425,41 +438,38 @@ def _run_test_cmds(
     else:
         rich_print("Skipping remote execution on endpoint; no endpoint given.")
 
-    os.chdir(old_cwd)
-
 
 def _make_garden_client_with_cc(CLIENT_ID, CLIENT_SECRET):
     try:
-        rich_print("Starting to initialize GardenClient with CC grant.")
+        rich_print("Starting initialize GardenClient with [blue]CC[/blue] grant.")
         confidential_client = globus_sdk.ConfidentialAppAuthClient(
             CLIENT_ID, CLIENT_SECRET
         )
         client = garden_ai.GardenClient(auth_client=confidential_client)
-        rich_print("Finished initializing GardenClient with CC grant.")
+        rich_print("Finished initializing GardenClient with [blue]CC[/blue] grant.")
         return client
     except Exception as error:
         global failed_on
         failed_on = "make GardenClient with CC grant"
-        rich_print("Failed to initialize GardenClient with CC grant.")
+        rich_print("Failed to initialize GardenClient with [blue]CC[/blue] grant.")
         raise error
 
 
 def _make_garden_client_with_at():
     try:
-        rich_print("Starting to initialize GardenClient with AT grant.")
+        rich_print("Starting initialize GardenClient with [blue]AT[/blue] grant.")
         client = garden_ai.GardenClient()
-        rich_print("Finished initializing GardenClient with AT grant.")
+        rich_print("Finished initializing GardenClient with [blue]AT[/blue] grant.")
         return client
     except Exception as error:
         global failed_on
         failed_on = "make GardenClient with AT grant"
-        rich_print("Failed to initialize GardenClient with AT grant.")
+        rich_print("Failed to initialize GardenClient with [blue]AT[/blue] grant.")
         raise error
 
 
 def _test_garden_create(example_garden_data, unique_title, runner):
     try:
-        raise Exception("Test Exception for slack message")
         rich_print("\nStarting test: [italic red]garden create[/italic red]")
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
@@ -505,7 +515,9 @@ def _test_garden_create(example_garden_data, unique_title, runner):
 
 def _test_garden_add_pipeline(original_garden, pipeline, runner):
     try:
-        rich_print("\nStarting test: [italic red]garden add-pipeline[/italic red]")
+        rich_print(
+            f"\nStarting test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+        )
 
         command = [
             "garden",
@@ -536,12 +548,14 @@ def _test_garden_add_pipeline(original_garden, pipeline, runner):
             assert pl_id in local_pipeline_ids
 
         rich_print(
-            "Finished test: [italic red]garden add-pipeline[/italic red] with no errors"
+            f"Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "garden add-pipeline"
-        rich_print("Failed test: [italic red]garden add-pipeline[/italic red]")
+        rich_print(
+            f"Failed test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+        )
         raise error
 
 
@@ -607,7 +621,7 @@ def _test_garden_search(garden, runner):
 def _test_model_register(model_location, flavor, short_name, runner):
     try:
         rich_print(
-            f"\nStarting test: [italic red]model register[/italic red] with model flavor: [blue]{flavor}[/blue]"
+            f"\nStarting test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
 
         command = [
@@ -638,7 +652,7 @@ def _test_model_register(model_location, flavor, short_name, runner):
         assert local_model.flavor == flavor
 
         rich_print(
-            f"Finished test: [italic red]model register[/italic red] with model flavor: [blue]{flavor}[/blue] with no errors"
+            f"Finished test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
         return local_model.full_name
@@ -646,7 +660,7 @@ def _test_model_register(model_location, flavor, short_name, runner):
         global failed_on
         failed_on = "model register"
         rich_print(
-            f"Failed test: [italic red]model register[/italic red] with model flavor: [blue]{flavor}[/blue]"
+            f"Failed test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
         raise error
 
@@ -698,9 +712,11 @@ def _test_pipeline_create(
         raise error
 
 
-def _test_pipeline_register(pipeline_path, pipeline, model_full_name, runner):
+def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, runner):
     try:
-        rich_print("\nStarting test: [italic red]pipeline register[/italic red]")
+        rich_print(
+            f"\nStarting test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+        )
 
         command = [
             "pipeline",
@@ -730,14 +746,16 @@ def _test_pipeline_register(pipeline_path, pipeline, model_full_name, runner):
         assert model_full_name in registered_pipeline.steps[0]["model_full_names"]
 
         rich_print(
-            "Finished test: [italic red]pipeline register[/italic red] with no errors"
+            f"Finished test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
         return registered_pipeline
     except Exception as error:
         global failed_on
         failed_on = "pipeline register"
-        rich_print("Failed test: [italic red]pipeline register[/italic red]")
+        rich_print(
+            f"Failed test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+        )
         raise error
 
 
@@ -745,7 +763,9 @@ def _test_run_garden_on_endpoint(
     garden, key_store_path, pipeline_name, input_file, globus_compute_endpoint, client
 ):
     try:
-        rich_print("\nStarting test: [bold blue]garden remote execution[/bold blue]")
+        rich_print(
+            f"\nStarting test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+        )
 
         with open(input_file, "rb") as f:
             Xtest = pickle.load(f)
@@ -755,13 +775,15 @@ def _test_run_garden_on_endpoint(
         result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
 
         rich_print(
-            "Finished test: [bold blue]garden remote execution[/bold blue] with no errors"
+            f"Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"
         )
         assert result is not None
     except Exception as error:
         global failed_on
         failed_on = "run garden on remote endpoint"
-        rich_print("Failed test: [bold blue]run garden remote[/bold blue]")
+        rich_print(
+            f"Failed test: [italic red]run garden remote[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+        )
         raise error
 
 
@@ -820,7 +842,7 @@ def _make_pipeline_file(
 
 
 def _cleanup_local_files(local_file_list):
-    rich_print("Deleting leftover up local files.")
+    rich_print("\nDeleting leftover up local files.")
     for path in local_file_list:
         if os.path.isfile(path):
             rich_print(f"Deleting file: {path}")
@@ -872,8 +894,10 @@ def _send_slack_error_message(error):
                 rich_print(
                     "The full end to end test has passed all tests; sending slack message."
                 )
-                msg = f"The full end to end test has passed all tests.\
-                \nSee Github actions run for more information:\n{git_jobs_url}"
+                msg = (
+                    "The full end to end test has passed all tests."
+                    f"\nSee Github actions run for more information:\n{git_jobs_url}"
+                )
                 _send_slack_message(msg)
             else:
                 rich_print(
@@ -882,11 +906,15 @@ def _send_slack_error_message(error):
         else:
             error_msg = f"{type(error).__name__}: {str(error)}"
             if not fast_run:
-                msg = f"An error has occurred in the full end to end test during: `{failed_on}` ```{error_msg}```\
-                See Github actions run for more information:\n{git_jobs_url}"
+                msg = (
+                    f"An error has occurred in the full end to end test during: `{failed_on}` \n ```{error_msg}``` \n"
+                    f"See Github actions run for more information:\n{git_jobs_url}"
+                )
             else:
-                msg = f"An error has occurred in the skinny end to end test during: `{failed_on}` ```{error_msg}```\
-                See Github actions run for more information:\n{git_jobs_url}"
+                msg = (
+                    f"An error has occurred in the skinny end to end test during: `{failed_on}` \n ```{error_msg}``` \n"
+                    f"See Github actions run for more information:\n{git_jobs_url}"
+                )
             _send_slack_message(msg)
     else:
         rich_print("Skipping slack message; not github actions run.")
