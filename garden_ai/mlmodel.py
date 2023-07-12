@@ -175,6 +175,8 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
 def clear_mlflow_staging_directory():
     path = str(MODEL_STAGING_DIR)
     for item in os.listdir(path):
+        if item == ".trash":
+            continue
         item_path = os.path.join(path, item)
         if os.path.isfile(item_path):
             os.remove(item_path)
