@@ -175,8 +175,6 @@ def run_garden_end_to_end(
     rich_print("\n[bold blue]Starting ETE Test[/bold blue]\n")
 
     client = None
-    GARDEN_API_CLIENT_ID = ""
-    GARDEN_API_CLIENT_SECRET = ""
     if garden_grant == "cc":
         # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
         rich_print("Initializing GardenClient with CC grant.")
@@ -461,6 +459,7 @@ def _make_garden_client_with_at():
 
 def _test_garden_create(example_garden_data, unique_title, runner):
     try:
+        raise Exception("Test Exception for slack message")
         rich_print("\nStarting test: [italic red]garden create[/italic red]")
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
