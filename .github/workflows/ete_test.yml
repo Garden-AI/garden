@@ -8,10 +8,11 @@ on: workflow_dispatch
 jobs:
   get-latest-tag:
     outputs:
-      latest-tag: ${{steps.get-latest-tag.outputs.tag}}
+      latest-tag: ${{steps.get-latest-tag-step.outputs.tag}}
     steps:
-      - uses: actions-ecosystem/action-get-latest-tag@v1
-        id: get-latest-tag
+      - name: "action get latest tag"
+        id: get-latest-tag-step
+        uses: actions-ecosystem/action-get-latest-tag@v1
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 100
@@ -19,7 +20,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["${{needs.get-latest-tag.outputs.get-latest-tag}}"]
+        repository-ref: ["${{needs.get-latest-tag.outputs.latest-tag}}"]
     name: build
     steps:
       - name: "echo version"
