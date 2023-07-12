@@ -11,6 +11,8 @@ jobs:
     outputs:
       latest-tag: ${{steps.get-latest-tag-step.outputs.tag}}
     steps:
+      - uses: actions/checkout@v2
+
       - name: "action get latest tag"
         id: get-latest-tag-step
         uses: actions-ecosystem/action-get-latest-tag@v1
