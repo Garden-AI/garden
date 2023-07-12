@@ -28,6 +28,7 @@ jobs:
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
+      SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
