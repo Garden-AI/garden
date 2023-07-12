@@ -22,7 +22,7 @@ jobs:
         repository-ref: ["${{needs.get-latest-tag.outputs.get-latest-tag}}"]
     name: build
     steps:
-      name: echo version
-      env:
-        LATEST_TAG: ${{ matrix.repository-ref }}
-      run: echo "$LATEST_TAG"
+      - name: "echo version"
+        env:
+          LATEST_TAG: ${{ matrix.repository-ref }}
+        run: echo "$LATEST_TAG"
