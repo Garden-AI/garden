@@ -182,7 +182,9 @@ def run_garden_end_to_end(
         rich_print("Initializing GardenClient with CC grant.")
         if is_gha:
             GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID")
+            assert GARDEN_API_CLIENT_ID is not None, GARDEN_API_CLIENT_ID
             GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET")
+            assert GARDEN_API_CLIENT_SECRET is not None, GARDEN_API_CLIENT_SECRET
         else:
             if prompt_for_git_secret:
                 GARDEN_API_CLIENT_ID = Prompt.ask(
