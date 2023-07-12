@@ -9,6 +9,7 @@ nav:
       - Serialization: user_guide/serialization.md
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
+      - Remote Pipelines without garden-ai: developer_guide/Remote_pipelines_without_garden_dependency.md
   - API Reference:
     - Models: Models.md
     - Steps: Steps.md
