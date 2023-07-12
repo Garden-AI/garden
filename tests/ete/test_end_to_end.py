@@ -175,6 +175,8 @@ def run_garden_end_to_end(
     rich_print("\n[bold blue]Starting ETE Test[/bold blue]\n")
 
     client = None
+    GARDEN_API_CLIENT_ID = ""
+    GARDEN_API_CLIENT_SECRET = ""
     if garden_grant == "cc":
         # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
         rich_print("Initializing GardenClient with CC grant.")
