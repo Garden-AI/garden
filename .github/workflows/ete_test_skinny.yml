@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create false && \
-          poetry install --no-interaction --no-ansi --with=test,develop --all-extras
+          poetry install --no-interaction --no-ansi --with=test,develop --extras "sklearn"
       - name: execute py script
         working-directory: ./tests/ete
         run: |

@@ -7,19 +7,23 @@ on: workflow_dispatch
 
 jobs:
   get-latest-tag:
+    runs-on: ubuntu-latest
     outputs:
-      latest-tag: ${{steps.get-latest-tag.outputs.tag}}
+      latest-tag: ${{steps.get-latest-tag-step.outputs.tag}}
     steps:
-      - uses: actions-ecosystem/action-get-latest-tag@v1
-        id: get-latest-tag
+      - uses: actions/checkout@v2
+
+      - name: "action get latest tag"
+        id: get-latest-tag-step
+        uses: actions-ecosystem/action-get-latest-tag@v1
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 120
     needs: get-latest-tag
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
-        repository-ref: ["main", "${{needs.get-latest-tag.outputs.get-latest-tag}}"]
+        repository-ref: ["main", "${{needs.get-latest-tag.outputs.latest-tag}}"]
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}

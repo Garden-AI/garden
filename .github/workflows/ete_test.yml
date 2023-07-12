@@ -6,27 +6,35 @@ name: ETE Test Skinny
 on: workflow_dispatch
 
 jobs:
-  get-latest-tag:
-    runs-on: ubuntu-latest
-    outputs:
-      latest-tag: ${{steps.get-latest-tag-step.outputs.tag}}
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: "action get latest tag"
-        id: get-latest-tag-step
-        uses: actions-ecosystem/action-get-latest-tag@v1
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 100
-    needs: get-latest-tag
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["${{needs.get-latest-tag.outputs.latest-tag}}"]
+        repository-ref: ["max/ete-test"]
     name: build
+    env:
+      GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
+      GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
     steps:
-      - name: "echo version"
-        env:
-          LATEST_TAG: ${{ matrix.repository-ref }}
-        run: echo "$LATEST_TAG"
+      - name: checkout repo content
+        uses: actions/checkout@v2
+        with:
+            ref: ${{ matrix.repository-ref }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.2.2
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false && \
+          poetry install --no-interaction --no-ansi --with=test,develop --extras "sklearn"
+      - name: execute py script
+        working-directory: ./tests/ete
+        run: |
+          python3 test_end_to_end.py --ete-grant cc --ete-model sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout --pre-build-container sklearn

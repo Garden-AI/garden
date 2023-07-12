@@ -103,10 +103,15 @@ t_app = typer.Typer()
 
 @t_app.command()
 def run_garden_end_to_end(
-    ete_grant: Optional[str] = typer.Option(
-        default="cc", help="The grant type to initialize a GardenClient with."
+    garden_grant: Optional[str] = typer.Option(
+        default="cc",
+        help="The grant type to initialize a GardenClient with. Can be cc or at.",
     ),
-    ete_model: Optional[str] = typer.Option(
+    compute_grant: Optional[str] = typer.Option(
+        default="at",
+        help="The grant type to initialize a Globus Compute with. Can be cc or at.",
+    ),
+    model_type: Optional[str] = typer.Option(
         default="sklearn",
         help="The model types to test. Can be sklearn, tf, torch or all.",
     ),
@@ -126,23 +131,26 @@ def run_garden_end_to_end(
     # Set up
     rich_print("\n[bold blue]Setup ETE Test[/bold blue]\n")
 
+    rich_print(f"Garden grant type set to: [blue]{garden_grant}[/blue]")
+    rich_print(f"Globus compute grant type set to: [blue]{compute_grant}[/blue]")
+
     run_sklearn = False
     run_tf = False
     run_torch = False
-    if ete_model == "all":
+    if model_type == "all":
         run_sklearn = True
         run_tf = True
         run_torch = True
-    elif ete_model == "sklearn":
+    elif model_type == "sklearn":
         run_sklearn = True
-    elif ete_model == "tf":
+    elif model_type == "tf":
         run_tf = True
-    elif ete_model == "torch":
+    elif model_type == "torch":
         run_torch = True
 
-    rich_print(f"Testing with sklearn model: {run_sklearn}")
-    rich_print(f"Testing with tensorflow model: {run_tf}")
-    rich_print(f"Testing with pytorch model: {run_torch}")
+    rich_print(f"Testing with [blue]sklearn[/blue] model: {run_sklearn}")
+    rich_print(f"Testing with [blue]tensorflow[/blue] model: {run_tf}")
+    rich_print(f"Testing with [blue]pytorch[/blue] model: {run_torch}")
 
     is_gha = os.getenv("GITHUB_ACTIONS")
 
@@ -153,7 +161,7 @@ def run_garden_end_to_end(
     else:
         runner = CliRunner()
 
-    rich_print(f"Pre build container set to: {pre_build_container}")
+    rich_print(f"Pre build container set to: [blue]{pre_build_container}[/blue]")
     if pre_build_container != "none":
         # Set to true if pre build container is on. Used for sending slack errors.
         global fast_run
@@ -167,7 +175,7 @@ def run_garden_end_to_end(
     rich_print("\n[bold blue]Starting ETE Test[/bold blue]\n")
 
     client = None
-    if ete_grant == "cc":
+    if garden_grant == "cc":
         # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
         rich_print("Initializing GardenClient with CC grant.")
         if is_gha:
@@ -191,13 +199,21 @@ def run_garden_end_to_end(
             GARDEN_API_CLIENT_ID, GARDEN_API_CLIENT_SECRET
         )
 
-    elif ete_grant == "at":
+    elif garden_grant == "at":
         # Create GardenClient normally with access token grant
         rich_print("Initializing GardenClient with AT grant.")
         client = _make_garden_client_with_at()
     else:
         raise Exception(
-            "Invalid grant type; must be either CC (Client credential grant) or AT (Access token grant)."
+            "Invalid garden grant type; must be either cc (Client credential grant) or at (Access token grant)."
+        )
+
+    if compute_grant == "cc":
+        os.environ["FUNCX_SDK_CLIENT_ID"] = GARDEN_API_CLIENT_ID
+        os.environ["FUNCX_SDK_CLIENT_SECRET"] = GARDEN_API_CLIENT_SECRET
+    elif compute_grant != "at":
+        raise Exception(
+            "Invalid globus compute grant type; must be either cc (Client credential grant) or at (Access token grant)."
         )
 
     # Patch all instances of GardenClient with our new grant type one and run tests with patches.
@@ -230,8 +246,6 @@ def run_garden_end_to_end(
             _run_test_cmds(
                 client,
                 runner,
-                ete_grant,
-                ete_model,
                 globus_compute_endpoint,
                 run_sklearn,
                 run_tf,
@@ -254,8 +268,6 @@ def run_garden_end_to_end(
             _run_test_cmds(
                 client,
                 runner,
-                ete_grant,
-                ete_model,
                 globus_compute_endpoint,
                 run_sklearn,
                 run_tf,
@@ -276,8 +288,6 @@ def run_garden_end_to_end(
 def _run_test_cmds(
     client,
     runner,
-    ete_grant,
-    ete_model,
     globus_compute_endpoint,
     run_sklearn,
     run_tf,
@@ -859,8 +869,8 @@ def _send_slack_error_message(error):
                 rich_print(
                     "The full end to end test has passed all tests; sending slack message."
                 )
-                msg = "The full end to end test has passed all tests."
-                +f"\nSee Github actions run for more information:\n{git_jobs_url}"
+                msg = f"The full end to end test has passed all tests.\
+                \nSee Github actions run for more information:\n{git_jobs_url}"
                 _send_slack_message(msg)
             else:
                 rich_print(
@@ -869,11 +879,11 @@ def _send_slack_error_message(error):
         else:
             error_msg = f"{type(error).__name__}: {str(error)}"
             if not fast_run:
-                msg = f"An error has occurred in the full end to end test during: `{failed_on}` ```{error_msg}```"
-                +f"See Github actions run for more information:\n{git_jobs_url}"
+                msg = f"An error has occurred in the full end to end test during: `{failed_on}` ```{error_msg}```\
+                See Github actions run for more information:\n{git_jobs_url}"
             else:
-                msg = f"An error has occurred in the skinny end to end test during: `{failed_on}` ```{error_msg}```"
-                +f"See Github actions run for more information:\n{git_jobs_url}"
+                msg = f"An error has occurred in the skinny end to end test during: `{failed_on}` ```{error_msg}```\
+                See Github actions run for more information:\n{git_jobs_url}"
             _send_slack_message(msg)
     else:
         rich_print("Skipping slack message; not github actions run.")
