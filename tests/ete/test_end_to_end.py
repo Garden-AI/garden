@@ -471,7 +471,7 @@ def _make_garden_client_with_at():
 def _test_garden_create(example_garden_data, unique_title, runner):
     try:
         rich_print("\nStarting test: [italic red]garden create[/italic red]")
-        raise Exception("Test slack error!")
+
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
 
