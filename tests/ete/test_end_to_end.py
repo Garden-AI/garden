@@ -885,49 +885,43 @@ def _send_slack_error_message(error):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        git_server_url = os.getenv("GITHUB_SERVER_URL")
-        git_repository = os.getenv("GITHUB_REPOSITORY")
+        OWNER = "Garden-AI"
+        REPO = "garden"
+
+        slack_hook = os.getenv("SLACK_HOOK_URL")
+
         git_run_id = os.getenv("GITHUB_RUN_ID")
         git_job_name = os.getenv("GITHUB_JOB_NAME")
-        git_jobs_url = f"{git_server_url}/{git_repository}/actions/runs/{git_run_id}"
 
-        rich_print(f"LOOK HERE JOB NAME IS: {git_job_name}")
+        git_api_url = f"https://api.github.com/repos/{OWNER}/{REPO}/actions/runs/{git_run_id}/jobs"
+        git_job_data = requests.get(url).json()
+
+        git_jobs_url = user_data["jobs"][(user_data["total_count"] - 1)]["html_url"]
 
         if error is None:
             if not fast_run:
-                rich_print(
-                    "The full end to end test has passed all tests; sending slack message."
-                )
                 msg = (
-                    "The full end to end test has passed all tests."
+                    f"End to end run: `{git_job_name}` successfully passed all tests."
                     f"\nSee Github actions run for more information:\n{git_jobs_url}"
                 )
-                _send_slack_message(msg)
+                _send_slack_message(msg, slack_hook)
             else:
                 rich_print(
-                    "The skinny end to end test has passed all tests; skipping slack message."
+                    f"End to end run: {git_job_name} successfully passed all tests; skipping slack message."
                 )
         else:
             error_msg = f"{type(error).__name__}: {str(error)}"
-            if not fast_run:
-                msg = (
-                    f"An error has occurred in the full end to end test during: `{failed_on}` \n ```{error_msg}``` \n"
-                    f"See Github actions run for more information:\n{git_jobs_url}"
-                )
-            else:
-                msg = (
-                    f"An error has occurred in the skinny end to end test during: `{failed_on}` \n ```{error_msg}``` \n"
-                    f"See Github actions run for more information:\n{git_jobs_url}"
-                )
-            _send_slack_message(msg)
+            msg = (
+                f"Error, end to end run: `{git_job_name}` failed during: `{failed_on}` \n ```{error_msg}``` \n"
+                f"See Github actions run for more information:\n{git_jobs_url}"
+            )
+            _send_slack_message(msg, slack_hook)
     else:
         rich_print("Skipping slack message; not github actions run.")
 
 
-def _send_slack_message(msg):
+def _send_slack_message(msg, slack_hook):
     rich_print(f"Sending message to slack:\n{msg}")
-
-    slack_hook = os.getenv("SLACK_HOOK_URL")
 
     payload = '{"text": "%s"}' % msg
     requests.post(slack_hook, data=payload)

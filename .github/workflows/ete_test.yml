@@ -1,15 +1,26 @@
-name: ETE Test Skinny
+name: ETE Test Full
 
 on:
   workflow_dispatch
 
 jobs:
+  get-latest-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      latest-tag: ${{steps.get-latest-tag-step.outputs.tag}}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: "action get latest tag"
+        id: get-latest-tag-step
+        uses: actions-ecosystem/action-get-latest-tag@v1
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
+    needs: get-latest-tag
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8", "3.9", "3.10"]
         repository-ref: ["max/ete-test"]
     name: build
     env:
@@ -34,8 +45,8 @@ jobs:
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
       - name: Set job name env var
-        run: echo "GITHUB_JOB_NAME=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Run test script skinny
+        run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Run test script full
         working-directory: ./tests/ete
         run: |
-          python3 test_end_to_end.py --garden-grant cc --compute-grant cc --model-type torch --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout --pre-build-container torch
+          python3 test_end_to_end.py --garden-grant cc --compute-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
