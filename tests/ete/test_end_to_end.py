@@ -12,7 +12,7 @@ import typer
 from typing import Optional
 from typer.testing import CliRunner
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from rich.prompt import Prompt
 from rich import print as rich_print
 import unittest.mock as mocker
@@ -905,31 +905,31 @@ def _send_slack_error_message(error):
         git_jobs_url = current_job["html_url"]
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
-        )
+        ).replace(tzinfo=timezone.utc)
         start_time_str = str(start_time)
 
-        total_time = str((start_time - datetime.now()))
+        total_time = str((datetime.now(timezone.utc) - start_time))
 
         if error is None:
             if not fast_run:
                 msg = (
                     f"*SUCCESS*, end to end run: `{git_job_name}` passed all tests."
-                    f"\nStart time: `{start_time_str}` total run time: `{total_time}`"
-                    f"\nSee Github actions job for more information:\n{git_jobs_url}\n"
+                    f"\n\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
+                    f"\nSee Github actions job for more information:\n{git_jobs_url}"
                 )
                 _send_slack_message(msg, slack_hook)
             else:
                 rich_print(
                     f"SUCCESS, end to end run: {git_job_name} passed all tests."
-                    f"\nStart time: `{start_time_str}` total run time: `{total_time}`"
+                    f"\n\nStart time: {start_time_str} UTC, total run time: {total_time}"
                     "\nSkipping slack message for skinny run with no errors."
                 )
         else:
             error_msg = f"{type(error).__name__}: {str(error)}"
             msg = (
                 f"*FAILURE*, end to end run: `{git_job_name}` failed during: `{failed_on}` \n ```{error_msg}``` "
-                f"\nStart time: `{start_time_str}` total run time: `{total_time}`"
-                f"\nSee Github actions job for more information:\n{git_jobs_url}\n"
+                f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
+                f"\nSee Github actions job for more information:\n{git_jobs_url}"
             )
             _send_slack_message(msg, slack_hook)
     else:

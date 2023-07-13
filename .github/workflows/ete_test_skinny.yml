@@ -1,9 +1,9 @@
 name: ETE Test Skinny
 
-#on:
-#  schedule:
-#    - cron: "0 * * * *"    #runs every hour everyday
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"    #runs every hour everyday
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["max/ete-test"]
+        repository-ref: ["main"]
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
@@ -35,6 +35,8 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop
+      - name: Set job name env var
+        run: echo "GITHUB_JOB_NAME=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Run test script skinny
         working-directory: ./tests/ete
         run: |

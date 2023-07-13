@@ -1,9 +1,9 @@
 name: ETE Test Full
 
-#on:
-#  schedule:
-#    - cron: "0 12 * * *"    #runs at 12:00 UTC everyday
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * *"    #runs at 12:00 UTC everyday
 
 jobs:
   get-latest-tag:
@@ -24,6 +24,8 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
         repository-ref: ["main", "${{needs.get-latest-tag.outputs.latest-tag}}"]
+      fail-fast: false
+      max-parallel: 1
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
@@ -46,6 +48,8 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
+      - name: Set job name env var
+        run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Run test script full
         working-directory: ./tests/ete
         run: |
