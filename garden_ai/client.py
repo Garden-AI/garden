@@ -460,9 +460,9 @@ class GardenClient:
     def _generate_presigned_urls_for_garden(self, garden: Garden):
         all_model_names = [
             model_name
-            for name_list in pipeline.model_full_names
-            for model_name in name_list
-        ]  # flatten pipeline.model_full_names
+            for pipeline in garden.pipelines
+            for model_name in pipeline.model_full_names
+        ]  # flatten all model names
         all_presigned_urls = self.backend_client.get_model_download_urls(
             all_model_names
         )
