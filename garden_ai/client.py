@@ -429,6 +429,7 @@ class GardenClient:
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
+        self._generate_presigned_urls_for_garden(garden)
         self._update_datacite(garden)
         try:
             self.backend_client.publish_garden_metadata(garden)
@@ -461,15 +462,32 @@ class GardenClient:
         return garden
 
     def _generate_presigned_urls_for_garden(self, garden: Garden):
+        all_model_names = [
+            model_name
+            for pipeline in garden.pipelines
+            for model_name in pipeline.model_full_names
+        ]  # flatten all model names
+        all_presigned_urls = self.backend_client.get_model_download_urls(
+            all_model_names
+        )
         for pipeline in garden.pipelines:
-            pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
-            pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
+            model_name_to_url = {
+                presigned_url.model_name: presigned_url.url
+                for presigned_url in all_presigned_urls
+                if presigned_url.model_name in pipeline.model_full_names
+            }
+            pipeline._env_vars = {
+                GardenConstants.URL_ENV_VAR_NAME: json.dumps(model_name_to_url)
+            }
 
     def generate_presigned_urls_for_pipeline(
         self, pipeline: Union[RegisteredPipeline, Pipeline]
     ) -> str:
-        model_name_to_url = {}
-        for model_name in pipeline.model_full_names:
-            url = self.backend_client.get_model_download_url(model_name).url
-            model_name_to_url[model_name] = url
+        all_presigned_urls = self.backend_client.get_model_download_urls(
+            pipeline.model_full_names
+        )
+        model_name_to_url = {
+            presigned_url.model_name: presigned_url.url
+            for presigned_url in all_presigned_urls
+        }
         return json.dumps(model_name_to_url)
