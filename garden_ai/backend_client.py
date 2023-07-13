@@ -71,7 +71,7 @@ class BackendClient:
         payload = json.loads(garden.expanded_json())
         self._post("/garden-search-record", payload)
 
-    def _get_presigned_url(
+    def _get_presigned_urls(
         self, model_names: List[str], direction: PresignedUrlDirection
     ) -> List[PresignedUrlResponse]:
         payload = {
