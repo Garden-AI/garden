@@ -26,24 +26,4 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     """
     from garden_ai.utils._meta import _load_pipeline_from_python_file
 
-    try:
-        return _load_pipeline_from_python_file(python_file)
-    except PipelineLoadScaffoldedException as e:
-        error_message = (
-            "Failed to load model. It looks like you are using the placeholder model name from a scaffolded pipeline. "
-            f"Please replace {GardenConstants.SCAFFOLDED_MODEL_NAME} in your pipeline.py"
-            " with the name of a registered Garden model."
-            "\nFor more information on how to use Garden, please read our docs: "
-            "https://garden-ai.readthedocs.io/en/latest/"
-        )
-        raise PipelineLoadScaffoldedException(error_message) from e
-    except ValueError as e:
-        raise PipelineLoadException(
-            f"Could not find pipeline object in {python_file}."
-        ) from e
-    except Exception as e:
-        raise PipelineLoadException(
-            f"Failed to execute the Python code in {python_file}, {str(e)}"
-        ) from e
-
-    raise PipelineLoadException(f"Could not find pipeline object in {python_file}")
+    return _load_pipeline_from_python_file(python_file)

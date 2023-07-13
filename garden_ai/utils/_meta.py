@@ -104,8 +104,6 @@ def exec_getsource(source, globals=None, locals=None):
     try:
         exec(source, globals, locals)
         # you can now use inspect.getsource() on the result of exec() here
-    except Exception as e:
-        raise Exception(str(e)) from e
     finally:
         linecache.getlines = getlines
 
@@ -114,8 +112,8 @@ def _load_pipeline_from_python_file(python_file):
     import __main__
 
     from garden_ai import Pipeline
-    from garden_ai.mlmodel import PipelineLoadScaffoldedException
-    from garden_ai.constants import GardenConstants
+    from garden_ai.utils.filesystem import PipelineLoadException
+    from garden_ai.mlmodel import Model
 
     with open(python_file, "r") as file:
         pipeline_code = file.read()
@@ -145,15 +143,14 @@ class _USER_PIPELINE_MODULE:
     # Now, one of those class attributes is going to be a Pipeline instance
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
-            if (
-                str(value.model_full_names)[2:-2]
-                == GardenConstants.SCAFFOLDED_MODEL_NAME
-            ):
-                raise PipelineLoadScaffoldedException(
-                    "Model cannot be loaded with scaffolded model name."
+            if not Model.has_been_called:
+                raise PipelineLoadException(
+                    "No model exists in file. Please input the model in your pipeline.py with the name of a registered Garden model."
+                    "\nFor more information on how to use Garden, please read our docs: "
+                    "https://garden-ai.readthedocs.io/en/latest/"
                 )
             value.short_name = value.short_name or name
             return value
-    raise ValueError(
-        f"Did not find top-level pipeline object defined in {python_file}."
+    raise PipelineLoadException(
+        "Pipeline couldn't be loaded from the user's module. Could not find pipeline object in file."
     )
