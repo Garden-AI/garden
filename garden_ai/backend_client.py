@@ -104,7 +104,9 @@ class BackendClient:
     def get_model_download_urls(
         self, model_name_batch: List[str]
     ) -> List[PresignedUrlResponse]:
-        return self._get_presigned_urls(model_name_batch, PresignedUrlDirection.Download)
+        return self._get_presigned_urls(
+            model_name_batch, PresignedUrlDirection.Download
+        )
 
     def get_model_upload_url(self, model_name: str) -> PresignedUrlResponse:
         return self._get_presigned_urls([model_name], PresignedUrlDirection.Upload)[0]
