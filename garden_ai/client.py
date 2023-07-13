@@ -429,6 +429,7 @@ class GardenClient:
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
+        self._generate_presigned_urls_for_garden(garden)
         self._update_datacite(garden)
         try:
             self.backend_client.publish_garden_metadata(garden)
