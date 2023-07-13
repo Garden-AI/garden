@@ -12,7 +12,6 @@ from pydantic import Field, validator
 from pydantic.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
-from garden_ai.mlmodel import _Model
 from garden_ai.utils.misc import JSON, garden_json_encoder
 
 logger = logging.getLogger()
@@ -123,6 +122,12 @@ class Step:
         If this step's function has a Model as a default argument, like
         ``func(*args, model=Model(...))``, record the model name
         """
+
+        # if `_Model` was never defined in main, there must not be any
+        try:
+            from __main__ import _Model
+        except ImportError:
+            return
 
         sig = signature(self.func)
         for param in sig.parameters.values():

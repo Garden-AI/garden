@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 import json
 import logging
+import os
 import pathlib
 import sys
 from datetime import datetime
@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
 
 import garden_ai
-from garden_ai._version import __version__
 from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
@@ -113,7 +112,7 @@ class Pipeline:
     tags: List[str] = Field(default_factory=list, unique_items=True)
     requirements_file: Optional[str] = Field(None)
     python_version: Optional[str] = Field(None)
-    pip_dependencies: List[str] = Field(default=[f"garden-ai=={__version__}"])
+    pip_dependencies: List[str] = Field(default_factory=list)
     conda_dependencies: List[str] = Field(default_factory=list)
     model_full_names: List[str] = Field(default_factory=list)
     short_name: Optional[str] = Field(None)
@@ -194,6 +193,16 @@ class Pipeline:
         except InvalidRequirement as e:
             raise ValueError(f"Could not parse pip dependency '{pip_dep}'") from e
         return pip_dep
+
+    @validator("pip_dependencies", each_item=False)
+    def ensure_minimal_dependencies(cls, pip_deps):
+        import mlflow  # type: ignore
+
+        if not any(req.startswith("mlflow") for req in pip_deps):
+            pip_deps += [f"mlflow-skinny=={mlflow.__version__}"]
+        if not any(req.startswith("pandas") for req in pip_deps):
+            pip_deps += ["pandas<3"]
+        return pip_deps
 
     def _collect_requirements(self):
         """collect requirements to pass to Globus Compute container service.
@@ -386,33 +395,27 @@ class RegisteredPipeline(BaseModel):
         endpoint: Union[UUID, str] = None,
         **kwargs: Any,
     ) -> Any:
-        """Remotely execute this ``RegisteredPipeline``'s function from the function uuid. An endpoint must be specified.
+        """Remotely execute this ``RegisteredPipeline``'s function from the function uuid.
 
         Args:
             *args (Any):
                 Input data passed through the first step in the pipeline
             endpoint (UUID | str | None):
                 Where to run the pipeline. Must be a valid Globus Compute endpoint UUID.
+                If no endpoint is specified, the DLHub default compute endpoint is used.
             **kwargs (Any):
                 Additional keyword arguments passed directly to the first step in the pipeline.
 
         Returns:
             Results from the pipeline's composed steps called with the given input data.
 
-        Raises:
-            ValueError:
-                If no endpoint is specified
-            Exception:
-                Any exceptions raised over the course of executing the pipeline
 
         """
         if not endpoint:
-            raise ValueError(
-                "A Globus Compute endpoint uuid must be specified to execute remotely."
-            )
+            endpoint = GardenConstants.DLHUB_ENDPOINT
 
         if self._env_vars:
-            # see: utils.misc.inject_env_kwarg
+            # see: utils._meta.inject_env_kwarg
             kwargs = dict(kwargs)
             kwargs["_env_vars"] = self._env_vars
 

@@ -5,6 +5,6 @@
 		members:
 			- Model
 			- LocalModel
-			- RegisteredModel
+			- ModelMetadata
 			- DatasetConnection
-			- upload_to_model_registry
+			- stage_model_for_upload

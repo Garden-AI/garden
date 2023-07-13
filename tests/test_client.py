@@ -1,18 +1,18 @@
-import pytest
-
 import os
 
-from garden_ai import GardenClient
-from garden_ai.client import AuthException
+import pytest
+from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
-    OAuthTokenResponse,
-    SearchClient,
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
+    OAuthTokenResponse,
+    SearchClient,
 )
-from globus_compute_sdk import Client  # type: ignore
+
+from garden_ai import GardenClient
+from garden_ai.client import AuthException
 
 is_gha = os.getenv("GITHUB_ACTIONS")
 
@@ -128,6 +128,13 @@ def test_client_invalid_auth_token(
     mock_token_response.request.headers = {"Authorization": "Yougotit"}
     mock_token_response.request._underlying_response = mocker.Mock()
     mock_token_response.url = "http://foo.bar.baz"
+
+    # Add a json() method to the mock_token_response
+    mock_token_response.json = mocker.Mock(return_value={"error": "mock error"})
+
+    # Add the 'reason' attribute to the mock_token_response
+    mock_token_response.reason = mocker.Mock(return_value="Mock Reason")
+
     mock_auth_client.oauth2_exchange_code_for_tokens.side_effect = AuthAPIError(
         r=mock_token_response
     )

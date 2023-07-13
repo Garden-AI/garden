@@ -227,12 +227,12 @@ dependencies:
 
 
 @pytest.fixture
-def step_with_model(mocker, tmp_conda_yml):
-    mock_model = mocker.MagicMock(PyFuncModel)
-    mocker.patch("garden_ai.mlmodel.load_model").return_value = mock_model
-    mocker.patch(
-        "garden_ai.mlmodel.mlflow.pyfunc.get_model_dependencies"
-    ).return_value = tmp_conda_yml
+def step_with_model(mocker):
+    mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
+    mock_Model = mocker.MagicMock(garden_ai._model._Model)
+    mock_Model.model = mock_pyfunc_model
+    mock_Model.full_name = "email@addr.ess/fake-model"
+    mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
 
     @step
     def uses_model_in_default(

@@ -41,7 +41,7 @@ garden-ai model register path/to/model.pkl --flavor=sklearn
 > [!NOTE]
 > The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name"`, which can then be referenced by steps (see example below).
 
-Once a model has been registered, it should be used in a `Step` by referencing its name as a _**default argument**_, not in the body of the step's function. This is necessary because the `Step` collects information about the model's dependencies to pass along to the eventual container specification that the pipeline will run in.
+Once a model has been registered, it should be used in a `Step` by referencing its name as a _**default argument**_, not in the body of the step's function.
 
 Here's an example of a step that names a registered model to perform inference:
 
@@ -60,7 +60,7 @@ This way, your pre-trained models can be easily integrated into any pipeline and
 
 ### [Pipelines](Pipelines.md)
 
-The primary purpose of a pipeline in the Garden framework is to make the code and models contained in its steps _citable_ and _reproducible_. Pipelines collect enough metadata for us to do two things: mint a DOI, and build a container spec in which its code could run.
+The primary purpose of a Pipeline in the Garden framework is to make the code and models contained in its steps _citable_ and _reproducible_. Pipelines collect enough metadata for us to do two things: mint a DOI, and build a container spec in which its code could run.
 
 There are two relevant classes: `Pipeline` and `RegisteredPipeline`, corresponding to a user's local "work in progress" and a user's finished citable product, respectively. Moreover, the final `RegisteredPipeline` is "mere metadata" -- it's effectively a citation you can run.
 
