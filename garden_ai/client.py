@@ -467,13 +467,11 @@ class GardenClient:
             all_model_names
         )
         for pipeline in garden.pipelines:
-            model_name_to_url = {}
-            for model_name in pipeline.model_full_names:
-                model_name_to_url[model_name] = next(
-                    presigned_url.url
-                    for presigned_url in all_presigned_urls
-                    if presigned_url.model_name == model_name
-                )
+            model_name_to_url = {
+                presigned_url.model_name: presigned_url.url
+                for presigned_url in all_presigned_urls
+                if presigned_url.model_name in pipeline.model_full_names
+            }
             pipeline._env_vars = {
                 GardenConstants.URL_ENV_VAR_NAME: json.dumps(model_name_to_url)
             }
@@ -481,14 +479,11 @@ class GardenClient:
     def generate_presigned_urls_for_pipeline(
         self, pipeline: Union[RegisteredPipeline, Pipeline]
     ) -> str:
-        model_name_to_url = {}
         all_presigned_urls = self.backend_client.get_model_download_urls(
             pipeline.model_full_names
         )
-        for model_name in pipeline.model_full_names:
-            model_name_to_url[model_name] = next(
-                presigned_url.url
-                for presigned_url in all_presigned_urls
-                if presigned_url.model_name == model_name
-            )
+        model_name_to_url = {
+            presigned_url.model_name: presigned_url.url
+            for presigned_url in all_presigned_urls
+        }
         return json.dumps(model_name_to_url)
