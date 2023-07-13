@@ -2,9 +2,6 @@ from pathlib import Path
 
 from garden_ai import Pipeline
 
-from garden_ai.mlmodel import PipelineLoadScaffoldedException
-from garden_ai.constants import GardenConstants
-
 
 class PipelineLoadException(Exception):
     """Exception raised when a Pipeline couldn't be loaded from the user's module"""

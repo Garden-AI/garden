@@ -1,5 +1,5 @@
 import pytest
-import pydantic
+
 from garden_ai.utils.filesystem import (
     PipelineLoadException,
     load_pipeline_from_python_file,
@@ -12,7 +12,7 @@ from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 def test_load_pipeline_from_valid_file_with_no_model():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/pipeline.py")
     with pytest.raises(PipelineLoadException):
-        loaded_pipeline = load_pipeline_from_python_file(fixture_file_path)
+        load_pipeline_from_python_file(fixture_file_path)
 
 
 def test_load_pipeline_from_valid_file_with_no_pipeline():
@@ -47,3 +47,10 @@ def test_incorrect_requirements_file_specification():
     )
     with pytest.raises(ValueError):
         load_pipeline_from_python_file(fixture_file_path)
+
+
+def test_valid_pipeline():
+    loaded_pipeline = load_pipeline_from_python_file(
+        "fixtures/fixture_pipeline/valid_pipeline.py"
+    )
+    assert isinstance(loaded_pipeline, Pipeline)
