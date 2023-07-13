@@ -52,7 +52,7 @@ ALL_STEPS = (
     run_inference,
 )
 
-REQUIREMENTS_FILE = "fixtures/fixture_pipeline/requirements.txt"  # to specify additional dependencies, replace `None`
+REQUIREMENTS_FILE = None  # to specify additional dependencies, replace `None`
 # with an "/absolute/path/to/requirements.txt"
 
 ################################### PIPELINE ####################################
