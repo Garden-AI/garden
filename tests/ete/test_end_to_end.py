@@ -7,7 +7,6 @@ import uuid
 import json
 import functools
 import requests
-from datetime import datetime
 
 import typer
 from typing import Optional
