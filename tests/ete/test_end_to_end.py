@@ -888,7 +888,10 @@ def _send_slack_error_message(error):
         git_server_url = os.getenv("GITHUB_SERVER_URL")
         git_repository = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
+        git_job_name = os.getenv("GITHUB_JOB_NAME")
         git_jobs_url = f"{git_server_url}/{git_repository}/actions/runs/{git_run_id}"
+
+        rich_print(f"LOOK HERE JOB NAME IS: {git_job_name}")
 
         if error is None:
             if not fast_run:
