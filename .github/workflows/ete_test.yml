@@ -34,7 +34,7 @@ jobs:
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
       - name: Set job name env var
-        run: echo "GITHUB_JOB_NAME=${{jobs.build.name}}" >> $GITHUB_ENV
+        run: echo "GITHUB_JOB_NAME=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Run test script skinny
         working-directory: ./tests/ete
         run: |
