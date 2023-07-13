@@ -895,45 +895,41 @@ def _send_slack_error_message(error):
             f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
         )
         git_job_data = requests.get(git_api_url).json()
+        current_job = None
+        for job in git_job_data["jobs"]:
+            if job["name"] in git_job_name:
+                current_job = job
+                break
+        assert current_job is not None
 
-        git_jobs_url = git_job_data["jobs"][(git_job_data["total_count"] - 1)][
-            "html_url"
-        ]
+        git_jobs_url = current_job["html_url"]
+        start_time = datetime.strptime(
+            str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
+        )
+        start_time_str = str(start_time)
 
-        start_time = str(
-            git_job_data["jobs"][(git_job_data["total_count"] - 1)]["started_at"]
-        )
-        end_time = str(
-            git_job_data["jobs"][(git_job_data["total_count"] - 1)]["completed_at"]
-        )
-
-        total_time = str(
-            (
-                datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%SZ")
-                - datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")
-            )
-        )
+        total_time = str((start_time - datetime.now()))
 
         if error is None:
             if not fast_run:
                 msg = (
-                    f"End to end run: `{git_job_name}` successfully passed all tests."
-                    f"\nStart time: `{start_time}` total run time: `{total_time}`"
-                    f"\nSee Github actions job for more information:\n{git_jobs_url}"
+                    f"*SUCCESS*, end to end run: `{git_job_name}` passed all tests."
+                    f"\nStart time: `{start_time_str}` total run time: `{total_time}`"
+                    f"\nSee Github actions job for more information:\n{git_jobs_url}\n"
                 )
                 _send_slack_message(msg, slack_hook)
             else:
                 rich_print(
-                    f"End to end run: {git_job_name} successfully passed all tests."
-                    f"\nStart time: `{start_time}` total run time: `{total_time}`"
+                    f"SUCCESS, end to end run: {git_job_name} passed all tests."
+                    f"\nStart time: `{start_time_str}` total run time: `{total_time}`"
                     "\nSkipping slack message for skinny run with no errors."
                 )
         else:
             error_msg = f"{type(error).__name__}: {str(error)}"
             msg = (
-                f"Error, end to end run: `{git_job_name}` failed during: `{failed_on}` \n ```{error_msg}``` "
-                f"\nStart time: `{start_time}` total run time: `{total_time}`"
-                f"\nSee Github actions job for more information:\n{git_jobs_url}"
+                f"*FAILURE*, end to end run: `{git_job_name}` failed during: `{failed_on}` \n ```{error_msg}``` "
+                f"\nStart time: `{start_time_str}` total run time: `{total_time}`"
+                f"\nSee Github actions job for more information:\n{git_jobs_url}\n"
             )
             _send_slack_message(msg, slack_hook)
     else:
