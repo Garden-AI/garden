@@ -894,9 +894,11 @@ def _send_slack_error_message(error):
         git_job_name = os.getenv("GITHUB_JOB_NAME")
 
         git_api_url = f"https://api.github.com/repos/{OWNER}/{REPO}/actions/runs/{git_run_id}/jobs"
-        git_job_data = requests.get(url).json()
+        git_job_data = requests.get(git_api_url).json()
 
-        git_jobs_url = user_data["jobs"][(user_data["total_count"] - 1)]["html_url"]
+        git_jobs_url = git_job_data["jobs"][(git_job_data["total_count"] - 1)][
+            "html_url"
+        ]
 
         if error is None:
             if not fast_run:
