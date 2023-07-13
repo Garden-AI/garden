@@ -36,7 +36,9 @@ def test_upload_model_to_s3(mocker, local_model, tmp_path):
 
     backend_client = mocker.MagicMock(BackendClient)
     mock_fields = {"key": "ABC"}
-    mock_presigned_url_response = PresignedUrlResponse("foo.com", mock_fields)
+    mock_presigned_url_response = PresignedUrlResponse(
+        "test@example.com/unit-test-model", "foo.com", mock_fields
+    )
     backend_client.get_model_upload_url.return_value = mock_presigned_url_response
 
     upload_mlmodel_to_s3(fake_staging_dir, local_model, backend_client)
@@ -57,11 +59,13 @@ def test_generate_presigned_urls_for_garden(
     registered_pipeline_toy_example.model_full_names = [
         "willengler@uchicago.edu/test-model"
     ]
-    mock_presigned_url_response = PresignedUrlResponse("presigned-url.aws.com", {})
+    mock_presigned_url_response = PresignedUrlResponse(
+        "willengler@uchicago.edu/test_model", "presigned-url.aws.com", {}
+    )
     mocker.patch.object(
         garden_client.backend_client,
-        "get_model_download_url",
-        return_value=mock_presigned_url_response,
+        "get_model_download_urls",
+        return_value=[mock_presigned_url_response],
     )
     garden_all_fields._pipelines = [registered_pipeline_toy_example]
 

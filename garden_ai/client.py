@@ -3,11 +3,9 @@ import json
 import logging
 import os
 import time
-import operator
 from pathlib import Path
 from typing import List, Optional, Union
 from uuid import UUID
-from functools import reduce
 
 import typer
 from globus_compute_sdk import Client
@@ -460,21 +458,22 @@ class GardenClient:
         return garden
 
     def _generate_presigned_urls_for_garden(self, garden: Garden):
-        all_model_names = reduce(
-            operator.add, [pipeline.model_full_names for pipeline in garden.pipelines]
+        all_model_names = [
+            model_name
+            for name_list in pipeline.model_full_names
+            for model_name in name_list
+        ]  # flatten pipeline.model_full_names
+        all_presigned_urls = self.backend_client.get_model_download_urls(
+            all_model_names
         )
-        all_presigned_urls = self.backend_client.get_model_download_url(all_model_names)
-        if len(all_model_names) == 1:
-            all_presigned_urls = [
-                all_presigned_urls
-            ]  # this function expects a list, so convert in case of single url
-        idx = 0
         for pipeline in garden.pipelines:
             model_name_to_url = {}
             for model_name in pipeline.model_full_names:
-                url = all_presigned_urls[idx].url
-                model_name_to_url[model_name] = url
-                idx += 1
+                model_name_to_url[model_name] = next(
+                    presigned_url.url
+                    for presigned_url in all_presigned_urls
+                    if presigned_url.model_name == model_name
+                )
             pipeline._env_vars = {
                 GardenConstants.URL_ENV_VAR_NAME: json.dumps(model_name_to_url)
             }
@@ -483,10 +482,13 @@ class GardenClient:
         self, pipeline: Union[RegisteredPipeline, Pipeline]
     ) -> str:
         model_name_to_url = {}
-        all_presigned_urls = self.backend_client.get_model_download_url(
+        all_presigned_urls = self.backend_client.get_model_download_urls(
             pipeline.model_full_names
         )
-        for i, model_name in enumerate(pipeline.model_full_names):
-            url = all_presigned_urls[i].url
-            model_name_to_url[model_name] = url
+        for model_name in pipeline.model_full_names:
+            model_name_to_url[model_name] = next(
+                presigned_url.url
+                for presigned_url in all_presigned_urls
+                if presigned_url.model_name == model_name
+            )
         return json.dumps(model_name_to_url)

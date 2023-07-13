@@ -2,7 +2,7 @@ import json
 import logging
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, Callable, Union, List
+from typing import Optional, Callable, List
 
 import requests
 
@@ -20,6 +20,7 @@ class PresignedURLException(Exception):
 
 @dataclass
 class PresignedUrlResponse:
+    model_name: str
     url: str
     fields: Optional[dict]  # Present for upload URLs. Absent for download URLs.
 
@@ -72,7 +73,7 @@ class BackendClient:
 
     def _get_presigned_url(
         self, model_names: List[str], direction: PresignedUrlDirection
-    ) -> Union[PresignedUrlResponse, List[PresignedUrlResponse]]:
+    ) -> List[PresignedUrlResponse]:
         payload = {
             "direction": direction.value,
             "batch": [name + "/model.zip" for name in model_names],
@@ -81,8 +82,13 @@ class BackendClient:
         results = []
 
         for response in responses:
+            model_name = response.get("model_name", None)
             url = response.get("url", None)
             fields = response.get("fields", None)
+            if not model_name:
+                raise PresignedURLException(
+                    "Failed to generate presigned URL for model file transfer. Response was missing model_name field."
+                )
             if not url:
                 raise PresignedURLException(
                     "Failed to generate presigned URL for model file transfer. Response was missing url field."
@@ -90,31 +96,15 @@ class BackendClient:
             if direction == PresignedUrlDirection.Upload and not fields:
                 message = "Failed to generate presigned URL for model file upload. Response was missing 'fields' attribute."
                 raise PresignedURLException(message)
-            results.append(PresignedUrlResponse(url, fields))
 
-        return results if len(results) > 1 else results[0]
+            results.append(PresignedUrlResponse(model_name, url, fields))
 
-    def _get_model_url(
-        self, full_model_name: Union[str, List[str]], direction: PresignedUrlDirection
-    ) -> Union[PresignedUrlResponse, List[PresignedUrlResponse]]:
-        if isinstance(full_model_name, str):
-            full_model_name = [full_model_name]  # convert to a list of length 1
-            response: PresignedUrlResponse = self._get_presigned_url(
-                full_model_name, direction
-            )
-        else:
-            response: List[PresignedUrlResponse] = self._get_presigned_url(
-                full_model_name, direction
-            )
+        return results
 
-        return response
+    def get_model_download_urls(
+        self, model_name_batch: List[str]
+    ) -> List[PresignedUrlResponse]:
+        return self._get_presigned_url(model_name_batch, PresignedUrlDirection.Download)
 
-    def get_model_download_url(
-        self, full_model_name: Union[str, List[str]]
-    ) -> Union[PresignedUrlResponse, List[PresignedUrlResponse]]:
-        return self._get_model_url(full_model_name, PresignedUrlDirection.Download)
-
-    def get_model_upload_url(
-        self, full_model_name: Union[str, List[str]]
-    ) -> PresignedUrlResponse:
-        return self._get_model_url(full_model_name, PresignedUrlDirection.Upload)
+    def get_model_upload_url(self, model_name: str) -> PresignedUrlResponse:
+        return self._get_presigned_url([model_name], PresignedUrlDirection.Upload)[0]
