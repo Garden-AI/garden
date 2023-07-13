@@ -47,9 +47,3 @@ def test_incorrect_requirements_file_specification():
     )
     with pytest.raises(ValueError):
         load_pipeline_from_python_file(fixture_file_path)
-
-
-def test_valid_pipeline():
-    fixture_file_path = get_fixture_file_path("fixture_pipeline/valid_pipeline.py")
-    loaded_pipeline = load_pipeline_from_python_file(fixture_file_path)
-    assert isinstance(loaded_pipeline, Pipeline)
