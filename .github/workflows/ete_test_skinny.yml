@@ -1,19 +1,23 @@
-name: ETE Test
+name: ETE Test Skinny
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"    #runs every hour everyday
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["max/ete-test"]
+        repository-ref: ["main"]
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
+      SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -30,8 +34,10 @@ jobs:
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create false && \
-          poetry install --no-interaction --no-ansi --with=test,develop --all-extras
-      - name: execute py script
-        working-directory: ./test_ete
+          poetry install --no-interaction --no-ansi --with=test,develop
+      - name: Set job name env var
+        run: echo "GITHUB_JOB_NAME=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Run test script skinny
+        working-directory: ./tests/ete
         run: |
-          python3 test_end_to_end.py --ete-grant cc --ete-model sklearn --live-print-stdout
+          python3 test_end_to_end.py --garden-grant cc --compute-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout --pre-build-container sklearn

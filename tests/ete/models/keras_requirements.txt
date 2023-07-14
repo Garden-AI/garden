@@ -1,0 +1,2 @@
+## Please specify all pipeline dependencies here
+tensorflow==2.12.0
