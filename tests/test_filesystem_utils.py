@@ -4,14 +4,15 @@ from garden_ai.utils.filesystem import (
     PipelineLoadException,
     load_pipeline_from_python_file,
 )
+from garden_ai import Pipeline
 
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
 def test_load_pipeline_from_valid_file_with_no_model():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/pipeline.py")
-    with pytest.raises(PipelineLoadException):
-        load_pipeline_from_python_file(fixture_file_path)
+    loaded_pipeline = load_pipeline_from_python_file(fixture_file_path)
+    assert isinstance(loaded_pipeline, Pipeline)
 
 
 def test_load_pipeline_from_valid_file_with_no_pipeline():
