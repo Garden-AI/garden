@@ -14,6 +14,8 @@ from packaging.requirements import InvalidRequirement, Requirement
 from pydantic.json import pydantic_encoder
 from typing_extensions import TypeAlias
 
+import globus_compute_sdk
+
 JSON: TypeAlias = str
 
 logger = logging.getLogger()
@@ -245,3 +247,77 @@ def clean_identifier(name: str) -> str:
         logger.info(f'Generated valid short_name "{name}" from "{orig}".')
 
     return name.lower()
+
+
+def make_compute_client() -> globus_compute_sdk.sdk.client.Client:
+    import garden_ai
+    from globus_sdk import (
+        AuthClient,
+        NativeAppAuthClient,
+        RefreshTokenAuthorizer,
+        SearchClient,
+    )
+    from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
+    from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+    import os
+    import pathlib
+
+    auth_key_store = SimpleJSONFileAdapter(
+        os.path.join(
+            pathlib.Path(garden_ai.constants.GardenConstants.GARDEN_DIR), "tokens.json"
+        )
+    )
+    if not auth_key_store.file_exists():
+        raise Exception("Must be logged into Garden to use globus compute.")
+
+    auth_client = NativeAppAuthClient(
+        os.environ.get(
+            "GARDEN_CLIENT_ID", garden_ai.GardenConstants.GARDEN_CLIENT_ID_DEFAULT
+        )
+    )
+
+    search_token = auth_key_store.get_token_data(SearchClient.scopes.resource_server)
+    search_authorizer = RefreshTokenAuthorizer(
+        search_token["refresh_token"],
+        auth_client,
+        access_token=search_token["access_token"],
+        expires_at=search_token["expires_at_seconds"],
+        on_refresh=auth_key_store.on_refresh,
+    )
+
+    openid_token = auth_key_store.get_token_data(AuthClient.scopes.resource_server)
+    openid_authorizer = RefreshTokenAuthorizer(
+        openid_token["refresh_token"],
+        auth_client,
+        access_token=openid_token["access_token"],
+        expires_at=openid_token["expires_at_seconds"],
+        on_refresh=auth_key_store.on_refresh,
+    )
+
+    compute_token = auth_key_store.get_token_data(
+        garden_ai.client.COMPUTE_RESOURCE_SERVER_NAME
+    )
+    compute_authorizer = RefreshTokenAuthorizer(
+        compute_token["refresh_token"],
+        auth_client,
+        access_token=compute_token["access_token"],
+        expires_at=compute_token["expires_at_seconds"],
+        on_refresh=auth_key_store.on_refresh,
+    )
+
+    scope_to_authorizer = {
+        AuthScopes.openid: openid_authorizer,
+        SearchScopes.all: search_authorizer,
+        globus_compute_sdk.sdk.client.Client.FUNCX_SCOPE: compute_authorizer,
+    }
+
+    compute_login_manager = garden_ai.globus_compute.login_manager.ComputeLoginManager(
+        scope_to_authorizer
+    )
+    compute_client = globus_compute_sdk.sdk.client.Client(
+        login_manager=compute_login_manager,
+        do_version_check=False,
+        code_serialization_strategy=globus_compute_sdk.serialize.concretes.DillCode(),
+    )
+
+    return compute_client
