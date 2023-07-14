@@ -773,7 +773,9 @@ def _test_run_garden_on_endpoint(
         test_garden = client.get_published_garden(garden.doi)
         run_pipeline = getattr(test_garden, pipeline_name)
 
-        result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
+        result = run_pipeline(
+            Xtest, endpoint=globus_compute_endpoint, garden_client=client
+        )
 
         rich_print(
             f"Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"

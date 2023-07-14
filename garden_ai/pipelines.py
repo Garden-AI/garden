@@ -392,6 +392,7 @@ class RegisteredPipeline(BaseModel):
     def __call__(
         self,
         *args: Any,
+        garden_client: garden_ai.GardenClient = None,
         endpoint: Union[UUID, str] = None,
         **kwargs: Any,
     ) -> Any:
@@ -411,6 +412,9 @@ class RegisteredPipeline(BaseModel):
 
 
         """
+        if not garden_client:
+            raise ValueError("Missing required kwarg 'garden_client'")
+
         if not endpoint:
             endpoint = GardenConstants.DLHUB_ENDPOINT
 
@@ -419,7 +423,9 @@ class RegisteredPipeline(BaseModel):
             kwargs = dict(kwargs)
             kwargs["_env_vars"] = self._env_vars
 
-        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
+        with globus_compute_sdk.Executor(
+            endpoint_id=str(endpoint), funcx_client=garden_client.compute_client
+        ) as gce:
             # TODO: refactor below once the remote-calling interface is settled.
             # console/spinner is good ux but shouldn't live this deep in the
             # sdk.
