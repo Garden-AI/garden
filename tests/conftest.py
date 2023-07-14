@@ -232,16 +232,14 @@ def step_with_model(mocker):
     mock_Model = mocker.MagicMock(garden_ai._model._Model)
     mock_Model.model = mock_pyfunc_model
     # Using existing registered model
-    mock_Model.full_name = "willengler@uchicago.edu/fake_model"
-    # mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
+    mock_Model.full_name = "email@addr.ess/fake-model"
+    mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
     mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
 
     @step
     def uses_model_in_default(
         arg: object,
-        default_arg_model: object = garden_ai.Model(
-            "willengler@uchicago.edu/fake_model"
-        ),
+        default_arg_model: object = garden_ai.Model("email@addr.ess/fake-model"),
     ) -> object:
         pass
 
