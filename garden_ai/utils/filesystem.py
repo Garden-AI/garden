@@ -23,15 +23,4 @@ def load_pipeline_from_python_file(python_file: Path) -> Pipeline:
     """
     from garden_ai.utils._meta import _load_pipeline_from_python_file
 
-    try:
-        return _load_pipeline_from_python_file(python_file)
-    except ValueError as e:
-        raise PipelineLoadException(
-            f"Could not find pipeline object in {python_file}."
-        ) from e
-    except Exception as e:
-        raise PipelineLoadException(
-            f"Failed to execute the Python code in {python_file}"
-        ) from e
-
-    raise PipelineLoadException(f"Could not find pipeline object in {python_file}")
+    return _load_pipeline_from_python_file(python_file)
