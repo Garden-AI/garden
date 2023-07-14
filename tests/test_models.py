@@ -213,7 +213,7 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
 
 
 def test_step_collect_model(step_with_model):
-    assert step_with_model.model_full_names == ["email@addr.ess/fake-model"]
+    assert step_with_model.model_full_names == ["willengler@uchicago.edu/fake_model"]
 
 
 def test_pipeline_collects_own_requirements(
@@ -233,7 +233,7 @@ def test_pipeline_collects_own_requirements(
 
 def test_pipeline_collects_step_models(pipeline_using_step_with_model):
     assert pipeline_using_step_with_model.model_full_names == [
-        "email@addr.ess/fake-model"
+        "willengler@uchicago.edu/fake_model"
     ]
 
 
