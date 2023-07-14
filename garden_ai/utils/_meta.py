@@ -1,6 +1,9 @@
 import inspect
 import linecache
 import textwrap
+import logging
+
+logger = logging.getLogger()
 
 
 def redef_in_main(obj):
@@ -144,8 +147,9 @@ class _USER_PIPELINE_MODULE:
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
             if not Model.has_been_called:
-                raise PipelineLoadException(
-                    "No model exists in file. Please input the model in your pipeline.py with the name of a registered Garden model."
+                logger.warning(
+                    f"No model exists in file. If this pipeline includes a model, please input the model in {python_file} "
+                    "with the name of a registered Garden model."
                     "\nFor more information on how to use Garden, please read our docs: "
                     "https://garden-ai.readthedocs.io/en/latest/"
                 )
