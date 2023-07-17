@@ -3,6 +3,8 @@ import json
 import logging
 import re
 import sys
+import os
+import pathlib
 from inspect import Parameter, Signature, signature
 from keyword import iskeyword
 from typing import Callable, List, Optional, Tuple
@@ -14,7 +16,16 @@ from packaging.requirements import InvalidRequirement, Requirement
 from pydantic.json import pydantic_encoder
 from typing_extensions import TypeAlias
 
-import globus_compute_sdk
+import garden_ai
+from garden_ai.globus_compute.login_manager import ComputeLoginManager
+from globus_compute_sdk import Client as ComputeClient
+from globus_sdk import (
+    AuthClient,
+    AccessTokenAuthorizer,
+)
+from globus_sdk.scopes import AuthScopes
+from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+
 
 JSON: TypeAlias = str
 
@@ -249,75 +260,31 @@ def clean_identifier(name: str) -> str:
     return name.lower()
 
 
-def make_compute_client() -> globus_compute_sdk.sdk.client.Client:
-    import garden_ai
-    from globus_sdk import (
-        AuthClient,
-        NativeAppAuthClient,
-        RefreshTokenAuthorizer,
-        SearchClient,
-    )
-    from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
-    from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-    import os
-    import pathlib
-
+def make_compute_client() -> ComputeClient:
     auth_key_store = SimpleJSONFileAdapter(
-        os.path.join(
-            pathlib.Path(garden_ai.constants.GardenConstants.GARDEN_DIR), "tokens.json"
-        )
+        os.path.join(pathlib.Path(garden_ai.GardenConstants.GARDEN_DIR), "tokens.json")
     )
     if not auth_key_store.file_exists():
         raise Exception("Must be logged into Garden to use globus compute.")
 
-    auth_client = NativeAppAuthClient(
-        os.environ.get(
-            "GARDEN_CLIENT_ID", garden_ai.GardenConstants.GARDEN_CLIENT_ID_DEFAULT
-        )
-    )
-
-    search_token = auth_key_store.get_token_data(SearchClient.scopes.resource_server)
-    search_authorizer = RefreshTokenAuthorizer(
-        search_token["refresh_token"],
-        auth_client,
-        access_token=search_token["access_token"],
-        expires_at=search_token["expires_at_seconds"],
-        on_refresh=auth_key_store.on_refresh,
-    )
-
-    openid_token = auth_key_store.get_token_data(AuthClient.scopes.resource_server)
-    openid_authorizer = RefreshTokenAuthorizer(
-        openid_token["refresh_token"],
-        auth_client,
-        access_token=openid_token["access_token"],
-        expires_at=openid_token["expires_at_seconds"],
-        on_refresh=auth_key_store.on_refresh,
-    )
-
+    # Get compute and openid access tokens from existing tokens
     compute_token = auth_key_store.get_token_data(
         garden_ai.client.COMPUTE_RESOURCE_SERVER_NAME
     )
-    compute_authorizer = RefreshTokenAuthorizer(
-        compute_token["refresh_token"],
-        auth_client,
-        access_token=compute_token["access_token"],
-        expires_at=compute_token["expires_at_seconds"],
-        on_refresh=auth_key_store.on_refresh,
+    openid_token = auth_key_store.get_token_data(AuthClient.scopes.resource_server)
+
+    # Create authorizers from existing access tokens
+    compute_auth = AccessTokenAuthorizer(compute_token["access_token"])
+    openid_auth = AccessTokenAuthorizer(openid_token["access_token"])
+
+    # Create a new login manager and use it to create a client
+    compute_login_manager = ComputeLoginManager(
+        authorizers={
+            ComputeClient.FUNCX_SCOPE: compute_auth,
+            AuthScopes.openid: openid_auth,
+        }
     )
 
-    scope_to_authorizer = {
-        AuthScopes.openid: openid_authorizer,
-        SearchScopes.all: search_authorizer,
-        globus_compute_sdk.sdk.client.Client.FUNCX_SCOPE: compute_authorizer,
-    }
-
-    compute_login_manager = garden_ai.globus_compute.login_manager.ComputeLoginManager(
-        scope_to_authorizer
-    )
-    compute_client = globus_compute_sdk.sdk.client.Client(
-        login_manager=compute_login_manager,
-        do_version_check=False,
-        code_serialization_strategy=globus_compute_sdk.serialize.concretes.DillCode(),
-    )
+    compute_client = ComputeClient(login_manager=compute_login_manager)
 
     return compute_client
