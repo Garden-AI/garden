@@ -89,7 +89,7 @@ class GardenClient:
             os.path.join(key_store_path, "tokens.json")
         )
         self.client_id = os.environ.get(
-            "GARDEN_CLIENT_ID", GardenConstants.GARDEN_CLIENT_ID_DEFAULT
+            "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
         # If auth_client is type AuthClient or None, do an
