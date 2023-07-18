@@ -10,6 +10,8 @@ from uuid import UUID
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.serialize.concretes import DillCode
+from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
+from garden_ai.garden_file_adapter import GardenFileAdapter
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -85,9 +87,14 @@ class GardenClient:
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
-        self.auth_key_store = SimpleJSONFileAdapter(
+        self.garden_key_store = SimpleJSONFileAdapter(
             os.path.join(key_store_path, "tokens.json")
         )
+        self.compute_key_store = get_token_storage_adapter()
+        self.auth_key_store = GardenFileAdapter(
+            self.garden_key_store, self.compute_key_store
+        )
+
         self.client_id = os.environ.get(
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
