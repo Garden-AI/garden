@@ -4,7 +4,7 @@ import pytest
 import os
 from globus_compute_sdk import Client  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
-from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+from garden_ai.garden_file_adapter import GardenFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
@@ -57,8 +57,8 @@ def noop_func_uuid():
 
 @pytest.fixture
 def mock_keystore(mocker):
-    mock_keystore = mocker.MagicMock(SimpleJSONFileAdapter)
-    mocker.patch("garden_ai.client.SimpleJSONFileAdapter").return_value = mock_keystore
+    mock_keystore = mocker.MagicMock(GardenFileAdapter)
+    mocker.patch("garden_ai.client.GardenFileAdapter").return_value = mock_keystore
     return mock_keystore
 
 
