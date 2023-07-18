@@ -3,8 +3,6 @@ import json
 import logging
 import re
 import sys
-import os
-import pathlib
 from inspect import Parameter, Signature, signature
 from keyword import iskeyword
 from typing import Callable, List, Optional, Tuple
@@ -15,17 +13,6 @@ import yaml
 from packaging.requirements import InvalidRequirement, Requirement
 from pydantic.json import pydantic_encoder
 from typing_extensions import TypeAlias
-
-import garden_ai
-from garden_ai.globus_compute.login_manager import ComputeLoginManager
-from globus_compute_sdk import Client as ComputeClient
-from globus_sdk import (
-    AuthClient,
-    AccessTokenAuthorizer,
-)
-from globus_sdk.scopes import AuthScopes
-from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-
 
 JSON: TypeAlias = str
 
@@ -258,33 +245,3 @@ def clean_identifier(name: str) -> str:
         logger.info(f'Generated valid short_name "{name}" from "{orig}".')
 
     return name.lower()
-
-
-def make_compute_client() -> ComputeClient:
-    auth_key_store = SimpleJSONFileAdapter(
-        os.path.join(pathlib.Path(garden_ai.GardenConstants.GARDEN_DIR), "tokens.json")
-    )
-    if not auth_key_store.file_exists():
-        raise Exception("Must be logged into Garden to use globus compute.")
-
-    # Get compute and openid access tokens from existing tokens
-    compute_token = auth_key_store.get_token_data(
-        garden_ai.client.COMPUTE_RESOURCE_SERVER_NAME
-    )
-    openid_token = auth_key_store.get_token_data(AuthClient.scopes.resource_server)
-
-    # Create authorizers from existing access tokens
-    compute_auth = AccessTokenAuthorizer(compute_token["access_token"])
-    openid_auth = AccessTokenAuthorizer(openid_token["access_token"])
-
-    # Create a new login manager and use it to create a client
-    compute_login_manager = ComputeLoginManager(
-        authorizers={
-            ComputeClient.FUNCX_SCOPE: compute_auth,
-            AuthScopes.openid: openid_auth,
-        }
-    )
-
-    compute_client = ComputeClient(login_manager=compute_login_manager)
-
-    return compute_client

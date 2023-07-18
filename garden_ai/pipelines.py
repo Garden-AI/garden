@@ -38,7 +38,6 @@ from garden_ai.utils.misc import (
     garden_json_encoder,
     read_conda_deps,
     safe_compose,
-    make_compute_client,
 )
 
 logger = logging.getLogger()
@@ -420,11 +419,7 @@ class RegisteredPipeline(BaseModel):
             kwargs = dict(kwargs)
             kwargs["_env_vars"] = self._env_vars
 
-        compute_client = make_compute_client()
-
-        with globus_compute_sdk.Executor(
-            endpoint_id=str(endpoint), funcx_client=compute_client
-        ) as gce:
+        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
             # TODO: refactor below once the remote-calling interface is settled.
             # console/spinner is good ux but shouldn't live this deep in the
             # sdk.
