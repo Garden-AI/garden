@@ -231,7 +231,9 @@ def step_with_model(mocker):
     mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
     mock_Model = mocker.MagicMock(garden_ai._model._Model)
     mock_Model.model = mock_pyfunc_model
+    # Using existing registered model
     mock_Model.full_name = "email@addr.ess/fake-model"
+    mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
     mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
 
     @step

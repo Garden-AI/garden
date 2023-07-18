@@ -218,8 +218,7 @@ def register(
         PipelineLoadScaffoldedException,
     ) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
-        raise typer.Exit(code=1) from e
-
+        raise
     with console.status(
         "[bold green]Building container. This operation times out after 30 minutes."
     ):

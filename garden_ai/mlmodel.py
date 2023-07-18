@@ -4,12 +4,14 @@ import pickle
 import shutil
 from enum import Enum
 from typing import List
+import functools
 
 import mlflow  # type: ignore
 from pydantic import BaseModel, Field, validator
 
 from garden_ai import GardenConstants
 from garden_ai._model import _Model
+
 
 MODEL_STAGING_DIR = pathlib.Path(GardenConstants.GARDEN_DIR) / "mlflow"
 MODEL_STAGING_DIR.mkdir(parents=True, exist_ok=True)
@@ -184,7 +186,21 @@ def clear_mlflow_staging_directory():
             shutil.rmtree(item_path)
 
 
+def trackcalls(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        wrapper.has_been_called = True
+        return func(*args, **kwargs)
+
+    wrapper.has_been_called = False
+    return wrapper
+
+
+@trackcalls
 def Model(full_model_name: str) -> _Model:
+    from garden_ai.utils.filesystem import PipelineLoadException
+    from .local_data import get_local_model_by_name
+
     """Load a registered model from Garden-AI's (MLflow) tracking server.
 
     Tip:
@@ -217,6 +233,21 @@ def Model(full_model_name: str) -> _Model:
         default is lighter-weight when the function itself is serialized for \
         remote execution of a pipeline.
     """
+    if not full_model_name:
+        raise PipelineLoadException(
+            "The parameters of Model() are empty. Please enter your registered model name in your pipeline.py"
+        )
+    if not get_local_model_by_name(full_model_name):
+        raise PipelineLoadException(f"No model with {full_model_name} exists.")
+    if full_model_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
+        error_message = (
+            "Failed to load model. It looks like you are using the placeholder model name from a scaffolded pipeline. "
+            f"Please replace {GardenConstants.SCAFFOLDED_MODEL_NAME} in your pipeline.py"
+            " with the name of a registered Garden model."
+            "\nFor more information on how to use Garden, please read our docs: "
+            "https://garden-ai.readthedocs.io/en/latest/"
+        )
+        raise PipelineLoadScaffoldedException(error_message)
     try:
         from __main__ import _Model
     except ImportError:
