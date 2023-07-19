@@ -36,11 +36,13 @@ from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundExcept
 from garden_ai.mlmodel import (
     LocalModel,
     ModelMetadata,
+    Model,
     clear_mlflow_staging_directory,
     stage_model_for_upload,
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
+from garden_ai.steps import Step, step
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 GARDEN_ENDPOINT = os.environ.get(
@@ -361,6 +363,88 @@ class GardenClient:
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
         return func_uuid
+
+    def create_minimal_step(
+        self,
+        *,
+        model_name: str,
+        local_path: str,
+        flavor: str,
+        requirements_file: str = "requirements.txt",
+    ) -> Step:
+        with open(requirements_file, "r") as f:
+            pip_reqs = [line.strip() for line in f.readlines()]
+
+        local_model = LocalModel(
+            model_name=model_name,
+            flavor=flavor,
+            extra_pip_requirements=pip_reqs,
+            local_path=local_path,
+            user_email=self.get_email(),
+        )
+
+        registered_model = self.register_model(local_model)
+
+        @step
+        def run_inference(
+            input_arg: object, model=Model(registered_model.full_name)
+        ) -> object:
+            return model.predict(input_arg)
+
+        return run_inference
+
+    def register_minimal_pipeline(
+        self,
+        _step: Step,
+        *,
+        authors: List[str],
+        tags: List[str],
+        title: str = None,
+        description: str = None,
+        requirements_file: str = "requirements.txt",
+    ) -> Pipeline:
+        full_name = _step.model_full_names[0]
+        pipeline = self.create_pipeline(
+            authors,
+            title or f"Inference on {full_name}",
+            short_name=full_name[
+                full_name.find("/") + 1 :
+            ],  # just the model short_name?
+            steps=(_step,),
+            requirements_file=requirements_file,
+            description=description
+            or "Auto-generated pipeline that executes a single step which runs an inference.",
+            tags=tags,
+        )
+        container_uuid = self.build_container(pipeline)
+        self.register_pipeline(pipeline, container_uuid)
+        return pipeline
+
+    def get_remote_func_from_pipeline(
+        self, garden_doi: str, pipeline: Pipeline
+    ) -> object:  # returns Python function
+        garden = self.get_published_garden(garden_doi)
+
+        # add pipeline to garden
+        if pipeline not in garden.pipelines:
+            garden.pipeline_ids += [pipeline.doi]
+        local_data.put_local_garden(
+            garden
+        )  # not sure if this is needed, just saw in the CLI
+
+        self.publish_garden_metadata(garden)
+        # bandaid in the event the index is written more than once simultaneously
+        # note: still not perfect, communication is key
+        if garden != self.get_published_garden(garden.doi):
+            self.publish_garden_metadata(garden)
+
+        def curry(x: object) -> object:
+            # does/should the step provide these annotations so I can save an `inspect` import?
+            return getattr(garden, pipeline.short_name)(
+                x, endpoint="86a47061-f3d9-44f0-90dc-56ddc642c000"
+            )
+
+        return curry
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
