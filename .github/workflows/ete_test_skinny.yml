@@ -41,12 +41,12 @@ jobs:
         run: python3 test_end_to_end.py --garden-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 1
   check-timeout:
-    needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.8"]
         repository-ref: ["max/ete-fixes"]
+      max-parallel: 1
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
