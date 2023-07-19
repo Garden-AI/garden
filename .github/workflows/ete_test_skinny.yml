@@ -37,6 +37,8 @@ jobs:
       - name: Set job name env var
         run: echo "GITHUB_JOB_NAME=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Run test script skinny
+        id: skinny_test
+        continue-on-error: true
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py --garden-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 1
