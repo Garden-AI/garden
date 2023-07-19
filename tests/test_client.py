@@ -2,6 +2,7 @@ import os
 
 import pytest
 from globus_compute_sdk import Client  # type: ignore
+from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -48,6 +49,13 @@ def test_client_no_previous_tokens(
         return_value=mock_token_response
     )
 
+    # Mocks compute client login
+    mock_login_manager = mocker.MagicMock(LoginManager)
+    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
+    mocker.patch(
+        "globus_compute_sdk.sdk.client.LoginManager"
+    ).return_value = mock_login_manager
+
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
 
@@ -86,6 +94,13 @@ def test_client_previous_tokens_stored(
 
     mock_keystore.file_exists.return_value = True
     mock_keystore.get_token_data.return_value = token
+
+    # Mocks compute client login
+    mock_login_manager = mocker.MagicMock(LoginManager)
+    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
+    mocker.patch(
+        "globus_compute_sdk.sdk.client.LoginManager"
+    ).return_value = mock_login_manager
 
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client)

@@ -3,6 +3,7 @@ from typing import List
 import pytest
 import os
 from globus_compute_sdk import Client  # type: ignore
+from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
@@ -94,6 +95,13 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
         return_value=mock_token_response
     )
+
+    # Mocks compute client login
+    mock_login_manager = mocker.MagicMock(LoginManager)
+    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
+    mocker.patch(
+        "globus_compute_sdk.sdk.client.LoginManager"
+    ).return_value = mock_login_manager
 
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
