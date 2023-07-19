@@ -45,18 +45,18 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     strategy:
-      timeout_matrix:
+      matrix:
         python-version: ["3.8"]
         repository-ref: ["max/ete-fixes"]
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
         with:
-            ref: ${{ timeout_matrix.repository-ref }}
-      - name: Set up Python ${{ timeout_matrix.python-version }}
+            ref: ${{ matrix.repository-ref }}
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ timeout_matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
         with:
