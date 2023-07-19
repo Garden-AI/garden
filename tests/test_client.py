@@ -164,6 +164,9 @@ def test_client_credentials_grant(cc_grant_tuple):
     client_id = cc_grant_tuple[0]
     client_secret = cc_grant_tuple[1]
 
+    os.environ["FUNCX_SDK_CLIENT_ID"] = client_id
+    os.environ["FUNCX_SDK_CLIENT_SECRET"] = client_secret
+
     confidential_client = ConfidentialAppAuthClient(client_id, client_secret)
     gc = GardenClient(auth_client=confidential_client)
 
