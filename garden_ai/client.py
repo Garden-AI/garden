@@ -22,7 +22,7 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
 )
-from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
+from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
