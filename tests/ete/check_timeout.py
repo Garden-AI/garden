@@ -53,11 +53,15 @@ def report_timeout_jobs(
                     total_time = end_time - start_time
                     if total_time >= timedelta(minutes=timeout):
                         failed_jobs.append(job["name"])
-    msg = ""
-    for failed_job in failed_jobs:
-        msg += f"*FAILURE*, end to end run: `{str(failed_job)}` timed out after {timeout} minutes.\n"
-    msg += f"See Github actions run for more information:\n{git_jobs_url}"
-    _send_slack_message(msg, slack_hook)
+
+    if len(failed_jobs) > 0:
+        msg = ""
+        for failed_job in failed_jobs:
+            msg += f"*FAILURE*, end to end run: `{str(failed_job)}` timed out after {timeout} minutes.\n"
+        msg += f"See Github actions run for more information:\n{git_jobs_url}"
+        _send_slack_message(msg, slack_hook)
+    else:
+        print("No jobs found to time out.")
 
 
 def _send_slack_message(msg, slack_hook):
