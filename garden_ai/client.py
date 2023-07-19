@@ -10,6 +10,8 @@ from uuid import UUID
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.serialize.concretes import DillCode
+from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
+from garden_ai.garden_file_adapter import GardenFileAdapter
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -20,7 +22,7 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
 )
-from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
+from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
@@ -29,7 +31,6 @@ from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
-from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
@@ -85,9 +86,14 @@ class GardenClient:
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
-        self.auth_key_store = SimpleJSONFileAdapter(
+        self.garden_key_store = SimpleJSONFileAdapter(
             os.path.join(key_store_path, "tokens.json")
         )
+        self.compute_key_store = get_token_storage_adapter()
+        self.auth_key_store = GardenFileAdapter(
+            self.garden_key_store, self.compute_key_store
+        )
+
         self.client_id = os.environ.get(
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
@@ -153,14 +159,7 @@ class GardenClient:
         return self.garden_authorizer.access_token
 
     def _make_compute_client(self):
-        scope_to_authorizer = {
-            AuthScopes.openid: self.openid_authorizer,
-            SearchScopes.all: self.search_authorizer,
-            Client.FUNCX_SCOPE: self.compute_authorizer,
-        }
-        compute_login_manager = ComputeLoginManager(scope_to_authorizer)
         return Client(
-            login_manager=compute_login_manager,
             do_version_check=False,
             code_serialization_strategy=DillCode(),
         )
