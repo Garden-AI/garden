@@ -975,6 +975,18 @@ def _send_slack_message(msg, slack_hook):
     requests.post(slack_hook, data=payload)
 
 
+def _slack_message_failure():
+    is_gha = os.getenv("GITHUB_ACTIONS")
+    if is_gha:
+        slack_hook = os.getenv("SLACK_HOOK_URL")
+        _send_slack_message(
+            "*FAILURE*, something broke while trying to send error message, check Github actions.",
+            slack_hook,
+        )
+    else:
+        rich_print("FAILED TO SEND SLACK MESSAGE")
+
+
 def get_timestamp():
     cur_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
     return f"[{cur_time}]"
@@ -984,6 +996,10 @@ if __name__ == "__main__":
     try:
         t_app()
     except Exception as error:
-        # Catch any exceptions thown durring the test and send error msg to slack.
-        _send_slack_error_message(error)
-        raise error
+        try:
+            # Catch any exceptions thown durring the test and send error msg to slack.
+            _send_slack_error_message(error)
+        except:
+            _slack_message_failure()
+        finally:
+            raise error
