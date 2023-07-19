@@ -1,6 +1,7 @@
 import os
 import typer
 import requests
+import time
 from datetime import datetime, timezone, timedelta
 
 t_app = typer.Typer()
@@ -16,6 +17,8 @@ def report_timeout_jobs(
     is_gha = os.getenv("GITHUB_ACTIONS")
     if not is_gha:
         raise Exception("For github actions use only.")
+
+    time.sleep(30)
 
     slack_hook = os.getenv("SLACK_HOOK_URL")
     git_repo = os.getenv("GITHUB_REPOSITORY")
