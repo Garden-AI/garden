@@ -23,11 +23,6 @@ from garden_ai.app.main import app
 import globus_sdk
 
 
-# If prompt_for_git_secret is true, must have a json file ./templates/git_secrets.json containing
-# GARDEN_API_CLIENT_ID and GARDEN_API_CLIENT_SECRET. For manual running ease of use.
-
-prompt_for_git_secret = False
-
 # Set to command name that failed. Used for sending slack error message.
 # If the test fails somehow without setting failed on, send unknown action as failure point.
 failed_on = "unknown action"
@@ -45,7 +40,7 @@ key_store_path = Path(os.path.expanduser("~/.garden"))
 garden_title = f"ETE-Test-Garden-{str(uuid.uuid4())}"
 
 scaffolded_pipeline_folder_name = "ete_test_pipeline_title"
-pipeline_template_name = "ete_pipeline"
+pipeline_template_name = "ete_pipeline_cc"
 
 sklearn_pipeline_path = os.path.join(key_store_path, "sklearn_pipeline.py")
 sklearn_pipeline_name = "ETESklearnPipeline"
@@ -107,10 +102,6 @@ def run_garden_end_to_end(
         default="cc",
         help="The grant type to initialize a GardenClient with. Can be cc or at.",
     ),
-    compute_grant: Optional[str] = typer.Option(
-        default="at",
-        help="The grant type to initialize a Globus Compute with. Can be cc or at.",
-    ),
     model_type: Optional[str] = typer.Option(
         default="sklearn",
         help="The model types to test. Can be sklearn, tf, torch or all.",
@@ -127,12 +118,15 @@ def run_garden_end_to_end(
         default="none",
         help="If test should use a pre build container for a fast run. Can be sklearn, tf or torch. If none, then will build containers normally.",
     ),
+    prompt_for_git_secret: Optional[bool] = typer.Option(
+        default=True,
+        help="If test should as needed prompt for garden client credentials or read them from user included file ./templates/git_secrets.json. If false, user MUST provide values for GARDEN_API_CLIENT_SECRET GARDEN_API_CLIENT_ID in git_secrets.json",
+    ),
 ):
     # Set up
     rich_print("\n[bold blue]Setup ETE Test[/bold blue]\n")
 
     rich_print(f"Garden grant type set to: [blue]{garden_grant}[/blue]")
-    rich_print(f"Globus compute grant type set to: [blue]{compute_grant}[/blue]")
 
     run_sklearn = False
     run_tf = False
@@ -204,24 +198,23 @@ def run_garden_end_to_end(
                 GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
                 GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
 
+        os.environ["FUNCX_SDK_CLIENT_ID"] = GARDEN_API_CLIENT_ID
+        os.environ["FUNCX_SDK_CLIENT_SECRET"] = GARDEN_API_CLIENT_SECRET
+
         client = _make_garden_client_with_cc(
             GARDEN_API_CLIENT_ID, GARDEN_API_CLIENT_SECRET
         )
 
     elif garden_grant == "at":
         # Create GardenClient normally with access token grant
+        GARDEN_API_CLIENT_ID = "none"
+        GARDEN_API_CLIENT_SECRET = "none"
+        global pipeline_template_name
+        pipeline_template_name = "ete_pipeline_at"
         client = _make_garden_client_with_at()
     else:
         raise Exception(
             "Invalid garden grant type; must be either cc (Client credential grant) or at (Access token grant)."
-        )
-
-    if compute_grant == "cc":
-        os.environ["FUNCX_SDK_CLIENT_ID"] = GARDEN_API_CLIENT_ID
-        os.environ["FUNCX_SDK_CLIENT_SECRET"] = GARDEN_API_CLIENT_SECRET
-    elif compute_grant != "at":
-        raise Exception(
-            "Invalid globus compute grant type; must be either cc (Client credential grant) or at (Access token grant)."
         )
 
     # Patch all instances of GardenClient with our new grant type one and run tests with patches.
@@ -441,36 +434,50 @@ def _run_test_cmds(
 
 def _make_garden_client_with_cc(CLIENT_ID, CLIENT_SECRET):
     try:
-        rich_print("Starting initialize GardenClient with [blue]CC[/blue] grant.")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Starting initialize GardenClient with [blue]CC[/blue] grant."
+        )
         confidential_client = globus_sdk.ConfidentialAppAuthClient(
             CLIENT_ID, CLIENT_SECRET
         )
         client = garden_ai.GardenClient(auth_client=confidential_client)
-        rich_print("Finished initializing GardenClient with [blue]CC[/blue] grant.")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished initializing GardenClient with [blue]CC[/blue] grant."
+        )
         return client
     except Exception as error:
         global failed_on
         failed_on = "make GardenClient with CC grant"
-        rich_print("Failed to initialize GardenClient with [blue]CC[/blue] grant.")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed to initialize GardenClient with [blue]CC[/blue] grant."
+        )
         raise error
 
 
 def _make_garden_client_with_at():
     try:
-        rich_print("Starting initialize GardenClient with [blue]AT[/blue] grant.")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Starting initialize GardenClient with [blue]AT[/blue] grant."
+        )
         client = garden_ai.GardenClient()
-        rich_print("Finished initializing GardenClient with [blue]AT[/blue] grant.")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished initializing GardenClient with [blue]AT[/blue] grant."
+        )
         return client
     except Exception as error:
         global failed_on
         failed_on = "make GardenClient with AT grant"
-        rich_print("Failed to initialize GardenClient with [blue]AT[/blue] grant.")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed to initialize GardenClient with [blue]AT[/blue] grant."
+        )
         raise error
 
 
 def _test_garden_create(example_garden_data, unique_title, runner):
     try:
-        rich_print("\nStarting test: [italic red]garden create[/italic red]")
+        rich_print(
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden create[/italic red]"
+        )
 
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
@@ -504,20 +511,22 @@ def _test_garden_create(example_garden_data, unique_title, runner):
         assert new_garden.description == example_garden_data["description"]
 
         rich_print(
-            "Finished test: [italic red]garden create[/italic red] with no errors."
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden create[/italic red] with no errors."
         )
         return new_garden
     except Exception as error:
         global failed_on
         failed_on = "garden create"
-        rich_print("Failed test: [italic red]garden create[/italic red]")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden create[/italic red]"
+        )
         raise error
 
 
 def _test_garden_add_pipeline(original_garden, pipeline, runner):
     try:
         rich_print(
-            f"\nStarting test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
         )
 
         command = [
@@ -549,20 +558,22 @@ def _test_garden_add_pipeline(original_garden, pipeline, runner):
             assert pl_id in local_pipeline_ids
 
         rich_print(
-            f"Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "garden add-pipeline"
         rich_print(
-            f"Failed test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
         )
         raise error
 
 
 def _test_garden_publish(garden, runner):
     try:
-        rich_print("\nStarting test: [italic red]garden publish[/italic red]")
+        rich_print(
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden publish[/italic red]"
+        )
 
         command = [
             "garden",
@@ -578,20 +589,24 @@ def _test_garden_publish(garden, runner):
             raise result.exception
 
         rich_print(
-            "Finished test: [italic red]garden publish[/italic red] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden publish[/italic red] with no errors"
         )
 
         return garden_ai.local_data.get_local_garden_by_doi(garden.doi)
     except Exception as error:
         global failed_on
         failed_on = "garden publish"
-        rich_print("Failed test: [italic red]garden publish[/italic red]")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden publish[/italic red]"
+        )
         raise error
 
 
 def _test_garden_search(garden, runner):
     try:
-        rich_print("\nStarting test: [italic red]garden search[/italic red]")
+        rich_print(
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden search[/italic red]"
+        )
 
         command = [
             "garden",
@@ -610,19 +625,21 @@ def _test_garden_search(garden, runner):
         assert str(garden.doi) in result.stdout
 
         rich_print(
-            "Finished test: [italic red]garden search[/italic red] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden search[/italic red] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "garden search"
-        rich_print("Failed test: [italic red]garden search[/italic red]")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden search[/italic red]"
+        )
         raise error
 
 
 def _test_model_register(model_location, flavor, short_name, runner):
     try:
         rich_print(
-            f"\nStarting test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
 
         command = [
@@ -653,7 +670,7 @@ def _test_model_register(model_location, flavor, short_name, runner):
         assert local_model.flavor == flavor
 
         rich_print(
-            f"Finished test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
         return local_model.full_name
@@ -661,7 +678,7 @@ def _test_model_register(model_location, flavor, short_name, runner):
         global failed_on
         failed_on = "model register"
         rich_print(
-            f"Failed test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
         raise error
 
@@ -670,7 +687,9 @@ def _test_pipeline_create(
     example_pipeline_data, location, scaffolded_pipeline_folder_name, runner
 ):
     try:
-        rich_print("\nStarting test: [italic red]pipeline create[/italic red]")
+        rich_print(
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]pipeline create[/italic red]"
+        )
 
         command = [
             "pipeline",
@@ -704,19 +723,21 @@ def _test_pipeline_create(
         )
 
         rich_print(
-            "Finished test: [italic red]pipeline create[/italic red] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]pipeline create[/italic red] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "pipeline create"
-        rich_print("Failed test: [italic red]pipeline create[/italic red]")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]pipeline create[/italic red]"
+        )
         raise error
 
 
 def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, runner):
     try:
         rich_print(
-            f"\nStarting test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
 
         command = [
@@ -747,7 +768,7 @@ def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, ru
         assert model_full_name in registered_pipeline.steps[0]["model_full_names"]
 
         rich_print(
-            f"Finished test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
         return registered_pipeline
@@ -755,7 +776,7 @@ def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, ru
         global failed_on
         failed_on = "pipeline register"
         rich_print(
-            f"Failed test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
         raise error
 
@@ -765,7 +786,7 @@ def _test_run_garden_on_endpoint(
 ):
     try:
         rich_print(
-            f"\nStarting test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
         )
 
         with open(input_file, "rb") as f:
@@ -776,14 +797,14 @@ def _test_run_garden_on_endpoint(
         result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
 
         rich_print(
-            f"Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"
         )
         assert result is not None
     except Exception as error:
         global failed_on
         failed_on = "run garden on remote endpoint"
         rich_print(
-            f"Failed test: [italic red]run garden remote[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]run garden remote[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
         )
         raise error
 
@@ -800,7 +821,9 @@ def _make_pipeline_file(
     client,
 ):
     try:
-        rich_print(f"\nMaking pipeline file: [blue]{short_name}[/blue]")
+        rich_print(
+            f"\n[bold purple]{get_timestamp()}[/bold purple] Making pipeline file: [blue]{short_name}[/blue]"
+        )
 
         @garden_ai.step
         def run_inference(arg: object) -> object:
@@ -833,12 +856,16 @@ def _make_pipeline_file(
         with open(save_path, "w") as f:
             f.write(contents)
 
-        rich_print(f"Finished pipeline file: [blue]{short_name}[/blue]")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Finished pipeline file: [blue]{short_name}[/blue]"
+        )
         return pipeline
     except Exception as error:
         global failed_on
         failed_on = "make pipeline file"
-        rich_print(f"Failed to make pipeline file: [blue]{short_name}[/blue]")
+        rich_print(
+            f"[bold purple]{get_timestamp()}[/bold purple] Failed to make pipeline file: [blue]{short_name}[/blue]"
+        )
         raise error
 
 
@@ -885,6 +912,8 @@ def _send_slack_error_message(error):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
+        MAX_ERROR_LENGTH = 500
+
         slack_hook = os.getenv("SLACK_HOOK_URL")
 
         git_repo = os.getenv("GITHUB_REPOSITORY")
@@ -925,7 +954,10 @@ def _send_slack_error_message(error):
                     "\nSkipping slack message for skinny run with no errors."
                 )
         else:
-            error_msg = f"{type(error).__name__}: {str(error)}"
+            error_body = str(error).encode("ascii", "ignore").decode("ascii")
+            if len(error_body) > MAX_ERROR_LENGTH:
+                error_body = f"{error_body[0:MAX_ERROR_LENGTH]}..."
+            error_msg = f"{type(error).__name__}: {error_body}"
             msg = (
                 f"*FAILURE*, end to end run: `{git_job_name}` failed during: `{failed_on}` \n ```{error_msg}``` "
                 f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
@@ -941,6 +973,11 @@ def _send_slack_message(msg, slack_hook):
 
     payload = '{"text": "%s"}' % msg
     requests.post(slack_hook, data=payload)
+
+
+def get_timestamp():
+    cur_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
+    return f"[{cur_time}]"
 
 
 if __name__ == "__main__":
