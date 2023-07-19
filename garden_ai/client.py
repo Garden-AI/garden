@@ -364,7 +364,7 @@ class GardenClient:
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def create_minimal_step(
+    def _create_minimal_step(
         self,
         *,
         model_name: str,
@@ -372,15 +372,12 @@ class GardenClient:
         flavor: str,
         input_type: type,
         output_type: type,
-        requirements_file: str = "requirements.txt",
+        requirements: List[str],
     ) -> Step:
-        with open(requirements_file, "r") as f:
-            pip_reqs = [line.strip() for line in f.readlines()]
-
         local_model = LocalModel(
             model_name=model_name,
             flavor=flavor,
-            extra_pip_requirements=pip_reqs,
+            extra_pip_requirements=requirements,
             local_path=local_path,
             user_email=self.get_email(),
         )
@@ -395,24 +392,24 @@ class GardenClient:
 
         return run_inference
 
-    def publish_minimal_pipeline(
+    def _publish_minimal_pipeline(
         self,
         _step: Step,
         garden_doi: str,
         *,
+        model_name: str,
         authors: List[str],
         tags: List[str],
+        requirements: List[str],
         title: str = None,
         description: str = None,
-        requirements_file: str = "requirements.txt",
-    ) -> Garden:
-        full_name = _step.model_full_names[0]
+    ) -> None:
         pipeline = self.create_pipeline(
             authors,
-            title or f"Inference on {full_name}",
-            short_name=full_name[full_name.index("/") + 1 :],
+            title or f"Inference on model: {model_name}",
+            short_name=model_name,
             steps=(_step,),
-            requirements_file=requirements_file,
+            pip_dependencies=requirements,
             description=description
             or "Auto-generated pipeline that executes a single step which runs an inference.",
             tags=tags,
@@ -429,27 +426,18 @@ class GardenClient:
         self.publish_garden_metadata(garden)
         # bandaid in the event the index is written more than once simultaneously
         # note: still not perfect, communication is key
-        if pipeline.doi not in self.get_published_garden(garden.doi).pipeline_ids:
-            self.publish_garden_metadata(garden)
+        if (
+            pipeline.doi
+            not in (remote := self.get_published_garden(garden.doi)).pipeline_ids
+        ):
+            remote.pipeline_ids += [pipeline.doi]
+            self.publish_garden_metadata(remote)
 
         print(
             f"Your auto-generated pipeline has doi: {pipeline.doi}. Use this to access your pipeline at a later date."
         )
-        return garden
 
-    def call_garden_pipeline(
-        self, garden: Garden, pipeline_short_name: str, x: object
-    ) -> object:
-        try:
-            return getattr(garden, pipeline_short_name)(
-                x, endpoint="86a47061-f3d9-44f0-90dc-56ddc642c000"
-            )
-        except AttributeError:
-            raise ValueError(
-                f"The provided pipeline name: {pipeline_short_name}, is not a member of the provided garden."
-            )
-
-    def _simplified_workflow(
+    def add_simple_model_to_garden(
         self,
         garden_doi: str,
         *,
@@ -460,29 +448,28 @@ class GardenClient:
         output_type: type,
         authors: List[str],
         tags: List[str],
-        exec_input,
+        requirements: List[str],
         title: str = None,
         description: str = None,
-        requirements_file: str = "requirements.txt",
-    ):
-        _step = self.create_minimal_step(
+    ) -> None:
+        _step = self._create_minimal_step(
             model_name=model_name,
             local_path=local_path,
             flavor=flavor,
             input_type=input_type,
             output_type=output_type,
-            requirements_file=requirements_file,
+            requirements=requirements,
         )
-        garden = self.publish_minimal_pipeline(
+        self._publish_minimal_pipeline(
             _step,
             garden_doi,
+            model_name=model_name,
             authors=authors,
             tags=tags,
             title=title,
             description=description,
-            requirements_file=requirements_file,
+            requirements=requirements,
         )
-        return self.call_garden_pipeline(garden, model_name, exec_input)
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
