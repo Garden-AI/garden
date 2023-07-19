@@ -384,10 +384,11 @@ class GardenClient:
 
         registered_model = self.register_model(local_model)
 
+        # we ignore these type errors, because we want the step to be typed correctly but mypy does not acknowledge that it would be
         @step
         def run_inference(
-            input_arg: input_type, model=Model(registered_model.full_name)
-        ) -> output_type:
+            input_arg: input_type, model=Model(registered_model.full_name)  # type: ignore
+        ) -> output_type:  # type: ignore
             return model.predict(input_arg)
 
         return run_inference
