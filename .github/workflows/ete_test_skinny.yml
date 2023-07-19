@@ -40,31 +40,7 @@ jobs:
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py --garden-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 1
-  check-timeout:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8"]
-        repository-ref: ["max/ete-fixes"]
-      max-parallel: 1
-    steps:
-      - name: checkout repo content
-        uses: actions/checkout@v2
-        with:
-            ref: ${{ matrix.repository-ref }}
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v2
-        with:
-          poetry-version: 1.2.2
-      - name: Install dependencies
-        run: |
-          poetry config virtualenvs.create false && \
-          poetry install --no-interaction --no-ansi --with=test,develop
       - name: Checks for any job timeouts
         working-directory: ./tests/ete
-        run: python3 check_timeout.py --workflow-name "ETE Test Skinny" --step-name "Run test script skinny" --timeout 1
+        run: python3 check_timeout.py --step-name "Run test script skinny" --timeout 1
         timeout-minutes: 10

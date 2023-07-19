@@ -8,10 +8,6 @@ t_app = typer.Typer()
 
 @t_app.command()
 def report_timeout_jobs(
-    workflow_name: str = typer.Option(
-        default="none",
-        help="The name of the workflow to check.",
-    ),
     step_name: str = typer.Option(
         default="none",
         help="The name of the step to check.",
@@ -24,12 +20,13 @@ def report_timeout_jobs(
     is_gha = os.getenv("GITHUB_ACTIONS")
     if not is_gha:
         raise Exception("For github actions use only.")
-    if workflow_name == "none" or step_name == "none":
-        raise Exception("Must set --workflow-name and --step-name.")
+    if step_name == "none":
+        raise Exception("Must set --step-name.")
 
     slack_hook = os.getenv("SLACK_HOOK_URL")
     git_repo = os.getenv("GITHUB_REPOSITORY")
     git_run_id = os.getenv("GITHUB_RUN_ID")
+    git_job_name = os.getenv("GITHUB_JOB_NAME")
 
     git_api_url = (
         f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
@@ -39,9 +36,9 @@ def report_timeout_jobs(
 
     git_workflow_data = requests.get(git_api_url).json()
 
-    failed_jobs = []
+    failed_job = False
     for job in git_workflow_data["jobs"]:
-        if workflow_name == job["workflow_name"]:
+        if job["name"] in git_job_name:
             for step in job["steps"]:
                 if step_name == step["name"]:
                     start_time = datetime.strptime(
@@ -52,16 +49,17 @@ def report_timeout_jobs(
                     ).replace(tzinfo=timezone.utc)
                     total_time = end_time - start_time
                     if total_time >= timedelta(minutes=timeout):
-                        failed_jobs.append(job["name"])
+                        failed_job = True
+                        break
+        if failed_job:
+            break
 
-    if len(failed_jobs) > 0:
-        msg = ""
-        for failed_job in failed_jobs:
-            msg += f"*FAILURE*, end to end run: `{str(failed_job)}` timed out after {timeout} minutes.\n"
+    if failed_job:
+        msg = f"*FAILURE*, end to end run: `{str(git_job_name)}` timed out after {timeout} minutes.\n"
         msg += f"See Github actions run for more information:\n{git_jobs_url}"
         _send_slack_message(msg, slack_hook)
     else:
-        print("No jobs found to time out.")
+        print(f"Job {git_job_name} did not time out.")
 
 
 def _send_slack_message(msg, slack_hook):
