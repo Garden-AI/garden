@@ -42,7 +42,7 @@ jobs:
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py --garden-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout --pre-build-container sklearn
         timeout-minutes: 15
-      - name: Check for any job timeouts
+      - name: Check for job timeout
         working-directory: ./tests/ete
-        run: python3 check_timeout.py --step-name "Run test script skinny" --timeout 15
+        run: python3 check_timeout.py --timeout 15
         timeout-minutes: 10

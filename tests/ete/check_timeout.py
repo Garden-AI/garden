@@ -1,7 +1,6 @@
 import os
 import typer
 import requests
-import time
 from datetime import datetime, timezone, timedelta
 
 t_app = typer.Typer()
@@ -9,10 +8,6 @@ t_app = typer.Typer()
 
 @t_app.command()
 def report_timeout_jobs(
-    step_name: str = typer.Option(
-        default="none",
-        help="The name of the step to check.",
-    ),
     timeout: int = typer.Option(
         default=90,
         help="The timeout amount.",
@@ -21,10 +16,6 @@ def report_timeout_jobs(
     is_gha = os.getenv("GITHUB_ACTIONS")
     if not is_gha:
         raise Exception("For github actions use only.")
-    if step_name == "none":
-        raise Exception("Must set --step-name.")
-
-    time.sleep(10)
 
     slack_hook = os.getenv("SLACK_HOOK_URL")
     git_repo = os.getenv("GITHUB_REPOSITORY")
@@ -42,19 +33,17 @@ def report_timeout_jobs(
     failed_job = False
     for job in git_workflow_data["jobs"]:
         if job["name"] in git_job_name:
-            for step in job["steps"]:
-                if step_name == step["name"]:
-                    start_time = datetime.strptime(
-                        str(step["started_at"]), "%Y-%m-%dT%H:%M:%S.%fZ"
-                    ).replace(tzinfo=timezone.utc)
-                    end_time = datetime.strptime(
-                        str(step["completed_at"]), "%Y-%m-%dT%H:%M:%S.%fZ"
-                    ).replace(tzinfo=timezone.utc)
-                    total_time = end_time - start_time
-                    if total_time >= timedelta(minutes=timeout):
-                        failed_job = True
-                        break
-        if failed_job:
+            ete_step = job["steps"][6]
+            timeout_step = job["steps"][7]
+            start_time = datetime.strptime(
+                str(ete_step["started_at"]), "%Y-%m-%dT%H:%M:%S.%fZ"
+            ).replace(tzinfo=timezone.utc)
+            end_time = datetime.strptime(
+                str(timeout_step["started_at"]), "%Y-%m-%dT%H:%M:%S.%fZ"
+            ).replace(tzinfo=timezone.utc)
+            total_time = end_time - start_time
+            if total_time >= timedelta(minutes=timeout):
+                failed_job = True
             break
 
     if failed_job:
