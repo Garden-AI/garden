@@ -31,7 +31,6 @@ from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
-from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
@@ -160,14 +159,7 @@ class GardenClient:
         return self.garden_authorizer.access_token
 
     def _make_compute_client(self):
-        scope_to_authorizer = {
-            AuthScopes.openid: self.openid_authorizer,
-            SearchScopes.all: self.search_authorizer,
-            Client.FUNCX_SCOPE: self.compute_authorizer,
-        }
-        compute_login_manager = ComputeLoginManager(scope_to_authorizer)
         return Client(
-            login_manager=compute_login_manager,
             do_version_check=False,
             code_serialization_strategy=DillCode(),
         )
