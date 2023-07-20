@@ -443,7 +443,6 @@ class GardenClient:
             title=title or f"Inference on model: {local_model.model_name}",
             short_name=local_model.model_name,
             steps=(run_inference,),
-            pip_dependencies=local_model.extra_pip_requirements,
             description=description
             or "Auto-generated pipeline that executes a single step which runs an inference.",
             **kwargs,
