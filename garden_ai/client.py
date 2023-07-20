@@ -404,6 +404,7 @@ class GardenClient:
             Metadata for the new Pipeline object that runs the model. Keyword arguments matching
             required or recommended fields will be (where necessary) coerced to the
             appropriate type and validated per the documentation found at `~pipelines.Pipeline`.
+            NOTE: Some fields are necessary for proper publication. e.g. `pip_dependecies` if your model needs them.
 
         Returns
         -------
@@ -415,17 +416,15 @@ class GardenClient:
         local_model = LocalModel(
             model_name="dendrite_segmentation",
             flavor="tensorflow",
-            extra_pip_requirements=["tensorflow", "opencv-python"],
             local_path="model.h5",
             user_email=client.get_email()
         )
         my_pipeline = client.add_simple_model_to_garden(local_model, "10.1234/doi-here",
                                                         input_type=np.ndarray,
                                                         output_type=np.ndarray,
-                                                        authors=["Monty Python",
-                                                                 "Guido van Rossum"],
-                                                        tags=["materials science",
-                                                              "computer vision"]
+                                                        authors=["Monty Python", "Guido van Rossum"],
+                                                        pip_dependencies=["tensorflow"],
+                                                        tags=["materials science", "computer vision"]
         )
         """
         # caller needs to subclass and manually set required attribute of the field to False to avoid errors and maintain ignorance
