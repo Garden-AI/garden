@@ -7,6 +7,7 @@ import uuid
 import json
 import functools
 import requests
+import subprocess
 
 import typer
 from typing import Optional
@@ -1023,10 +1024,16 @@ def _get_timestamp():
 
 
 def _add_msg_to_environ(job_id, msg):
-    key = f"GITHUB_ETE_LOG_{job_id}"
+    """
     env_file = os.getenv("GITHUB_ENV")
     with open(env_file, "a") as git_env_vars:
         git_env_vars.write(f"{key}={msg}")
+    """
+    key = f"GITHUB_ETE_LOG_{job_id}"
+    process = subprocess.Popen(
+        f'echo "{key}={msg}" >> "$GITHUB_OUTPUT"', shell=True, stdout=subprocess.PIPE
+    )
+    process.wait()
     rich_print(f"Added {key} to github env vars with value:\n{msg}")
 
 
