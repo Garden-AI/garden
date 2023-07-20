@@ -17,9 +17,6 @@ jobs:
         id: get-latest-tag-step
         uses: actions-ecosystem/action-get-latest-tag@v1
   build:
-    concurrency:
-      group: ete-full-concurrency-for-job
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     needs: get-latest-tag
     strategy:
@@ -59,11 +56,10 @@ jobs:
         run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 90
   collect:
-    concurrency:
-      group: ete-full-concurrency-for-job
-      cancel-in-progress: false
-    needs: get-latest-tag
     runs-on: ubuntu-latest
+    needs: build
+    if: always()
+
     strategy:
       matrix:
         python-version: ["3.8"]
