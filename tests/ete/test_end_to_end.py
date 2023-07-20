@@ -1032,14 +1032,15 @@ def _add_msg_to_environ(job_id, msg):
     """
     output_name = os.getenv("GITHUB_OUTPUT_NAME")
     key = re.sub(r"\W+", "", output_name)
+    new_msg = msg.replace("`", "~")
     process = subprocess.Popen(
-        f'echo "{key}={msg}" >> "$GITHUB_OUTPUT"',
+        f'echo "{key}={new_msg}" >> "$GITHUB_OUTPUT"',
         shell=True,
         executable="/bin/bash",
         stdout=subprocess.PIPE,
     )
     process.wait()
-    rich_print(f"Added {key} to github env vars with value:\n{msg}")
+    rich_print(f"Added {key} to github env vars with value:\n{new_msg}")
 
 
 def _send_slack_message(msg):
