@@ -284,8 +284,48 @@ def run_garden_end_to_end(
     # Cleanup local files
     _cleanup_local_files(local_files_list)
 
-    # Send status message to slack. No error in this case.
-    _send_slack_error_message(None)
+    # Send run info to slack. No error in this case.
+    _make_slack_message(None)
+
+
+@t_app.command()
+def collect_and_send_logs():
+    is_gha = os.getenv("GITHUB_ACTIONS")
+    if not is_gha:
+        raise Exception("For github actions use only.")
+
+    should_send = True
+
+    git_job_name = os.getenv("GITHUB_JOB_NAME")
+    git_repo = os.getenv("GITHUB_REPOSITORY")
+    git_run_id = os.getenv("GITHUB_RUN_ID")
+    git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
+
+    git_api_url = (
+        f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
+    )
+    git_job_data = requests.get(git_api_url).json()
+
+    msg = f"*Finished*: {git_run_url}\n"
+
+    for job in git_job_data["jobs"]:
+        if "build" in job["name"]:
+            job_id = job["id"]
+            build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}")
+            if build_msg is None:
+                timeout_msg = (
+                    f"*FAILURE*, end to end run: `{git_job_name}` timed out.\n\n"
+                )
+            elif build_msg == "SKINNY_JOB_SUCCESS":
+                should_send = False
+                break
+            else:
+                msg += build_msg
+                msg += "\n\n"
+
+    rich_print(msg)
+    if should_send:
+        _send_slack_message(msg)
 
 
 def _run_test_cmds(
@@ -435,21 +475,21 @@ def _run_test_cmds(
 def _make_garden_client_with_cc(CLIENT_ID, CLIENT_SECRET):
     try:
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Starting initialize GardenClient with [blue]CC[/blue] grant."
+            f"{_get_timestamp()} Starting initialize GardenClient with [blue]CC[/blue] grant."
         )
         confidential_client = globus_sdk.ConfidentialAppAuthClient(
             CLIENT_ID, CLIENT_SECRET
         )
         client = garden_ai.GardenClient(auth_client=confidential_client)
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished initializing GardenClient with [blue]CC[/blue] grant."
+            f"{_get_timestamp()} Finished initializing GardenClient with [blue]CC[/blue] grant."
         )
         return client
     except Exception as error:
         global failed_on
         failed_on = "make GardenClient with CC grant"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed to initialize GardenClient with [blue]CC[/blue] grant."
+            f"{_get_timestamp()} Failed to initialize GardenClient with [blue]CC[/blue] grant."
         )
         raise error
 
@@ -457,18 +497,18 @@ def _make_garden_client_with_cc(CLIENT_ID, CLIENT_SECRET):
 def _make_garden_client_with_at():
     try:
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Starting initialize GardenClient with [blue]AT[/blue] grant."
+            f"{_get_timestamp()} Starting initialize GardenClient with [blue]AT[/blue] grant."
         )
         client = garden_ai.GardenClient()
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished initializing GardenClient with [blue]AT[/blue] grant."
+            f"{_get_timestamp()} Finished initializing GardenClient with [blue]AT[/blue] grant."
         )
         return client
     except Exception as error:
         global failed_on
         failed_on = "make GardenClient with AT grant"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed to initialize GardenClient with [blue]AT[/blue] grant."
+            f"{_get_timestamp()} Failed to initialize GardenClient with [blue]AT[/blue] grant."
         )
         raise error
 
@@ -476,7 +516,7 @@ def _make_garden_client_with_at():
 def _test_garden_create(example_garden_data, unique_title, runner):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden create[/italic red]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden create[/italic red]"
         )
 
         gardens_before = garden_ai.local_data.get_all_local_gardens()
@@ -511,14 +551,14 @@ def _test_garden_create(example_garden_data, unique_title, runner):
         assert new_garden.description == example_garden_data["description"]
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden create[/italic red] with no errors."
+            f"{_get_timestamp()} Finished test: [italic red]garden create[/italic red] with no errors."
         )
         return new_garden
     except Exception as error:
         global failed_on
         failed_on = "garden create"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden create[/italic red]"
+            f"{_get_timestamp()} Failed test: [italic red]garden create[/italic red]"
         )
         raise error
 
@@ -526,7 +566,7 @@ def _test_garden_create(example_garden_data, unique_title, runner):
 def _test_garden_add_pipeline(original_garden, pipeline, runner):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
         )
 
         command = [
@@ -558,13 +598,13 @@ def _test_garden_add_pipeline(original_garden, pipeline, runner):
             assert pl_id in local_pipeline_ids
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "garden add-pipeline"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
         )
         raise error
 
@@ -572,7 +612,7 @@ def _test_garden_add_pipeline(original_garden, pipeline, runner):
 def _test_garden_publish(garden, runner):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden publish[/italic red]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden publish[/italic red]"
         )
 
         command = [
@@ -589,7 +629,7 @@ def _test_garden_publish(garden, runner):
             raise result.exception
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden publish[/italic red] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]garden publish[/italic red] with no errors"
         )
 
         return garden_ai.local_data.get_local_garden_by_doi(garden.doi)
@@ -597,7 +637,7 @@ def _test_garden_publish(garden, runner):
         global failed_on
         failed_on = "garden publish"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden publish[/italic red]"
+            f"{_get_timestamp()} Failed test: [italic red]garden publish[/italic red]"
         )
         raise error
 
@@ -605,7 +645,7 @@ def _test_garden_publish(garden, runner):
 def _test_garden_search(garden, runner):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden search[/italic red]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden search[/italic red]"
         )
 
         command = [
@@ -625,13 +665,13 @@ def _test_garden_search(garden, runner):
         assert str(garden.doi) in result.stdout
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden search[/italic red] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]garden search[/italic red] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "garden search"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]garden search[/italic red]"
+            f"{_get_timestamp()} Failed test: [italic red]garden search[/italic red]"
         )
         raise error
 
@@ -639,7 +679,7 @@ def _test_garden_search(garden, runner):
 def _test_model_register(model_location, flavor, short_name, runner):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
 
         command = [
@@ -670,7 +710,7 @@ def _test_model_register(model_location, flavor, short_name, runner):
         assert local_model.flavor == flavor
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
         return local_model.full_name
@@ -678,7 +718,7 @@ def _test_model_register(model_location, flavor, short_name, runner):
         global failed_on
         failed_on = "model register"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]model register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
         raise error
 
@@ -688,7 +728,7 @@ def _test_pipeline_create(
 ):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]pipeline create[/italic red]"
+            f"\n{_get_timestamp()} Starting test: [italic red]pipeline create[/italic red]"
         )
 
         command = [
@@ -723,13 +763,13 @@ def _test_pipeline_create(
         )
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]pipeline create[/italic red] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]pipeline create[/italic red] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "pipeline create"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]pipeline create[/italic red]"
+            f"{_get_timestamp()} Failed test: [italic red]pipeline create[/italic red]"
         )
         raise error
 
@@ -737,7 +777,7 @@ def _test_pipeline_create(
 def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, runner):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
 
         command = [
@@ -768,7 +808,7 @@ def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, ru
         assert model_full_name in registered_pipeline.steps[0]["model_full_names"]
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
         return registered_pipeline
@@ -776,7 +816,7 @@ def _test_pipeline_register(pipeline_path, pipeline, model_full_name, flavor, ru
         global failed_on
         failed_on = "pipeline register"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
         raise error
 
@@ -786,7 +826,7 @@ def _test_run_garden_on_endpoint(
 ):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Starting test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
         )
 
         with open(input_file, "rb") as f:
@@ -797,14 +837,14 @@ def _test_run_garden_on_endpoint(
         result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"
         )
         assert result is not None
     except Exception as error:
         global failed_on
         failed_on = "run garden on remote endpoint"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed test: [italic red]run garden remote[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]run garden remote[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
         )
         raise error
 
@@ -822,7 +862,7 @@ def _make_pipeline_file(
 ):
     try:
         rich_print(
-            f"\n[bold purple]{get_timestamp()}[/bold purple] Making pipeline file: [blue]{short_name}[/blue]"
+            f"\n{_get_timestamp()} Making pipeline file: [blue]{short_name}[/blue]"
         )
 
         @garden_ai.step
@@ -857,21 +897,21 @@ def _make_pipeline_file(
             f.write(contents)
 
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Finished pipeline file: [blue]{short_name}[/blue]"
+            f"{_get_timestamp()} Finished pipeline file: [blue]{short_name}[/blue]"
         )
         return pipeline
     except Exception as error:
         global failed_on
         failed_on = "make pipeline file"
         rich_print(
-            f"[bold purple]{get_timestamp()}[/bold purple] Failed to make pipeline file: [blue]{short_name}[/blue]"
+            f"{_get_timestamp()} Failed to make pipeline file: [blue]{short_name}[/blue]"
         )
         raise error
 
 
-def _cleanup_local_files(local_file_list):
+def _cleanup_local_files(file_lists):
     rich_print("\nDeleting leftover up local files.")
-    for path in local_file_list:
+    for path in file_lists:
         if os.path.isfile(path):
             rich_print(f"Deleting file: {path}")
             os.remove(path)
@@ -908,16 +948,15 @@ def _make_live_print_runner():
     return cli_runner
 
 
-def _send_slack_error_message(error):
+def _make_slack_message(error):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
         MAX_ERROR_LENGTH = 500
 
-        slack_hook = os.getenv("SLACK_HOOK_URL")
-
         git_repo = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
+        git_job_id = os.getenv("GITHUB_JOB")
         git_job_name = os.getenv("GITHUB_JOB_NAME")
 
         git_api_url = (
@@ -931,7 +970,6 @@ def _send_slack_error_message(error):
                 break
         assert current_job is not None
 
-        git_jobs_url = current_job["html_url"]
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
         ).replace(tzinfo=timezone.utc)
@@ -943,53 +981,59 @@ def _send_slack_error_message(error):
             if not fast_run:
                 msg = (
                     f"*SUCCESS*, end to end run: `{git_job_name}` passed all tests."
-                    f"\n\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
-                    f"\nSee Github actions job for more information:\n{git_jobs_url}"
+                    f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
                 )
-                _send_slack_message(msg, slack_hook)
+                # _send_slack_message(msg)
+                _add_msg_to_environ(git_job_id, msg)
             else:
                 rich_print(
                     f"SUCCESS, end to end run: {git_job_name} passed all tests."
-                    f"\n\nStart time: {start_time_str} UTC, total run time: {total_time}"
+                    f"\nStart time: {start_time_str} UTC, total run time: {total_time}"
                     "\nSkipping slack message for skinny run with no errors."
                 )
+                _add_msg_to_environ(git_job_id, "SKINNY_JOB_SUCCESS")
         else:
             error_body = str(error).encode("ascii", "ignore").decode("ascii")
             if len(error_body) > MAX_ERROR_LENGTH:
                 error_body = f"{error_body[0:MAX_ERROR_LENGTH]}..."
             error_msg = f"{type(error).__name__}: {error_body}"
             msg = (
-                f"*FAILURE*, end to end run: `{git_job_name}` failed during: `{failed_on}` \n ```{error_msg}``` "
-                f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
-                f"\nSee Github actions job for more information:\n{git_jobs_url}"
+                f"*FAILURE*, end to end run: `{git_job_name}` failed during: `{failed_on}` ```{error_msg}``` "
+                f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
-            _send_slack_message(msg, slack_hook)
+            # _send_slack_message(msg)
+            _add_msg_to_environ(git_job_id, msg)
     else:
         rich_print("Skipping slack message; not github actions run.")
 
 
-def _send_slack_message(msg, slack_hook):
-    rich_print(f"Slack Update:\n{msg}")
-
-    payload = '{"text": "%s"}' % msg
-    requests.post(slack_hook, data=payload)
-
-
 def _slack_message_failure():
     is_gha = os.getenv("GITHUB_ACTIONS")
+
     if is_gha:
-        slack_hook = os.getenv("SLACK_HOOK_URL")
-        _send_slack_message(
-            "*FAILURE*, something broke while trying to send error message, check Github actions.",
-            slack_hook,
-        )
-    else:
-        rich_print("FAILED TO SEND SLACK MESSAGE")
+        git_job_name = os.getenv("GITHUB_JOB_NAME")
+        git_job_id = os.getenv("GITHUB_JOB")
+        msg = f"*FAILURE*, something unknown broke during `{git_job_name}`, check Github actions."
+        _add_msg_to_environ(git_job_id, msg)
 
 
-def get_timestamp():
-    cur_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
-    return f"[{cur_time}]"
+def _get_timestamp():
+    current_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
+    return f"[bold purple][{current_time}][/bold purple]"
+
+
+def _add_msg_to_environ(job_id, msg):
+    key = f"GITHUB_ETE_LOG_{job_id}"
+    env_file = os.getenv("GITHUB_ENV")
+    with open(env_file, "a") as git_env_vars:
+        git_env_vars.write(f"{key}={msg}")
+
+
+def _send_slack_message(msg):
+    rich_print(f"Sending msg to slack:\n{msg}")
+    slack_hook = os.getenv("SLACK_HOOK_URL", "none")
+    payload = '{"text": "%s"}' % msg
+    requests.post(slack_hook, data=payload)
 
 
 if __name__ == "__main__":
@@ -997,9 +1041,10 @@ if __name__ == "__main__":
         t_app()
     except Exception as error:
         try:
-            # Catch any exceptions thown durring the test and send error msg to slack.
-            _send_slack_error_message(error)
+            # Catch any exceptions thown durring the test and make error msg to slack.
+            _make_slack_message(error)
         except:
+            # Something weird broke, just report failure.
             _slack_message_failure()
         finally:
             raise error

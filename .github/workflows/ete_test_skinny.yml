@@ -40,9 +40,9 @@ jobs:
         id: skinny_test
         continue-on-error: true
         working-directory: ./tests/ete
-        run: python3 test_end_to_end.py --garden-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout --pre-build-container sklearn
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn --pre-build-container sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 15
-      - name: Check for job timeout
+      - name: Collect and send logs to slack
         working-directory: ./tests/ete
-        run: python3 check_timeout.py --timeout 15
+        run: python3 test_end_to_end.py collect-and-send-logs
         timeout-minutes: 10
