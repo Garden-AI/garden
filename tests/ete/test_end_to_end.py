@@ -316,9 +316,9 @@ def collect_and_send_logs():
                 job_name = f"skinny {job_name}"
             job_id = job["id"]
 
-            build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}")
+            build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}", "NOT_FOUND")
             rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
-            if build_msg is None:
+            if build_msg == "NOT_FOUND":
                 timeout_msg = f"*FAILURE*, end to end run: `{job_name}` timed out.\n\n"
             elif build_msg == "SKINNY_JOB_SUCCESS":
                 should_send = False
