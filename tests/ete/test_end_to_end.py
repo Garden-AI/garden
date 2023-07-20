@@ -8,6 +8,7 @@ import json
 import functools
 import requests
 import subprocess
+import re
 
 import typer
 from typing import Optional
@@ -1029,7 +1030,8 @@ def _add_msg_to_environ(job_id, msg):
     with open(env_file, "a") as git_env_vars:
         git_env_vars.write(f"{key}={msg}")
     """
-    key = f"GITHUB_ETE_LOG_{job_id}"
+    output_name = os.getenv("GITHUB_OUTPUT_NAME")
+    key = re.sub(r"\W+", "", output_name)
     process = subprocess.Popen(
         f'echo "{key}={msg}" >> "$GITHUB_OUTPUT"', shell=True, stdout=subprocess.PIPE
     )
