@@ -308,8 +308,11 @@ def collect_and_send_logs(
 
     msg = f"*Finished*: {git_run_url}\n"
 
-    out_list_str = os.getenv("ETE_OUT_LIST", "[]")
+    out_list_str = os.getenv("ETE_OUT_LIST")
+    if out_list_str is None:
+        raise Exception("Could not find output env vars.")
     out_list = json.loads(out_list_str)
+
     for out_var_name in out_list:
         build_name_var = f"{out_var_name}_NAME"
         job_name = os.getenv(build_name_var, "Missing job name")
@@ -963,15 +966,17 @@ def _make_slack_message(error):
 
         git_repo = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
-        git_job_name = os.getenv("GITHUB_JOB_NAME")
+        git_job_name_ext = os.getenv("GITHUB_JOB_NAME_EXT")
+        git_job_name_int = os.getenv("GITHUB_JOB_NAME_INT")
 
         git_api_url = (
             f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
         )
         git_job_data = requests.get(git_api_url).json()
+
         current_job = None
         for job in git_job_data["jobs"]:
-            if job["name"] in git_job_name:
+            if job["name"] in git_job_name_int:
                 current_job = job
                 break
         assert current_job is not None
@@ -980,20 +985,19 @@ def _make_slack_message(error):
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
         ).replace(tzinfo=timezone.utc)
         start_time_str = str(start_time)
-
         total_time = str((datetime.now(timezone.utc) - start_time))
 
         if error is None:
             if not fast_run:
                 msg = (
-                    f"*SUCCESS*, end to end run: `{git_job_name}` passed all tests."
+                    f"*SUCCESS*, end to end run: `{git_job_name_ext}` passed all tests."
                     f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
                 )
                 # _send_slack_message(msg)
                 _add_msg_to_outputs(msg)
             else:
                 rich_print(
-                    f"SUCCESS, end to end run: {git_job_name} passed all tests."
+                    f"SUCCESS, end to end run: {git_job_name_ext} passed all tests."
                     f"\nStart time: {start_time_str} UTC, total run time: {total_time}"
                     "\nSkipping slack message for skinny run with no errors."
                 )
@@ -1004,7 +1008,7 @@ def _make_slack_message(error):
                 error_body = f"{error_body[0:MAX_ERROR_LENGTH]}..."
             error_msg = f"{type(error).__name__}: {error_body}"
             msg = (
-                f"*FAILURE*, end to end run: `{git_job_name}` failed during: `{failed_on}` ```{error_msg}``` "
+                f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}``` "
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
             # _send_slack_message(msg)

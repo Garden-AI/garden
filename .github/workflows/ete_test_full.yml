@@ -31,7 +31,7 @@ jobs:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
     outputs:
       ETE_OUT_1: ${{steps.full_test.outputs.ETE_OUT_1}}
-      ETE_OUT_1_NAME: $GITHUB_JOB_NAME
+      ETE_OUT_1_NAME: $GITHUB_JOB_NAME_EXT
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -49,9 +49,11 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
-      - name: Set job name env var
-        run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Set output var name
+      - name: Set external job name
+        run: echo "GITHUB_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Set internal job name
+        run: echo "GITHUB_JOB_NAME_INT=build_one (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Set test output name
         run: echo "GITHUB_OUT_VAR=ETE_OUT_1" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
@@ -75,7 +77,7 @@ jobs:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
     outputs:
       ETE_OUT_2: ${{steps.full_test.outputs.ETE_OUT_2}}
-      ETE_OUT_2_NAME: $GITHUB_JOB_NAME
+      ETE_OUT_2_NAME: $GITHUB_JOB_NAME_EXT
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -93,9 +95,11 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
-      - name: Set job name env var
-        run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Set output var name
+      - name: Set external job name
+        run: echo "GITHUB_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Set internal job name
+        run: echo "GITHUB_JOB_NAME_INT=build_two (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Set test output name
         run: echo "GITHUB_OUT_VAR=ETE_OUT_2" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
