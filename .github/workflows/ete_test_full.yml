@@ -15,7 +15,7 @@ jobs:
       - name: "action get latest tag"
         id: get-latest-tag-step
         uses: actions-ecosystem/action-get-latest-tag@v1
-  build:
+  build_one:
     runs-on: ubuntu-latest
     needs: get-latest-tag
     strategy:
@@ -24,13 +24,14 @@ jobs:
         repository-ref: ["max/ete-fixes"]
       fail-fast: false
       max-parallel: 1
-    name: build
+    name: build_one
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
     outputs:
-      maxetefixes38: ${{steps.full_test.outputs.maxetefixes38}}
+      ETE_OUT_1: ${{steps.full_test.outputs.ETE_OUT_1}}
+      ETE_OUT_1_NAME: $GITHUB_JOB_NAME
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -50,8 +51,52 @@ jobs:
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
       - name: Set job name env var
         run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Set output name env var
-        run: echo "GITHUB_OUTPUT_NAME=${{ matrix.repository-ref }}${{ matrix.python-version }}" >> $GITHUB_ENV
+      - name: Set output var name
+        run: echo "GITHUB_OUT_VAR=ETE_OUT_1" >> $GITHUB_ENV
+      - name: Run full ETE test
+        id: full_test
+        continue-on-error: true
+        working-directory: ./tests/ete
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
+        timeout-minutes: 90
+  build_two:
+    runs-on: ubuntu-latest
+    needs: [get-latest-tag, build_one]
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+        repository-ref: ["max/ete-fixes"]
+      fail-fast: false
+      max-parallel: 1
+    name: build_two
+    env:
+      GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
+      GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
+      SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+    outputs:
+      ETE_OUT_2: ${{steps.full_test.outputs.ETE_OUT_2}}
+      ETE_OUT_2_NAME: $GITHUB_JOB_NAME
+    steps:
+      - name: checkout repo content
+        uses: actions/checkout@v2
+        with:
+            ref: ${{ matrix.repository-ref }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.2.2
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false && \
+          poetry install --no-interaction --no-ansi --with=test,develop --all-extras
+      - name: Set job name env var
+        run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+      - name: Set output var name
+        run: echo "GITHUB_OUT_VAR=ETE_OUT_2" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
         continue-on-error: true
@@ -60,7 +105,7 @@ jobs:
         timeout-minutes: 90
   collect:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build_one, build_two]
     if: always()
 
     strategy:
@@ -71,7 +116,11 @@ jobs:
     name: collect-and-send-logs
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
-      maxetefixes38: ${{needs.build.outputs.maxetefixes38}}
+      ETE_OUT_LIST: "['ETE_OUT_1', 'ETE_OUT_2']"
+      ETE_OUT_1: ${{needs.build_one.outputs.ETE_OUT_1}}
+      ETE_OUT_2: ${{needs.build_two.outputs.ETE_OUT_2}}
+      ETE_OUT_1_NAME: ${{needs.build_one.outputs.ETE_OUT_1_NAME}}
+      ETE_OUT_2_NAME: ${{needs.build_two.outputs.ETE_OUT_2_NAME}}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -81,8 +130,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: echo env var
-        run: echo "var $maxetefixes38"
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
         with:

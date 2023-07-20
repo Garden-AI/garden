@@ -8,7 +8,6 @@ import json
 import functools
 import requests
 import subprocess
-import re
 
 import typer
 from typing import Optional
@@ -307,29 +306,26 @@ def collect_and_send_logs(
     git_run_id = os.getenv("GITHUB_RUN_ID")
     git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
 
-    git_api_url = (
-        f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
-    )
-    git_job_data = requests.get(git_api_url).json()
-
     msg = f"*Finished*: {git_run_url}\n"
 
-    for job in git_job_data["jobs"]:
-        if "build" in job["name"]:
-            job_id = job["id"]
-            job_name = job["name"]
-            job_name = f"{run_type} {job_name}"
-            build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}", "NOT_FOUND")
-            rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
-            if build_msg == "NOT_FOUND":
-                timeout_msg = f"*FAILURE*, end to end run: `{job_name}` has no stored log, most likely timed out.\n\n"
-                msg += timeout_msg
-            elif build_msg == "SKINNY_JOB_SUCCESS":
-                should_send = False
-                break
-            else:
-                msg += build_msg
-                msg += "\n\n"
+    out_list_str = os.getenv("ETE_OUT_LIST", "[]")
+    out_list = json.loads(out_list_str)
+    for out_var_name in out_list:
+        build_name_var = f"{out_var_name}_NAME"
+        job_name = os.getenv(build_name_var, "Missing job name")
+        build_msg = os.getenv(out_var_name, "NOT_FOUND")
+
+        if build_msg == "NOT_FOUND":
+            timeout_msg = f"*FAILURE*, end to end run: `{job_name}` has no stored log, most likely timed out.\n\n"
+            msg += timeout_msg
+        elif build_msg == "SKINNY_JOB_SUCCESS":
+            should_send = False
+            break
+        else:
+            build_msg = build_msg.replace("~", "`")
+            build_msg = build_msg.replace("#", "\n")
+            msg += build_msg
+            msg += "\n\n"
 
     if should_send:
         _send_slack_message(msg)
@@ -980,8 +976,6 @@ def _make_slack_message(error):
                 break
         assert current_job is not None
 
-        git_job_id = current_job["id"]
-
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
         ).replace(tzinfo=timezone.utc)
@@ -996,14 +990,14 @@ def _make_slack_message(error):
                     f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
                 )
                 # _send_slack_message(msg)
-                _add_msg_to_environ(git_job_id, msg)
+                _add_msg_to_outputs(msg)
             else:
                 rich_print(
                     f"SUCCESS, end to end run: {git_job_name} passed all tests."
                     f"\nStart time: {start_time_str} UTC, total run time: {total_time}"
                     "\nSkipping slack message for skinny run with no errors."
                 )
-                _add_msg_to_environ(git_job_id, "SKINNY_JOB_SUCCESS")
+                _add_msg_to_outputs("SKINNY_JOB_SUCCESS")
         else:
             error_body = str(error).encode("ascii", "ignore").decode("ascii")
             if len(error_body) > MAX_ERROR_LENGTH:
@@ -1014,7 +1008,7 @@ def _make_slack_message(error):
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
             # _send_slack_message(msg)
-            _add_msg_to_environ(git_job_id, msg)
+            _add_msg_to_outputs(msg)
     else:
         rich_print("Skipping slack message; not github actions run.")
 
@@ -1024,24 +1018,22 @@ def _get_timestamp():
     return f"[bold purple][{current_time}][/bold purple]"
 
 
-def _add_msg_to_environ(job_id, msg):
-    """
-    env_file = os.getenv("GITHUB_ENV")
-    with open(env_file, "a") as git_env_vars:
-        git_env_vars.write(f"{key}={msg}")
-    """
-    output_name = os.getenv("GITHUB_OUTPUT_NAME")
-    key = re.sub(r"\W+", "", output_name)
-    msg = msg.replace("`", "~")
-    msg = msg.replace("\n", "#")
-    process = subprocess.Popen(
-        f'echo "{key}={msg}" >> "$GITHUB_OUTPUT"',
-        shell=True,
-        executable="/bin/bash",
-        stdout=subprocess.PIPE,
-    )
-    process.wait()
-    rich_print(f"Added {key} to github env vars with value:\n{msg}")
+def _add_msg_to_outputs(msg):
+    is_gha = os.getenv("GITHUB_ACTIONS")
+
+    if is_gha:
+        git_out_var_name = os.getenv("GITHUB_OUT_VAR")
+
+        msg = msg.replace("`", "~")
+        msg = msg.replace("\n", "#")
+        process = subprocess.Popen(
+            f'echo "{git_out_var_name}={msg}" >> "$GITHUB_OUTPUT"',
+            shell=True,
+            executable="/bin/bash",
+            stdout=subprocess.PIPE,
+        )
+        process.wait()
+        rich_print(f"Added {git_out_var_name} to github env vars with value:\n{msg}")
 
 
 def _send_slack_message(msg):
@@ -1058,7 +1050,7 @@ if __name__ == "__main__":
         try:
             # Catch any exceptions thown durring the test and make error msg to slack.
             _make_slack_message(error)
-        except:
+        except Exception as error_2:
             # Something weird broke, just report failure.
             rich_print("Something unknown has broken. Unable to log failure.")
         finally:
