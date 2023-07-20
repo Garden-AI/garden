@@ -49,11 +49,13 @@ jobs:
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
       - name: Set job name env var
         run: echo "GITHUB_JOB_NAME=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Run test script full
+      - name: Run full ETE test
+        id: full_test
+        continue-on-error: true
         working-directory: ./tests/ete
-        run: python3 test_end_to_end.py --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 90
-      - name: Check for any job timeouts
+      - name: Collect and send logs to slack
         working-directory: ./tests/ete
-        run: python3 check_timeout.py --step-name "Run test script full" --timeout 90
+        run: python3 test_end_to_end.py collect-and-send-logs
         timeout-minutes: 10
