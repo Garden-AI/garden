@@ -12,7 +12,6 @@ jobs:
       matrix:
         python-version: ["3.8"]
         repository-ref: ["max/ete-fixes"]
-    name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}

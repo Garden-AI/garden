@@ -957,7 +957,6 @@ def _make_slack_message(error):
 
         git_repo = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
-        git_job_id = os.getenv("GITHUB_JOB")
         git_job_name = os.getenv("GITHUB_JOB_NAME")
 
         git_api_url = (
@@ -970,6 +969,8 @@ def _make_slack_message(error):
                 current_job = job
                 break
         assert current_job is not None
+
+        git_job_id = current_job["id"]
 
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
