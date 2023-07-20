@@ -320,6 +320,7 @@ def collect_and_send_logs():
             rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
             if build_msg == "NOT_FOUND":
                 timeout_msg = f"*FAILURE*, end to end run: `{job_name}` timed out.\n\n"
+                msg += timeout_msg
             elif build_msg == "SKINNY_JOB_SUCCESS":
                 should_send = False
                 break
