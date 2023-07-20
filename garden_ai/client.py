@@ -427,9 +427,6 @@ class GardenClient:
                                                         tags=["materials science", "computer vision"]
         )
         """
-        # caller needs to subclass and manually set required attribute of the field to False to avoid errors and maintain ignorance
-        local_model.user_email = self.get_email()
-
         registered_model = self.register_model(local_model)
 
         # we ignore these type errors, because we want the step to be typed correctly but mypy does not acknowledge that it would be
