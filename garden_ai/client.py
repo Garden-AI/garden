@@ -42,7 +42,7 @@ from garden_ai.mlmodel import (
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline
-from garden_ai.steps import Step, step
+from garden_ai.steps import step
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 GARDEN_ENDPOINT = os.environ.get(
