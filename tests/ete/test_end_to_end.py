@@ -312,7 +312,7 @@ def collect_and_send_logs():
         if "build" in job["name"]:
             job_id = job["id"]
             build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}")
-            rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
+            # rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
             if build_msg is None:
                 timeout_msg = (
                     f"*FAILURE*, end to end run: `{git_job_name}` timed out.\n\n"
@@ -325,8 +325,8 @@ def collect_and_send_logs():
                 msg += "\n\n"
 
     rich_print(msg)
-    # if should_send:
-    # _send_slack_message(msg)
+    if should_send:
+        _send_slack_message(msg)
 
 
 def _run_test_cmds(
@@ -958,6 +958,7 @@ def _make_slack_message(error):
         git_repo = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
         git_job_name = os.getenv("GITHUB_JOB_NAME")
+        git_job_id = os.getenv("GITHUB_JOB")
 
         git_api_url = (
             f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
@@ -970,7 +971,7 @@ def _make_slack_message(error):
                 break
         assert current_job is not None
 
-        git_job_id = current_job["id"]
+        # git_job_id = current_job["id"]
 
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
@@ -1029,7 +1030,7 @@ def _add_msg_to_environ(job_id, msg):
     env_file = os.getenv("GITHUB_ENV")
     with open(env_file, "a") as git_env_vars:
         git_env_vars.write(f"{key}={msg}")
-    rich_print(f"Added {key} to github env vars with value:\n{os.getenv(key)}")
+    rich_print(f"Added {key} to github env vars with value:\n{msg}")
 
 
 def _send_slack_message(msg):
