@@ -319,7 +319,7 @@ def collect_and_send_logs(
             build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}", "NOT_FOUND")
             rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
             if build_msg == "NOT_FOUND":
-                timeout_msg = f"*FAILURE*, end to end run: `{job_name}` timed out.\n\n"
+                timeout_msg = f"*FAILURE*, end to end run: `{job_name}` has no stored log, most likely timed out.\n\n"
                 msg += timeout_msg
             elif build_msg == "SKINNY_JOB_SUCCESS":
                 should_send = False
@@ -524,6 +524,8 @@ def _test_garden_create(example_garden_data, unique_title, runner):
         rich_print(
             f"\n{_get_timestamp()} Starting test: [italic red]garden create[/italic red]"
         )
+
+        raise Exception("Test error collecting full")
 
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
@@ -1014,32 +1016,6 @@ def _make_slack_message(error):
         rich_print("Skipping slack message; not github actions run.")
 
 
-def _slack_message_failure():
-    is_gha = os.getenv("GITHUB_ACTIONS")
-
-    if is_gha:
-        try:
-            git_job_name = os.getenv("GITHUB_JOB_NAME")
-            git_repo = os.getenv("GITHUB_REPOSITORY")
-            git_run_id = os.getenv("GITHUB_RUN_ID")
-
-            git_api_url = f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
-            git_job_data = requests.get(git_api_url).json()
-            current_job = None
-            for job in git_job_data["jobs"]:
-                if job["name"] in git_job_name:
-                    current_job = job
-                    break
-            assert current_job is not None
-
-            git_job_id = current_job["id"]
-
-            msg = f"*FAILURE*, something unknown broke during `{git_job_name}`, check Github actions."
-            _add_msg_to_environ(git_job_id, msg)
-        except:
-            rich_print("Something has broken badly. Unable to log failure.")
-
-
 def _get_timestamp():
     current_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
     return f"[bold purple][{current_time}][/bold purple]"
@@ -1069,6 +1045,6 @@ if __name__ == "__main__":
             _make_slack_message(error)
         except:
             # Something weird broke, just report failure.
-            _slack_message_failure()
+            rich_print("Something unknown has broken. Unable to log failure.")
         finally:
             raise error
