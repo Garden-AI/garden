@@ -312,6 +312,7 @@ def collect_and_send_logs():
         if "build" in job["name"]:
             job_id = job["id"]
             build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}")
+            rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
             if build_msg is None:
                 timeout_msg = (
                     f"*FAILURE*, end to end run: `{git_job_name}` timed out.\n\n"
@@ -324,8 +325,8 @@ def collect_and_send_logs():
                 msg += "\n\n"
 
     rich_print(msg)
-    if should_send:
-        _send_slack_message(msg)
+    # if should_send:
+    # _send_slack_message(msg)
 
 
 def _run_test_cmds(
@@ -1027,6 +1028,7 @@ def _add_msg_to_environ(job_id, msg):
     env_file = os.getenv("GITHUB_ENV")
     with open(env_file, "a") as git_env_vars:
         git_env_vars.write(f"{key}={msg}")
+    rich_print(f"Added {key} to github env vars with value:\n{os.getenv(key)}")
 
 
 def _send_slack_message(msg):
