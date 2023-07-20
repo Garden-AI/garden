@@ -1033,7 +1033,10 @@ def _add_msg_to_environ(job_id, msg):
     output_name = os.getenv("GITHUB_OUTPUT_NAME")
     key = re.sub(r"\W+", "", output_name)
     process = subprocess.Popen(
-        f'echo "{key}={msg}" >> "$GITHUB_OUTPUT"', shell=True, stdout=subprocess.PIPE
+        f'echo "{key}={msg}" >> "$GITHUB_OUTPUT"',
+        shell=True,
+        executable="/bin/bash",
+        stdout=subprocess.PIPE,
     )
     process.wait()
     rich_print(f"Added {key} to github env vars with value:\n{msg}")
