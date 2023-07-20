@@ -364,23 +364,72 @@ class GardenClient:
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def _create_minimal_step(
+    def add_simple_model_to_garden(
         self,
+        local_model: LocalModel,
+        garden_doi: str,
         *,
-        model_name: str,
-        local_path: str,
-        flavor: str,
         input_type: type,
         output_type: type,
-        requirements: List[str],
-    ) -> Step:
+        title: str = None,
+        description: str = None,
+        **kwargs,
+    ) -> str:
+        """Take a `LocalModel` object and automatically perform all the necessary steps,
+        using the additional provided information, to publish the model such that it is prepared to be run remotely.
+
+        Parameters
+        ----------
+        local_model : LocalModel
+            The model for which remote executiotability is desired. The object's necessary fields are documented at
+            `~mlmodel.LocalModel` and its parent `~mlmodel.ModelMetadata`.
+
+        garden_doi : str
+            The DOI of a previously published Garden that the model will be added to in order to facilitate findability
+            and remote execution.
+
+        input_type : type
+            The type that describes the expected input to your model.
+
+        output_type : type
+            The type that describes the expected output of your model.
+
+        title : str
+            Title that describes the pipeline that is implicitly generated. If no title is provided, one will be generated.
+
+        description : str
+            Description of the pipeline that is implicitly generated. If no description is provided, one will be generated.
+
+        **kwargs :
+            Metadata for the new Pipeline object that runs the model. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the
+            appropriate type and validated per the documentation found at `~pipelines.Pipeline`.
+
+        Returns
+        -------
+        The DOI of your auto-generated pipeline. Use this DOI to access your pipeline at a later date.
+
+        Examples
+        --------
+        client = GardenClient()
         local_model = LocalModel(
-            model_name=model_name,
-            flavor=flavor,
-            extra_pip_requirements=requirements,
-            local_path=local_path,
-            user_email=self.get_email(),
+            model_name="dendrite_segmentation",
+            flavor="tensorflow",
+            extra_pip_requirements=["tensorflow", "opencv-python"],
+            local_path="model.h5",
+            user_email=client.get_email()
         )
+        my_pipeline = client.add_simple_model_to_garden(local_model, "10.1234/doi-here",
+                                                        input_type=np.ndarray,
+                                                        output_type=np.ndarray,
+                                                        authors=["Monty Python",
+                                                                 "Guido van Rossum"],
+                                                        tags=["materials science",
+                                                              "computer vision"]
+        )
+        """
+        # caller needs to subclass and manually set required attribute of the field to False to avoid errors and maintain ignorance
+        local_model.user_email = self.get_email()
 
         registered_model = self.register_model(local_model)
 
@@ -391,29 +440,14 @@ class GardenClient:
         ) -> output_type:  # type: ignore
             return model.predict(input_arg)
 
-        return run_inference
-
-    def _publish_minimal_pipeline(
-        self,
-        _step: Step,
-        garden_doi: str,
-        *,
-        model_name: str,
-        authors: List[str],
-        tags: List[str],
-        requirements: List[str],
-        title: str = None,
-        description: str = None,
-    ) -> None:
         pipeline = self.create_pipeline(
-            authors,
-            title or f"Inference on model: {model_name}",
-            short_name=model_name,
-            steps=(_step,),
-            pip_dependencies=requirements,
+            title=title or f"Inference on model: {local_model.model_name}",
+            short_name=local_model.model_name,
+            steps=(run_inference,),
+            pip_dependencies=local_model.requirements,
             description=description
             or "Auto-generated pipeline that executes a single step which runs an inference.",
-            tags=tags,
+            **kwargs,
         )
         container_uuid = self.build_container(pipeline)
         self.register_pipeline(pipeline, container_uuid)
@@ -434,43 +468,7 @@ class GardenClient:
             remote.pipeline_ids += [pipeline.doi]
             self.publish_garden_metadata(remote)
 
-        print(
-            f"Your auto-generated pipeline has doi: {pipeline.doi}. Use this to access your pipeline at a later date."
-        )
-
-    def add_simple_model_to_garden(
-        self,
-        garden_doi: str,
-        *,
-        model_name: str,
-        local_path: str,
-        flavor: str,
-        input_type: type,
-        output_type: type,
-        authors: List[str],
-        tags: List[str],
-        requirements: List[str],
-        title: str = None,
-        description: str = None,
-    ) -> None:
-        _step = self._create_minimal_step(
-            model_name=model_name,
-            local_path=local_path,
-            flavor=flavor,
-            input_type=input_type,
-            output_type=output_type,
-            requirements=requirements,
-        )
-        self._publish_minimal_pipeline(
-            _step,
-            garden_doi,
-            model_name=model_name,
-            authors=authors,
-            tags=tags,
-            title=title,
-            description=description,
-            requirements=requirements,
-        )
+        return pipeline.doi
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
