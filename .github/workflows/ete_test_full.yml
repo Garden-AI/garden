@@ -25,10 +25,13 @@ jobs:
       fail-fast: false
       max-parallel: 1
     name: build
+    id: matrixbuild
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+    outputs:
+      maxetefixes38: ${{steps.full_test.outputs.maxetefixes38}}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -69,7 +72,7 @@ jobs:
     name: collect-and-send-logs
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
-      maxetefixes38: ${{needs.build.outputs.maxetefixes38}}
+      maxetefixes38: ${{needs.matrixbuild.outputs.maxetefixes38}}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
