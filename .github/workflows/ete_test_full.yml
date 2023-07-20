@@ -20,7 +20,7 @@ jobs:
     needs: get-latest-tag
     strategy:
       matrix:
-        python-version: ["3.8", "3.9"]
+        python-version: ["3.8"]
         repository-ref: ["max/ete-fixes"]
       fail-fast: false
       max-parallel: 1
@@ -80,7 +80,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: echo env var
-        run: echo ${{ env.maxetefixes38 }}
+        run: echo "var $maxetefixes38"
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
         with:
