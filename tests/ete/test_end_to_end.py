@@ -289,7 +289,12 @@ def run_garden_end_to_end(
 
 
 @t_app.command()
-def collect_and_send_logs():
+def collect_and_send_logs(
+    run_type: str = typer.Option(
+        default="full",
+        help="skinny or full",
+    ),
+):
     is_gha = os.getenv("GITHUB_ACTIONS")
     if not is_gha:
         raise Exception("For github actions use only.")
@@ -310,12 +315,7 @@ def collect_and_send_logs():
     for job in git_job_data["jobs"]:
         if "build" in job["name"]:
             job_name = job["name"]
-            if "Full" in job["workflow_name"]:
-                job_name = f"full {job_name}"
-            else:
-                job_name = f"skinny {job_name}"
-            job_id = job["id"]
-
+            job_name = f"{run_type} {job_name}"
             build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}", "NOT_FOUND")
             rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
             if build_msg == "NOT_FOUND":
