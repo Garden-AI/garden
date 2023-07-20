@@ -296,7 +296,6 @@ def collect_and_send_logs():
 
     should_send = True
 
-    git_job_name = os.getenv("GITHUB_JOB_NAME")
     git_repo = os.getenv("GITHUB_REPOSITORY")
     git_run_id = os.getenv("GITHUB_RUN_ID")
     git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
@@ -310,13 +309,17 @@ def collect_and_send_logs():
 
     for job in git_job_data["jobs"]:
         if "build" in job["name"]:
+            job_name = job["name"]
+            if "Full" in job["workflow_name"]:
+                job_name = f"full {job_name}"
+            else:
+                job_name = f"skinny {job_name}"
             job_id = job["id"]
+
             build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}")
             rich_print(f"Found build output for job: {job_id}, \n{build_msg}")
             if build_msg is None:
-                timeout_msg = (
-                    f"*FAILURE*, end to end run: `{git_job_name}` timed out.\n\n"
-                )
+                timeout_msg = f"*FAILURE*, end to end run: `{job_name}` timed out.\n\n"
             elif build_msg == "SKINNY_JOB_SUCCESS":
                 should_send = False
                 break
@@ -324,9 +327,10 @@ def collect_and_send_logs():
                 msg += build_msg
                 msg += "\n\n"
 
-    rich_print(msg)
     if should_send:
         _send_slack_message(msg)
+    else:
+        rich_print(msg)
 
 
 def _run_test_cmds(
@@ -519,8 +523,6 @@ def _test_garden_create(example_garden_data, unique_title, runner):
         rich_print(
             f"\n{_get_timestamp()} Starting test: [italic red]garden create[/italic red]"
         )
-
-        raise Exception("Test new error collecting")
 
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
