@@ -1022,18 +1022,25 @@ def _add_msg_to_outputs(msg):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        git_out_var_name = os.getenv("GITHUB_OUT_VAR")
-
         msg = msg.replace("`", "~")
         msg = msg.replace("\n", "#")
-        process = subprocess.Popen(
-            f'echo "{git_out_var_name}={msg}" >> "$GITHUB_OUTPUT"',
-            shell=True,
-            executable="/bin/bash",
-            stdout=subprocess.PIPE,
-        )
-        process.wait()
-        rich_print(f"Added {git_out_var_name} to github env vars with value:\n{msg}")
+
+        git_out_var_name = os.getenv("GITHUB_OUT_VAR", "none")
+        if git_out_var_name is None:
+            rich_print(
+                "Could not find value for GITHUB_OUT_VAR. Failed to add to env vars."
+            )
+        else:
+            process = subprocess.Popen(
+                f'echo "{git_out_var_name}={msg}" >> "$GITHUB_OUTPUT"',
+                shell=True,
+                executable="/bin/bash",
+                stdout=subprocess.PIPE,
+            )
+            process.wait()
+            rich_print(
+                f"Added {git_out_var_name} to github env vars with value:\n{msg}"
+            )
 
 
 def _send_slack_message(msg):
@@ -1050,8 +1057,9 @@ if __name__ == "__main__":
         try:
             # Catch any exceptions thown durring the test and make error msg to slack.
             _make_slack_message(error)
-        except Exception as error_2:
+        except Exception as error_msger:
             # Something weird broke, just report failure.
             rich_print("Something unknown has broken. Unable to log failure.")
-        finally:
+            raise error_msger
+        else:
             raise error

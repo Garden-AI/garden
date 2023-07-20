@@ -116,7 +116,7 @@ jobs:
     name: collect-and-send-logs
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
-      ETE_OUT_LIST: "['ETE_OUT_1', 'ETE_OUT_2']"
+      ETE_OUT_LIST: "[\"ETE_OUT_1\",\"ETE_OUT_2\"]"
       ETE_OUT_1: ${{needs.build_one.outputs.ETE_OUT_1}}
       ETE_OUT_2: ${{needs.build_two.outputs.ETE_OUT_2}}
       ETE_OUT_1_NAME: ${{needs.build_one.outputs.ETE_OUT_1_NAME}}
