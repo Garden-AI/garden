@@ -314,6 +314,7 @@ def collect_and_send_logs(
 
     for job in git_job_data["jobs"]:
         if "build" in job["name"]:
+            job_id = job["id"]
             job_name = job["name"]
             job_name = f"{run_type} {job_name}"
             build_msg = os.getenv(f"GITHUB_ETE_LOG_{job_id}", "NOT_FOUND")
