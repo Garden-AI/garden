@@ -435,8 +435,8 @@ class RegisteredPipeline(BaseModel):
     conda_dependencies: List[str] = Field(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
     model_full_names: List[str] = Field(default_factory=list)
-    repositories: Optional[List[Repository]] = Field(default_factory=list)
-    papers: Optional[List[Papers]] = Field(default_factory=list)
+    repositories: List[Repository] = Field(default_factory=list)
+    papers: List[Papers] = Field(default_factory=list)
 
     def __call__(
         self,

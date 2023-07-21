@@ -4,7 +4,6 @@ import pickle
 import shutil
 from enum import Enum
 from typing import Optional
-from typing import List
 import functools
 
 import mlflow  # type: ignore

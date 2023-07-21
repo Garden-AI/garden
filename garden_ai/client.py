@@ -45,7 +45,6 @@ from garden_ai.mlmodel import (
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline, Papers, Repository
-from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.steps import step
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -319,9 +318,7 @@ class GardenClient:
         local_data.put_local_model(registered_model)
         return registered_model
 
-    def add_dataset(
-        self, model_name: str, title: str, url: Optional[str] = None, **kwargs
-    ) -> None:
+    def add_dataset(self, model_name: str, title: str, url: str, **kwargs) -> None:
         """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
 
         Parameters
@@ -407,7 +404,7 @@ class GardenClient:
         local_data.put_local_pipeline(registered)
         return func_uuid
 
-    def add_paper(self, title: str, doi: Optional[str] = None, **kwargs) -> None:
+    def add_paper(self, title: str, doi: str, **kwargs) -> None:
         """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given doi.
 
         Parameters
@@ -483,7 +480,7 @@ class GardenClient:
         repository = Repository(**data)
         pipeline.repositories.append(repository)
         local_data.put_local_pipeline(pipeline)
-       
+
     def add_simple_model_to_garden(
         self,
         local_model: LocalModel,
@@ -584,7 +581,6 @@ class GardenClient:
             self.publish_garden_metadata(remote)
 
         return pipeline.doi
-
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
