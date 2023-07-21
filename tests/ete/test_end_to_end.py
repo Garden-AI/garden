@@ -549,8 +549,6 @@ def _test_garden_create(example_garden_data, unique_title, runner):
             f"\n{_get_timestamp()} Starting test: [italic red]garden create[/italic red]"
         )
 
-        raise Exception("test error")
-
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
 
