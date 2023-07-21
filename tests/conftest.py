@@ -10,7 +10,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata, DatasetConnection, LocalModel
+from garden_ai.mlmodel import ModelMetadata, LocalModel
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -231,7 +231,6 @@ def step_with_model(mocker):
     mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
     mock_Model = mocker.MagicMock(garden_ai._model._Model)
     mock_Model.model = mock_pyfunc_model
-    # Using existing registered model
     mock_Model.full_name = "email@addr.ess/fake-model"
     mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
     mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
@@ -317,17 +316,6 @@ def second_draft_of_model():
         model_name="unit-test-model",
         user_email="test@example.com",
         flavor="pytorch",
-        connections=[
-            DatasetConnection(
-                **{
-                    "type": "dataset",
-                    "relationship": "origin",
-                    "doi": "10.18126/wg3u-g8vu",
-                    "repository": "Foundry",
-                    "url": "https://foundry-ml.org/#/datasets/10.18126%2Fwg3u-g8vu",
-                }
-            )
-        ],
     )
 
 
