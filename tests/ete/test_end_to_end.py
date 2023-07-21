@@ -541,8 +541,6 @@ def _test_garden_create(example_garden_data, unique_title, runner):
             f"\n{_get_timestamp()} Starting test: [italic red]garden create[/italic red]"
         )
 
-        raise Exception("Test error collecting full")
-
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
 
@@ -1022,7 +1020,7 @@ def _make_slack_message(error):
                 error_body = f"{error_body[0:MAX_ERROR_LENGTH]}..."
             error_msg = f"{type(error).__name__}: {error_body}"
             msg = (
-                f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}```"
+                f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}``` "
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
             # _send_slack_message(msg)
