@@ -301,8 +301,6 @@ def collect_and_send_logs(
     if not is_gha:
         raise Exception("For github actions use only.")
 
-    should_send = True
-
     git_repo = os.getenv("GITHUB_REPOSITORY")
     git_run_id = os.getenv("GITHUB_RUN_ID")
     git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
@@ -327,7 +325,7 @@ def collect_and_send_logs(
     for file in out_files:
         path = os.path.join(ete_out_path, file)
         with open(path, "r") as f:
-            job_id = file[:-4]
+            job_id = str(Path(file).stem)
             encoded_msg = f.read()
             msg_base64_bytes = encoded_msg.encode("ascii")
             mgs_string_bytes = base64.b64decode(msg_base64_bytes)
@@ -339,12 +337,12 @@ def collect_and_send_logs(
     msg = f"*Finished*: {git_run_url}\n"
     total_added_msgs = 0
     for job_id, msg_string in job_status.items():
-        all_build_jobs.pop(job_id)
+        all_build_jobs.pop(int(job_id))
         if msg_string == "SKINNY_JOB_SUCCESS":
             pass
         else:
             msg += msg_string
-            msg += "\n \n"
+            msg += "\n\n"
             total_added_msgs += 1
 
     for missing_job_id, missing_job_name in all_build_jobs.items():
@@ -356,43 +354,6 @@ def collect_and_send_logs(
         _send_slack_message(msg)
     else:
         rich_print(msg)
-
-    """
-    ete_out = os.getenv("ETE_OUT")
-
-    if ete_out is None:
-        raise Exception("Failed to find output env var.")
-
-    if ete_out != "START_BUILD":
-        old_msg_base64_bytes = ete_out.encode("ascii")
-        old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
-        old_msg_string = old_mgs_string_bytes.decode("ascii")
-        print(old_msg_string)
-        msg_dict = json.loads(old_msg_string)
-    else:
-        msg_dict = {}
-
-    total_added_msgs = 0
-
-    for job_name, msg_string in msg_dict.items():
-        build_jobs.remove(job_name)
-        if msg_string == "SKINNY_JOB_SUCCESS":
-            pass
-        else:
-            msg += msg_string
-            msg += "\n \n"
-            total_added_msgs += 1
-
-    for missing_job in build_jobs:
-        timeout_msg = f"*FAILURE*, end to end run: `{run_type} {missing_job}` has no stored output, most likely timed out.\n\n"
-        msg += timeout_msg
-        total_added_msgs += 1
-
-    if total_added_msgs > 0:
-        _send_slack_message(msg)
-    else:
-        rich_print(msg)
-    """
 
 
 def _run_test_cmds(
@@ -1103,6 +1064,15 @@ def _add_msg_to_outputs(msg, job_id):
             stdout=subprocess.PIPE,
         )
         process.wait()
+
+        process = subprocess.Popen(
+            f'echo "ETE_JOB_FINISHED=TRUE" >> "$GITHUB_ENV"',
+            shell=True,
+            executable="/bin/bash",
+            stdout=subprocess.PIPE,
+        )
+        process.wait()
+
         rich_print(f"Added to ETE_OUT base64 encoded message:\n{msg}")
 
 
