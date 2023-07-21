@@ -323,11 +323,14 @@ def collect_and_send_logs(
     if ete_out is None:
         raise Exception("Failed to find output env var.")
 
-    old_msg_base64_bytes = ete_out.encode("ascii")
-    old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
-    old_msg_string = old_mgs_string_bytes.decode("ascii")
-    print(old_msg_string)
-    msg_dict = json.loads(old_msg_string)
+    if ete_out != "START_BUILD":
+        old_msg_base64_bytes = ete_out.encode("ascii")
+        old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
+        old_msg_string = old_mgs_string_bytes.decode("ascii")
+        print(old_msg_string)
+        msg_dict = json.loads(old_msg_string)
+    else:
+        msg_dict = {}
 
     total_added_msgs = 0
 
@@ -541,6 +544,8 @@ def _test_garden_create(example_garden_data, unique_title, runner):
         rich_print(
             f"\n{_get_timestamp()} Starting test: [italic red]garden create[/italic red]"
         )
+
+        raise Exception("test error")
 
         gardens_before = garden_ai.local_data.get_all_local_gardens()
         assert gardens_before is None
@@ -1034,9 +1039,9 @@ def _add_msg_to_outputs(msg):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        ete_in_msg = os.getenv("ETE_IN", "START_BUILD")
+        ete_in_msg = os.getenv("ETE_OUT", "START_BUILD")
 
-        rich_print(f"ETE_IN: \n{ete_in_msg}")
+        rich_print(f"ETE_OUT: \n{ete_in_msg}")
 
         msg_dict = {}
         if ete_in_msg != "START_BUILD":
@@ -1054,7 +1059,7 @@ def _add_msg_to_outputs(msg):
         msg_base64_string = msg_base64_bytes.decode("ascii")
 
         process = subprocess.Popen(
-            f'echo "ETE_OUT={msg_base64_string}" >> "$GITHUB_OUTPUT"',
+            f'echo "ETE_OUT={msg_base64_string}" >> "$GITHUB_ENV"',
             shell=True,
             executable="/bin/bash",
             stdout=subprocess.PIPE,
