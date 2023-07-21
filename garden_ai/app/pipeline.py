@@ -309,18 +309,18 @@ def add_paper(
                         authors += [name]
                     else:
                         break
-    if not paper_doi:
-        paper_doi = Prompt.ask(
-            "If available, please provite the digital identifier that the paper may be linked to (leave blank to skip)"
-        )
-    if not citation:
-        citation = Prompt.ask(
-            "If available, please provite the citation that the paper may be linked to (leave blank to skip)"
-        )
-    paper = Papers(title=title, authors=authors, doi=paper_doi, citation=citation)
-    pipeline.papers.append(paper)
-    put_local_pipeline(pipeline)
-    rich.print(f"The paper {title} is successfully added to pipeline {doi}.")
+        if not paper_doi:
+            paper_doi = Prompt.ask(
+                "If available, please provite the digital identifier that the paper may be linked to (leave blank to skip)"
+            )
+        if not citation:
+            citation = Prompt.ask(
+                "If available, please provite the citation that the paper may be linked to (leave blank to skip)"
+            )
+        paper = Papers(title=title, authors=authors, doi=paper_doi, citation=citation)
+        pipeline.papers.append(paper)
+        put_local_pipeline(pipeline)
+        rich.print(f"The paper {title} is successfully added to pipeline {doi}.")
 
 
 @pipeline_app.command(no_args_is_help=True)
