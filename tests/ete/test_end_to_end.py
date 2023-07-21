@@ -1086,6 +1086,13 @@ def _send_slack_message(msg):
     payload = '{"text": "%s"}' % msg
     response = requests.post(slack_hook, data=payload)
     rich_print(f"Slack msg response:\n{response.text}")
+    if response.text != "ok":
+        git_repo = os.getenv("GITHUB_REPOSITORY")
+        git_run_id = os.getenv("GITHUB_RUN_ID")
+        git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
+        _send_slack_message(
+            f"Failed to send output for run.\nCheck github actions: {git_run_url}"
+        )
 
 
 def _get_timestamp():
