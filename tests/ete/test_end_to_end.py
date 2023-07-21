@@ -1050,6 +1050,7 @@ def _add_msg_to_outputs(msg, job_id):
 
     if is_gha:
         msg_key = os.getenv("GITHUB_JOB_NAME_INT")
+        msg_dict = {}
         msg_dict[msg_key] = msg
         msg_dict_string = json.dumps(msg_dict)
 
