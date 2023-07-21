@@ -3,8 +3,9 @@ from typing import List
 import pytest
 import os
 from globus_compute_sdk import Client  # type: ignore
+from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
-from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+from garden_ai.garden_file_adapter import GardenFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
@@ -57,8 +58,8 @@ def noop_func_uuid():
 
 @pytest.fixture
 def mock_keystore(mocker):
-    mock_keystore = mocker.MagicMock(SimpleJSONFileAdapter)
-    mocker.patch("garden_ai.client.SimpleJSONFileAdapter").return_value = mock_keystore
+    mock_keystore = mocker.MagicMock(GardenFileAdapter)
+    mocker.patch("garden_ai.client.GardenFileAdapter").return_value = mock_keystore
     return mock_keystore
 
 
@@ -94,6 +95,13 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
         return_value=mock_token_response
     )
+
+    # Mocks compute client login
+    mock_login_manager = mocker.MagicMock(LoginManager)
+    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
+    mocker.patch(
+        "globus_compute_sdk.sdk.client.LoginManager"
+    ).return_value = mock_login_manager
 
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
@@ -231,6 +239,7 @@ def step_with_model(mocker):
     mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
     mock_Model = mocker.MagicMock(garden_ai._model._Model)
     mock_Model.model = mock_pyfunc_model
+    # Using existing registered model
     mock_Model.full_name = "email@addr.ess/fake-model"
     mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
     mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
