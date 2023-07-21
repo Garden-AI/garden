@@ -326,6 +326,7 @@ def collect_and_send_logs(
     old_msg_base64_bytes = ete_out.encode("ascii")
     old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
     old_msg_string = old_mgs_string_bytes.decode("ascii")
+    print(old_msg_string)
     msg_dict = json.loads(old_msg_string)
 
     total_added_msgs = 0
@@ -1033,7 +1034,9 @@ def _add_msg_to_outputs(msg):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        ete_in_msg = os.getenv("ETE_IN")
+        ete_in_msg = os.getenv("ETE_IN", "START_BUILD")
+
+        rich_print(f"ETE_IN: \n{ete_in_msg}")
 
         msg_dict = {}
         if ete_in_msg != "START_BUILD":
