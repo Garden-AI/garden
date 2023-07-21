@@ -311,14 +311,15 @@ def collect_and_send_logs(
     )
     git_job_data = requests.get(git_api_url).json()
 
-    build_jobs = []
+    all_build_jobs = {}
     for job in git_job_data["jobs"]:
         if "build" in job["name"]:
-            build_jobs.append(job["name"])
-
-    msg = f"*Finished*: {git_run_url}\n"
+            all_build_jobs[job["id"]] = job["name"]
 
     ete_out_path = os.getenv("ETE_ART_LOC")
+    if ete_out_path is None:
+        raise Exception("Failed to find output artifact file.")
+
     out_files = os.listdir(ete_out_path)
     job_status = {}
     for file in out_files:
@@ -326,12 +327,31 @@ def collect_and_send_logs(
         with open(path, "r") as f:
             job_id = file[:-4]
             encoded_msg = f.read()
-            old_msg_base64_bytes = encoded_msg.encode("ascii")
-            old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
-            old_msg_string = old_mgs_string_bytes.decode("ascii")
-            msg_dict = json.loads(old_msg_string)
-            job_status[job_id] = msg_dict
-    print(job_status)
+            msg_base64_bytes = encoded_msg.encode("ascii")
+            mgs_string_bytes = base64.b64decode(msg_base64_bytes)
+            msg_string = mgs_string_bytes.decode("ascii")
+            job_status[job_id] = msg_string
+
+    msg = f"*Finished*: {git_run_url}\n"
+    total_added_msgs = 0
+    for job_id, msg_string in job_status.items():
+        all_build_jobs.pop(job_id)
+        if msg_string == "SKINNY_JOB_SUCCESS":
+            pass
+        else:
+            msg += msg_string
+            msg += "\n \n"
+            total_added_msgs += 1
+
+    for missing_job_id, missing_job_name in all_build_jobs.items():
+        timeout_msg = f"*FAILURE*, end to end run: `{run_type} {missing_job_name}` has no stored output, most likely timed out.\n\n"
+        msg += timeout_msg
+        total_added_msgs += 1
+
+    if total_added_msgs > 0:
+        _send_slack_message(msg)
+    else:
+        rich_print(msg)
 
     """
     ete_out = os.getenv("ETE_OUT")
@@ -1058,12 +1078,9 @@ def _add_msg_to_outputs(msg, job_id):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        msg_key = os.getenv("GITHUB_JOB_NAME_INT")
-        msg_dict = {}
-        msg_dict[msg_key] = msg
-        msg_dict_string = json.dumps(msg_dict)
+        msg_key = os.getenv("GITHUB_JOB_NAME_EXT")
 
-        msg_bytes = msg_dict_string.encode("ascii")
+        msg_bytes = msg.encode("ascii")
         msg_base64_bytes = base64.b64encode(msg_bytes)
         msg_base64_string = msg_base64_bytes.decode("ascii")
 
