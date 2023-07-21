@@ -64,9 +64,9 @@ class Repository(BaseModel):
     contributors: List[str] = Field(default_factory=list)
 
 
-class Papers(BaseModel):
+class Paper(BaseModel):
     """
-    The `Papers` class represents all the metadata we want to \
+    The `Paper` class represents all the metadata we want to \
     publically expose about the papers used to build the pipeline.
 
     Attributes:
@@ -436,7 +436,7 @@ class RegisteredPipeline(BaseModel):
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
     model_full_names: List[str] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
-    papers: List[Papers] = Field(default_factory=list)
+    papers: List[Paper] = Field(default_factory=list)
 
     def __call__(
         self,

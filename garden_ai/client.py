@@ -44,7 +44,7 @@ from garden_ai.mlmodel import (
     stage_model_for_upload,
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
-from garden_ai.pipelines import Pipeline, RegisteredPipeline, Papers, Repository
+from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
 from garden_ai.steps import step
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -417,7 +417,7 @@ class GardenClient:
             An official name or title for the paper.
 
         **kwargs :
-            Metadata for the new Papers object. Keyword arguments matching
+            Metadata for the new Paper object. Keyword arguments matching
             required or recommended fields will be (where necessary) coerced to the appropriate type.
             May include: List[str] authors and Optional[str] citation.
 
@@ -434,7 +434,7 @@ class GardenClient:
         data = dict(kwargs)
         if title:
             data["title"] = title
-        paper = Papers(**data)
+        paper = Paper(**data)
         pipeline.papers.append(paper)
         local_data.put_local_pipeline(pipeline)
 

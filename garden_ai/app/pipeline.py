@@ -12,7 +12,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
-from garden_ai.pipelines import Repository, Papers
+from garden_ai.pipelines import Repository, Paper
 from garden_ai.local_data import put_local_pipeline, get_local_pipeline_by_doi
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
@@ -317,7 +317,7 @@ def add_paper(
             citation = Prompt.ask(
                 "If available, please provite the citation that the paper may be linked to (leave blank to skip)"
             )
-        paper = Papers(title=title, authors=authors, doi=paper_doi, citation=citation)
+        paper = Paper(title=title, authors=authors, doi=paper_doi, citation=citation)
         pipeline.papers.append(paper)
         put_local_pipeline(pipeline)
         rich.print(f"The paper {title} is successfully added to pipeline {doi}.")
