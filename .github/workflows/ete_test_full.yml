@@ -88,7 +88,8 @@ jobs:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
       ETE_ART_LOC: "/home/runner/ete_artifact"
       ETE_ART_NAME: "ete-artifact-${{ github.run_id }}"
-      ETE_JOB_ID: "None"
+      ETE_JOB_ID: "ETE_RUN_ID_NOT_SET"
+      ETE_JOB_ID_FAILED: "ETE_RUN_ID_NOT_SET"
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2

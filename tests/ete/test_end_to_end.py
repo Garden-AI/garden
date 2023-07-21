@@ -321,7 +321,8 @@ def collect_and_send_logs(
     ete_out_path = os.getenv("ETE_ART_LOC")
     out_files = os.listdir(ete_out_path)
     for file in out_files:
-        with open(file, "r") as f:
+        path = (os.path.join(ete_out_path, file),)
+        with open(path, "r") as f:
             print(f.read())
 
     """
