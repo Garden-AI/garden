@@ -3,7 +3,7 @@ import pathlib
 import pickle
 import shutil
 from enum import Enum
-from typing import List
+from typing import Optional
 import functools
 
 import mlflow  # type: ignore
@@ -23,6 +23,12 @@ class ModelUploadException(Exception):
     pass
 
 
+class ModelNotFoundException(Exception):
+    """Exception raised when an attempt to access a model that does not exist"""
+
+    pass
+
+
 class PipelineLoadScaffoldedException(Exception):
     """Exception raised when a user attempts to load model with the name SCAFFOLDED_MODEL_NAME"""
 
@@ -37,14 +43,26 @@ class ModelFlavor(Enum):
 
 class DatasetConnection(BaseModel):
     """
-    A first step towards the Accelerate Connection Schema
+    The ``DataSetConnection`` class represents all the metadata we want to \
+    publically expose about the datasets that can be utilized with this model.
+
+    Attributes:
+        title (str):
+            A short and descriptive name of the dataset.
+        doi (str):
+            A digital identifier to the dataset.
+        url (str):
+            Location where the dataset can be accessed. If using foundry \
+            dataset, both url and doi must be provided.
+        data_type (str):
+            Optional, the type of file of dataset.
+
     """
 
-    type: str = "dataset"
-    relationship: str = "origin"
-    doi: str = Field(...)
-    repository: str = "Foundry"
+    title: str = Field(...)
+    doi: Optional[str] = Field(None)
     url: str = Field(...)
+    data_type: Optional[str] = Field(None)
 
 
 class ModelMetadata(BaseModel):
@@ -55,8 +73,8 @@ class ModelMetadata(BaseModel):
     Attributes:
         model_name (str): A short and descriptive name of the model
         flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
-        connections (List[DatasetConnection]):
-            A list of dataset records that the model was trained on.
+        dataset (DatasetConnection):
+            A dataset record that the model was trained on.
         user_email (str): The email address of the user uploading the model.
         full_name (str): The user_email and model_name together like "foo@example.edu/my_model"
         mlflow_name (str): The user_email and model_name together like "foo@example.edu-my_model"
@@ -66,7 +84,7 @@ class ModelMetadata(BaseModel):
     model_name: str = Field(...)
     user_email: str = Field(...)
     flavor: str = Field(...)
-    connections: List[DatasetConnection] = Field(default_factory=list)
+    dataset: Optional[DatasetConnection] = Field(None)
     full_name: str = ""
     mlflow_name: str = ""
 
@@ -238,7 +256,7 @@ def Model(full_model_name: str) -> _Model:
             "The parameters of Model() are empty. Please enter your registered model name in your pipeline.py"
         )
     if not get_local_model_by_name(full_model_name):
-        raise PipelineLoadException(f"No model with {full_model_name} exists.")
+        raise ModelNotFoundException(f"No model with {full_model_name} exists.")
     if full_model_name == GardenConstants.SCAFFOLDED_MODEL_NAME:
         error_message = (
             "Failed to load model. It looks like you are using the placeholder model name from a scaffolded pipeline. "

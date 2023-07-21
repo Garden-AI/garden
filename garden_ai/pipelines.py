@@ -43,6 +43,51 @@ from garden_ai.utils.misc import (
 logger = logging.getLogger()
 
 
+class Repository(BaseModel):
+    """
+    The `Repository` class represents all the metadata we want to \
+    publically expose about the repositories used to build the pipeline.
+
+    Attributes:
+        repo_name (str):
+            A title that the repository can be referenced by.
+        url (str):
+            A link where this repository can be publically viewed.
+        contributors List[str]:
+            Acknowledge contributors to the development of \
+            this repository.
+
+    """
+
+    repo_name: str = Field(...)
+    url: str = Field(...)
+    contributors: List[str] = Field(default_factory=list)
+
+
+class Paper(BaseModel):
+    """
+    The `Paper` class represents all the metadata we want to \
+    publically expose about the papers used to build the pipeline.
+
+    Attributes:
+        title (str):
+            The official title that the paper can be referenced by.
+        authors List[str]:
+            The main researchers involved in producing the paper. Personal name \
+            format should be: "Family, Given". Order is preserved. (at least one required)
+        doi (str):
+            The digital object identifier of the paper. (Optional)
+        citation (str):
+            Description of how the paper may be cited officially. (Optional)
+
+    """
+
+    title: str = Field(...)
+    authors: List[str] = Field(default_factory=list)
+    doi: Optional[str] = Field(None)
+    citation: Optional[str] = Field(None)
+
+
 @dataclass(config=DataclassConfig)
 class Pipeline:
     """The `Pipeline` class represents a sequence of simpler `steps` composed \
@@ -369,6 +414,8 @@ class RegisteredPipeline(BaseModel):
         pip_dependencies:
         conda_dependencies:
         model_full_names:
+        repositories:
+        papers:
     """
 
     doi: str = Field(...)
@@ -388,6 +435,8 @@ class RegisteredPipeline(BaseModel):
     conda_dependencies: List[str] = Field(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
     model_full_names: List[str] = Field(default_factory=list)
+    repositories: List[Repository] = Field(default_factory=list)
+    papers: List[Paper] = Field(default_factory=list)
 
     def __call__(
         self,
