@@ -35,6 +35,14 @@ class ModelFlavor(Enum):
     TENSORFLOW = "tensorflow"
 
 
+class SerializeType(Enum):
+    PICKLE = "pickle"
+    JOBLIB = "joblib"
+    ONNX = "onnx"
+    KERAS = "keras"
+    TORCH = "torch"
+
+
 class DatasetConnection(BaseModel):
     """
     A first step towards the Accelerate Connection Schema
@@ -55,6 +63,11 @@ class ModelMetadata(BaseModel):
     Attributes:
         model_name (str): A short and descriptive name of the model
         flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
+        serialize_type (str): The serialization/packaging format to be used for the model.
+            Must be compatable with the flavor of the model.
+            One of "pickle", "joblib", "onnx", "keras", or "torch".
+            "keras" and "torch" are for native save methods which are only valid via
+            "tensorflow" and "pytorch" flavors, respectively.
         connections (List[DatasetConnection]):
             A list of dataset records that the model was trained on.
         user_email (str): The email address of the user uploading the model.
@@ -66,6 +79,7 @@ class ModelMetadata(BaseModel):
     model_name: str = Field(...)
     user_email: str = Field(...)
     flavor: str = Field(...)
+    serialize_type: str = Field(...)
     connections: List[DatasetConnection] = Field(default_factory=list)
     full_name: str = ""
     mlflow_name: str = ""
@@ -95,6 +109,12 @@ class ModelMetadata(BaseModel):
             )
             raise ValueError(error_message)
         return model_name
+
+    @validator("serialize_type")
+    def must_be_a_supported_serialize_type(cls, serialize_type):
+        if serialize_type not in [s.value for s in SerializeType]:
+            raise ValueError("is not a supported model serialization format")
+        return serialize_type
 
 
 class LocalModel(ModelMetadata):
