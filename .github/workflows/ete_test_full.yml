@@ -68,7 +68,7 @@ jobs:
           echo ${{ env.ETE_OUT }} > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
       - name: Make artifact file if failed
         if: |
-          "contains(env.ETE_JOB_FINISHED, 'FALSE')" && "!contains(env.ETE_JOB_ID, 'ID_NOT_SET')"
+          contains(env.ETE_JOB_FINISHED, 'FALSE') && !contains(env.ETE_JOB_ID, 'ID_NOT_SET')
         run: |
           mkdir -p ${{ env.ETE_ART_LOC }}
           echo "*FAILURE*, end to end run: `${{ env.ETE_JOB_NAME_EXT }}` has no stored output, most likely timed out." | base64 > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
