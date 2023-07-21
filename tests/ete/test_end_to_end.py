@@ -318,6 +318,13 @@ def collect_and_send_logs(
 
     msg = f"*Finished*: {git_run_url}\n"
 
+    ete_out_path = os.getenv("ETE_ART_LOC")
+    out_files = os.listdir(ete_out_path)
+    for file in out_files:
+        with open(file, "r") as f:
+            print(f.read())
+
+    """
     ete_out = os.getenv("ETE_OUT")
 
     if ete_out is None:
@@ -352,6 +359,7 @@ def collect_and_send_logs(
         _send_slack_message(msg)
     else:
         rich_print(msg)
+    """
 
 
 def _run_test_cmds(
@@ -999,6 +1007,8 @@ def _make_slack_message(error):
                 break
         assert current_job is not None
 
+        job_id = current_job["id"]
+
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
         ).replace(tzinfo=timezone.utc)
@@ -1012,14 +1022,14 @@ def _make_slack_message(error):
                     f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
                 )
                 # _send_slack_message(msg)
-                _add_msg_to_outputs(msg)
+                _add_msg_to_outputs(msg, job_id)
             else:
                 rich_print(
                     f"SUCCESS, end to end run: {git_job_name_ext} passed all tests."
                     f"\nStart time: {start_time_str} UTC, total run time: {total_time}"
                     "\nSkipping slack message for skinny run with no errors."
                 )
-                _add_msg_to_outputs("SKINNY_JOB_SUCCESS")
+                _add_msg_to_outputs("SKINNY_JOB_SUCCESS", job_id)
         else:
             error_body = str(error).encode("ascii", "ignore").decode("ascii")
             if len(error_body) > MAX_ERROR_LENGTH:
@@ -1030,26 +1040,15 @@ def _make_slack_message(error):
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
             # _send_slack_message(msg)
-            _add_msg_to_outputs(msg)
+            _add_msg_to_outputs(msg, job_id)
     else:
         rich_print("Skipping slack message; not github actions run.")
 
 
-def _add_msg_to_outputs(msg):
+def _add_msg_to_outputs(msg, job_id):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        ete_in_msg = os.getenv("ETE_OUT", "START_BUILD")
-
-        rich_print(f"ETE_OUT: \n{ete_in_msg}")
-
-        msg_dict = {}
-        if ete_in_msg != "START_BUILD":
-            old_msg_base64_bytes = ete_in_msg.encode("ascii")
-            old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
-            old_msg_string = old_mgs_string_bytes.decode("ascii")
-            msg_dict = json.loads(old_msg_string)
-
         msg_key = os.getenv("GITHUB_JOB_NAME_INT")
         msg_dict[msg_key] = msg
         msg_dict_string = json.dumps(msg_dict)
@@ -1057,6 +1056,14 @@ def _add_msg_to_outputs(msg):
         msg_bytes = msg_dict_string.encode("ascii")
         msg_base64_bytes = base64.b64encode(msg_bytes)
         msg_base64_string = msg_base64_bytes.decode("ascii")
+
+        process = subprocess.Popen(
+            f'echo "ETE_JOB_ID={job_id}" >> "$GITHUB_ENV"',
+            shell=True,
+            executable="/bin/bash",
+            stdout=subprocess.PIPE,
+        )
+        process.wait()
 
         process = subprocess.Popen(
             f'echo "ETE_OUT={msg_base64_string}" >> "$GITHUB_ENV"',

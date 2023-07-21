@@ -5,9 +5,6 @@ on:
   schedule:
     - cron: "0 12 * * *"    #runs at 12:00 UTC everyday
 
-env:
-  ETE_OUT: "START_BUILD"
-
 jobs:
   get-latest-tag:
     runs-on: ubuntu-latest
@@ -32,6 +29,9 @@ jobs:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+      ETE_ART_LOC: "~/ete_artifact"
+      ETE_ART_NAME: "ete-artifact"
+      ETE_JOB_ID: "None"
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -59,6 +59,18 @@ jobs:
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 90
+      - name: Setup upload artifact
+        if: "!contains(env.ETE_JOB_ID, 'None')"
+        run: |
+          mkdir -p ${{ env.ETE_ART_LOC }}
+          echo ${{ env.ETE_OUT }} > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+      - name: Upload artifact
+        if: "!contains(env.ETE_JOB_ID, 'None')"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ETE_ART_NAME }}
+          path: ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+          retention-days: 3
   build_two:
     runs-on: ubuntu-latest
     needs: [get-latest-tag, build_one]
@@ -73,6 +85,9 @@ jobs:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+      ETE_ART_LOC: "~/ete_artifact"
+      ETE_ART_NAME: "ete-artifact"
+      ETE_JOB_ID: "None"
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -100,6 +115,18 @@ jobs:
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
         timeout-minutes: 90
+      - name: Setup upload artifact
+        if: "!contains(env.ETE_JOB_ID, 'None')"
+        run: |
+          mkdir -p ${{ env.ETE_ART_LOC }}
+          echo ${{ env.ETE_OUT }} > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+      - name: Upload artifact
+        if: "!contains(env.ETE_JOB_ID, 'None')"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ETE_ART_NAME }}
+          path: ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+          retention-days: 3
   collect:
     runs-on: ubuntu-latest
     needs: [build_one, build_two]
@@ -113,6 +140,8 @@ jobs:
     name: collect-and-send-logs
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+      ETE_ART_LOC: "~/ete_artifact"
+      ETE_ART_NAME: "ete-artifact"
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -130,6 +159,10 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ env.ETE_ART_NAME }}
+          path: ${{ env.ETE_ART_LOC }}
       - name: Collect and send logs to slack
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py collect-and-send-logs --run-type full
