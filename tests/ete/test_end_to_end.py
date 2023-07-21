@@ -316,6 +316,8 @@ def collect_and_send_logs(
         if "build" in job["name"]:
             all_build_jobs[job["id"]] = job["name"]
 
+    print(all_build_jobs)
+
     ete_out_path = os.getenv("ETE_ART_LOC")
     if ete_out_path is None:
         raise Exception("Failed to find output artifact file.")
@@ -331,6 +333,8 @@ def collect_and_send_logs(
             mgs_string_bytes = base64.b64decode(msg_base64_bytes)
             msg_string = mgs_string_bytes.decode("ascii")
             job_status[job_id] = msg_string
+
+    print(job_status)
 
     msg = f"*Finished*: {git_run_url}\n"
     total_added_msgs = 0
