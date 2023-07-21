@@ -127,7 +127,7 @@ def run_garden_end_to_end(
         help="If test should as needed prompt for garden client credentials or read them from user included file ./templates/git_secrets.json. If false, user MUST provide values for GARDEN_API_CLIENT_SECRET GARDEN_API_CLIENT_ID in git_secrets.json",
     ),
 ):
-    # Set up
+    # Set up ETE test
     rich_print("\n[bold blue]Setup ETE Test[/bold blue]\n")
 
     rich_print(f"Garden grant type set to: [blue]{garden_grant}[/blue]")
@@ -150,6 +150,8 @@ def run_garden_end_to_end(
     rich_print(f"Testing with [blue]tensorflow[/blue] model: {run_tf}")
     rich_print(f"Testing with [blue]pytorch[/blue] model: {run_torch}")
 
+    # If running in github actions, set ETE_JOB_ID to random uuid.
+    # Used to name artifact file for job output
     is_gha = os.getenv("GITHUB_ACTIONS")
     if is_gha:
         ete_job_id = str(uuid.uuid4())
@@ -162,6 +164,7 @@ def run_garden_end_to_end(
         process.wait()
         rich_print(f"Github actions job id set to: {ete_job_id}")
 
+    # If run with --live-print-stdout, will print all commands output to console.
     runner = None
     rich_print(f"CliRunner live print set to: {live_print_stdout}")
     if live_print_stdout:
@@ -188,7 +191,7 @@ def run_garden_end_to_end(
 
     client = None
     if garden_grant == "cc":
-        # Create GardenClient with ClientCredentialsAuthorizer and patch all instances of GardenClients
+        # Create GardenClient with ClientCredentialsAuthorizer
         if is_gha:
             GARDEN_API_CLIENT_ID = os.getenv("GARDEN_API_CLIENT_ID", "none")
             GARDEN_API_CLIENT_SECRET = os.getenv("GARDEN_API_CLIENT_SECRET", "none")
@@ -198,6 +201,8 @@ def run_garden_end_to_end(
             )
         else:
             if prompt_for_git_secret:
+                # If run with --prompt-for-git_secret then user must provide
+                # CC login secrets during non github actions run.
                 GARDEN_API_CLIENT_ID = Prompt.ask(
                     "Please enter the GARDEN_API_CLIENT_ID here "
                 ).strip()
@@ -205,6 +210,8 @@ def run_garden_end_to_end(
                     "Please enter the GARDEN_API_CLIENT_SECRET here "
                 ).strip()
             else:
+                # If run with --prompt-for-git_secret then user must provide
+                # CC login secrets in ./templates/git_secrets.json
                 with open(
                     os.path.join(old_cwd, "templates/git_secrets.json")
                 ) as json_file:
@@ -212,6 +219,7 @@ def run_garden_end_to_end(
                 GARDEN_API_CLIENT_ID = git_secrets["GARDEN_API_CLIENT_ID"]
                 GARDEN_API_CLIENT_SECRET = git_secrets["GARDEN_API_CLIENT_SECRET"]
 
+        # CC login with FUNCX
         os.environ["FUNCX_SDK_CLIENT_ID"] = GARDEN_API_CLIENT_ID
         os.environ["FUNCX_SDK_CLIENT_SECRET"] = GARDEN_API_CLIENT_SECRET
 
@@ -321,10 +329,15 @@ def collect_and_send_logs():
 
     msg = f"*Finished*: {git_run_url}\n"
 
+    # All jobs make an output file and adds to artifact folder.
+    # Get all files in folder and add contents to msg
     out_files = os.listdir(ete_out_path)
     total_added_msgs = 0
     for file in out_files:
         path = os.path.join(ete_out_path, file)
+        if not os.path.isfile(path):
+            rich_print(f"Unable to read file {str(path)}, skipping.")
+            pass
         with open(path, "r") as f:
             encoded_msg = f.read()
             msg_base64_bytes = encoded_msg.encode("ascii")
@@ -337,6 +350,8 @@ def collect_and_send_logs():
             msg += "\n\n"
             total_added_msgs += 1
 
+    # If total_added_msgs is less than 0, all outputs where skinny success,
+    # Don't need to send to slack in this case
     if total_added_msgs > 0:
         _send_slack_message(msg)
     else:
@@ -981,6 +996,7 @@ def _make_slack_message(error):
         )
         git_job_data = requests.get(git_api_url).json()
 
+        # Get the current job dict from all job data
         current_job = None
         for job in git_job_data["jobs"]:
             if job["name"] in git_job_name_int:
@@ -990,6 +1006,7 @@ def _make_slack_message(error):
 
         job_id = current_job["id"]
 
+        # Get total run time of job
         start_time = datetime.strptime(
             str(current_job["started_at"]), "%Y-%m-%dT%H:%M:%SZ"
         ).replace(tzinfo=timezone.utc)
@@ -1030,10 +1047,13 @@ def _add_msg_to_outputs(msg, job_id):
     if is_gha:
         rich_print(f"Adding to output message:\n{msg}")
 
+        # Base64 encode output to avoid env var nonsense
         msg_bytes = msg.encode("ascii")
         msg_base64_bytes = base64.b64encode(msg_bytes)
         msg_base64_string = msg_base64_bytes.decode("ascii")
 
+        # Send encoded output to env var ETE_OUT.
+        # Workflow will grab and send to artifact.
         process = subprocess.Popen(
             f'echo "ETE_OUT={msg_base64_string}" >> "$GITHUB_ENV"',
             shell=True,
@@ -1042,8 +1062,10 @@ def _add_msg_to_outputs(msg, job_id):
         )
         process.wait()
 
+        # Set env var ETE_JOB_FINISHED to TRUE.
+        # Workflow will construct timed out output msg for job if FALSE.
         process = subprocess.Popen(
-            f'echo "ETE_JOB_FINISHED=TRUE" >> "$GITHUB_ENV"',
+            'echo "ETE_JOB_FINISHED=TRUE" >> "$GITHUB_ENV"',
             shell=True,
             executable="/bin/bash",
             stdout=subprocess.PIPE,
@@ -1057,7 +1079,7 @@ def _add_msg_to_outputs(msg, job_id):
 
 def _send_slack_message(msg):
     rich_print(f"Sending msg to slack:\n{msg}")
-    slack_hook = os.getenv("SLACK_HOOK_URL", "none")
+    slack_hook = os.getenv("SLACK_HOOK_URL", "NONE")
     payload = '{"text": "%s"}' % msg
     requests.post(slack_hook, data=payload)
 
@@ -1073,16 +1095,18 @@ if __name__ == "__main__":
     except Exception as error:
         try:
             if is_collecting:
-                # Something weird broke, just report failure.
+                # Something weird broke while running collect-and-send-logs, just print failure and end.
                 rich_print(
-                    "Something broke durring output collection. Unable to log failure."
+                    "Something unknown has broken while running collect-and-send-logs. Unable to log failure."
                 )
             else:
                 # Catch any exceptions thown durring the test and make error msg to slack.
                 _make_slack_message(error)
         except Exception as error_msger:
-            # Something weird broke, just report failure.
-            rich_print("Something unknown has broken. Unable to log failure.")
+            # Something weird broke while running _make_slack_message, just print failure and end.
+            rich_print(
+                "Something unknown has broken while running _make_slack_message. Unable to log failure."
+            )
             raise error_msger
         else:
             raise error

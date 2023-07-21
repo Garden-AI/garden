@@ -60,7 +60,7 @@ jobs:
         continue-on-error: true
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
-        timeout-minutes: 90
+        timeout-minutes: 1
       - name: Make artifact file if success
         if: "contains(env.ETE_JOB_FINISHED, 'TRUE')"
         run: |
