@@ -36,11 +36,13 @@ from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundExcept
 from garden_ai.mlmodel import (
     LocalModel,
     ModelMetadata,
+    DatasetConnection,
+    ModelNotFoundException,
     clear_mlflow_staging_directory,
     stage_model_for_upload,
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
-from garden_ai.pipelines import Pipeline, RegisteredPipeline
+from garden_ai.pipelines import Pipeline, RegisteredPipeline, Papers, Repository
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 GARDEN_ENDPOINT = os.environ.get(
@@ -315,6 +317,47 @@ class GardenClient:
         local_data.put_local_model(registered_model)
         return registered_model
 
+    def add_dataset(
+        self, model_name: str, title: str, url: Optional[str] = None, **kwargs
+    ) -> None:
+        """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
+
+        Parameters
+        ----------
+        model_name : str
+            The previously registered model's full model name. Raises an
+            exception if not found.
+
+        title : str
+            An official name or title for the dataset.
+
+        url: str
+            The url to access this dataset.
+
+        **kwargs :
+            Metadata for the new DatasetConnection object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the appropriate type.
+            May include: Optional[str] doi, Optional[str] data_type.
+
+        Raises
+        ------
+        ModelNotFoundException
+            Raised when no known model exists with the given identifier.
+        """
+        model = local_data.get_local_model_by_name(model_name)
+        data = dict(kwargs)
+        if not model:
+            raise ModelNotFoundException("This model could not be found")
+        if model_name:
+            data["model_name"] = model_name
+        if title:
+            data["title"] = title
+        if url:
+            data["url"] = url
+        dataset = DatasetConnection(**data)
+        model.dataset = dataset
+        local_data.put_local_model(model)
+
     def _mint_draft_doi(self, test: bool = True) -> str:
         """Register a new draft doi with DataCite via Garden backend.
 
@@ -361,6 +404,83 @@ class GardenClient:
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
         return func_uuid
+
+    def add_paper(self, title: str, doi: Optional[str] = None, **kwargs) -> None:
+        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given doi.
+
+        Parameters
+        ----------
+        doi : str
+            The previously registered pipeline's DOI. Raises an
+            exception if not found.
+
+        title : str
+            An official name or title for the paper.
+
+        **kwargs :
+            Metadata for the new Papers object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the appropriate type.
+            May include: List[str] authors and Optional[str] citation.
+
+        Raises
+        ------
+        PipelineNotFoundException
+            Raised when no known pipeline exists with the given identifier.
+        """
+        pipeline = local_data.get_local_pipeline_by_doi(doi)
+        if not pipeline:
+            raise PipelineNotFoundException(
+                f"Could not find any pipelines with DOI {doi}."
+            )
+        data = dict(kwargs)
+        if title:
+            data["title"] = title
+        paper = Papers(**data)
+        pipeline.papers.append(paper)
+        local_data.put_local_pipeline(pipeline)
+
+    def add_repository(self, doi: str, url: str, repo_name: str, **kwargs) -> None:
+        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given doi.
+
+        Parameters
+        ----------
+        doi : str
+            The previously registered pipeline's DOI. Raises an
+            exception if not found.
+
+        title : str
+            An official name or title for the repository.
+
+        url: str
+            The url to access this repository.
+
+        **kwargs :
+            Metadata for the new Repository object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the appropriate type.
+            May include: List[str] contributors.
+
+        Raises
+        ------
+        PipelineNotFoundException
+            Raised when no known pipeline exists with the given identifier.
+        """
+        data = dict(kwargs)
+        print(data)
+        if doi:
+            data["doi"] = doi
+        if url:
+            data["url"] = url
+        if repo_name:
+            data["repo_name"] = repo_name
+        pipeline = local_data.get_local_pipeline_by_doi(doi)
+        if not pipeline:
+            raise PipelineNotFoundException(
+                f"Could not find any pipelines with DOI {doi}."
+            )
+
+        repository = Repository(**data)
+        pipeline.repositories.append(repository)
+        local_data.put_local_pipeline(pipeline)
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given doi.

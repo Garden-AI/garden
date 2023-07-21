@@ -4,6 +4,7 @@ from garden_ai.utils.filesystem import (
     PipelineLoadException,
     load_pipeline_from_python_file,
 )
+from garden_ai.mlmodel import ModelNotFoundException
 from garden_ai import Pipeline
 
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
@@ -25,7 +26,7 @@ def test_load_pipeline_from_valid_file_with_invalid_model():
     fixture_file_path = get_fixture_file_path(
         "fixture_pipeline/invalid_model_pipeline.py"
     )
-    with pytest.raises(PipelineLoadException):
+    with pytest.raises(ModelNotFoundException):
         load_pipeline_from_python_file(fixture_file_path)
 
 

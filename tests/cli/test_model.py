@@ -19,10 +19,6 @@ def test_model_upload(mocker, tmp_path):
         "unit-test-model",
         str(tmp_path),
         "sklearn",
-        "--dataset-url",
-        "example.com/123456",
-        "--dataset-doi",
-        "uc-435t/abcde",
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
@@ -32,10 +28,34 @@ def test_model_upload(mocker, tmp_path):
     assert local_model.local_path == str(tmp_path)
     assert local_model.model_name == "unit-test-model"
     assert local_model.flavor == "sklearn"
-    dataset_connection = local_model.connections[0]
-    assert dataset_connection.doi == "uc-435t/abcde"
-    assert dataset_connection.url == "example.com/123456"
-    assert dataset_connection.repository == "Foundry"
+
+
+@pytest.mark.cli
+def test_model_add_dataset(mocker, second_draft_of_model):
+    registered_model = second_draft_of_model
+    mocker.patch(
+        "garden_ai.local_data.get_local_model_by_name"
+    ).return_value = registered_model
+    command = [
+        "model",
+        "add-dataset",
+        "--model",
+        str(second_draft_of_model.full_name),
+        "--title",
+        "fake dataset",
+        "--url",
+        "example.com/123456",
+        "--doi",
+        "uc-435t/abcde",
+        "--datatype",
+        ".csv",
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+    assert registered_model.dataset.title == "fake dataset"
+    assert registered_model.dataset.url == "example.com/123456"
+    assert registered_model.dataset.data_type == ".csv"
+    assert registered_model.dataset.doi == "uc-435t/abcde"
 
 
 @pytest.mark.cli
