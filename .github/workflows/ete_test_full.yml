@@ -33,6 +33,7 @@ jobs:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       ETE_JOB_FINISHED: "FALSE"
+      ETE_JOB_ID: "ID_NOT_SET"
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -52,8 +53,8 @@ jobs:
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
       - name: Set job names env vars
         run: |
-          echo "GITHUB_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-          echo "GITHUB_JOB_NAME_INT=build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+          echo "ETE_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+          echo "ETE_JOB_NAME_INT=build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
         continue-on-error: true
@@ -65,8 +66,14 @@ jobs:
         run: |
           mkdir -p ${{ env.ETE_ART_LOC }}
           echo ${{ env.ETE_OUT }} > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
-      - name: Upload artifact if success
-        if: "contains(env.ETE_JOB_FINISHED, 'TRUE')"
+      - name: Make artifact file if failed
+        if: |
+          "contains(env.ETE_JOB_FINISHED, 'FALSE')" && "!contains(env.ETE_JOB_ID, 'ID_NOT_SET')"
+        run: |
+          mkdir -p ${{ env.ETE_ART_LOC }}
+          echo "*FAILURE*, end to end run: `${{ env.ETE_JOB_NAME_EXT }}` has no stored output, most likely timed out." | base64 > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+      - name: Upload artifact
+        if: "!contains(env.ETE_JOB_ID, 'ID_NOT_SET')"
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ETE_ART_NAME }}
@@ -109,5 +116,5 @@ jobs:
           path: ${{ env.ETE_ART_LOC }}
       - name: Collect and send logs to slack
         working-directory: ./tests/ete
-        run: python3 test_end_to_end.py collect-and-send-logs --run-type full
+        run: python3 test_end_to_end.py collect-and-send-logs
         timeout-minutes: 10

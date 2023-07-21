@@ -24,6 +24,8 @@ from garden_ai.app.main import app
 
 import globus_sdk
 
+# Set to true if running collect_and_send_logs. Used for error handeling.
+is_collecting = False
 
 # Set to command name that failed. Used for sending slack error message.
 # If the test fails somehow without setting failed on, send unknown action as failure point.
@@ -149,6 +151,16 @@ def run_garden_end_to_end(
     rich_print(f"Testing with [blue]pytorch[/blue] model: {run_torch}")
 
     is_gha = os.getenv("GITHUB_ACTIONS")
+    if is_gha:
+        ete_job_id = str(uuid.uuid4())
+        process = subprocess.Popen(
+            f'echo "ETE_JOB_ID={ete_job_id}" >> "$GITHUB_ENV"',
+            shell=True,
+            executable="/bin/bash",
+            stdout=subprocess.PIPE,
+        )
+        process.wait()
+        rich_print(f"Github actions job id set to: {ete_job_id}")
 
     runner = None
     rich_print(f"CliRunner live print set to: {live_print_stdout}")
@@ -291,64 +303,39 @@ def run_garden_end_to_end(
 
 
 @t_app.command()
-def collect_and_send_logs(
-    run_type: str = typer.Option(
-        default="full",
-        help="skinny or full",
-    ),
-):
+def collect_and_send_logs():
+    global is_collecting
+    is_collecting = True
+
     is_gha = os.getenv("GITHUB_ACTIONS")
     if not is_gha:
         raise Exception("For github actions use only.")
-
-    git_repo = os.getenv("GITHUB_REPOSITORY")
-    git_run_id = os.getenv("GITHUB_RUN_ID")
-    git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
-    git_api_url = (
-        f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
-    )
-    git_job_data = requests.get(git_api_url).json()
-
-    all_build_jobs = {}
-    for job in git_job_data["jobs"]:
-        if "build" in job["name"]:
-            all_build_jobs[job["id"]] = job["name"]
-
-    print(all_build_jobs)
 
     ete_out_path = os.getenv("ETE_ART_LOC")
     if ete_out_path is None:
         raise Exception("Failed to find output artifact file.")
 
+    git_repo = os.getenv("GITHUB_REPOSITORY")
+    git_run_id = os.getenv("GITHUB_RUN_ID")
+    git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
+
+    msg = f"*Finished*: {git_run_url}\n"
+
     out_files = os.listdir(ete_out_path)
-    job_status = {}
+    total_added_msgs = 0
     for file in out_files:
         path = os.path.join(ete_out_path, file)
         with open(path, "r") as f:
-            job_id = str(Path(file).stem)
             encoded_msg = f.read()
             msg_base64_bytes = encoded_msg.encode("ascii")
             mgs_string_bytes = base64.b64decode(msg_base64_bytes)
             msg_string = mgs_string_bytes.decode("ascii")
-            job_status[job_id] = msg_string
-
-    print(job_status)
-
-    msg = f"*Finished*: {git_run_url}\n"
-    total_added_msgs = 0
-    for job_id, msg_string in job_status.items():
-        all_build_jobs.pop(int(job_id))
         if msg_string == "SKINNY_JOB_SUCCESS":
             pass
         else:
             msg += msg_string
             msg += "\n\n"
             total_added_msgs += 1
-
-    for missing_job_id, missing_job_name in all_build_jobs.items():
-        timeout_msg = f"*FAILURE*, end to end run: `{run_type} {missing_job_name}` has no stored output, most likely timed out.\n\n"
-        msg += timeout_msg
-        total_added_msgs += 1
 
     if total_added_msgs > 0:
         _send_slack_message(msg)
@@ -986,8 +973,8 @@ def _make_slack_message(error):
 
         git_repo = os.getenv("GITHUB_REPOSITORY")
         git_run_id = os.getenv("GITHUB_RUN_ID")
-        git_job_name_ext = os.getenv("GITHUB_JOB_NAME_EXT")
-        git_job_name_int = os.getenv("GITHUB_JOB_NAME_INT")
+        git_job_name_ext = os.getenv("ETE_JOB_NAME_EXT")
+        git_job_name_int = os.getenv("ETE_JOB_NAME_INT")
 
         git_api_url = (
             f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
@@ -1015,7 +1002,6 @@ def _make_slack_message(error):
                     f"*SUCCESS*, end to end run: `{git_job_name_ext}` passed all tests."
                     f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
                 )
-                # _send_slack_message(msg)
                 _add_msg_to_outputs(msg, job_id)
             else:
                 rich_print(
@@ -1033,7 +1019,6 @@ def _make_slack_message(error):
                 f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}``` "
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
-            # _send_slack_message(msg)
             _add_msg_to_outputs(msg, job_id)
     else:
         rich_print("Skipping slack message; not github actions run.")
@@ -1043,19 +1028,11 @@ def _add_msg_to_outputs(msg, job_id):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        msg_key = os.getenv("GITHUB_JOB_NAME_EXT")
+        rich_print(f"Adding to output message:\n{msg}")
 
         msg_bytes = msg.encode("ascii")
         msg_base64_bytes = base64.b64encode(msg_bytes)
         msg_base64_string = msg_base64_bytes.decode("ascii")
-
-        process = subprocess.Popen(
-            f'echo "ETE_JOB_ID={job_id}" >> "$GITHUB_ENV"',
-            shell=True,
-            executable="/bin/bash",
-            stdout=subprocess.PIPE,
-        )
-        process.wait()
 
         process = subprocess.Popen(
             f'echo "ETE_OUT={msg_base64_string}" >> "$GITHUB_ENV"',
@@ -1073,7 +1050,9 @@ def _add_msg_to_outputs(msg, job_id):
         )
         process.wait()
 
-        rich_print(f"Added to ETE_OUT base64 encoded message:\n{msg}")
+        rich_print(
+            f"ETE_JOB_FINISHED set to TRUE. Added to ETE_OUT base64 encoded message:\n{msg_base64_string}"
+        )
 
 
 def _send_slack_message(msg):
@@ -1093,8 +1072,14 @@ if __name__ == "__main__":
         t_app()
     except Exception as error:
         try:
-            # Catch any exceptions thown durring the test and make error msg to slack.
-            _make_slack_message(error)
+            if is_collecting:
+                # Something weird broke, just report failure.
+                rich_print(
+                    "Something broke durring output collection. Unable to log failure."
+                )
+            else:
+                # Catch any exceptions thown durring the test and make error msg to slack.
+                _make_slack_message(error)
         except Exception as error_msger:
             # Something weird broke, just report failure.
             rich_print("Something unknown has broken. Unable to log failure.")
