@@ -320,10 +320,18 @@ def collect_and_send_logs(
 
     ete_out_path = os.getenv("ETE_ART_LOC")
     out_files = os.listdir(ete_out_path)
+    job_status = {}
     for file in out_files:
-        path = (os.path.join(ete_out_path, file),)
+        path = os.path.join(ete_out_path, file)
         with open(path, "r") as f:
-            print(f.read())
+            job_id = file[:-4]
+            encoded_msg = f.read()
+            old_msg_base64_bytes = encoded_msg.encode("ascii")
+            old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
+            old_msg_string = old_mgs_string_bytes.decode("ascii")
+            msg_dict = json.loads(old_msg_string)
+            job_status[job_id] = msg_dict
+    print(job_status)
 
     """
     ete_out = os.getenv("ETE_OUT")
