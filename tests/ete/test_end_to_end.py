@@ -8,6 +8,7 @@ import json
 import functools
 import requests
 import subprocess
+import base64
 
 import typer
 from typing import Optional
@@ -305,32 +306,45 @@ def collect_and_send_logs(
     git_repo = os.getenv("GITHUB_REPOSITORY")
     git_run_id = os.getenv("GITHUB_RUN_ID")
     git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
+    git_api_url = (
+        f"https://api.github.com/repos/{git_repo}/actions/runs/{git_run_id}/jobs"
+    )
+    git_job_data = requests.get(git_api_url).json()
+
+    build_jobs = []
+    for job in git_job_data["jobs"]:
+        if "build" in job["name"]:
+            build_jobs.append(job["name"])
 
     msg = f"*Finished*: {git_run_url}\n"
 
-    out_list_str = os.getenv("ETE_OUT_LIST")
-    if out_list_str is None:
-        raise Exception("Could not find output env vars.")
-    out_list = json.loads(out_list_str)
+    ete_out = os.getenv("ETE_OUT")
 
-    for out_var_name in out_list:
-        build_name_var = f"{out_var_name}_NAME"
-        job_name = os.getenv(build_name_var, "Missing job name")
-        build_msg = os.getenv(out_var_name, "NOT_FOUND")
+    if ete_out is None:
+        raise Exception("Failed to find output env var.")
 
-        if build_msg == "NOT_FOUND":
-            timeout_msg = f"*FAILURE*, end to end run: `{job_name}` has no stored log, most likely timed out.\n\n"
-            msg += timeout_msg
-        elif build_msg == "SKINNY_JOB_SUCCESS":
-            should_send = False
-            break
+    old_msg_base64_bytes = ete_out.encode("ascii")
+    old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
+    old_msg_string = old_mgs_string_bytes.decode("ascii")
+    msg_dict = json.loads(old_msg_string)
+
+    total_added_msgs = 0
+
+    for job_name, msg_string in msg_dict.items():
+        build_jobs.remove(job_name)
+        if msg_string == "SKINNY_JOB_SUCCESS":
+            pass
         else:
-            build_msg = build_msg.replace("~", "`")
-            build_msg = build_msg.replace("#", "\n")
-            msg += build_msg
-            msg += "\n\n"
+            msg += msg_string
+            msg += "\n \n"
+            total_added_msgs += 1
 
-    if should_send:
+    for missing_job in build_jobs:
+        timeout_msg = f"*FAILURE*, end to end run: `{run_type} {missing_job}` has no stored output, most likely timed out.\n\n"
+        msg += timeout_msg
+        total_added_msgs += 1
+
+    if total_added_msgs > 0:
         _send_slack_message(msg)
     else:
         rich_print(msg)
@@ -1008,7 +1022,7 @@ def _make_slack_message(error):
                 error_body = f"{error_body[0:MAX_ERROR_LENGTH]}..."
             error_msg = f"{type(error).__name__}: {error_body}"
             msg = (
-                f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}``` "
+                f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}```"
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
             # _send_slack_message(msg)
@@ -1017,34 +1031,35 @@ def _make_slack_message(error):
         rich_print("Skipping slack message; not github actions run.")
 
 
-def _get_timestamp():
-    current_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
-    return f"[bold purple][{current_time}][/bold purple]"
-
-
 def _add_msg_to_outputs(msg):
     is_gha = os.getenv("GITHUB_ACTIONS")
 
     if is_gha:
-        msg = msg.replace("`", "~")
-        msg = msg.replace("\n", "#")
+        ete_in_msg = os.getenv("ETE_IN")
 
-        git_out_var_name = os.getenv("GITHUB_OUT_VAR", "none")
-        if git_out_var_name is None:
-            rich_print(
-                "Could not find value for GITHUB_OUT_VAR. Failed to add to env vars."
-            )
-        else:
-            process = subprocess.Popen(
-                f'echo "{git_out_var_name}={msg}" >> "$GITHUB_OUTPUT"',
-                shell=True,
-                executable="/bin/bash",
-                stdout=subprocess.PIPE,
-            )
-            process.wait()
-            rich_print(
-                f"Added {git_out_var_name} to github env vars with value:\n{msg}"
-            )
+        msg_dict = {}
+        if ete_in_msg != "START_BUILD":
+            old_msg_base64_bytes = ete_in_msg.encode("ascii")
+            old_mgs_string_bytes = base64.b64decode(old_msg_base64_bytes)
+            old_msg_string = old_mgs_string_bytes.decode("ascii")
+            msg_dict = json.loads(old_msg_string)
+
+        msg_key = os.getenv("GITHUB_JOB_NAME_INT")
+        msg_dict[msg_key] = msg
+        msg_dict_string = json.dumps(msg_dict)
+
+        msg_bytes = msg_dict_string.encode("ascii")
+        msg_base64_bytes = base64.b64encode(msg_bytes)
+        msg_base64_string = msg_base64_bytes.decode("ascii")
+
+        process = subprocess.Popen(
+            f'echo "ETE_OUT={msg_base64_string}" >> "$GITHUB_OUTPUT"',
+            shell=True,
+            executable="/bin/bash",
+            stdout=subprocess.PIPE,
+        )
+        process.wait()
+        rich_print(f"Added to ETE_OUT base64 encoded message:\n{msg}")
 
 
 def _send_slack_message(msg):
@@ -1052,6 +1067,11 @@ def _send_slack_message(msg):
     slack_hook = os.getenv("SLACK_HOOK_URL", "none")
     payload = '{"text": "%s"}' % msg
     requests.post(slack_hook, data=payload)
+
+
+def _get_timestamp():
+    current_time = str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
+    return f"[bold purple][{current_time}][/bold purple]"
 
 
 if __name__ == "__main__":

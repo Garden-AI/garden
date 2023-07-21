@@ -29,9 +29,9 @@ jobs:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+      ETE_IN: "START_BUILD"
     outputs:
-      ETE_OUT_1: ${{steps.full_test.outputs.ETE_OUT_1}}
-      ETE_OUT_1_NAME: $GITHUB_JOB_NAME_EXT
+      ETE_OUT: ${{steps.full_test.outputs.ETE_OUT}}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -53,8 +53,6 @@ jobs:
         run: echo "GITHUB_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Set internal job name
         run: echo "GITHUB_JOB_NAME_INT=build_one (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Set test output name
-        run: echo "GITHUB_OUT_VAR=ETE_OUT_1" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
         continue-on-error: true
@@ -75,9 +73,9 @@ jobs:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+      ETE_IN: ${{needs.build_one.outputs.ETE_OUT}}
     outputs:
-      ETE_OUT_2: ${{steps.full_test.outputs.ETE_OUT_2}}
-      ETE_OUT_2_NAME: $GITHUB_JOB_NAME_EXT
+      ETE_OUT: ${{steps.full_test.outputs.ETE_OUT}}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
@@ -99,8 +97,6 @@ jobs:
         run: echo "GITHUB_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
       - name: Set internal job name
         run: echo "GITHUB_JOB_NAME_INT=build_two (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Set test output name
-        run: echo "GITHUB_OUT_VAR=ETE_OUT_2" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
         continue-on-error: true
@@ -120,11 +116,7 @@ jobs:
     name: collect-and-send-logs
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
-      ETE_OUT_LIST: "[\"ETE_OUT_1\",\"ETE_OUT_2\"]"
-      ETE_OUT_1: ${{needs.build_one.outputs.ETE_OUT_1}}
-      ETE_OUT_2: ${{needs.build_two.outputs.ETE_OUT_2}}
-      ETE_OUT_1_NAME: ${{needs.build_one.outputs.ETE_OUT_1_NAME}}
-      ETE_OUT_2_NAME: ${{needs.build_two.outputs.ETE_OUT_2_NAME}}
+      ETE_OUT: ${{needs.build_two.outputs.ETE_OUT}}
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
