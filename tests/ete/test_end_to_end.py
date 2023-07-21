@@ -337,14 +337,15 @@ def collect_and_send_logs():
         path = os.path.join(ete_out_path, file)
         if not os.path.isfile(path):
             rich_print(f"Unable to read file {str(path)}, skipping.")
-            pass
+            continue
         with open(path, "r") as f:
             encoded_msg = f.read()
             msg_base64_bytes = encoded_msg.encode("ascii")
             mgs_string_bytes = base64.b64decode(msg_base64_bytes)
             msg_string = mgs_string_bytes.decode("ascii")
         if msg_string == "SKINNY_JOB_SUCCESS":
-            pass
+            rich_print("Found skinny job success, skipping.")
+            continue
         else:
             msg += msg_string
             msg += "\n\n"
@@ -1077,9 +1078,10 @@ def _add_msg_to_outputs(msg, job_id):
 
 def _send_slack_message(msg):
     rich_print(f"Sending msg to slack:\n{msg}")
-    slack_hook = os.getenv("SLACK_HOOK_URL", "NONE")
+    slack_hook = os.getenv("SLACK_HOOK_URL")
     payload = '{"text": "%s"}' % msg
-    requests.post(slack_hook, data=payload)
+    response = requests.post(slack_hook, data=payload)
+    rich_print(f"Slack msg response:\n{response.text}")
 
 
 def _get_timestamp():
@@ -1098,7 +1100,7 @@ if __name__ == "__main__":
                     "Something unknown has broken while running collect-and-send-logs. Unable to log failure."
                 )
             else:
-                # Catch any exceptions thown durring the test and make error msg to slack.
+                # Catch any exceptions thown durring the test and make error msg for slack.
                 _make_slack_message(error)
         except Exception as error_msger:
             # Something weird broke while running _make_slack_message, just print failure and end.
