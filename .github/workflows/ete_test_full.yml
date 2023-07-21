@@ -30,7 +30,7 @@ jobs:
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
       ETE_ART_LOC: "/home/runner/ete_artifact"
-      ETE_ART_NAME: "ete-artifact-${{ env.GITHUB_RUN_ID }}"
+      ETE_ART_NAME: "ete-artifact-${{ github.run_id }}"
       ETE_JOB_ID: "ETE_RUN_ID_NOT_SET"
       ETE_JOB_ID_FAILED: "ETE_RUN_ID_NOT_SET"
     steps:
@@ -87,7 +87,7 @@ jobs:
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
       ETE_ART_LOC: "/home/runner/ete_artifact"
-      ETE_ART_NAME: "ete-artifact-${{ env.GITHUB_RUN_ID }}"
+      ETE_ART_NAME: "ete-artifact-${{ github.run_id }}"
       ETE_JOB_ID: "None"
     steps:
       - name: checkout repo content
@@ -142,7 +142,7 @@ jobs:
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
       ETE_ART_LOC: "/home/runner/ete_artifact"
-      ETE_ART_NAME: "ete-artifact-${{ env.GITHUB_RUN_ID }}"
+      ETE_ART_NAME: "ete-artifact-${{ github.run_id }}"
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2
