@@ -23,6 +23,12 @@ class ModelUploadException(Exception):
     pass
 
 
+class SerializationFormatException(Exception):
+    """Exception raised when a serialization format is not supported by a given flavor"""
+
+    pass
+
+
 class PipelineLoadScaffoldedException(Exception):
     """Exception raised when a user attempts to load model with the name SCAFFOLDED_MODEL_NAME"""
 
@@ -36,11 +42,17 @@ class ModelFlavor(Enum):
 
 
 class SerializeType(Enum):
+    """
+    Flavors can interact with multiple serialization types.
+    Constraints are enforced within the model staging process.
+    May be of value to incorporate this in the ModelFlavor enum.
+    """
+
     PICKLE = "pickle"
     JOBLIB = "joblib"
-    ONNX = "onnx"
-    KERAS = "keras"
-    TORCH = "torch"
+    SKOPS = "skops"  # non-pickle sklearn serialization
+    KERAS = "keras"  # keras/tf native save format
+    TORCH = "torch"  # torch native save format
 
 
 class DatasetConnection(BaseModel):
@@ -63,10 +75,10 @@ class ModelMetadata(BaseModel):
     Attributes:
         model_name (str): A short and descriptive name of the model
         flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
-        serialize_type (str): The serialization/packaging format to be used for the model.
-            Must be compatable with the flavor of the model.
+        serialize_type (str): The serialization/packaging format used for the model.
+            Must be compatable with the flavor and saved model to be uploaded.
             One of "pickle", "joblib", "onnx", "keras", or "torch".
-            "keras" and "torch" are for native save methods which are only valid via
+            "keras" and "torch" refer to native save formats which are only valid via
             "tensorflow" and "pytorch" flavors, respectively.
         connections (List[DatasetConnection]):
             A list of dataset records that the model was trained on.
@@ -140,12 +152,33 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
     Returns full path of model directory
     -------
     """
-    flavor, local_path = local_model.flavor, local_model.local_path
+    flavor, local_path, serialization_type = (
+        local_model.flavor,
+        local_model.local_path,
+        local_model.serialize_type,
+    )
     try:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
-            with open(local_path, "rb") as f:
-                loaded_model = pickle.load(f)
-                log_model_variant = mlflow.sklearn.log_model
+            if serialization_type == SerializeType.PICKLE.value:
+                with open(local_path, "rb") as f:
+                    loaded_model = pickle.load(f)
+                    log_model_variant = mlflow.sklearn.log_model
+            elif serialization_type == SerializeType.JOBLIB.value:
+                import joblib  # type: ignore
+
+                with open(local_path, "rb") as f:
+                    loaded_model = joblib.load(f)
+                    log_model_variant = mlflow.sklearn.log_model
+            elif serialization_type == SerializeType.SKOPS.value:
+                import skops.io as sio  # type: ignore
+
+                with open(local_path, "rb") as f:
+                    loaded_model = sio.load(f, trusted=True)
+                    log_model_variant = mlflow.sklearn.log_model
+            else:
+                raise SerializationFormatException(
+                    f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
+                )
         elif flavor == ModelFlavor.TENSORFLOW.value:
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             # ignore cpu guard info on tf import require before tf import
