@@ -722,7 +722,7 @@ def _test_garden_create(
         assert gardens_before is None
 
         command = [
-            "garde",
+            "garden",
             "create",
             "--title",
             unique_title,
