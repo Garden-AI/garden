@@ -155,6 +155,9 @@ class Garden(BaseModel):
             names += [name]
         return names
 
+    def _repr_html_(self) -> str:
+        ...
+
     def _set_pipelines_from_remote_metadata(self, pipeline_metadata: List[dict]):
         """
         Given a list of dicts in RegisteredPipeline format (as from Globus Search),

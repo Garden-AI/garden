@@ -249,6 +249,9 @@ class Pipeline:
             pip_deps += ["pandas<3"]
         return pip_deps
 
+    def _repr_html_(self) -> str:
+        ...
+
     def _collect_requirements(self):
         """collect requirements to pass to Globus Compute container service.
 
