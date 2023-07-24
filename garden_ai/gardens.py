@@ -370,3 +370,4 @@ class Garden(BaseModel):
 
         validate_all = False  # (this is the default)
         validate_assignment = True  # validators invoked on assignment
+        underscore_attrs_are_private = True
