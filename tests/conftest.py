@@ -11,7 +11,7 @@ from mlflow.pyfunc import PyFuncModel  # type: ignore
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata, DatasetConnection, LocalModel
+from garden_ai.mlmodel import ModelMetadata, LocalModel
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -325,17 +325,6 @@ def second_draft_of_model():
         model_name="unit-test-model",
         user_email="test@example.com",
         flavor="pytorch",
-        connections=[
-            DatasetConnection(
-                **{
-                    "type": "dataset",
-                    "relationship": "origin",
-                    "doi": "10.18126/wg3u-g8vu",
-                    "repository": "Foundry",
-                    "url": "https://foundry-ml.org/#/datasets/10.18126%2Fwg3u-g8vu",
-                }
-            )
-        ],
     )
 
 
