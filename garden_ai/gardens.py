@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
-from pydantic import (
+from pydantic.v1 import (
     BaseModel,
     Field,
     PrivateAttr,

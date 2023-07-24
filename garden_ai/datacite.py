@@ -7,7 +7,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, List, Optional, Union
 
-from pydantic import AnyUrl, BaseModel, Extra, Field, confloat
+from pydantic.v1 import AnyUrl, BaseModel, Extra, Field, confloat
 
 
 class Identifier(BaseModel):

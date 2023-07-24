@@ -8,8 +8,8 @@ from functools import update_wrapper
 from inspect import Parameter, Signature, signature
 from typing import Any, Callable, Dict, List, Optional
 
-from pydantic import Field, validator
-from pydantic.dataclasses import dataclass
+from pydantic.v1 import Field, validator
+from pydantic.v1.dataclasses import dataclass
 from typing_extensions import get_type_hints
 
 from garden_ai.utils.misc import JSON, garden_json_encoder

@@ -33,6 +33,7 @@ from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
+from garden_ai.globus_search.garden_search import RemoteGardenException
 from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
 from garden_ai.mlmodel import (
     LocalModel,
@@ -559,7 +560,10 @@ class GardenClient:
         Garden populated with metadata from remote metadata record.
 
         """
-        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        try:
+            garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        except RemoteGardenException as e:
+            raise RemoteGardenException(e)
         self._generate_presigned_urls_for_garden(garden)
         return garden
 

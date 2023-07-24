@@ -15,8 +15,8 @@ from uuid import UUID
 import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
 from packaging.requirements import InvalidRequirement, Requirement
-from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
-from pydantic.dataclasses import dataclass
+from pydantic.v1 import BaseModel, Field, PrivateAttr, root_validator, validator
+from pydantic.v1.dataclasses import dataclass
 
 import garden_ai
 from garden_ai.app.console import console
