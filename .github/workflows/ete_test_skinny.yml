@@ -8,9 +8,6 @@ on:
 env:
   ETE_ART_LOC: "/home/runner/ete_artifact"
   ETE_ART_NAME: "ete-artifact-${{ github.run_id }}"
-  ETE_ART_RET_DAYS: 1
-  ETE_TIMEOUT: 60
-  ETE_TIMEOUT_COLLECT: 10
 
 jobs:
   get-latest-tag:
@@ -63,8 +60,8 @@ jobs:
         id: full_test
         continue-on-error: true
         working-directory: ./tests/ete
-        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
-        timeout-minutes: ${{ env.ETE_TIMEOUT }}
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn -pre-build-container sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
+        timeout-minutes: 20
       - name: Make artifact file if failed
         if: "contains(env.ETE_JOB_FINISHED, 'FALSE')"
         run: |
@@ -77,7 +74,7 @@ jobs:
         with:
           name: ${{ env.ETE_ART_NAME }}
           path: ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
-          retention-days: ${{ env.ETE_ART_RET_DAYS }}
+          retention-days: 1
   collect:
     runs-on: ubuntu-latest
     needs: [build]
@@ -115,4 +112,4 @@ jobs:
       - name: Collect and send logs to slack
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py collect-and-send-logs
-        timeout-minutes: ${{ env.ETE_TIMEOUT_COLLECT }}
+        timeout-minutes: 10
