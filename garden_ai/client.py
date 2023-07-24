@@ -49,6 +49,7 @@ from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
 from garden_ai.steps import step
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
+
 GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
     "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
@@ -465,7 +466,6 @@ class GardenClient:
             Raised when no known pipeline exists with the given identifier.
         """
         data = dict(kwargs)
-        print(data)
         if doi:
             data["doi"] = doi
         if url:
@@ -680,8 +680,8 @@ class GardenClient:
         """
         try:
             garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
-        except RemoteGardenException as e:
-            raise RemoteGardenException(e)
+        except RemoteGardenException:
+            raise
         self._generate_presigned_urls_for_garden(garden)
         return garden
 

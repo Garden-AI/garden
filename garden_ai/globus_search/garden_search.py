@@ -2,10 +2,13 @@ import json
 
 from garden_ai.gardens import Garden
 from globus_sdk import SearchClient, GlobusAPIError
-from pydantic.v1 import ValidationError
+from pydantic import ValidationError
+from rich.traceback import install
 
 # garden-dev index
 GARDEN_INDEX_UUID = "58e4df29-4492-4e7d-9317-b27eba62a911"
+
+install()
 
 
 class RemoteGardenException(Exception):
@@ -19,9 +22,7 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
         res = search_client.get_subject(GARDEN_INDEX_UUID, doi)
     except GlobusAPIError as e:
         if e.http_status == 404:
-            raise RemoteGardenException(
-                f"\nCould not reach find garden with doi {doi}"
-            ) from e
+            raise RemoteGardenException(f"Could not find Garden with doi {doi}") from e
         else:
             raise RemoteGardenException(
                 f"Could not find Globus Search Index {GARDEN_INDEX_UUID}"
