@@ -396,7 +396,10 @@ class GardenClient:
         built_container_uuid = build_container(self.compute_client, pipeline)
         return built_container_uuid
 
-    def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
+    def register_pipeline(self, pipeline: Pipeline, container_uuid: Optional[str] = None) -> str:
+        if container_uuid is None:
+            # CACHING LOGIC HERE
+            container_uuid = self.build_container(pipeline)
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         self._update_datacite(pipeline)
