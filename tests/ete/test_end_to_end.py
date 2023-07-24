@@ -25,7 +25,7 @@ from garden_ai.app.main import app
 import globus_sdk
 
 """
-Architecture overview:
+Quick architecture overview:
 
 This script consists of two runnable commands: run-garden-end-to-end and collect-and-send-logs
 
@@ -1416,7 +1416,7 @@ def _send_failure_slack_message():
     git_run_id = os.getenv("GITHUB_RUN_ID")
     git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
     _send_slack_message(
-        f"Failed to send output for run.\nCheck github actions: {git_run_url}",
+        f"*Failed to send output for run.*\nCheck github actions: {git_run_url}",
         ignore_invalid_response=True,
     )
 
