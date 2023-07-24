@@ -5,9 +5,8 @@ import shutil
 from enum import Enum
 from typing import Optional
 import functools
-
 import mlflow  # type: ignore
-from pydantic.v1 import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator
 
 from garden_ai import GardenConstants
 from garden_ai._model import _Model

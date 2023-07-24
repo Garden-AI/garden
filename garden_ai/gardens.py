@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
-from pydantic.v1 import (
+from pydantic import (
     BaseModel,
     Field,
     PrivateAttr,
@@ -370,4 +370,3 @@ class Garden(BaseModel):
 
         validate_all = False  # (this is the default)
         validate_assignment = True  # validators invoked on assignment
-        underscore_attrs_are_private = True
