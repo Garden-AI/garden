@@ -737,6 +737,7 @@ def _test_garden_create(
             raise result.exception  # type: ignore
 
         gardens_after = garden_ai.local_data.get_all_local_gardens()
+        assert gardens_after is not None
         assert len(gardens_after) == 1
 
         new_garden = gardens_after[0]
@@ -800,6 +801,7 @@ def _test_garden_add_pipeline(
             original_garden.doi
         )
         local_pipelines = garden_ai.local_data.get_all_local_pipelines()
+        assert local_pipelines is not None
         local_pipeline_ids = []
         for pl in local_pipelines:
             local_pipeline_ids.append(pl.doi)
@@ -955,6 +957,7 @@ def _test_model_register(
             raise result.exception  # type: ignore
 
         local_models = garden_ai.local_data.get_all_local_models()
+        assert local_models is not None
 
         local_model = None
         for model in local_models:
@@ -1095,6 +1098,7 @@ def _test_pipeline_register(
             raise result.exception  # type: ignore
 
         local_pipelines = garden_ai.local_data.get_all_local_pipelines()
+        assert local_pipelines is not None
 
         registered_pipeline = None
         for local_pipeline in local_pipelines:
