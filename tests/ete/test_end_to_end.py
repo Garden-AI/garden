@@ -800,6 +800,7 @@ def _test_garden_add_pipeline(
         garden_after_addition = garden_ai.local_data.get_local_garden_by_doi(
             original_garden.doi
         )
+        assert garden_after_addition is not None
         local_pipelines = garden_ai.local_data.get_all_local_pipelines()
         assert local_pipelines is not None
         local_pipeline_ids = []
@@ -1109,6 +1110,7 @@ def _test_pipeline_register(
         assert registered_pipeline is not None
         assert pipeline.title == registered_pipeline.title
         assert registered_pipeline.doi is not None
+        assert registered_pipeline.steps is not None
 
         assert len(registered_pipeline.steps) == 1
         assert model_full_name in registered_pipeline.steps[0]["model_full_names"]
