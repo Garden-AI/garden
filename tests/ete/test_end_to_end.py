@@ -1112,7 +1112,8 @@ def _test_pipeline_register(
         assert registered_pipeline.doi is not None
         assert registered_pipeline.steps is not None
 
-        assert len(registered_pipeline.steps) == 1  # type: ignore
+        assert len(registered_pipeline.steps) == 1
+        assert registered_pipeline.steps[0]["model_full_names"] is not None
         assert model_full_name in registered_pipeline.steps[0]["model_full_names"]
 
         rich_print(
