@@ -5,7 +5,6 @@ import shutil
 from enum import Enum
 from typing import Optional
 import functools
-
 import mlflow  # type: ignore
 from pydantic import BaseModel, Field, validator
 

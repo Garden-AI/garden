@@ -68,7 +68,7 @@ class Repository(BaseModel):
 class Paper(BaseModel):
     """
     The `Paper` class represents all the metadata we want to \
-    publically expose about the papers used to build the pipeline.
+    publically expose about the paper used to build the pipeline.
 
     Attributes:
         title (str):
