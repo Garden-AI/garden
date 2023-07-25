@@ -1364,7 +1364,7 @@ def _add_msg_to_artifact(msg: str):
 
         # Make artifact folder with name ETE_ART_LOC
         artifact_folder_location = os.getenv("ETE_ART_LOC")
-        artifact_job_id = os.getenv("ETE_JOB_ID")
+        artifact_job_id = os.getenv("ETE_ART_ID")
         assert artifact_folder_location is not None
         assert artifact_job_id is not None
 
