@@ -538,24 +538,21 @@ class RegisteredPipeline(BaseModel):
 
 
 def pipeline_repr_html(pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
+    def prettify_type_repr(s: str) -> str:
+        if "<" in s:
+            return s[s.find("<class '") + 8 : s.rfind("'")]
+        return s
+
     style = "<style>th {text-align: left;}</style>"
     title = f"<h2>{pipeline.title}</h2>"
     details = f"<p>Authors: {', '.join(pipeline.authors)}<br>DOI: {pipeline.doi}</p>"
     steps = "<h3>Steps</h3>" + tabulate(
         [
             {
-                # yes, this is the correct order in which to define 'val'
-                key.title(): val
-                # when str() gives back type.__repr__(), instead make it human readable
-                if "<"
-                not in (
-                    val := str(
-                        getattr(step, key)
-                        if isinstance(pipeline, Pipeline)
-                        else step[key]
-                    )
+                key.title(): prettify_type_repr(
+                    # handle both Pipelines and RegisteredPipelines
+                    str(getattr(step, key) if isinstance(step, Step) else step[key])
                 )
-                else val[val.find("<class '") + 8 : val.rfind("'")]
                 for key in (
                     "title",
                     "model_full_names",
