@@ -11,7 +11,7 @@ import subprocess
 import base64
 
 import typer
-from typing import Optional, Dict, List, Union, Any
+from typing import Optional, Dict, List, Any
 from typer.testing import CliRunner
 from pathlib import Path
 from datetime import datetime, timezone
@@ -19,8 +19,8 @@ from rich.prompt import Prompt
 from rich import print as rich_print
 import unittest.mock as mocker
 
-import garden_ai
-from garden_ai.app.main import app
+import garden_ai  # type: ignore
+from garden_ai.app.main import app  # type: ignore
 
 import globus_sdk
 
@@ -35,22 +35,23 @@ There are two ways of running the test: manualy or through github actions.
 Manual runs are run locally, test the user's local Garden code, and do not send test output to slack.
 Github actions runs are started from ete_test_skinny.yml and ete_test_full.yml. These runs send test output to slack.
 
-See pydocs below for run_garden_end_to_end for various cli args.
+See pydocs below for run_garden_end_to_end various cli args.
 
-The github actions run uses env vars and github artifacts to store output. When running on github actions,
-the ETE test makes a new env var ETE_JOB_ID and sets it to a random uuid. After the test finishes running,
-_make_slack_message is called, which makes the output string for that run of the test. _make_slack_message then calls
-_add_msg_to_outputs which base64 encodes the msg, saves it to a new file at the location ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt,
-and sets the env var ETE_JOB_FINISHED to TRUE.
+The github actions run uses github artifacts to store output. When running on github actions,
+the ETE test makes a new env var ETE_ART_ID and sets it to a random uuid. This will be the name of the file the output is stored too.
+After the test finishes running, _make_run_results_msg is called, which makes the output string for that run of the test.
+_make_run_results_msg then calls _add_msg_to_artifact which base64 encodes the output msg, saves it to a new file at the location
+${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt, and sets the env var ETE_JOB_FINISHED to TRUE.
 
-Once the workflow has finished running the end to end test, the value of ETE_JOB_FINISHED is checked.
-If ETE_JOB_FINISHED is FALSE, the workflow creates the file ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt and echos a failed message into it.
+Once the workflow has finished running the end to end test step, the value of ETE_JOB_FINISHED is checked.
+If ETE_JOB_FINISHED is FALSE, the workflow creates the file ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt and echos a failed message into it.
 
-The workflow then uploads the folder ${{ env.ETE_ART_LOC }} as a github artifact of the name ${{ env.ETE_ART_NAME }}
+The workflow then uploads the folder ${{ env.ETE_ART_LOC }} as a github artifact of the name ${{ env.ETE_ART_NAME }}. ${{ env.ETE_ART_NAME }} is
+the same for all jobs in this workflow, so all job outputs will get added to this artifact.
 
 Once the workflow has finished all the test jobs, the workflow runs collect-and-send-logs.
 collect-and-send-logs grabs the artifact ${{ env.ETE_ART_NAME }} and reads the contents of all the files in it.
-At this point in the test, each job will have saved its output to a file in that artifact, so once collect-and-send-logs
+At this point in the test, each job should have saved an output to a file in that artifact, so once collect-and-send-logs
 has decoded all the logs, the workflow can send the output to slack and the workflow is done.
 """
 
@@ -63,22 +64,18 @@ is_collecting = False
 # If the test fails somehow without setting failed on, send unknown action as failure point.
 failed_on = "unknown action"
 
-# Set to true if -pre-build-container is on.
-# Used by _make_slack_message to know if full or skinny test and build appropriate messages.
-fast_run = False
-
 # Container IDs for --pre-build-container
 sklearn_container_uuid_py38 = "b9cf409f-d5f2-4956-b198-0d90ffa133e6"
 sklearn_container_uuid_py39 = "946155fa-c79e-48d1-9316-42353d4f97c3"
 sklearn_container_uuid_py310 = "7705f553-cc5c-4404-8e4c-a37cf718571e"
 
-tf_container_uuid_py38 = "7ac4ecf4-8af6-4477-9aad-089f0a588b04"
-tf_container_uuid_py39 = "7ac4ecf4-8af6-4477-9aad-089f0a588b04"
-tf_container_uuid_py310 = "7ac4ecf4-8af6-4477-9aad-089f0a588b04"
+tf_container_uuid_py38 = "e6beb8d0-fef6-470d-ae8d-74e9bcbffe10"
+tf_container_uuid_py39 = "58f51be9-ef56-4064-add1-f030f59da6aa"
+tf_container_uuid_py310 = "c5639554-e46d-444d-adcb-3dbc1e4d6ab8"
 
-torch_container_uuid_py38 = "44563f7c-5045-4b6b-8e3a-34f5c7fa781e"
-torch_container_uuid_py39 = "44563f7c-5045-4b6b-8e3a-34f5c7fa781e"
-torch_container_uuid_py310 = "44563f7c-5045-4b6b-8e3a-34f5c7fa781e"
+torch_container_uuid_py38 = "63c2caec-7eb2-4930-b778-d74e13351bf6"
+torch_container_uuid_py39 = "93f0d0c2-ea65-41c1-8ee8-bb6713fbec59"
+torch_container_uuid_py310 = "846c5432-eed1-41bc-b469-ef7974b6598c"
 
 key_store_path = Path(os.path.expanduser("~/.garden"))
 
@@ -167,7 +164,8 @@ def run_garden_end_to_end(
     ),
     prompt_for_git_secret: Optional[bool] = typer.Option(
         default=True,
-        help="If test should as needed prompt for garden client credentials or read them from user included file ./templates/git_secrets.json. If false, user MUST provide values for GARDEN_API_CLIENT_SECRET GARDEN_API_CLIENT_ID in git_secrets.json",
+        help="If test should as needed prompt for garden client credentials or read them from user included file ./templates/git_secrets.json. "
+        "If false, user MUST provide values for GARDEN_API_CLIENT_SECRET GARDEN_API_CLIENT_ID in git_secrets.json",
     ),
 ):
     """
@@ -234,10 +232,6 @@ def run_garden_end_to_end(
         runner = CliRunner()
 
     rich_print(f"Pre build container set to: [blue]{pre_build_container}[/blue]")
-    if pre_build_container != "none":
-        # Used by _make_slack_message to know if full or skinny test and build appropriate messages.
-        global fast_run
-        fast_run = True
 
     # Cleanup any left over files generated from the test
     _cleanup_local_files(local_files_list)
@@ -391,7 +385,7 @@ def run_garden_end_to_end(
     _cleanup_local_files(local_files_list)
 
     # Send run info to slack. No error in this case.
-    _make_slack_message(None)
+    _make_run_results_msg(None)
 
 
 @t_app.command()
@@ -740,7 +734,7 @@ def _test_garden_create(
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         gardens_after = garden_ai.local_data.get_all_local_gardens()
         assert len(gardens_after) == 1
@@ -800,7 +794,7 @@ def _test_garden_add_pipeline(
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         garden_after_addition = garden_ai.local_data.get_local_garden_by_doi(
             original_garden.doi
@@ -816,7 +810,8 @@ def _test_garden_add_pipeline(
             assert pl_id in local_pipeline_ids
 
         rich_print(
-            f"{_get_timestamp()} Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}"
+            "[/blue] with no errors"
         )
     except Exception as error:
         global failed_on
@@ -857,7 +852,7 @@ def _test_garden_publish(garden: garden_ai.gardens.Garden, runner: CliRunner):
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         rich_print(
             f"{_get_timestamp()} Finished test: [italic red]garden publish[/italic red] with no errors"
@@ -903,7 +898,7 @@ def _test_garden_search(garden: garden_ai.gardens.Garden, runner: CliRunner):
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         assert garden.title in result.stdout
         assert str(garden.doi) in result.stdout
@@ -957,7 +952,7 @@ def _test_model_register(
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         local_models = garden_ai.local_data.get_all_local_models()
 
@@ -1034,7 +1029,7 @@ def _test_pipeline_create(
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         assert os.path.exists(os.path.join(location, scaffolded_pipeline_folder_name))
         assert os.path.isfile(
@@ -1097,7 +1092,7 @@ def _test_pipeline_register(
         try:
             assert result.exit_code == 0
         except AssertionError:
-            raise result.exception
+            raise result.exception  # type: ignore
 
         local_pipelines = garden_ai.local_data.get_all_local_pipelines()
 
@@ -1167,7 +1162,8 @@ def _test_run_garden_on_endpoint(
         result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
 
         rich_print(
-            f"{_get_timestamp()} Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}"
+            "[/blue] with no errors"
         )
         assert result is not None
     except Exception as error:
@@ -1264,11 +1260,11 @@ def _make_pipeline_file(
         raise error
 
 
-def _make_slack_message(error: Optional[Exception]):
+def _make_run_results_msg(error: Optional[Exception]):
     """
     Makes the output message from the given error.
     If error is None, will make success message.
-    Once done, gives new output message to _add_msg_to_outputs
+    Once done, gives new output message to _add_msg_to_artifact
     to store in file to upload as github artifact.
 
     Args:
@@ -1311,20 +1307,20 @@ def _make_slack_message(error: Optional[Exception]):
 
         if error is None:
             # If no error and is fast run, we dont care about sending error msg so give
-            # _add_msg_to_outputs 'SKINNY_JOB_SUCCESS'
-            if not fast_run:
+            # _add_msg_to_artifact 'SKINNY_JOB_SUCCESS'
+            if "skinny" not in git_job_name_ext:
                 msg = (
                     f"*SUCCESS*, end to end run: `{git_job_name_ext}` passed all tests."
                     f"\nStart time: `{start_time_str}` UTC, total run time: `{total_time}`"
                 )
-                _add_msg_to_outputs(msg)
+                _add_msg_to_artifact(msg)
             else:
                 rich_print(
                     f"SUCCESS, end to end run: {git_job_name_ext} passed all tests."
                     f"\nStart time: {start_time_str} UTC, total run time: {total_time}"
                     "\nSkipping slack message for skinny run with no errors."
                 )
-                _add_msg_to_outputs("SKINNY_JOB_SUCCESS")
+                _add_msg_to_artifact("SKINNY_JOB_SUCCESS")
         else:
             # Some chars in error body causing crash with env vars, remove non ascii chars
             error_body = str(error).encode("ascii", "ignore").decode("ascii")
@@ -1333,18 +1329,20 @@ def _make_slack_message(error: Optional[Exception]):
             if len(error_body) > MAX_ERROR_LENGTH:
                 error_body = f"{error_body[0:MAX_ERROR_LENGTH]}..."
             error_msg = f"{type(error).__name__}: {error_body}"
+
+            # failed_on has been set by one of the cmd runners during exception handeling to whatever cmd failed.
             msg = (
                 f"*FAILURE*, end to end run: `{git_job_name_ext}` failed during: `{failed_on}` ```{error_msg}``` "
                 f"Start time: `{start_time_str}` UTC, total run time: `{total_time}`"
             )
-            _add_msg_to_outputs(msg)
+            _add_msg_to_artifact(msg)
     else:
         rich_print("Skipping slack message; not github actions run.")
 
 
-def _add_msg_to_outputs(msg: str):
+def _add_msg_to_artifact(msg: str):
     """
-    Gets output msg from _make_slack_message. Will base64 encode it,
+    Gets output msg from _make_run_results_msg. Will base64 encode it,
     write to new file in artifacts folder and set env var
     ETE_JOB_FINISHED to TRUE.
 
@@ -1416,7 +1414,7 @@ def _send_failure_slack_message():
     git_run_id = os.getenv("GITHUB_RUN_ID")
     git_run_url = f"https://github.com/{git_repo}/actions/runs/{git_run_id}/"
     _send_slack_message(
-        f"*Failed to send output for run.*\nCheck github actions: {git_run_url}",
+        f"*Finished*: {git_run_url}\n*Failed to send output for runs.*",
         ignore_invalid_response=True,
     )
 
@@ -1471,17 +1469,19 @@ if __name__ == "__main__":
     except Exception as error:
         try:
             if is_collecting:
-                # Something weird broke while running collect-and-send-logs, just print failure and end.
+                # Something weird broke while running collect-and-send-logs/
+                # In this case, collect-and-send-logs will make generic failed message and send to slack.
                 rich_print(
                     "Something unknown has broken while running collect-and-send-logs."
                 )
             else:
                 # Catch any exceptions thown durring the test and make error msg for slack.
-                _make_slack_message(error)
+                _make_run_results_msg(error)
         except Exception as error_msger:
-            # Something weird broke while running _make_slack_message, just print failure and end.
+            # Something weird broke while running _make_run_results_msg.
+            # In this case, workflow file will make generic failed message and store to artifacts.
             rich_print(
-                "Something unknown has broken while running _make_slack_message."
+                "Something unknown has broken while running _make_run_results_msg."
             )
             raise error_msger
         else:

@@ -13,7 +13,7 @@ jobs:
   get-latest-tag:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
+      - name: Checkout repo content
         uses: actions/checkout@v2
       - name: Get latest tag
         id: get-latest-tag-step
@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["max/ete-fixes"]
+        repository-ref: ["main", "${{needs.get-latest-tag.outputs.ETE_LATEST_TAG}}"]
       fail-fast: false
       max-parallel: 1
     name: build
@@ -34,9 +34,8 @@ jobs:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
       ETE_JOB_FINISHED: "FALSE"
-      ETE_JOB_ID: "ID_NOT_SET"
     steps:
-      - name: checkout repo content
+      - name: Checkout repo content
         uses: actions/checkout@v2
         with:
             ref: ${{ matrix.repository-ref }}
@@ -52,49 +51,44 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
-      - name: Set job names env vars
+      - name: Set job env vars
         run: |
           echo "ETE_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
           echo "ETE_JOB_NAME_INT=build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+          echo "ETE_ART_ID=$(uuidgen)" >> $GITHUB_ENV
       - name: Run full ETE test
         id: full_test
         continue-on-error: true
         working-directory: ./tests/ete
         run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
-        timeout-minutes: 1
-      - name: Make artifact file if success
-        if: "contains(env.ETE_JOB_FINISHED, 'TRUE')"
-        run: |
-          mkdir -p ${{ env.ETE_ART_LOC }}
-          echo ${{ env.ETE_OUT }} > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+        timeout-minutes: 90
       - name: Make artifact file if failed
-        if: |
-          contains(env.ETE_JOB_FINISHED, 'FALSE') && !contains(env.ETE_JOB_ID, 'ID_NOT_SET')
+        if: "contains(env.ETE_JOB_FINISHED, 'FALSE')"
         run: |
           mkdir -p ${{ env.ETE_ART_LOC }}
-          echo "*FAILURE*, end to end run: \\\`${{ env.ETE_JOB_NAME_EXT }}\\\` has no stored output, most likely timed out." | base64 > ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+          echo "*FAILURE*, end to end run: \`${{ env.ETE_JOB_NAME_EXT }}\` has no stored output, most likely timed out." | base64 > ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt
+          echo "ETE_JOB_FINISHED=TRUE" >> $GITHUB_ENV
       - name: Upload artifact
-        if: "!contains(env.ETE_JOB_ID, 'ID_NOT_SET')"
+        if: "contains(env.ETE_JOB_FINISHED, 'TRUE')"
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ETE_ART_NAME }}
-          path: ${{ env.ETE_ART_LOC }}/${{ env.ETE_JOB_ID }}.txt
+          path: ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt
           retention-days: 1
   collect:
     runs-on: ubuntu-latest
     needs: [build]
     if: always()
-
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["max/ete-fixes"]
+        repository-ref: ["main"]
       max-parallel: 1
     name: collect-and-send-logs
     env:
       SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
     steps:
-      - name: checkout repo content
+      - name: Checkout repo content
         uses: actions/checkout@v2
         with:
             ref: ${{ matrix.repository-ref }}
@@ -102,7 +96,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
         with:
