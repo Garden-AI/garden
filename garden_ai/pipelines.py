@@ -17,6 +17,7 @@ import globus_compute_sdk  # type: ignore
 from packaging.requirements import InvalidRequirement, Requirement
 from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
+from tabulate import tabulate
 
 import garden_ai
 from garden_ai.app.console import console
@@ -250,7 +251,38 @@ class Pipeline:
         return pip_deps
 
     def _repr_html_(self) -> str:
-        ...
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{self.title}</h2>"
+        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+        steps = "<h3>Steps</h3>" + tabulate(
+            [
+                {
+                    # yes, this is the correct order in which to define 'val'
+                    key.title(): val
+                    # when str() gives back type.__repr__(), instead make it human readable
+                    if "<" not in (val := str(getattr(step, key)))
+                    else val[val.find("<class '") + 8 : val.rfind("'")]
+                    for key in (
+                        "title",
+                        "model_full_names",
+                        "input_info",
+                        "output_info",
+                    )
+                }
+                for step in self.steps
+            ],
+            headers="keys",
+            tablefmt="html",
+        )
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, val)
+                for field, val in self.dict().items()
+                if field not in ("title", "authors", "doi", "steps") and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + steps + optional
 
     def _collect_requirements(self):
         """collect requirements to pass to Globus Compute container service.
