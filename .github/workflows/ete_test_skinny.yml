@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
-        repository-ref: ["max/ete-fixes"]
+        repository-ref: ["main", "${{needs.get-latest-tag.outputs.ETE_LATEST_TAG}}"]
       fail-fast: false
       max-parallel: 1
     name: build
@@ -82,7 +82,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
-        repository-ref: ["max/ete-fixes"]
+        repository-ref: ["main"]
       max-parallel: 1
     name: collect-and-send-logs
     env:
