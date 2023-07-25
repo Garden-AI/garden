@@ -538,35 +538,42 @@ class RegisteredPipeline(BaseModel):
 
 
 def pipeline_repr_html(pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
-        style = "<style>th {text-align: left;}</style>"
-        title = f"<h2>{pipeline.title}</h2>"
-        details = f"<p>Authors: {', '.join(pipeline.authors)}<br>DOI: {pipeline.doi}</p>"
-        steps = "<h3>Steps</h3>" + tabulate(
-            [
-                {
-                    # yes, this is the correct order in which to define 'val'
-                    key.title(): val
-                    # when str() gives back type.__repr__(), instead make it human readable
-                    if "<" not in (val := str(getattr(step, key) if isinstance(pipeline, Pipeline) else step[key]))
-                    else val[val.find("<class '") + 8 : val.rfind("'")]
-                    for key in (
-                        "title",
-                        "model_full_names",
-                        "input_info",
-                        "output_info",
+    style = "<style>th {text-align: left;}</style>"
+    title = f"<h2>{pipeline.title}</h2>"
+    details = f"<p>Authors: {', '.join(pipeline.authors)}<br>DOI: {pipeline.doi}</p>"
+    steps = "<h3>Steps</h3>" + tabulate(
+        [
+            {
+                # yes, this is the correct order in which to define 'val'
+                key.title(): val
+                # when str() gives back type.__repr__(), instead make it human readable
+                if "<"
+                not in (
+                    val := str(
+                        getattr(step, key)
+                        if isinstance(pipeline, Pipeline)
+                        else step[key]
                     )
-                }
-                for step in pipeline.steps
-            ],
-            headers="keys",
-            tablefmt="html",
-        )
-        optional = "<h3>Additional data</h3>" + tabulate(
-            [
-                (field, val)
-                for field, val in pipeline.dict().items()
-                if field not in ("title", "authors", "doi", "steps") and val
-            ],
-            tablefmt="html",
-        )
-        return style + title + details + steps + optional
+                )
+                else val[val.find("<class '") + 8 : val.rfind("'")]
+                for key in (
+                    "title",
+                    "model_full_names",
+                    "input_info",
+                    "output_info",
+                )
+            }
+            for step in pipeline.steps
+        ],
+        headers="keys",
+        tablefmt="html",
+    )
+    optional = "<h3>Additional data</h3>" + tabulate(
+        [
+            (field, val)
+            for field, val in pipeline.dict().items()
+            if field not in ("title", "authors", "doi", "steps") and val
+        ],
+        tablefmt="html",
+    )
+    return style + title + details + steps + optional
