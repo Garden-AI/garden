@@ -678,10 +678,7 @@ class GardenClient:
         Garden populated with metadata from remote metadata record.
 
         """
-        try:
-            garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
-        except RemoteGardenException:
-            raise
+        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         self._generate_presigned_urls_for_garden(garden)
         return garden
 

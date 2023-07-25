@@ -25,7 +25,7 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
             raise RemoteGardenException(f"Could not find Garden with doi {doi}") from e
         else:
             raise RemoteGardenException(
-                f"Could not find Globus Search Index {GARDEN_INDEX_UUID}"
+                f"Could not reach Globus Search Index {GARDEN_INDEX_UUID}"
             ) from e
     try:
         garden_meta = json.loads(res.text)["entries"][0]["content"]
