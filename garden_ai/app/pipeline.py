@@ -352,11 +352,9 @@ def register(
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise
     with console.status(
-        "[bold green]Building container. This operation times out after 30 minutes."
+        "[bold green]Building container and registering pipeline. This operation times out after 30 minutes."
     ):
-        container_uuid = client.build_container(user_pipeline)
-    console.print(f"Created container {container_uuid}")
-    func_uuid = client.register_pipeline(user_pipeline, container_uuid)
+        func_uuid = client.register_pipeline(user_pipeline)
     console.print(f"Created function {func_uuid}")
     console.print(f"Done! Pipeline was registered with doi {user_pipeline.doi}.")
 
