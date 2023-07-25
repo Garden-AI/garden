@@ -1,9 +1,10 @@
 import os
 import pathlib
 import pickle
+import joblib
 import shutil
 from enum import Enum
-from typing import List
+from typing import List, Optional
 import functools
 
 import mlflow  # type: ignore
@@ -50,7 +51,7 @@ class SerializeType(Enum):
 
     PICKLE = "pickle"
     JOBLIB = "joblib"
-    SKOPS = "skops"  # non-pickle sklearn serialization
+    SKOPS = "skops"
     KERAS = "keras"  # keras/tf native save format
     TORCH = "torch"  # torch native save format
 
@@ -91,7 +92,7 @@ class ModelMetadata(BaseModel):
     model_name: str = Field(...)
     user_email: str = Field(...)
     flavor: str = Field(...)
-    serialize_type: str = Field(...)
+    serialize_type: Optional[str] = None
     connections: List[DatasetConnection] = Field(default_factory=list)
     full_name: str = ""
     mlflow_name: str = ""
@@ -124,7 +125,10 @@ class ModelMetadata(BaseModel):
 
     @validator("serialize_type")
     def must_be_a_supported_serialize_type(cls, serialize_type):
-        if serialize_type not in [s.value for s in SerializeType]:
+        """
+        Validates the serialization type when provided by the user, as it is optional.
+        """
+        if serialize_type and serialize_type not in [s.value for s in SerializeType]:
             raise ValueError("is not a supported model serialization format")
         return serialize_type
 
@@ -159,13 +163,14 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
     )
     try:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
-            if serialization_type == SerializeType.PICKLE.value:
+            if (
+                serialization_type == SerializeType.PICKLE.value
+                or serialization_type is None  # default to pickle
+            ):
                 with open(local_path, "rb") as f:
                     loaded_model = pickle.load(f)
                     log_model_variant = mlflow.sklearn.log_model
             elif serialization_type == SerializeType.JOBLIB.value:
-                import joblib  # type: ignore
-
                 with open(local_path, "rb") as f:
                     loaded_model = joblib.load(f)
                     log_model_variant = mlflow.sklearn.log_model
