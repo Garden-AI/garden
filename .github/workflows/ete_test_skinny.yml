@@ -5,21 +5,37 @@ on:
   schedule:
     - cron: "0 * * * *"    #runs every hour everyday
 
+env:
+  ETE_ART_LOC: "/home/runner/ete_artifact"
+  ETE_ART_NAME: "ete-artifact-${{ github.run_id }}"
+
 jobs:
+  get-latest-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo content
+        uses: actions/checkout@v2
+      - name: Get latest tag
+        id: get-latest-tag-step
+        uses: actions-ecosystem/action-get-latest-tag@v1
+      - name: Save latest tag to outputs
+        run: echo "ETE_LATEST_TAG=${{steps.get-latest-tag-step.outputs.tag}}" >> $GITHUB_OUTPUT
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    needs: [get-latest-tag]
     strategy:
       matrix:
-        python-version: ["3.8"]
-        repository-ref: ["main"]
+        python-version: ["3.8", "3.9", "3.10"]
+        repository-ref: ["main", "${{needs.get-latest-tag.outputs.ETE_LATEST_TAG}}"]
+      fail-fast: false
+      max-parallel: 1
     name: build
     env:
       GARDEN_API_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
       GARDEN_API_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
-      SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+      ETE_JOB_FINISHED: "FALSE"
     steps:
-      - name: checkout repo content
+      - name: Checkout repo content
         uses: actions/checkout@v2
         with:
             ref: ${{ matrix.repository-ref }}
@@ -35,9 +51,65 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop
-      - name: Set job name env var
-        run: echo "GITHUB_JOB_NAME=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
-      - name: Run test script skinny
-        working-directory: ./tests/ete
+      - name: Set job env vars
         run: |
-          python3 test_end_to_end.py --garden-grant cc --compute-grant cc --model-type sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout --pre-build-container sklearn
+          echo "ETE_JOB_NAME_EXT=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+          echo "ETE_JOB_NAME_INT=build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
+          echo "ETE_ART_ID=$(uuidgen)" >> $GITHUB_ENV
+      - name: Run full ETE test
+        id: full_test
+        continue-on-error: true
+        working-directory: ./tests/ete
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn --pre-build-container sklearn --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
+        timeout-minutes: 30
+      - name: Make artifact file if failed
+        if: "contains(env.ETE_JOB_FINISHED, 'FALSE')"
+        run: |
+          mkdir -p ${{ env.ETE_ART_LOC }}
+          echo "*FAILURE*, end to end run: \`${{ env.ETE_JOB_NAME_EXT }}\` has no stored output, most likely timed out." | base64 > ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt
+          echo "ETE_JOB_FINISHED=TRUE" >> $GITHUB_ENV
+      - name: Upload artifact
+        if: "contains(env.ETE_JOB_FINISHED, 'TRUE')"
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ETE_ART_NAME }}
+          path: ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt
+          retention-days: 1
+  collect:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+    strategy:
+      matrix:
+        python-version: ["3.8"]
+        repository-ref: ["main"]
+      max-parallel: 1
+    name: collect-and-send-logs
+    env:
+      SLACK_HOOK_URL: ${{ secrets.SLACK_HOOK_URL }}
+    steps:
+      - name: Checkout repo content
+        uses: actions/checkout@v2
+        with:
+            ref: ${{ matrix.repository-ref }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.2.2
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false && \
+          poetry install --no-interaction --no-ansi --with=test,develop
+      - name: Download artifact
+        uses: actions/download-artifact@master
+        with:
+          name: ${{ env.ETE_ART_NAME }}
+          path: ${{ env.ETE_ART_LOC }}
+      - name: Collect and send logs to slack
+        working-directory: ./tests/ete
+        run: python3 test_end_to_end.py collect-and-send-logs
+        timeout-minutes: 10
