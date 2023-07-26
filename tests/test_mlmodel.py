@@ -53,6 +53,21 @@ def test_get_download_url(model_url_env_var):
     assert url == "presigned-url.aws.com"
 
 
+def test_load_model_before_predict(mocker, model_url_env_var):
+    from mlflow.pyfunc import PyFuncModel
+
+    mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
+    mocker.patch("mlflow.pyfunc.load_model").return_value = mock_pyfunc_model
+    mocker.patch(
+        "garden_ai._model._Model.download_and_stage"
+    ).return_value = (
+        "/Users/FakeUser/.garden/mlflow/willengler@uchicago.edu/test_model/unzipped"
+    )
+    model = _Model("willengler@uchicago.edu/test_model")
+    assert model.model is not None
+    assert isinstance(model.model, PyFuncModel)
+
+
 def test_generate_presigned_urls_for_garden(
     mocker, garden_client, garden_all_fields, registered_pipeline_toy_example
 ):

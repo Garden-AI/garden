@@ -3,10 +3,15 @@ class _Model:
         self,
         model_full_name: str,
     ):
-        self.model = None
+        self._model = None
         self.full_name = model_full_name
 
         return
+
+    @property
+    def model(self):
+        self._lazy_load_model()
+        return self._model
 
     def download_and_stage(
         self, presigned_download_url: str, full_model_name: str
@@ -95,10 +100,10 @@ class _Model:
         """download and deserialize the underlying model, if necessary."""
         import mlflow  # type: ignore
 
-        if self.model is None:
+        if self._model is None:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
-            self.model = mlflow.pyfunc.load_model(
+            self._model = mlflow.pyfunc.load_model(
                 local_model_path, suppress_warnings=True
             )
             try:
@@ -127,5 +132,4 @@ class _Model:
         Results of model prediction
 
         """
-        self._lazy_load_model()
         return self.model.predict(data)
