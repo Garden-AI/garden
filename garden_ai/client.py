@@ -412,7 +412,11 @@ class GardenClient:
     ) -> RegisteredPipeline:
         if container_uuid is None:
             cache = _read_local_cache().get(get_cache_tag(pipeline.pip_dependencies))
-            container_uuid = cache or self.build_container(pipeline)
+            if cache is not None:
+                container_uuid = cache
+                print("Cache hit! Using pre-built container.")
+            else:
+                container_uuid = self.build_container(pipeline)
 
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
