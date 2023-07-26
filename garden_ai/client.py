@@ -33,7 +33,12 @@ from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
-from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
+from garden_ai.local_data import (
+    GardenNotFoundException,
+    PipelineNotFoundException,
+    _read_local_cache,
+    _write_local_cache,
+)
 from garden_ai.mlmodel import (
     LocalModel,
     ModelMetadata,
@@ -46,7 +51,7 @@ from garden_ai.mlmodel import (
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
 from garden_ai.steps import step
-from garden_ai.utils.misc import extract_email_from_globus_jwt
+from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
 
 
 GARDEN_ENDPOINT = os.environ.get(
@@ -395,15 +400,31 @@ class GardenClient:
 
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
+
+        cache = _read_local_cache()
+        tag = get_cache_tag(pipeline.pip_dependencies)
+        cache[tag] = built_container_uuid
+        _write_local_cache(cache)
+
         return built_container_uuid
 
-    def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
+    def register_pipeline(
+        self, pipeline: Pipeline, container_uuid: Optional[str] = None
+    ) -> RegisteredPipeline:
+        if container_uuid is None:
+            cache = _read_local_cache().get(get_cache_tag(pipeline.pip_dependencies))
+            if cache is not None:
+                container_uuid = cache
+                print("Cache hit! Using pre-built container.")
+            else:
+                container_uuid = self.build_container(pipeline)
+
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
-        return func_uuid
+        return registered
 
     def add_paper(self, title: str, doi: str, **kwargs) -> None:
         """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given doi.

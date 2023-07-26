@@ -1,4 +1,5 @@
 from garden_ai import local_data
+from garden_ai.utils.misc import get_cache_tag
 
 
 def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path):
@@ -53,3 +54,43 @@ def test_local_storage_model(mocker, database_with_model, second_draft_of_model)
         second_draft_of_model.full_name
     )
     assert overwritten_model.flavor == "pytorch"
+
+
+def test_local_cache(mocker, garden_client, pipeline_toy_example):
+    reqs_a = ["tensorflow", "pandas", "mlflow==2.5.0"]
+    reqs_dup_a = ["tensorflow", "pandas", "mlflow==2.5.0", "pandas"]
+    reqs_reorder_a = ["mlflow==2.5.0", "tensorflow", "pandas"]
+    reqs_b = ["pandas<3", "opencv-python", "mlflow==2.4.2"]
+    assert (
+        get_cache_tag(reqs_a)
+        == get_cache_tag(reqs_dup_a)
+        == get_cache_tag(reqs_reorder_a)
+    )
+    assert get_cache_tag(reqs_a) != get_cache_tag(reqs_b)
+
+    build_method = mocker.patch(
+        "garden_ai.client.build_container",
+        return_value="d1fc6d30-be1c-4ac4-a289-d87b27e84357",
+    )
+    # return value is the checksum for pip_dependencies=["tensorflow"] (implicitly also contains pandas<3 and mlflow-skinny==2.5.0)
+    mocker.patch(
+        "garden_ai.client._read_local_cache",
+        return_value={get_cache_tag(reqs_a): "04332b26-bc14-45e1-a296-482e27c72500"},
+    )
+    mocker.patch("garden_ai.client._write_local_cache", return_value=None)
+    mocker.patch(
+        "garden_ai.client.register_pipeline",
+        return_value="9f5688ac-424d-443e-b525-97c72e4e083f",
+    )
+    mocker.patch("garden_ai.client.GardenClient._update_datacite", return_value=None)
+    mocker.patch("garden_ai.client.local_data.put_local_pipeline", return_value=None)
+
+    pipeline_toy_example.pip_dependencies = reqs_a
+    garden_client.register_pipeline(pipeline_toy_example)
+
+    assert build_method.call_count == 0
+
+    pipeline_toy_example.pip_dependencies = ["opencv-python"]
+    garden_client.register_pipeline(pipeline_toy_example)
+
+    assert build_method.call_count == 1
