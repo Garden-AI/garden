@@ -158,6 +158,7 @@ def pipeline_toy_example(tmp_requirements_txt):
 
     pea_edibility_pipeline = Pipeline(
         title="Pea Edibility Pipeline",
+        short_name="pea_pipeline",
         steps=[split_peas, make_soup, rate_soup],
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
