@@ -354,8 +354,7 @@ def register(
     with console.status(
         "[bold green]Building container and registering pipeline. This operation times out after 30 minutes."
     ):
-        func_uuid = client.register_pipeline(user_pipeline)
-    console.print(f"Created function {func_uuid}")
+        client.register_pipeline(user_pipeline)
     console.print(f"Done! Pipeline was registered with doi {user_pipeline.doi}.")
 
 
