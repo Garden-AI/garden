@@ -43,7 +43,7 @@ resource_type_to_id_key = {
 }
 
 
-def _read_local_cache() -> dict:
+def _read_local_cache() -> Dict[int, str]:
     if not (LOCAL_STORAGE / "cache.json").exists():
         return {}
 
@@ -55,7 +55,7 @@ def _read_local_cache() -> dict:
     return data
 
 
-def _write_local_cache(data: dict) -> None:
+def _write_local_cache(data: Dict[int, str]) -> None:
     with open(LOCAL_STORAGE / "cache.json", "w") as f:
         json.dump(data, f)
 
