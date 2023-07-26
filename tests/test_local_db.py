@@ -1,4 +1,5 @@
 from garden_ai import local_data
+from garden_ai.utils.misc import get_cache_tag
 
 
 def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path):
@@ -53,3 +54,16 @@ def test_local_storage_model(mocker, database_with_model, second_draft_of_model)
         second_draft_of_model.full_name
     )
     assert overwritten_model.flavor == "pytorch"
+
+
+def test_local_cache():
+    reqs_set_a = ["tensorflow", "pandas", "mlflow==2.5.0"]
+    reqs_dup_a = ["tensorflow", "pandas", "mlflow==2.5.0", "pandas"]
+    reqs_reorder_a = ["mlflow==2.5.0", "tensorflow", "pandas"]
+    reqs_set_b = ["pandas<3", "opencv-python", "mlflow==2.4.2"]
+    assert (
+        get_cache_tag(reqs_set_a)
+        == get_cache_tag(reqs_dup_a)
+        == get_cache_tag(reqs_reorder_a)
+    )
+    assert get_cache_tag(reqs_set_a) != get_cache_tag(reqs_set_b)
