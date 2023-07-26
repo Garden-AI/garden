@@ -6,6 +6,7 @@ import sys
 from inspect import Parameter, Signature, signature
 from keyword import iskeyword
 from typing import Callable, List, Optional, Tuple
+from binascii import crc32
 
 import beartype.door
 import requests
@@ -22,7 +23,7 @@ issubtype = beartype.door.is_subhint
 
 def get_cache_tag(pip_reqs: List[str]) -> int:
     """Used for container uuid caching based on pip dependencies"""
-    return hash(frozenset(pip_reqs))
+    return crc32(str(sorted(set(pip_reqs))).encode())
 
 
 def safe_compose(f: Callable, g: Callable):
