@@ -20,6 +20,11 @@ logger = logging.getLogger()
 issubtype = beartype.door.is_subhint
 
 
+def get_cache_tag(pip_reqs: List[str]) -> int:
+    """Used for container uuid caching based on pip dependencies"""
+    return hash(frozenset(pip_reqs))
+
+
 def safe_compose(f: Callable, g: Callable):
     """Helper: compose function `f` with function `g`, provided their annotations indicate compatibility.
     Arguments with defaults are ignored.

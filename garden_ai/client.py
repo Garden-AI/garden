@@ -51,7 +51,7 @@ from garden_ai.mlmodel import (
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
 from garden_ai.steps import step
-from garden_ai.utils.misc import extract_email_from_globus_jwt
+from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
 
 GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
@@ -399,33 +399,20 @@ class GardenClient:
 
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
+
         cache = _read_local_cache()
-        cache[pipeline.doi] = {
-            "id": built_container_uuid,
-            "reqs": pipeline.pip_dependencies,
-        }
+        tag = get_cache_tag(pipeline.pip_dependencies)
+        cache[tag] = built_container_uuid
         _write_local_cache(cache)
+
         return built_container_uuid
 
     def register_pipeline(
         self, pipeline: Pipeline, container_uuid: Optional[str] = None
     ) -> RegisteredPipeline:
         if container_uuid is None:
-            cache = _read_local_cache().get(pipeline.doi)
-            if cache is None:
-                container_uuid = self.build_container(pipeline)
-            else:
-                hit = True
-                for req in cache["reqs"]:
-                    if req not in pipeline.pip_dependencies:
-                        hit = False
-                        break
-                if hit:
-                    for req in pipeline.pip_dependencies:
-                        if req not in cache["reqs"]:
-                            hit = False
-                            break
-                container_uuid = cache["id"] if hit else self.build_container(pipeline)
+            cache = _read_local_cache().get(get_cache_tag(pipeline.pip_dependencies))
+            container_uuid = cache or self.build_container(pipeline)
 
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
