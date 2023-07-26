@@ -54,7 +54,7 @@ def test_get_download_url(model_url_env_var):
 
 
 def test_load_model_before_predict(mocker, model_url_env_var):
-    from mlflow.pyfunc import PyFuncModel
+    from mlflow.pyfunc import PyFuncModel  # type: ignore
 
     mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
     mocker.patch("mlflow.pyfunc.load_model").return_value = mock_pyfunc_model
