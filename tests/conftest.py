@@ -1,17 +1,17 @@
+import os
 from typing import List
 
 import pytest
-import os
 from globus_compute_sdk import Client  # type: ignore
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
-from garden_ai.garden_file_adapter import GardenFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
+from garden_ai.garden_file_adapter import GardenFileAdapter
+from garden_ai.mlmodel import LocalModel, ModelMetadata
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata, LocalModel
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -374,3 +374,8 @@ def valid_search_by_doi():
 @pytest.fixture
 def empty_search_by_doi():
     return read_fixture_text("search_results/empty_search_by_doi.json")
+
+
+@pytest.fixture
+def path_to_pipeline_with_main_block():
+    return get_fixture_file_path("fixture_pipeline/pipeline.py")

@@ -1,6 +1,7 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-from garden_ai import GardenClient, Model, Pipeline, step
 import typing
+
+from garden_ai import GardenClient, Model, Pipeline, step
 
 ##################################### STEPS #####################################
 """
@@ -65,5 +66,9 @@ fixture_pipeline = Pipeline(
     description="",
     version="0.0.1",
     year=2023,
-    tags=[]
+    tags=[],
 )
+
+if __name__ == "__main__":
+    # should not be tripped when pipeline is loaded from file
+    raise Exception("oh please, __main__ was my father's __name__")
