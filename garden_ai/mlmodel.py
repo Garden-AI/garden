@@ -51,7 +51,6 @@ class SerializeType(Enum):
 
     PICKLE = "pickle"
     JOBLIB = "joblib"
-    SKOPS = "skops"
     KERAS = "keras"  # keras/tf native save format
     TORCH = "torch"  # torch native save format
 
