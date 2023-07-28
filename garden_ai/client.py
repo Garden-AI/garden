@@ -10,6 +10,8 @@ from uuid import UUID
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.serialize.concretes import DillCode
+from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
+from garden_ai.garden_file_adapter import GardenFileAdapter
 from globus_sdk import (
     AuthAPIError,
     AuthClient,
@@ -20,7 +22,7 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
 )
-from globus_sdk.scopes import AuthScopes, ScopeBuilder, SearchScopes
+from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
@@ -29,19 +31,28 @@ from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
 from garden_ai.gardens import Garden
 from garden_ai.globus_compute.containers import build_container
-from garden_ai.globus_compute.login_manager import ComputeLoginManager
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
-from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
+from garden_ai.local_data import (
+    GardenNotFoundException,
+    PipelineNotFoundException,
+    _read_local_cache,
+    _write_local_cache,
+)
 from garden_ai.mlmodel import (
     LocalModel,
     ModelMetadata,
+    DatasetConnection,
+    ModelNotFoundException,
+    Model,
     clear_mlflow_staging_directory,
     stage_model_for_upload,
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
-from garden_ai.pipelines import Pipeline, RegisteredPipeline
-from garden_ai.utils.misc import extract_email_from_globus_jwt
+from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
+from garden_ai.steps import step
+from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
+
 
 GARDEN_ENDPOINT = os.environ.get(
     "GARDEN_ENDPOINT",
@@ -85,9 +96,14 @@ class GardenClient:
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
-        self.auth_key_store = SimpleJSONFileAdapter(
+        self.garden_key_store = SimpleJSONFileAdapter(
             os.path.join(key_store_path, "tokens.json")
         )
+        self.compute_key_store = get_token_storage_adapter()
+        self.auth_key_store = GardenFileAdapter(
+            self.garden_key_store, self.compute_key_store
+        )
+
         self.client_id = os.environ.get(
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
@@ -153,14 +169,7 @@ class GardenClient:
         return self.garden_authorizer.access_token
 
     def _make_compute_client(self):
-        scope_to_authorizer = {
-            AuthScopes.openid: self.openid_authorizer,
-            SearchScopes.all: self.search_authorizer,
-            Client.FUNCX_SCOPE: self.compute_authorizer,
-        }
-        compute_login_manager = ComputeLoginManager(scope_to_authorizer)
         return Client(
-            login_manager=compute_login_manager,
             do_version_check=False,
             code_serialization_strategy=DillCode(),
         )
@@ -315,6 +324,45 @@ class GardenClient:
         local_data.put_local_model(registered_model)
         return registered_model
 
+    def add_dataset(self, model_name: str, title: str, url: str, **kwargs) -> None:
+        """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
+
+        Parameters
+        ----------
+        model_name : str
+            The previously registered model's full model name. Raises an
+            exception if not found.
+
+        title : str
+            An official name or title for the dataset.
+
+        url: str
+            The url to access this dataset.
+
+        **kwargs :
+            Metadata for the new DatasetConnection object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the appropriate type.
+            May include: Optional[str] doi, Optional[str] data_type.
+
+        Raises
+        ------
+        ModelNotFoundException
+            Raised when no known model exists with the given identifier.
+        """
+        model = local_data.get_local_model_by_name(model_name)
+        data = dict(kwargs)
+        if not model:
+            raise ModelNotFoundException("This model could not be found")
+        if model_name:
+            data["model_name"] = model_name
+        if title:
+            data["title"] = title
+        if url:
+            data["url"] = url
+        dataset = DatasetConnection(**data)
+        model.dataset = dataset
+        local_data.put_local_model(model)
+
     def _mint_draft_doi(self, test: bool = True) -> str:
         """Register a new draft doi with DataCite via Garden backend.
 
@@ -352,15 +400,208 @@ class GardenClient:
 
     def build_container(self, pipeline: Pipeline) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
+
+        cache = _read_local_cache()
+        tag = get_cache_tag(pipeline.pip_dependencies)
+        cache[tag] = built_container_uuid
+        _write_local_cache(cache)
+
         return built_container_uuid
 
-    def register_pipeline(self, pipeline: Pipeline, container_uuid: str) -> str:
+    def register_pipeline(
+        self, pipeline: Pipeline, container_uuid: Optional[str] = None
+    ) -> RegisteredPipeline:
+        if container_uuid is None:
+            cache = _read_local_cache().get(get_cache_tag(pipeline.pip_dependencies))
+            if cache is not None:
+                container_uuid = cache
+                print("Cache hit! Using pre-built container.")
+            else:
+                container_uuid = self.build_container(pipeline)
+
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
         local_data.put_local_pipeline(registered)
-        return func_uuid
+        return registered
+
+    def add_paper(self, title: str, doi: str, **kwargs) -> None:
+        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given doi.
+
+        Parameters
+        ----------
+        doi : str
+            The previously registered pipeline's DOI. Raises an
+            exception if not found.
+
+        title : str
+            An official name or title for the paper.
+
+        **kwargs :
+            Metadata for the new Paper object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the appropriate type.
+            May include: List[str] authors and Optional[str] citation.
+
+        Raises
+        ------
+        PipelineNotFoundException
+            Raised when no known pipeline exists with the given identifier.
+        """
+        pipeline = local_data.get_local_pipeline_by_doi(doi)
+        if not pipeline:
+            raise PipelineNotFoundException(
+                f"Could not find any pipelines with DOI {doi}."
+            )
+        data = dict(kwargs)
+        if title:
+            data["title"] = title
+        paper = Paper(**data)
+        pipeline.papers.append(paper)
+        local_data.put_local_pipeline(pipeline)
+
+    def add_repository(self, doi: str, url: str, repo_name: str, **kwargs) -> None:
+        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given doi.
+
+        Parameters
+        ----------
+        doi : str
+            The previously registered pipeline's DOI. Raises an
+            exception if not found.
+
+        title : str
+            An official name or title for the repository.
+
+        url: str
+            The url to access this repository.
+
+        **kwargs :
+            Metadata for the new Repository object. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the appropriate type.
+            May include: List[str] contributors.
+
+        Raises
+        ------
+        PipelineNotFoundException
+            Raised when no known pipeline exists with the given identifier.
+        """
+        data = dict(kwargs)
+        if doi:
+            data["doi"] = doi
+        if url:
+            data["url"] = url
+        if repo_name:
+            data["repo_name"] = repo_name
+        pipeline = local_data.get_local_pipeline_by_doi(doi)
+        if not pipeline:
+            raise PipelineNotFoundException(
+                f"Could not find any pipelines with DOI {doi}."
+            )
+
+        repository = Repository(**data)
+        pipeline.repositories.append(repository)
+        local_data.put_local_pipeline(pipeline)
+
+    def add_simple_model_to_garden(
+        self,
+        local_model: LocalModel,
+        garden_doi: str,
+        *,
+        input_type: type,
+        output_type: type,
+        title: str = None,
+        description: str = None,
+        **kwargs,
+    ) -> str:
+        """Take a `LocalModel` object and automatically perform all the necessary steps,
+        using the additional provided information, to publish the model such that it is prepared to be run remotely.
+
+        Parameters
+        ----------
+        local_model : LocalModel
+            The model for which remote executiotability is desired. The object's necessary fields are documented at
+            `~mlmodel.LocalModel` and its parent `~mlmodel.ModelMetadata`.
+
+        garden_doi : str
+            The DOI of a previously published Garden that the model will be added to in order to facilitate findability
+            and remote execution.
+
+        input_type : type
+            The type that describes the expected input to your model.
+
+        output_type : type
+            The type that describes the expected output of your model.
+
+        title : str
+            Title that describes the pipeline that is implicitly generated. If no title is provided, one will be generated.
+
+        description : str
+            Description of the pipeline that is implicitly generated. If no description is provided, one will be generated.
+
+        **kwargs :
+            Metadata for the new Pipeline object that runs the model. Keyword arguments matching
+            required or recommended fields will be (where necessary) coerced to the
+            appropriate type and validated per the documentation found at `~pipelines.Pipeline`.
+            NOTE: Some fields are necessary for proper publication. e.g. `pip_dependecies` if your model needs them.
+
+        Returns
+        -------
+        The DOI of your auto-generated pipeline. Use this DOI to access your pipeline at a later date.
+
+        Examples
+        --------
+        client = GardenClient()
+        local_model = LocalModel(
+            model_name="dendrite_segmentation",
+            flavor="tensorflow",
+            local_path="model.h5",
+            user_email=client.get_email()
+        )
+        my_pipeline = client.add_simple_model_to_garden(local_model, "10.1234/doi-here",
+                                                        input_type=np.ndarray,
+                                                        output_type=np.ndarray,
+                                                        authors=["Monty Python", "Guido van Rossum"],
+                                                        pip_dependencies=["tensorflow"],
+                                                        tags=["materials science", "computer vision"]
+        )
+        """
+        registered_model = self.register_model(local_model)
+
+        # we ignore these type errors, because we want the step to be typed correctly but mypy does not acknowledge that it would be
+        @step
+        def run_inference(
+            input_arg: input_type, model=Model(registered_model.full_name)  # type: ignore
+        ) -> output_type:  # type: ignore
+            return model.predict(input_arg)
+
+        pipeline = self.create_pipeline(
+            title=title or f"Inference on model: {local_model.model_name}",
+            short_name=local_model.model_name,
+            steps=(run_inference,),
+            description=description
+            or "Auto-generated pipeline that executes a single step which runs an inference.",
+            **kwargs,
+        )
+        container_uuid = self.build_container(pipeline)
+        self.register_pipeline(pipeline, container_uuid)
+
+        garden = self.get_published_garden(garden_doi)
+
+        # add pipeline to garden
+        if pipeline not in garden.pipelines:
+            garden.pipeline_ids += [pipeline.doi]
+
+        self.publish_garden_metadata(garden)
+        # bandaid in the event the index is written more than once simultaneously
+        # note: still not perfect, communication is key
+        if (
+            pipeline.doi
+            not in (remote := self.get_published_garden(garden.doi)).pipeline_ids
+        ):
+            remote.pipeline_ids += [pipeline.doi]
+            self.publish_garden_metadata(remote)
+
+        return pipeline.doi
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given doi.

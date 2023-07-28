@@ -1,16 +1,17 @@
+import os
 from typing import List
 
 import pytest
-import os
 from globus_compute_sdk import Client  # type: ignore
+from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
-from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
 import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
+from garden_ai.garden_file_adapter import GardenFileAdapter
+from garden_ai.mlmodel import LocalModel, ModelMetadata
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata, DatasetConnection, LocalModel
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -57,8 +58,8 @@ def noop_func_uuid():
 
 @pytest.fixture
 def mock_keystore(mocker):
-    mock_keystore = mocker.MagicMock(SimpleJSONFileAdapter)
-    mocker.patch("garden_ai.client.SimpleJSONFileAdapter").return_value = mock_keystore
+    mock_keystore = mocker.MagicMock(GardenFileAdapter)
+    mocker.patch("garden_ai.client.GardenFileAdapter").return_value = mock_keystore
     return mock_keystore
 
 
@@ -94,6 +95,13 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
         return_value=mock_token_response
     )
+
+    # Mocks compute client login
+    mock_login_manager = mocker.MagicMock(LoginManager)
+    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
+    mocker.patch(
+        "globus_compute_sdk.sdk.client.LoginManager"
+    ).return_value = mock_login_manager
 
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
@@ -150,6 +158,7 @@ def pipeline_toy_example(tmp_requirements_txt):
 
     pea_edibility_pipeline = Pipeline(
         title="Pea Edibility Pipeline",
+        short_name="pea_pipeline",
         steps=[split_peas, make_soup, rate_soup],
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
@@ -317,17 +326,6 @@ def second_draft_of_model():
         model_name="unit-test-model",
         user_email="test@example.com",
         flavor="pytorch",
-        connections=[
-            DatasetConnection(
-                **{
-                    "type": "dataset",
-                    "relationship": "origin",
-                    "doi": "10.18126/wg3u-g8vu",
-                    "repository": "Foundry",
-                    "url": "https://foundry-ml.org/#/datasets/10.18126%2Fwg3u-g8vu",
-                }
-            )
-        ],
     )
 
 
@@ -376,3 +374,8 @@ def valid_search_by_doi():
 @pytest.fixture
 def empty_search_by_doi():
     return read_fixture_text("search_results/empty_search_by_doi.json")
+
+
+@pytest.fixture
+def path_to_pipeline_with_main_block():
+    return get_fixture_file_path("fixture_pipeline/pipeline.py")

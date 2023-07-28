@@ -17,6 +17,7 @@ import globus_compute_sdk  # type: ignore
 from packaging.requirements import InvalidRequirement, Requirement
 from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.dataclasses import dataclass
+from tabulate import tabulate
 
 import garden_ai
 from garden_ai.app.console import console
@@ -41,6 +42,51 @@ from garden_ai.utils.misc import (
 )
 
 logger = logging.getLogger()
+
+
+class Repository(BaseModel):
+    """
+    The `Repository` class represents all the metadata we want to \
+    publically expose about the repositories used to build the pipeline.
+
+    Attributes:
+        repo_name (str):
+            A title that the repository can be referenced by.
+        url (str):
+            A link where this repository can be publically viewed.
+        contributors List[str]:
+            Acknowledge contributors to the development of \
+            this repository.
+
+    """
+
+    repo_name: str = Field(...)
+    url: str = Field(...)
+    contributors: List[str] = Field(default_factory=list)
+
+
+class Paper(BaseModel):
+    """
+    The `Paper` class represents all the metadata we want to \
+    publically expose about the paper used to build the pipeline.
+
+    Attributes:
+        title (str):
+            The official title that the paper can be referenced by.
+        authors List[str]:
+            The main researchers involved in producing the paper. Personal name \
+            format should be: "Family, Given". Order is preserved. (at least one required)
+        doi (str):
+            The digital object identifier of the paper. (Optional)
+        citation (str):
+            Description of how the paper may be cited officially. (Optional)
+
+    """
+
+    title: str = Field(...)
+    authors: List[str] = Field(default_factory=list)
+    doi: Optional[str] = Field(None)
+    citation: Optional[str] = Field(None)
 
 
 @dataclass(config=DataclassConfig)
@@ -203,6 +249,9 @@ class Pipeline:
         if not any(req.startswith("pandas") for req in pip_deps):
             pip_deps += ["pandas<3"]
         return pip_deps
+
+    def _repr_html_(self) -> str:
+        return pipeline_repr_html(self)
 
     def _collect_requirements(self):
         """collect requirements to pass to Globus Compute container service.
@@ -369,6 +418,8 @@ class RegisteredPipeline(BaseModel):
         pip_dependencies:
         conda_dependencies:
         model_full_names:
+        repositories:
+        papers:
     """
 
     doi: str = Field(...)
@@ -388,6 +439,8 @@ class RegisteredPipeline(BaseModel):
     conda_dependencies: List[str] = Field(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
     model_full_names: List[str] = Field(default_factory=list)
+    repositories: List[Repository] = Field(default_factory=list)
+    papers: List[Paper] = Field(default_factory=list)
 
     def __call__(
         self,
@@ -447,6 +500,9 @@ class RegisteredPipeline(BaseModel):
         data = json.loads(record)
         return cls(**data)
 
+    def _repr_html_(self) -> str:
+        return pipeline_repr_html(self)
+
     def collect_models(self) -> List[ModelMetadata]:
         """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_full_names`."""
         from .local_data import get_local_model_by_name
@@ -479,3 +535,42 @@ class RegisteredPipeline(BaseModel):
         data = self.dict()
         data["models"] = [m.dict() for m in self.collect_models()]
         return data
+
+
+def pipeline_repr_html(pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
+    def prettify_type_repr(s: str) -> str:
+        if "<" in s:
+            return s[s.find("<class '") + 8 : s.rfind("'")]
+        return s
+
+    style = "<style>th {text-align: left;}</style>"
+    title = f"<h2>{pipeline.title}</h2>"
+    details = f"<p>Authors: {', '.join(pipeline.authors)}<br>DOI: {pipeline.doi}</p>"
+    steps = "<h3>Steps</h3>" + tabulate(
+        [
+            {
+                key.title(): prettify_type_repr(
+                    # handle both Pipelines and RegisteredPipelines
+                    str(getattr(step, key) if isinstance(step, Step) else step[key])
+                )
+                for key in (
+                    "title",
+                    "model_full_names",
+                    "input_info",
+                    "output_info",
+                )
+            }
+            for step in pipeline.steps
+        ],
+        headers="keys",
+        tablefmt="html",
+    )
+    optional = "<h3>Additional data</h3>" + tabulate(
+        [
+            (field, val)
+            for field, val in pipeline.dict().items()
+            if field not in ("title", "authors", "doi", "steps") and val
+        ],
+        tablefmt="html",
+    )
+    return style + title + details + steps + optional

@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 
+from tabulate import tabulate
 from pydantic import (
     BaseModel,
     Field,
@@ -154,6 +155,33 @@ class Garden(BaseModel):
             name = self.pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
             names += [name]
         return names
+
+    def _repr_html_(self) -> str:
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{self.title}</h2>"
+        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+        pipelines = "<h3>Pipelines</h3>" + tabulate(
+            [
+                {
+                    key.title(): str(getattr(pipeline, key))
+                    for key in ("title", "authors", "doi")
+                }
+                for pipeline in self.pipelines
+            ],
+            headers="keys",
+            tablefmt="html",
+        )
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, val)
+                for field, val in self.dict().items()
+                if field not in ("title", "authors", "doi")
+                and "pipeline" not in field
+                and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + pipelines + optional
 
     def _set_pipelines_from_remote_metadata(self, pipeline_metadata: List[dict]):
         """

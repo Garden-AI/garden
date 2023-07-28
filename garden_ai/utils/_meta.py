@@ -1,7 +1,7 @@
 import inspect
 import linecache
-import textwrap
 import logging
+import textwrap
 
 logger = logging.getLogger()
 
@@ -59,13 +59,13 @@ def garden_ai_compose_functions(*functions):
     def compose(*functions):
         func, *funcs = functions
 
-        def inner(*args, **kwargs):
+        def comp_inner(*args, **kwargs):
             result = func(*args, **kwargs)
             for f in funcs:
                 result = f(result)
             return result
 
-        return inner
+        return comp_inner
 
     def inject_env_kwarg(func):
         """
@@ -75,7 +75,7 @@ def garden_ai_compose_functions(*functions):
         original function, particularly useful if the function is executing remotely.
         """
 
-        def inner(*args, _env_vars=None, **kwargs):
+        def env_inner(*args, _env_vars=None, **kwargs):
             if _env_vars:
                 import os
 
@@ -83,7 +83,7 @@ def garden_ai_compose_functions(*functions):
                     os.environ[k] = v
             return func(*args, **kwargs)
 
-        return inner
+        return env_inner
 
     return inject_env_kwarg(compose(*functions))
 
@@ -112,11 +112,9 @@ def exec_getsource(source, globals=None, locals=None):
 
 
 def _load_pipeline_from_python_file(python_file):
-    import __main__
-
     from garden_ai import Pipeline
-    from garden_ai.utils.filesystem import PipelineLoadException
     from garden_ai.mlmodel import Model
+    from garden_ai.utils.filesystem import PipelineLoadException
 
     with open(python_file, "r") as file:
         pipeline_code = file.read()
@@ -137,12 +135,11 @@ class _USER_PIPELINE_MODULE:
 {textwrap.indent(pipeline_code, '    ')}
 """
 
-    # run the user's code as `__main__._USER_PIPELINE_MODULE` namespace
+    # exec the user's code in a fresh namespace to define a fake `_USER_PIPELINE_MODULE` class
     local_namespace: dict = {}
-
-    exec_getsource(code_str, __main__.__dict__, local_namespace)
-
+    exec_getsource(code_str, {}, local_namespace)
     cls = local_namespace["_USER_PIPELINE_MODULE"]
+
     # Now, one of those class attributes is going to be a Pipeline instance
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
