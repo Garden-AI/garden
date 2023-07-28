@@ -77,12 +77,7 @@ class ModelMetadata(BaseModel):
         model_name (str): A short and descriptive name of the model
         flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
         serialize_type (str): The serialization/packaging format used for the model.
-            Must be compatable with the flavor and saved model to be uploaded.
-            One of "pickle", "joblib", "onnx", "keras", or "torch".
-            "keras" and "torch" refer to native save formats which are only valid via
-            "tensorflow" and "pytorch" flavors, respectively.
-        connections (List[DatasetConnection]):
-            A list of dataset records that the model was trained on.
+        dataset (DatasetConnection): A dataset record that the model was trained on.
         user_email (str): The email address of the user uploading the model.
         full_name (str): The user_email and model_name together like "foo@example.edu/my_model"
         mlflow_name (str): The user_email and model_name together like "foo@example.edu-my_model"
