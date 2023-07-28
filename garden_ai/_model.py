@@ -99,13 +99,27 @@ class _Model:
     def _lazy_load_model(self):
         """download and deserialize the underlying model, if necessary."""
         import mlflow  # type: ignore
+        import yaml
 
         if self._model is None:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
-            self._model = mlflow.pyfunc.load_model(
-                local_model_path, suppress_warnings=True
-            )
+            mlflow_yaml_path = os.path.join(local_model_path, "MLmodel")
+            with open(mlflow_yaml_path, "r") as stream:
+                mlflow_metadata = yaml.safe_load(stream)
+
+            if mlflow_metadata["metadata"]["load_strategy"] == "pyfunc":
+                self._model = mlflow.pyfunc.load_model(
+                    local_model_path, suppress_warnings=True
+                )
+            elif mlflow_metadata["metadata"]["load_strategy"] == "torch":
+                self._model = _ModelWrapper(
+                    mlflow.torch.load_model(local_model_path, suppress_warnings=True)
+                )
+            else:
+                # Can add tf and sklearn loads if needed
+                raise Exception("Invalid load_strategy given.")
+
             try:
                 self.clear_mlflow_staging_directory()
             except Exception as e:
@@ -133,3 +147,22 @@ class _Model:
 
         """
         return self.model.predict(data)
+
+    class _ModelWrapper(object):
+        """
+        Wrapper class for models.
+        Adds predict method for models that predict with model(X)
+        """
+
+        def __init__(self, model):
+            self._wrapped_model = model
+
+        def predict(self, data):
+            return self._wrapped_model(data)
+
+        def __getattr__(self, attr):
+            if attr in self.__dict__:
+                # object has attribute
+                return getattr(self, attr)
+            # proxy to the wrapped object
+            return getattr(self._wrapped_model, attr)
