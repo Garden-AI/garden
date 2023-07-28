@@ -30,16 +30,26 @@ You may define a pipeline which uses as many steps as you like, as long as there
 
 ### [Models](Models.md)
 
-The `Model` class represents a pre-trained machine learning model registered with our service. It includes information about the model itself, such as its flavor (framework used to develop the model, e.g. `sklearn`), architecture, parameters, and state, as well as metadata such as links to training datasets. Currently, we support models in the following flavors: `sklearn`, `pytorch`, and `tensorflow`.
+The `Model` class represents a pre-trained machine learning model registered with our service. It includes information about the model itself, such as its flavor (framework used to develop the model, e.g. `sklearn`), serialization format, architecture, parameters, and state, as well as metadata such as links to training datasets. Currently, we support models in the following flavors: `sklearn`, `pytorch`, and `tensorflow`. 
+
+. 
 
 Models in Garden are registered using the Garden CLI:
 
 ```bash
-garden-ai model register path/to/model.pkl --flavor=sklearn
+garden-ai model register path/to/model.pkl sklearn
 ```
+
+Optionally you can pass in a serialization format:
+```bash
+garden-ai model register path/to/model.pkl sklearn --serialize-type joblib
+```
+>[!NOTE]
+> For serialization types we currently support `pickle` and `joblib` for `sklearn`. For `tensorflow` and `pytorch` we use the default save/serialization methods, but if you deisre to be explicit these can be entered in the CLI via `--serialize-type keras` for tensorflow and `--serialize-type torch` for pytorch. If no serialize-type an attempt at using a flavor-compatible default will be made.
 
 > [!NOTE]
 > The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name"`, which can then be referenced by steps (see example below).
+
 
 Once a model has been registered, it should be used in a `Step` by referencing its name as a _**default argument**_, not in the body of the step's function.
 

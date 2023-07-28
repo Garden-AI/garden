@@ -3,11 +3,7 @@ from typing import Optional, List
 
 from garden_ai import local_data
 from garden_ai.client import GardenClient
-from garden_ai.mlmodel import (
-    DatasetConnection,
-    LocalModel,
-    ModelFlavor,
-)
+from garden_ai.mlmodel import DatasetConnection, LocalModel, ModelFlavor, SerializeType
 from garden_ai.app.console import console, get_local_model_rich_table
 
 import typer
@@ -50,6 +46,17 @@ def register(
             "Currently we support the following flavors 'sklearn', 'tensorflow', and 'pytorch'."
         ),
     ),
+    serialize_type: Optional[str] = typer.Option(
+        None,
+        "--serialize-type",
+        help=(
+            """
+            Optional serialization format your model is saved in:
+            'pickle', 'joblib', 'keras', 'torch'.
+            Will use a compatible default if not provided.
+            """
+        ),
+    ),
     dataset_url: Optional[str] = typer.Option(
         None,
         "--dataset-url",
@@ -69,6 +76,11 @@ def register(
     if flavor not in [f.value for f in ModelFlavor]:
         raise typer.BadParameter(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
+        )
+
+    if serialize_type and serialize_type not in [s.value for s in SerializeType]:
+        raise typer.BadParameter(
+            f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
         )
 
     only_one_dataset_option_provided = (dataset_url and not dataset_doi) or (
