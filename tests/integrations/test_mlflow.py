@@ -1,7 +1,7 @@
 import pytest
 
 from garden_ai import GardenClient, Model
-from garden_ai.mlmodel import LocalModel
+from garden_ai.mlmodel import LocalModel, SerializationFormatException
 
 
 @pytest.fixture
@@ -72,16 +72,25 @@ def toy_tensorflow_model():
 
 
 @pytest.mark.integration
-def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
+@pytest.mark.parametrize("serialize_type", [None, "pickle", "joblib", "keras"])
+def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model, serialize_type):
     # as if model.pkl already existed on disk
     import pickle
+    import joblib
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "model.pkl"
     model_path.touch()
 
-    with open(model_path, "wb") as f_out:
-        pickle.dump(toy_sklearn_model, f_out)
+    if serialize_type is None:
+        with open(model_path, "wb") as f_out:
+            pickle.dump(toy_sklearn_model, f_out)
+    elif serialize_type == "pickle":
+        with open(model_path, "wb") as f_out:
+            pickle.dump(toy_sklearn_model, f_out)
+    elif serialize_type == "joblib":
+        with open(model_path, "wb") as f_out:
+            joblib.dump(toy_sklearn_model, f_out)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/model.pkl`
     name = "sk-test-model-name"
@@ -92,13 +101,19 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
         local_path=str(model_path),
         model_name=name,
         flavor="sklearn",
+        serialize_type=serialize_type,
         user_email="foo@example.com",
     )
-    registered_model = client.register_model(local_model)
 
-    # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.full_name)
-    assert hasattr(downloaded_model, "predict")
+    if serialize_type == "keras":
+        # Assert that the 'SerializationFormatException' is raised
+        with pytest.raises(SerializationFormatException):
+            client.register_model(local_model)
+    else:
+        registered_model = client.register_model(local_model)
+        # all mlflow models will have a 'predict' method
+        downloaded_model = Model(registered_model.full_name)
+        assert hasattr(downloaded_model, "predict")
 
 
 @pytest.mark.integration
