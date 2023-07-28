@@ -189,7 +189,7 @@ Once you have a Garden, you can execute any of its pipelines remotely. Make sure
 ```python
 >>> my_data = pd.DataFrame(...)
 >>> tutorial_endpoint = "86a47061-f3d9-44f0-90dc-56ddc642c000"
->>> results = found_garden.looking_glass_pipeline(my_data, endpoint=my_endpoint)
+>>> results = found_garden.looking_glass_pipeline(my_data, endpoint=tutorial_endpoint)
 # ... executing remotely on endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000
 >>> print(results)  # neat!
 ```
