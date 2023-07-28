@@ -1,7 +1,7 @@
 import os
 import pathlib
 import pickle
-import joblib
+import joblib  # type: ignore
 import shutil
 from enum import Enum
 from typing import Optional

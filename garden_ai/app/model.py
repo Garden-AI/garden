@@ -82,6 +82,7 @@ def register(
         local_path=str(model_path),
         model_name=name,
         flavor=flavor,
+        serialize_type=serialize_type,
         user_email=client.get_email(),
     )
 

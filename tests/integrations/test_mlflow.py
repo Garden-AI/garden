@@ -76,7 +76,7 @@ def toy_tensorflow_model():
 def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model, serialize_type):
     # as if model.pkl already existed on disk
     import pickle
-    import joblib
+    import joblib  # type: ignore
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "model.pkl"
