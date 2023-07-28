@@ -42,11 +42,12 @@ class ModelFlavor(Enum):
     TENSORFLOW = "tensorflow"
 
 
-class SerializeType(Enum):
+class SerializeType(
+    Enum
+):  # May be of value to incorporate this in the ModelFlavor enum.
     """
     Flavors can interact with multiple serialization types.
     Constraints are enforced within the model staging process.
-    May be of value to incorporate this in the ModelFlavor enum.
     """
 
     PICKLE = "pickle"
@@ -164,7 +165,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
             if (
                 serialization_type == SerializeType.PICKLE.value
-                or serialization_type is None  # default to pickle
+                or serialization_type is None  # default to pickle for sklearn
             ):
                 with open(local_path, "rb") as f:
                     loaded_model = pickle.load(f)
@@ -173,30 +174,40 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 with open(local_path, "rb") as f:
                     loaded_model = joblib.load(f)
                     log_model_variant = mlflow.sklearn.log_model
-            elif serialization_type == SerializeType.SKOPS.value:
-                import skops.io as sio  # type: ignore
-
-                with open(local_path, "rb") as f:
-                    loaded_model = sio.load(f, trusted=True)
-                    log_model_variant = mlflow.sklearn.log_model
             else:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
         elif flavor == ModelFlavor.TENSORFLOW.value:
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-            # ignore cpu guard info on tf import require before tf import
-            from tensorflow import keras  # type: ignore
+            if (
+                serialization_type == SerializeType.KERAS.value
+                or serialization_type is None
+            ):
+                os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+                # ignore cpu guard info on tf import require before tf import
+                from tensorflow import keras  # type: ignore
 
-            loaded_model = keras.models.load_model(local_path)
-            log_model_variant = (
-                mlflow.tensorflow.log_model
-            )  # TODO explore artifact path and sigs
+                loaded_model = keras.models.load_model(local_path)
+                log_model_variant = (
+                    mlflow.tensorflow.log_model
+                )  # TODO explore artifact path and sigs
+            else:
+                raise SerializationFormatException(
+                    f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
+                )
         elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
-            import torch  # type: ignore
+            if (
+                serialization_type == SerializeType.TORCH.value
+                or serialization_type is None
+            ):
+                import torch  # type: ignore
 
-            loaded_model = torch.load(local_path)
-            log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
+                loaded_model = torch.load(local_path)
+                log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
+            else:
+                raise SerializationFormatException(
+                    f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
+                )
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
