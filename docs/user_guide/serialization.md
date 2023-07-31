@@ -23,9 +23,9 @@ Scikit-learn is a popular machine learning library in Python, and it provides bu
 Pickle is a standard Python library used for serializing and deserializing Python objects. We can use it to save scikit-learn models to disk.
 
 >[!Note]
-> Exmaple CLI registration for pickle with pkl exstention:
+> Example CLI registration for pickle with pkl exstention:
 > `garden-ai model register path/to/model.pkl sklearn --serialize-type pickle`
->  Exmaple CLI registration for pickle:
+>  Example CLI registration for pickle:
 > `garden-ai model register path/to/model.pkl sklearn`
 > (pickle is the default so serialize-type is not needed here)
 
@@ -60,9 +60,9 @@ predictions = loaded_model.predict(X)
 Joblib is an alternative to pickle, designed to be more efficient for storing large numerical arrays. It is also supported by scikit-learn.
 
 >[!Note]
-> Exmaple CLI registration for joblib with pkl exstention:
+> Example CLI registration for joblib with pkl exstention:
 > `garden-ai model register path/to/model.pkl sklearn --serialize-type joblib`
->  Exmaple CLI registration for joblib with joblib exstention::
+>  Example CLI registration for joblib with joblib exstention::
 > `garden-ai model register path/to/model.joblib sklearn --serialize-type joblib`
 
 ```python
@@ -102,8 +102,8 @@ You can refer to [scikit-learn documentation's](https://scikit-learn.org/stable/
 ## 2. Serialization with TensorFlow
 Below you will find code for serializing a Tensorflow model. The location you save your model in will be the path refernced when uploading the model.
 >[!Note]
-> Exmaple CLI registration for h5 extension: `garden-ai model register path/to/model.h5 tensorflow`
-> Exmaple CLI registration for default tf model: `garden-ai model register path/to/model tensorflow`
+> Example CLI registration for h5 extension: `garden-ai model register path/to/model.h5 tensorflow`
+> Example CLI registration for default tf model: `garden-ai model register path/to/model tensorflow`
 
 
 ```python
@@ -142,7 +142,7 @@ Additional documentation for saving/serializing tensorflow models can be found [
 Below you will find code for serializing a PyTorch model. The location you save your model in will be the path refernced when uploading the model.
 
 >[!Note]
-> Exmaple CLI registration: `garden-ai model register path/to/model.pth pytorch`
+> Example CLI registration: `garden-ai model register path/to/model.pth pytorch`
 
 ```python
 # Example: Serialize and deserialize a PyTorch model
