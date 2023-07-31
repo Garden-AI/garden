@@ -119,7 +119,7 @@ class _Model:
                 # Must load instead with mlflow.pyfunc to handel the latter two.
                 # TODO add signatures option to allow users to specify input data type to load models accordingly.
                 self._model = self._TorchWrapper(
-                    mlflow.pytorch.load_model(local_model_path, suppress_warnings=True)
+                    mlflow.pytorch.load_model(local_model_path)
                 )
             else:
                 # Can add tf and sklearn loads if needed
