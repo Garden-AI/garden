@@ -107,13 +107,11 @@ class _Model:
             mlflow_yaml_path = local_model_path + "/MLmodel"
             with open(mlflow_yaml_path, "r") as stream:
                 mlflow_metadata = yaml.safe_load(stream)
-            mlflow_load_strategy = mlflow_metadata["metadata"]["garden_load_strategy"]
+            mlflow_load_strategy = mlflow_metadata["flavors"]["python_function"][
+                "loader_module"
+            ]
 
-            if mlflow_load_strategy == "pyfunc":
-                self._model = mlflow.pyfunc.load_model(
-                    local_model_path, suppress_warnings=True
-                )
-            elif mlflow_load_strategy == "torch":
+            if mlflow_load_strategy == "mlflow.pytorch":
                 # Load torch models with mlflow.torch so they can taketorch.tensors inputs
                 # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
                 # Must load instead with mlflow.pyfunc to handel the latter two.
@@ -122,8 +120,9 @@ class _Model:
                     mlflow.pytorch.load_model(local_model_path)
                 )
             else:
-                # Can add tf and sklearn loads if needed
-                raise Exception("Invalid garden_load_strategy given.")
+                self._model = mlflow.pyfunc.load_model(
+                    local_model_path, suppress_warnings=True
+                )
 
             try:
                 self.clear_mlflow_staging_directory()

@@ -371,8 +371,6 @@ flavors:
     pickled_model: model.pkl
     serialization_format: cloudpickle
     sklearn_version: 1.3.0
-metadata:
-  garden_load_strategy: pyfunc
 mlflow_version: 2.4.2
 model_uuid: 7741a74966b04ee2b02ddc11c84260cb
 run_id: 6949be777da74b75b9c6dba8a4ecc5c6
@@ -397,8 +395,6 @@ flavors:
     code: null
     model_data: data
     pytorch_version: 2.0.0
-metadata:
-  garden_load_strategy: torch
 mlflow_version: 2.4.2
 model_uuid: fd9d9378bc054c41b5e07730a4ed8cd6
 run_id: 4d906cddf11b4c99addb1c3374a0a2d1
