@@ -72,9 +72,11 @@ def test_load_model_before_predict(mocker, model_url_env_var, mlflow_metadata):
 def test_load_model_before_predict_torch(
     mocker, model_url_env_var, mlflow_metadata_torch
 ):
-    from torch.nn import Module  # type: ignore
+    from mlflow.pyfunc import PyFuncModel  # type: ignore
 
-    mock_torch_model = mocker.MagicMock(Module)
+    # Mock mlflow.pytorch.load_model with PyFuncModel output instead of torch.nn.Module
+    # Done to avoid importing pytorch to test suite
+    mock_torch_model = mocker.MagicMock(PyFuncModel)
     mocker.patch("mlflow.pytorch.load_model").return_value = mock_torch_model
     mocker.patch(
         "garden_ai._model._Model.download_and_stage"
@@ -85,7 +87,7 @@ def test_load_model_before_predict_torch(
     model = _Model("willengler@uchicago.edu/test_model")
     assert model.model is not None
     assert isinstance(model.model, _Model._TorchWrapper)
-    assert isinstance(model.model._wrapped_model, Module)
+    assert isinstance(model.model._wrapped_model, PyFuncModel)
 
 
 def test_generate_presigned_urls_for_garden(
