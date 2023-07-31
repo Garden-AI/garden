@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from garden_ai import local_data
 from garden_ai.client import GardenClient
@@ -8,6 +8,7 @@ from garden_ai.mlmodel import (
     LocalModel,
     ModelFlavor,
     ModelNotFoundException,
+    SerializeType,
 )
 
 from garden_ai.app.console import console, get_local_model_rich_table
@@ -53,6 +54,17 @@ def register(
             "Currently we support the following flavors 'sklearn', 'tensorflow', and 'pytorch'."
         ),
     ),
+    serialize_type: Optional[str] = typer.Option(
+        None,
+        "--serialize-type",
+        help=(
+            """
+            Optional serialization format your model is saved in:
+            'pickle', 'joblib', 'keras', 'torch'.
+            Will use a compatible default if not provided.
+            """
+        ),
+    ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
     if flavor not in [f.value for f in ModelFlavor]:
@@ -60,11 +72,17 @@ def register(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
 
+    if serialize_type and serialize_type not in [s.value for s in SerializeType]:
+        raise typer.BadParameter(
+            f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
+        )
+
     client = GardenClient()
     local_model = LocalModel(
         local_path=str(model_path),
         model_name=name,
         flavor=flavor,
+        serialize_type=serialize_type,
         user_email=client.get_email(),
     )
 

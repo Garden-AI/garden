@@ -84,8 +84,10 @@ In our pipeline's templated code, notice that one step had the default argument 
 Use the `garden-ai model register` subcommand to register your model:
 
 ```bash
-garden-ai model register "my-model-name" /path/to/model.pkl --flavor=sklearn
+garden-ai model register "my-model-name" /path/to/model.pkl sklearn
 ```
+> [!NOTE] Note
+> If you have a model saved in a specific serialization format such as joblib or a pickle file, you can specify it with the optional CLI argument `--serialize-type`. Here is an example using joblib `garden-ai model register "my-model-name" /path/to/model.pkl sklearn --serialize-type joblib`. If not provided an attempt at using a flavor-compatible default will be made.
 
 This command will register your model with the Garden service and return a "full name", which is the name you chose prefixed with your email address, e.g. `"me@institution.edu/my-model-name"`. This full model name is how you can reference the registered model in your pipeline code:
 
