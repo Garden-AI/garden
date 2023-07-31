@@ -99,13 +99,31 @@ class _Model:
     def _lazy_load_model(self):
         """download and deserialize the underlying model, if necessary."""
         import mlflow  # type: ignore
+        import yaml
 
         if self._model is None:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
-            self._model = mlflow.pyfunc.load_model(
-                local_model_path, suppress_warnings=True
-            )
+            mlflow_yaml_path = local_model_path + "/MLmodel"
+            with open(mlflow_yaml_path, "r") as stream:
+                mlflow_metadata = yaml.safe_load(stream)
+            mlflow_load_strategy = mlflow_metadata["flavors"]["python_function"][
+                "loader_module"
+            ]
+
+            if mlflow_load_strategy == "mlflow.pytorch":
+                # Load torch models with mlflow.torch so they can taketorch.tensors inputs
+                # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
+                # Must load instead with mlflow.pyfunc to handel the latter two.
+                # TODO add signatures option to allow users to specify input data type to load models accordingly.
+                self._model = self._TorchWrapper(
+                    mlflow.pytorch.load_model(local_model_path)
+                )
+            else:
+                self._model = mlflow.pyfunc.load_model(
+                    local_model_path, suppress_warnings=True
+                )
+
             try:
                 self.clear_mlflow_staging_directory()
             except Exception as e:
@@ -124,7 +142,7 @@ class _Model:
 
         Parameters
         ----------
-        data : pd.DataFrame | pd.Series | np.ndarray | List[Any] | Dict[str, Any]
+        data : pd.DataFrame | pd.Series | np.ndarray | List[Any] | Dict[str, Any] | torch.tensor
             Input data fed to the model
 
         Returns
@@ -133,3 +151,23 @@ class _Model:
 
         """
         return self.model.predict(data)
+
+    class _TorchWrapper(object):
+        """
+        Wrapper class for pytorch models.
+        Adds predict method for torch models that normally predict with model(X)
+        """
+
+        def __init__(self, model):
+            self._wrapped_model = model
+
+        def predict(self, data):
+            return self._wrapped_model(data)
+
+        def __getattr__(self, attr):
+            if attr in self.__dict__:
+                # use _ModelWrapper definition of attr
+                return getattr(self, attr)
+            # _ModelWrapper does not have attr,
+            # use _wrapped_model definition of attr instead
+            return getattr(self._wrapped_model, attr)
