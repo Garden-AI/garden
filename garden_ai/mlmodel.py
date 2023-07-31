@@ -143,7 +143,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             with open(local_path, "rb") as f:
                 loaded_model = pickle.load(f)
                 log_model_variant = mlflow.sklearn.log_model
-            metadata = {"load_strategy": "pyfunc"}
+            metadata = {"garden_load_strategy": "pyfunc"}
         elif flavor == ModelFlavor.TENSORFLOW.value:
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             # ignore cpu guard info on tf import require before tf import
@@ -153,13 +153,13 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             log_model_variant = (
                 mlflow.tensorflow.log_model
             )  # TODO explore artifact path and sigs
-            metadata = {"load_strategy": "pyfunc"}
+            metadata = {"garden_load_strategy": "pyfunc"}
         elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
             import torch  # type: ignore
 
             loaded_model = torch.load(local_path)
             log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
-            metadata = {"load_strategy": "torch"}
+            metadata = {"garden_load_strategy": "torch"}
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 

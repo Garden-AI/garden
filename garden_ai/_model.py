@@ -104,21 +104,26 @@ class _Model:
         if self._model is None:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
-            mlflow_yaml_path = os.path.join(local_model_path, "MLmodel")
+            mlflow_yaml_path = local_model_path + "/MLmodel"
             with open(mlflow_yaml_path, "r") as stream:
                 mlflow_metadata = yaml.safe_load(stream)
+            mlflow_load_strategy = mlflow_metadata["metadata"]["garden_load_strategy"]
 
-            if mlflow_metadata["metadata"]["load_strategy"] == "pyfunc":
+            if mlflow_load_strategy == "pyfunc":
                 self._model = mlflow.pyfunc.load_model(
                     local_model_path, suppress_warnings=True
                 )
-            elif mlflow_metadata["metadata"]["load_strategy"] == "torch":
-                self._model = _ModelWrapper(
-                    mlflow.torch.load_model(local_model_path, suppress_warnings=True)
+            elif mlflow_load_strategy == "torch":
+                # Load torch models with mlflow.torch so they can taketorch.tensors inputs
+                # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
+                # Must load instead with mlflow.pyfunc to handel the latter two.
+                # TODO add signatures option to allow users to specify input data type to load models accordingly.
+                self._model = self._TorchWrapper(
+                    mlflow.pytorch.load_model(local_model_path, suppress_warnings=True)
                 )
             else:
                 # Can add tf and sklearn loads if needed
-                raise Exception("Invalid load_strategy given.")
+                raise Exception("Invalid garden_load_strategy given.")
 
             try:
                 self.clear_mlflow_staging_directory()
@@ -138,7 +143,7 @@ class _Model:
 
         Parameters
         ----------
-        data : pd.DataFrame | pd.Series | np.ndarray | List[Any] | Dict[str, Any]
+        data : pd.DataFrame | pd.Series | np.ndarray | List[Any] | Dict[str, Any] | torch.tensor
             Input data fed to the model
 
         Returns
@@ -148,10 +153,10 @@ class _Model:
         """
         return self.model.predict(data)
 
-    class _ModelWrapper(object):
+    class _TorchWrapper(object):
         """
-        Wrapper class for models.
-        Adds predict method for models that predict with model(X)
+        Wrapper class for pytorch models.
+        Adds predict method for torch models that normally predict with model(X)
         """
 
         def __init__(self, model):
@@ -162,7 +167,8 @@ class _Model:
 
         def __getattr__(self, attr):
             if attr in self.__dict__:
-                # object has attribute
+                # use _ModelWrapper definition of attr
                 return getattr(self, attr)
-            # proxy to the wrapped object
+            # _ModelWrapper does not have attr,
+            # use _wrapped_model definition of attr instead
             return getattr(self._wrapped_model, attr)
