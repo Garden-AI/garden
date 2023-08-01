@@ -111,7 +111,7 @@ class _Model:
                 mlflow_load_strategy = mlflow_metadata["metadata"][
                     "garden_load_strategy"
                 ]
-            except Exception as load_s_e:
+            except Exception as e:
                 # Default to mlflow.pyfunc if can't find garden_load_strategy
                 mlflow_load_strategy = "pyfunc"
 
@@ -119,6 +119,11 @@ class _Model:
                 self._model = mlflow.pyfunc.load_model(
                     local_model_path, suppress_warnings=True
                 )
+            elif mlflow_load_strategy == "sklearn":
+                self._model = mlflow.sklearn.load_model(
+                    local_model_path, suppress_warnings=True
+                )
+
             elif mlflow_load_strategy == "pytorch":
                 # Load torch models with mlflow.torch so they can taketorch.tensors inputs
                 # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
@@ -160,10 +165,19 @@ class _Model:
         """
         return self.model.predict(data)
 
+    def __getattr__(self, attr):
+        # passthrough all attr from _model not defined in _Model
+        if attr in self.__dict__:
+            # use _Model's definition of attr
+            return getattr(self, attr)
+        # _Model does not have attr,
+        # use _model's definition of attr instead
+        return getattr(self._model, attr)
+
     class _TorchWrapper(object):
         """
         Wrapper class for pytorch models.
-        Adds predict method for torch models that normally predict with model(X)
+        Adds predict method to torch models.
         """
 
         def __init__(self, model):
@@ -174,8 +188,8 @@ class _Model:
 
         def __getattr__(self, attr):
             if attr in self.__dict__:
-                # use _ModelWrapper definition of attr
+                # use _TorchWrapper definition of attr
                 return getattr(self, attr)
-            # _ModelWrapper does not have attr,
+            # _TorchWrapper does not have attr,
             # use _wrapped_model definition of attr instead
             return getattr(self._wrapped_model, attr)
