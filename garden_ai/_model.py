@@ -105,13 +105,21 @@ class _Model:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
             mlflow_yaml_path = local_model_path + "/MLmodel"
-            with open(mlflow_yaml_path, "r") as stream:
-                mlflow_metadata = yaml.safe_load(stream)
-            mlflow_load_strategy = mlflow_metadata["flavors"]["python_function"][
-                "loader_module"
-            ]
+            try:
+                with open(mlflow_yaml_path, "r") as stream:
+                    mlflow_metadata = yaml.safe_load(stream)
+                mlflow_load_strategy = mlflow_metadata["metadata"][
+                    "garden_load_strategy"
+                ]
+            except Exception as load_s_e:
+                # Default to mlflow.pyfunc if can't find garden_load_strategy
+                mlflow_load_strategy = "pyfunc"
 
-            if mlflow_load_strategy == "mlflow.pytorch":
+            if mlflow_load_strategy == "pyfunc":
+                self._model = mlflow.pyfunc.load_model(
+                    local_model_path, suppress_warnings=True
+                )
+            elif mlflow_load_strategy == "pytorch":
                 # Load torch models with mlflow.torch so they can taketorch.tensors inputs
                 # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
                 # Must load instead with mlflow.pyfunc to handel the latter two.
@@ -120,8 +128,8 @@ class _Model:
                     mlflow.pytorch.load_model(local_model_path)
                 )
             else:
-                self._model = mlflow.pyfunc.load_model(
-                    local_model_path, suppress_warnings=True
+                raise Exception(
+                    f"Invlaid garden_load_strategy given: {mlflow_load_strategy}"
                 )
 
             try:
