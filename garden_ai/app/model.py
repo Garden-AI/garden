@@ -12,8 +12,9 @@ from garden_ai.mlmodel import (
 )
 
 from garden_ai.app.console import console, get_local_model_rich_table
-
+from garden_ai.app.completion import complete_model
 import typer
+from typing_extensions import Annotated
 import rich
 from rich.prompt import Prompt
 import logging
@@ -98,6 +99,7 @@ def add_dataset(
         ...,
         "-m",
         "--model",
+        autocompletion=complete_model,
         help="The name of the model you would like to link your dataset to",
         rich_help_panel="Required",
     ),
@@ -173,8 +175,9 @@ def list():
 def show(
     model_ids: List[str] = typer.Argument(
         ...,
-        help="The URIs of the models you want to show the local data for. "
+        help="The full model names of the models you want to show the local data for. "
         "e.g. ``model show email@addr.ess-model-name/2 email@addr.ess-model-name-2/4`` will show the local data for both models listed.",
+        autocompletion=complete_model,
     ),
 ):
     """Shows all info for some Models"""
