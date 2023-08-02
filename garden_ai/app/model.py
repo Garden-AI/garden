@@ -14,7 +14,6 @@ from garden_ai.mlmodel import (
 from garden_ai.app.console import console, get_local_model_rich_table
 from garden_ai.app.completion import complete_model
 import typer
-from typing_extensions import Annotated
 import rich
 from rich.prompt import Prompt
 import logging
