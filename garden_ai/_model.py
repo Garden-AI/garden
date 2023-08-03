@@ -120,10 +120,8 @@ class _Model:
                     local_model_path, suppress_warnings=True
                 )
             elif mlflow_load_strategy == "sklearn":
-                self._model = mlflow.sklearn.load_model(
-                    local_model_path, suppress_warnings=True
-                )
-
+                self._model = mlflow.sklearn.load_model(local_model_path)
+                # self.do_passthough = True
             elif mlflow_load_strategy == "pytorch":
                 # Load torch models with mlflow.torch so they can taketorch.tensors inputs
                 # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
@@ -132,6 +130,7 @@ class _Model:
                 self._model = self._TorchWrapper(
                     mlflow.pytorch.load_model(local_model_path)
                 )
+                # self.do_passthough = True
             else:
                 raise Exception(
                     f"Invlaid garden_load_strategy given: {mlflow_load_strategy}"
@@ -165,14 +164,21 @@ class _Model:
         """
         return self.model.predict(data)
 
+    def __getstate__(self):
+        return self.__dict__
+
     def __getattr__(self, attr):
-        # passthrough all attr from _model not defined in _Model
-        if attr in self.__dict__:
-            # use _Model's definition of attr
-            return getattr(self, attr)
-        # _Model does not have attr,
-        # use _model's definition of attr instead
-        return getattr(self._model, attr)
+        if attr == "_model" or attr == "full_name":
+            # Dill serialization infinitely recursive without this
+            raise AttributeError()
+        if self._model is not None:
+            if attr in self.__dict__:
+                return self.__getattribute__(attr)
+            else:
+                return self._model.__getattribute__(attr)
+        else:
+            self._lazy_load_model()
+            return self.__getattr__(attr)
 
     class _TorchWrapper(object):
         """
