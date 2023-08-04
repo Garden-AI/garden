@@ -111,7 +111,7 @@ class _Model:
                 mlflow_load_strategy = mlflow_metadata["metadata"][
                     "garden_load_strategy"
                 ]
-            except Exception:
+            except KeyError:
                 # Default to mlflow.pyfunc if can't find garden_load_strategy
                 mlflow_load_strategy = "pyfunc"
 
@@ -173,7 +173,7 @@ class _Model:
         if self._model is not None:
             if attr in self.__dict__:
                 # Use self definition of attr
-                return self.__getattribute__(attr)
+                return self.__dict__[attr]
             else:
                 # self does not have definition of attr
                 # Search _model instead
@@ -181,7 +181,7 @@ class _Model:
         else:
             # _model is None, lazy load and try again.
             self._lazy_load_model()
-            return self.__getattr__(attr)
+            return getattr(self, attr)
 
     class _TorchWrapper(object):
         """
