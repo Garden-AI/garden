@@ -111,7 +111,7 @@ class _Model:
                 mlflow_load_strategy = mlflow_metadata["metadata"][
                     "garden_load_strategy"
                 ]
-            except Exception as e:
+            except Exception:
                 # Default to mlflow.pyfunc if can't find garden_load_strategy
                 mlflow_load_strategy = "pyfunc"
 
