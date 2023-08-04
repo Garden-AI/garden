@@ -121,7 +121,6 @@ class _Model:
                 )
             elif mlflow_load_strategy == "sklearn":
                 self._model = mlflow.sklearn.load_model(local_model_path)
-                # self.do_passthough = True
             elif mlflow_load_strategy == "pytorch":
                 # Load torch models with mlflow.torch so they can taketorch.tensors inputs
                 # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
@@ -130,7 +129,6 @@ class _Model:
                 self._model = self._TorchWrapper(
                     mlflow.pytorch.load_model(local_model_path)
                 )
-                # self.do_passthough = True
             else:
                 raise Exception(
                     f"Invlaid garden_load_strategy given: {mlflow_load_strategy}"
@@ -164,7 +162,7 @@ class _Model:
         """
         return self.model.predict(data)
 
-    # Dill serialization and breaks with __getattr__ if missing this.
+    # Dill serialization breaks using new __getattr__ if missing this.
     def __getstate__(self):
         return self.__dict__
 
