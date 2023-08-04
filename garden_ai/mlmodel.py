@@ -4,7 +4,7 @@ import pickle
 import joblib  # type: ignore
 import shutil
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 import functools
 import mlflow  # type: ignore
 from pydantic import BaseModel, Field, validator
@@ -158,6 +158,7 @@ class LocalModel(ModelMetadata):
     """
 
     local_path: str = Field(...)
+    extra_paths: List[str] = Field(default_factory=list)
 
 
 def stage_model_for_upload(local_model: LocalModel) -> str:
@@ -169,10 +170,11 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
     Returns full path of model directory
     -------
     """
-    flavor, local_path, serialization_type = (
+    flavor, local_path, serialization_type, extra_paths = (
         local_model.flavor,
         local_model.local_path,
         local_model.serialize_type,
+        local_model.extra_paths,
     )
     try:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
@@ -215,7 +217,15 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             ):
                 import torch  # type: ignore
 
-                loaded_model = torch.load(local_path)
+                # return("broke here")
+                # device = torch.device("cpu")
+                # with torch.storage.map_location("cpu"):
+                if torch.cuda.is_available():
+                    loaded_model = torch.load(local_path)
+                else:
+                    loaded_model = torch.load(local_path, map_location="cpu")
+                # loaded_model = torch.load(local_path, map_location="cpu")
+                #    loaded_model = torch.load(local_path, map_location="cpu")
                 log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
             else:
                 raise SerializationFormatException(
@@ -239,6 +249,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 loaded_model,
                 artifact_path,
                 registered_model_name=local_model.mlflow_name,
+                code_paths=extra_paths,
             )
             model_dir = os.path.join(
                 str(MODEL_STAGING_DIR),
