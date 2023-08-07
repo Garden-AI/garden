@@ -419,7 +419,7 @@ class PublishedGarden(BaseModel):
 
         if not (
             len(pipelines) == len(pipeline_ids)
-            and all(pipeline.doi in pipeline_ids for pipeline in pipelines)
+            and all(pipeline["doi"] in pipeline_ids for pipeline in pipelines)
         ):
             raise ValueError(
                 "This garden has an invalid state. "
