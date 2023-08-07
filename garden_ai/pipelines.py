@@ -494,7 +494,7 @@ class RegisteredPipeline(BaseModel):
         known_authors = set(self.authors)
         known_contributors = set(self.contributors)
         for step in self.steps:
-            new_contributors = set(step.authors) | set(step.contributors)
+            new_contributors = set(step["authors"]) | set(step["contributors"])
             known_contributors |= new_contributors - known_authors
         self.contributors = list(known_contributors)
         return
