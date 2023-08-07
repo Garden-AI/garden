@@ -82,7 +82,7 @@ def test_generate_presigned_urls_for_garden(
         "get_model_download_urls",
         return_value=[mock_presigned_url_response],
     )
-    garden_all_fields._pipelines = [registered_pipeline_toy_example]
+    garden_all_fields.pipelines = [registered_pipeline_toy_example]
 
     garden_client._generate_presigned_urls_for_garden(garden_all_fields)
     env_var_string = garden_all_fields.pipelines[0]._env_vars["GARDEN_MODELS"]
