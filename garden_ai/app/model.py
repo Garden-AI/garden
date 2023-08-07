@@ -89,17 +89,7 @@ def register(
         raise typer.BadParameter(
             f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
         )
-    if extra_paths and flavor != "pytorch":
-        raise typer.BadParameter(
-            f"Sorry, extra files are only supported for pytorch models. The {flavor} flavor is not supported."
-        )
-    for path in extra_paths:
-        if not path.exists() or not path.is_file() or path.suffix != ".py":
-            console.log(
-                f"{path} is not a valid Python file. Please provide a valid Python file (.py)."
-            )
-            raise typer.Exit(code=1)
-    extra_paths = [str(path) for path in extra_paths]
+    extra_paths = [str(path) for path in extra_paths] if extra_paths else []
     client = GardenClient()
     local_model = LocalModel(
         local_path=str(model_path),

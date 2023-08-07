@@ -1,8 +1,14 @@
 import json
 import os
+import pytest
 
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
-from garden_ai.mlmodel import stage_model_for_upload, LocalModel, _Model
+from garden_ai.mlmodel import (
+    stage_model_for_upload,
+    LocalModel,
+    _Model,
+    ModelUploadException,
+)
 from garden_ai.backend_client import BackendClient, PresignedUrlResponse
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 
@@ -51,6 +57,36 @@ def test_upload_model_to_s3(mocker, local_model, tmp_path):
 def test_get_download_url(model_url_env_var):
     url = _Model.get_download_url("willengler@uchicago.edu/test_model")
     assert url == "presigned-url.aws.com"
+
+
+def test_invalid_extra_paths(mocker, local_model, tmp_path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
+    model_path = get_fixture_file_path("fixture_models/iris_model.pkl")
+    local_model = LocalModel(
+        model_name="test_model",
+        flavor="sklearn",
+        local_path=str(model_path),
+        user_email="willengler@uchicago.edu",
+        extra_paths=["invalid-path.py"],
+    )
+    with pytest.raises(ModelUploadException):
+        stage_model_for_upload(local_model)
+
+
+def test_extra_paths(mocker, local_model, tmp_path):
+    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
+    model_path = get_fixture_file_path("fixture_models/pytorchtest.pth")
+    file_path = get_fixture_file_path("fixture_models/torch.py")
+    local_model = LocalModel(
+        model_name="test_model",
+        flavor="pytorch",
+        local_path=str(model_path),
+        user_email="willengler@uchicago.edu",
+        extra_paths=[str(file_path)],
+    )
+    staged_path = stage_model_for_upload(local_model)
+    assert staged_path.endswith("/artifacts/model")
 
 
 def test_load_model_before_predict(mocker, model_url_env_var, mlflow_metadata):
