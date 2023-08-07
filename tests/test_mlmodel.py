@@ -90,6 +90,26 @@ def test_load_model_before_predict(mocker, model_url_env_var, mlflow_metadata):
     assert isinstance(model.model, PyFuncModel)
 
 
+def test_load_model_before_predict_sklearn(
+    mocker, model_url_env_var, mlflow_metadata_sklearn
+):
+    from mlflow.pyfunc import PyFuncModel  # type: ignore
+
+    # Mock mlflow.sklearn.load_model with PyFuncModel output instead of sklearn model
+    # Done to avoid importing sklearn to test suite
+    mock_sklearn_model = mocker.MagicMock(PyFuncModel)
+    mocker.patch("mlflow.sklearn.load_model").return_value = mock_sklearn_model
+    mocker.patch(
+        "garden_ai._model._Model.download_and_stage"
+    ).return_value = (
+        "/Users/FakeUser/.garden/mlflow/willengler@uchicago.edu/test_model/unzipped"
+    )
+    mocker.patch("builtins.open", mocker.mock_open(read_data=mlflow_metadata_sklearn))
+    model = _Model("willengler@uchicago.edu/test_model")
+    assert model.model is not None
+    assert isinstance(model.model, PyFuncModel)
+
+
 def test_load_model_before_predict_torch(
     mocker, model_url_env_var, mlflow_metadata_torch
 ):

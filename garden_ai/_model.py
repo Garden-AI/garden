@@ -105,13 +105,23 @@ class _Model:
             download_url = self.get_download_url(self.full_name)
             local_model_path = self.download_and_stage(download_url, self.full_name)
             mlflow_yaml_path = local_model_path + "/MLmodel"
-            with open(mlflow_yaml_path, "r") as stream:
-                mlflow_metadata = yaml.safe_load(stream)
-            mlflow_load_strategy = mlflow_metadata["flavors"]["python_function"][
-                "loader_module"
-            ]
+            try:
+                with open(mlflow_yaml_path, "r") as stream:
+                    mlflow_metadata = yaml.safe_load(stream)
+                mlflow_load_strategy = mlflow_metadata["metadata"][
+                    "garden_load_strategy"
+                ]
+            except KeyError:
+                # Default to mlflow.pyfunc if can't find garden_load_strategy
+                mlflow_load_strategy = "pyfunc"
 
-            if mlflow_load_strategy == "mlflow.pytorch":
+            if mlflow_load_strategy == "pyfunc":
+                self._model = mlflow.pyfunc.load_model(
+                    local_model_path, suppress_warnings=True
+                )
+            elif mlflow_load_strategy == "sklearn":
+                self._model = mlflow.sklearn.load_model(local_model_path)
+            elif mlflow_load_strategy == "pytorch":
                 # Load torch models with mlflow.torch so they can taketorch.tensors inputs
                 # Will also cause torch models to fail with np.ndarrays or pd.dataframes inputs
                 # Must load instead with mlflow.pyfunc to handel the latter two.
@@ -120,8 +130,8 @@ class _Model:
                     mlflow.pytorch.load_model(local_model_path)
                 )
             else:
-                self._model = mlflow.pyfunc.load_model(
-                    local_model_path, suppress_warnings=True
+                raise Exception(
+                    f"Invlaid garden_load_strategy given: {mlflow_load_strategy}"
                 )
 
             try:
@@ -152,10 +162,31 @@ class _Model:
         """
         return self.model.predict(data)
 
+    # Dill serialization breaks using new __getattr__ if missing this.
+    def __getstate__(self):
+        return self.__dict__
+
+    def __getattr__(self, attr):
+        if attr == "_model":
+            # Dill deserialization infinitely recursive without this
+            raise AttributeError()
+        if self._model is not None:
+            if attr in self.__dict__:
+                # Use self definition of attr
+                return self.__dict__[attr]
+            else:
+                # self does not have definition of attr
+                # Search _model instead
+                return self._model.__getattribute__(attr)
+        else:
+            # _model is None, lazy load and try again.
+            self._lazy_load_model()
+            return getattr(self, attr)
+
     class _TorchWrapper(object):
         """
         Wrapper class for pytorch models.
-        Adds predict method for torch models that normally predict with model(X)
+        Adds predict method to torch models.
         """
 
         def __init__(self, model):
@@ -166,8 +197,8 @@ class _Model:
 
         def __getattr__(self, attr):
             if attr in self.__dict__:
-                # use _ModelWrapper definition of attr
+                # use _TorchWrapper definition of attr
                 return getattr(self, attr)
-            # _ModelWrapper does not have attr,
+            # _TorchWrapper does not have attr,
             # use _wrapped_model definition of attr instead
             return getattr(self._wrapped_model, attr)

@@ -194,6 +194,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
+            metadata = {"garden_load_strategy": "sklearn"}
         elif flavor == ModelFlavor.TENSORFLOW.value:
             if (
                 serialization_type == SerializeType.KERAS.value
@@ -211,6 +212,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
+            metadata = {"garden_load_strategy": "pyfunc"}
         elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
             if (
                 serialization_type == SerializeType.TORCH.value
@@ -233,6 +235,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
+            metadata = {"garden_load_strategy": "pytorch"}
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
@@ -256,6 +259,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 artifact_path,
                 registered_model_name=local_model.mlflow_name,
                 code_paths=extra_paths,
+                metadata=metadata,
             )
             model_dir = os.path.join(
                 str(MODEL_STAGING_DIR),
