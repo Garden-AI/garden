@@ -426,10 +426,13 @@ class PublishedGarden(BaseModel):
                 "Please verify consistency between the `pipelines` and `pipeline_ids` attributes."
             )
 
-        values["pipeline_names"] = [
-            pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
-            for pipeline in pipelines
-        ]
+        if pipeline_aliases:
+            values["pipeline_names"] = [
+                pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
+                for pipeline in pipelines
+            ]
+        else:
+            values["pipeline_names"] = [pipeline.short_name for pipeline in pipelines]
 
         return values
 
