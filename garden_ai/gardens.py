@@ -428,11 +428,13 @@ class PublishedGarden(BaseModel):
 
         if pipeline_aliases:
             values["pipeline_names"] = [
-                pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
+                pipeline_aliases.get(pipeline["short_name"]) or pipeline["short_name"]
                 for pipeline in pipelines
             ]
         else:
-            values["pipeline_names"] = [pipeline.short_name for pipeline in pipelines]
+            values["pipeline_names"] = [
+                pipeline["short_name"] for pipeline in pipelines
+            ]
 
         return values
 
