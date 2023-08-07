@@ -4,3 +4,4 @@
         show_object_full_path: True
         members:
             - Garden
+            - PublishedGarden
