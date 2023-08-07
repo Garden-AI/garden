@@ -411,6 +411,21 @@ class PublishedGarden(BaseModel):
     pipeline_names: List[str] = Field(init=False)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
+    @root_validator
+    def verify_integrity(cls, values):
+        pipelines, pipeline_ids = (
+            values.get(attr) for attr in ("pipelines", "pipeline_ids")
+        )
+
+        if not len(pipelines) == len(pipeline_ids) and all(
+            pipeline.doi in pipeline_ids for pipeline in pipelines
+        ):
+            raise ValueError(
+                "This garden has an invalid state. "
+                "Please verify consistency between the `pipelines` and `pipeline_ids` attributes."
+            )
+        return values
+
     @validator("year")
     def valid_year(cls, year):
         if len(str(year)) != 4:
