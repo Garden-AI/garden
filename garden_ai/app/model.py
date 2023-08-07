@@ -89,11 +89,11 @@ def register(
         raise typer.BadParameter(
             f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
         )
-    extra_paths = [str(path) for path in extra_paths] if extra_paths else []
+    extra_paths_str = [str(path) for path in extra_paths] if extra_paths else []
     client = GardenClient()
     local_model = LocalModel(
         local_path=str(model_path),
-        extra_paths=extra_paths,
+        extra_paths=extra_paths_str,
         model_name=name,
         flavor=flavor,
         serialize_type=serialize_type,
