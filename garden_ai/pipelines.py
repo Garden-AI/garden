@@ -353,35 +353,6 @@ class Pipeline:
         self._sync_author_metadata()
         return json.dumps(self, default=garden_json_encoder)
 
-    def datacite_json(self) -> JSON:
-        """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
-
-        # Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
-        # https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
-        #
-        # The JSON returned by this method would be the "attributes" part of a DataCite request body.
-
-        self._sync_author_metadata()
-        return DataciteSchema(
-            identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
-            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
-            creators=[Creator(name=name) for name in self.authors],
-            titles=[Title(title=self.title)],
-            publisher="thegardens.ai",
-            publicationYear=self.year,
-            subjects=[Subject(subject=tag) for tag in self.tags],
-            contributors=[
-                Contributor(name=name, contributorType="Other")  # type: ignore
-                for name in self.contributors
-            ],
-            version=self.version,
-            descriptions=[
-                Description(description=self.description, descriptionType="Other")  # type: ignore
-            ]
-            if self.description
-            else None,
-        ).json()
-
     def dict(self) -> Dict[str, Any]:
         """Helper: serialize pipeline metadata to dictionary."""
         d = {}
@@ -519,6 +490,15 @@ class RegisteredPipeline(BaseModel):
                 )
         return models
 
+    def _sync_author_metadata(self):
+        known_authors = set(self.authors)
+        known_contributors = set(self.contributors)
+        for step in self.steps:
+            new_contributors = set(step.authors) | set(step.contributors)
+            known_contributors |= new_contributors - known_authors
+        self.contributors = list(known_contributors)
+        return
+
     def expanded_metadata(self) -> Dict[str, Any]:
         """Helper: build the "complete" metadata dict with nested ``Model`` metadata.
 
@@ -532,9 +512,39 @@ class RegisteredPipeline(BaseModel):
         Returns:
             ``RegisteredPipeline`` metadata dict augmented with a list of ``RegisteredModel`` metadata
         """
+        self._sync_author_metadata()
         data = self.dict()
         data["models"] = [m.dict() for m in self.collect_models()]
         return data
+
+    def datacite_json(self) -> JSON:
+        """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
+
+        # Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
+        # https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
+        #
+        # The JSON returned by this method would be the "attributes" part of a DataCite request body.
+
+        self._sync_author_metadata()
+        return DataciteSchema(
+            identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
+            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            subjects=[Subject(subject=tag) for tag in self.tags],
+            contributors=[
+                Contributor(name=name, contributorType="Other")  # type: ignore
+                for name in self.contributors
+            ],
+            version=self.version,
+            descriptions=[
+                Description(description=self.description, descriptionType="Other")  # type: ignore
+            ]
+            if self.description
+            else None,
+        ).json()
 
 
 def pipeline_repr_html(pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
