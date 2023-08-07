@@ -34,7 +34,6 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Published
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
         ) from e
-    garden._set_pipelines_from_remote_metadata(garden_meta["pipelines"])
     return garden
 
 
