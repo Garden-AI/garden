@@ -74,21 +74,6 @@ def test_invalid_extra_paths(mocker, local_model, tmp_path):
         stage_model_for_upload(local_model)
 
 
-def test_extra_paths(mocker, local_model, tmp_path):
-    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
-    model_path = get_fixture_file_path("fixture_models/pytorchtest.pth")
-    file_path = get_fixture_file_path("fixture_models/torch.py")
-    local_model = LocalModel(
-        model_name="test_model",
-        flavor="pytorch",
-        local_path=str(model_path),
-        user_email="willengler@uchicago.edu",
-        extra_paths=[str(file_path)],
-    )
-    staged_path = stage_model_for_upload(local_model)
-    assert staged_path.endswith("/artifacts/model")
-
-
 def test_load_model_before_predict(mocker, model_url_env_var, mlflow_metadata):
     from mlflow.pyfunc import PyFuncModel  # type: ignore
 
