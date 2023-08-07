@@ -41,15 +41,8 @@ def test_garden_datacite(garden_title_authors_doi_only):
     assert data["publisher"] == "thegardens.ai"
 
 
-def test_pipeline_datacite(garden_client):
-    @step
-    def four() -> int:
-        return 4
-
-    pipeline = garden_client.create_pipeline(
-        authors=["Team, Garden"], title="Lorem Ipsum", steps=(four,)
-    )
-    data = json.loads(pipeline.datacite_json())
+def test_pipeline_datacite(registered_pipeline_toy_example):
+    data = json.loads(registered_pipeline_toy_example.datacite_json())
 
     assert isinstance(data["creators"], list)
     assert isinstance(data["titles"], list)
