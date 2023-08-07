@@ -29,7 +29,7 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
-from garden_ai.gardens import Garden
+from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
@@ -389,7 +389,7 @@ class GardenClient:
         }  # required data is filled in on the backend
         return self.backend_client.mint_doi_on_datacite(payload)
 
-    def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
+    def _update_datacite(self, obj: Union[PublishedGarden, RegisteredPipeline]) -> None:
         logger.info("Requesting update to DOI")
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
@@ -421,8 +421,8 @@ class GardenClient:
 
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
-        self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
+        self._update_datacite(registered)
         local_data.put_local_pipeline(registered)
         return registered
 
@@ -671,9 +671,10 @@ class GardenClient:
         making it visible on our Globus Search index.
         """
         self._generate_presigned_urls_for_garden(garden)
-        self._update_datacite(garden)
+        published = PublishedGarden.from_garden(garden)
+        self._update_datacite(published)
         try:
-            self.backend_client.publish_garden_metadata(garden)
+            self.backend_client.publish_garden_metadata(published)
         except Exception as e:
             raise Exception(
                 f"Request to Garden backend to publish garden failed with error: {str(e)}"
@@ -685,7 +686,7 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, doi: str) -> Garden:
+    def get_published_garden(self, doi: str) -> PublishedGarden:
         """
         Queries Globus Search for the garden with this DOI.
 
@@ -702,7 +703,9 @@ class GardenClient:
         self._generate_presigned_urls_for_garden(garden)
         return garden
 
-    def _generate_presigned_urls_for_garden(self, garden: Garden):
+    def _generate_presigned_urls_for_garden(
+        self, garden: Union[Garden, PublishedGarden]
+    ):
         all_model_names = [
             model_name
             for pipeline in garden.pipelines

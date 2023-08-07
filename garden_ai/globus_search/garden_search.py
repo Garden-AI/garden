@@ -1,6 +1,6 @@
 import json
 
-from garden_ai.gardens import Garden
+from garden_ai.gardens import PublishedGarden
 from globus_sdk import SearchClient, GlobusAPIError
 from pydantic import ValidationError
 from rich.traceback import install
@@ -17,7 +17,7 @@ class RemoteGardenException(Exception):
     pass
 
 
-def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
+def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> PublishedGarden:
     try:
         res = search_client.get_subject(GARDEN_INDEX_UUID, doi)
     except GlobusAPIError as e:
@@ -29,7 +29,7 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Garden:
             ) from e
     try:
         garden_meta = json.loads(res.text)["entries"][0]["content"]
-        garden = Garden(**garden_meta)
+        garden = PublishedGarden(**garden_meta)
     except (ValueError, KeyError, IndexError, ValidationError) as e:
         raise RemoteGardenException(
             f"Could not parse search response {res.text}"
