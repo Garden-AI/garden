@@ -5,7 +5,15 @@ from typing import Any, Iterable, List, Tuple, Union
 import pytest
 from pydantic import ValidationError
 
-from garden_ai import Garden, Pipeline, RegisteredPipeline, Step, local_data, step
+from garden_ai import (
+    Garden,
+    PublishedGarden,
+    Pipeline,
+    RegisteredPipeline,
+    Step,
+    local_data,
+    step,
+)
 
 
 def test_create_empty_garden(garden_client):
@@ -24,7 +32,9 @@ def test_validate_all_fields(garden_all_fields):
 
 
 def test_garden_datacite(garden_title_authors_doi_only):
-    data = json.loads(garden_title_authors_doi_only.datacite_json())
+    data = json.loads(
+        PublishedGarden.from_garden(garden_title_authors_doi_only).datacite_json()
+    )
 
     assert isinstance(data["creators"], list)
     assert isinstance(data["titles"], list)
