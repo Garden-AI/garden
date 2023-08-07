@@ -7,7 +7,7 @@ from typing import Optional, Callable, List
 import requests
 
 from garden_ai.constants import GardenConstants
-from garden_ai.gardens import Garden, PublishedGarden
+from garden_ai.gardens import PublishedGarden
 
 logger = logging.getLogger()
 
