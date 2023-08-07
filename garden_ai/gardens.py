@@ -136,7 +136,9 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def __post_init_post_parse__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         self.pipelines = self.pipelines or self._collect_pipelines()
         self.pipeline_names = self.pipeline_names or [
             self.pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
@@ -415,7 +417,9 @@ class PublishedGarden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def __post_init_post_parse__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         self.pipeline_names = [
             self.pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
             for pipeline in self.pipelines
