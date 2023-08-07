@@ -363,8 +363,8 @@ class PublishedGarden(BaseModel):
             `short_name` (or alias) - see also `pipeline_names` attribute.
 
         pipeline_names (list[str]):
-            List of python identifiers (i.e. variable names) usable for this \
-            garden's pipelines. Takes aliases into account.
+            Automatically generated list of python identifiers (i.e. variable names) \
+            usable for this garden's pipelines. Takes aliases into account.
 
         pipeline_ids: List[str] = Field(default_factory=list)
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
@@ -407,23 +407,30 @@ class PublishedGarden(BaseModel):
     pipelines: List[RegisteredPipeline] = Field(...)
     pipeline_ids: List[str] = Field(...)
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
-    # unsure how validation will behave here. the desired behavior is to have a required field that is filled in automagically post_init_post_parse
-    pipeline_names: List[str] = Field(init=False)
+    pipeline_names: List[str] = Field(...)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
-    @root_validator
-    def verify_integrity(cls, values):
-        pipelines, pipeline_ids = (
-            values.get(attr) for attr in ("pipelines", "pipeline_ids")
+    @root_validator(pre=True)
+    def verify_pipeline_integrity(cls, values):
+        pipelines, pipeline_ids, pipeline_aliases = (
+            values.get(attr)
+            for attr in ("pipelines", "pipeline_ids", "pipeline_aliases")
         )
 
-        if not len(pipelines) == len(pipeline_ids) and all(
-            pipeline.doi in pipeline_ids for pipeline in pipelines
+        if not (
+            len(pipelines) == len(pipeline_ids)
+            and all(pipeline.doi in pipeline_ids for pipeline in pipelines)
         ):
             raise ValueError(
                 "This garden has an invalid state. "
                 "Please verify consistency between the `pipelines` and `pipeline_ids` attributes."
             )
+
+        values["pipeline_names"] = [
+            pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
+            for pipeline in pipelines
+        ]
+
         return values
 
     @validator("year")
@@ -431,15 +438,6 @@ class PublishedGarden(BaseModel):
         if len(str(year)) != 4:
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.pipeline_names = [
-            self.pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
-            for pipeline in self.pipelines
-        ]
-        return
 
     @classmethod
     def from_garden(cls, garden: Garden) -> PublishedGarden:
