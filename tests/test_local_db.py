@@ -61,21 +61,33 @@ def test_local_cache(mocker, garden_client, pipeline_toy_example):
     reqs_dup_a = ["tensorflow", "pandas", "mlflow==2.5.0", "pandas"]
     reqs_reorder_a = ["mlflow==2.5.0", "tensorflow", "pandas"]
     reqs_b = ["pandas<3", "opencv-python", "mlflow==2.4.2"]
+
+    py_version = "3.10.8"
+
     assert (
-        get_cache_tag(reqs_a)
-        == get_cache_tag(reqs_dup_a)
-        == get_cache_tag(reqs_reorder_a)
+        get_cache_tag(reqs_a, [], py_version)
+        == get_cache_tag(reqs_dup_a, [], py_version)
+        == get_cache_tag(reqs_reorder_a, [], py_version)
     )
-    assert get_cache_tag(reqs_a) != get_cache_tag(reqs_b)
+    assert get_cache_tag(reqs_a, [], py_version) != get_cache_tag(
+        reqs_b, [], py_version
+    )
+    assert get_cache_tag(reqs_a, [], py_version) != get_cache_tag(
+        reqs_a, ["not-equal"], py_version
+    )
+    assert get_cache_tag(reqs_a, [], py_version) != get_cache_tag(reqs_a, [], "3.10.9")
 
     build_method = mocker.patch(
         "garden_ai.client.build_container",
         return_value="d1fc6d30-be1c-4ac4-a289-d87b27e84357",
     )
-    # return value is the checksum for pip_dependencies=["tensorflow"] (implicitly also contains pandas<3 and mlflow-skinny==2.5.0)
     mocker.patch(
         "garden_ai.client._read_local_cache",
-        return_value={get_cache_tag(reqs_a): "04332b26-bc14-45e1-a296-482e27c72500"},
+        return_value={
+            get_cache_tag(
+                reqs_a, [], py_version
+            ): "d1fc6d30-be1c-4ac4-a289-d87b27e84357"
+        },
     )
     mocker.patch("garden_ai.client._write_local_cache", return_value=None)
     mocker.patch(
