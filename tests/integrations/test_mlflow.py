@@ -1,8 +1,12 @@
 import pytest
 
 from garden_ai import GardenClient, Model
-from garden_ai.mlmodel import LocalModel, SerializationFormatException
-
+from garden_ai.mlmodel import (
+    LocalModel,
+    SerializationFormatException,
+    stage_model_for_upload,
+)
+from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 @pytest.fixture
 def toy_sklearn_model():
