@@ -269,9 +269,7 @@ def add_pipeline(
             )
             garden.rename_pipeline(old_name, pipeline_alias)
     else:
-        garden.pipeline_ids += [to_add.doi]
-        if pipeline_alias:
-            garden.rename_pipeline(to_add.short_name, pipeline_alias)
+        garden.add_pipeline(pipeline_id, pipeline_alias)
     local_data.put_local_garden(garden)
     logger.info(f"Added pipeline {pipeline_id} to Garden {garden_id}")
 
