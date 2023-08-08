@@ -170,7 +170,10 @@ def test_mlflow_pytorch_extra_paths(mocker, local_model, tmp_path):
         "model",
         registered_model_name=local_model.mlflow_name,
         code_paths=local_model.extra_paths,
+        metadata={"garden_load_strategy": "pytorch"},
     )
+    print(str(mock_log_variant.call_args))
+    print(str(expected_call))
     assert str(mock_log_variant.call_args) == str(expected_call)
 
 
