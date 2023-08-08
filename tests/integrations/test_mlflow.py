@@ -1,7 +1,12 @@
 import pytest
 
 from garden_ai import GardenClient, Model
-from garden_ai.mlmodel import LocalModel, SerializationFormatException
+from garden_ai.mlmodel import (
+    LocalModel,
+    SerializationFormatException,
+    stage_model_for_upload,
+)
+from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
 @pytest.fixture
@@ -140,6 +145,33 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     # all mlflow models will have a 'predict' method
     downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
+
+
+@pytest.mark.integration
+def test_mlflow_pytorch_extra_paths(mocker, local_model, tmp_path):
+    import torch  # type: ignore
+
+    mock_log_variant = mocker.MagicMock()
+    mocker.patch("mlflow.pytorch.log_model", mock_log_variant)
+    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
+    model_path = get_fixture_file_path("fixture_models/pytorchtest.pth")
+    file_path = get_fixture_file_path("fixture_models/torch.py")
+    local_model = LocalModel(
+        model_name="test_model",
+        flavor="pytorch",
+        local_path=str(model_path),
+        user_email="willengler@uchicago.edu",
+        extra_paths=[str(file_path)],
+    )
+    staged_path = stage_model_for_upload(local_model)
+    assert staged_path.endswith("/artifacts/model")
+    expected_call = mocker.call(
+        torch.load(model_path),
+        "model",
+        registered_model_name=local_model.mlflow_name,
+        code_paths=local_model.extra_paths,
+    )
+    assert str(mock_log_variant.call_args) == str(expected_call)
 
 
 @pytest.mark.integration
