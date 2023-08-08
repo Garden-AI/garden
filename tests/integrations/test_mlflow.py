@@ -143,6 +143,34 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
 
 
 @pytest.mark.integration
+def test_mlflow_pytorch_extra_paths(mocker, local_model, tmp_path):
+    import torch  # type: ignore
+
+    mock_log_variant = mocker.MagicMock()
+    mocker.patch("mlflow.pytorch.log_model", mock_log_variant)
+    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
+    model_path = get_fixture_file_path("fixture_models/pytorchtest.pth")
+    file_path = get_fixture_file_path("fixture_models/torch.py")
+    local_model = LocalModel(
+        model_name="test_model",
+        flavor="pytorch",
+        local_path=str(model_path),
+        user_email="willengler@uchicago.edu",
+        extra_paths=[str(file_path)],
+    )
+    staged_path = stage_model_for_upload(local_model)
+    assert staged_path.endswith("/artifacts/model")
+    expected_call = mocker.call(
+        torch.load(model_path),
+        "model",
+        registered_model_name=local_model.mlflow_name,
+        code_paths=local_model.extra_paths,
+        metadata={"garden_load_strategy": "pytorch"},
+    )
+    assert str(mock_log_variant.call_args) == str(expected_call)
+
+
+@pytest.mark.integration
 @pytest.mark.parametrize("save_format", ["tf", "h5"])
 def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format):
     # as if model.pkl already existed on disk
