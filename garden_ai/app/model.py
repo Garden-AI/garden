@@ -57,6 +57,7 @@ def register(
     serialize_type: Optional[str] = typer.Option(
         None,
         "--serialize-type",
+        "-s",
         help=(
             """
             Optional serialization format your model is saved in:
@@ -64,6 +65,18 @@ def register(
             Will use a compatible default if not provided.
             """
         ),
+    ),
+    extra_paths: Optional[List[Path]] = typer.Option(
+        None,
+        "--extra-path",
+        "-e",
+        exists=True,
+        dir_okay=True,
+        file_okay=True,
+        writable=True,
+        readable=True,
+        resolve_path=True,
+        help=("The extra Python files that your model may require. Pytorch specific"),
     ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
@@ -76,10 +89,11 @@ def register(
         raise typer.BadParameter(
             f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
         )
-
+    extra_paths_str = [str(path) for path in extra_paths] if extra_paths else []
     client = GardenClient()
     local_model = LocalModel(
         local_path=str(model_path),
+        extra_paths=extra_paths_str,
         model_name=name,
         flavor=flavor,
         serialize_type=serialize_type,

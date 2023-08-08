@@ -4,7 +4,7 @@ import pickle
 import joblib  # type: ignore
 import shutil
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 import functools
 import mlflow  # type: ignore
 from pydantic import BaseModel, Field, validator
@@ -154,10 +154,12 @@ class LocalModel(ModelMetadata):
     Extra attributes:
         local_path (str):
             Where the model is located on disk. Can be a file or a directory depending on the flavor.
-
+        extra_paths (List[str]):
+            Where the extra Python files for the model is located on disk. Pytorch model specific.
     """
 
     local_path: str = Field(...)
+    extra_paths: List[str] = Field(default_factory=list)
 
 
 def stage_model_for_upload(local_model: LocalModel) -> str:
@@ -169,10 +171,11 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
     Returns full path of model directory
     -------
     """
-    flavor, local_path, serialization_type = (
+    flavor, local_path, serialization_type, extra_paths = (
         local_model.flavor,
         local_model.local_path,
         local_model.serialize_type,
+        local_model.extra_paths,
     )
     try:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
@@ -217,7 +220,16 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             ):
                 import torch  # type: ignore
 
-                loaded_model = torch.load(local_path)
+                if torch.cuda.is_available():
+                    loaded_model = torch.load(local_path)
+                else:
+                    loaded_model = torch.load(local_path, map_location="cpu")
+                for file in extra_paths:
+                    path = pathlib.Path(file)
+                    if not path.exists() or not path.is_file() or path.suffix != ".py":
+                        raise ModelUploadException(
+                            f"{path} is not a valid Python file. Please provide a valid Python file (.py)."
+                        )
                 log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
             else:
                 raise SerializationFormatException(
@@ -227,6 +239,10 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
+        if extra_paths and flavor != ModelFlavor.PYTORCH.value:
+            raise ModelUploadException(
+                f"Sorry, extra files are only supported for pytorch models. The {flavor} flavor is not supported."
+            )
         # Create a folder structure for an experiment called "local" if it doesn't exist
         # in the user's .garden directory
         mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
@@ -242,6 +258,7 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 loaded_model,
                 artifact_path,
                 registered_model_name=local_model.mlflow_name,
+                code_paths=extra_paths,
                 metadata=metadata,
             )
             model_dir = os.path.join(
