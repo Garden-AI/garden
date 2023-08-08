@@ -62,7 +62,7 @@ def test_local_cache(mocker, garden_client, pipeline_toy_example):
     reqs_reorder_a = ["mlflow==2.5.0", "tensorflow", "pandas"]
     reqs_b = ["pandas<3", "opencv-python", "mlflow==2.4.2"]
 
-    py_version = "3.10.8"
+    py_version = pipeline_toy_example.python_version
 
     assert (
         get_cache_tag(reqs_a, [], py_version)
@@ -75,7 +75,7 @@ def test_local_cache(mocker, garden_client, pipeline_toy_example):
     assert get_cache_tag(reqs_a, [], py_version) != get_cache_tag(
         reqs_a, ["not-equal"], py_version
     )
-    assert get_cache_tag(reqs_a, [], py_version) != get_cache_tag(reqs_a, [], "3.10.9")
+    assert get_cache_tag(reqs_a, [], py_version) != get_cache_tag(reqs_a, [], "2.7.0")
 
     build_method = mocker.patch(
         "garden_ai.client.build_container",
