@@ -587,9 +587,11 @@ class GardenClient:
         garden = self.get_published_garden(garden_doi)
 
         # add pipeline to garden
-        # DOES NOT WORK IN THE NEW SYSTEM. NEED BETTER SOLUTION
-        if registered not in garden.pipelines:
+        # NOTE hack to get around the fact that there is no add_pipeline method for PublishedGardens
+        if registered.doi not in garden.pipeline_ids:
             garden.pipeline_ids += [registered.doi]
+            garden.pipelines += [registered]
+            garden.pipeline_names += [registered.short_name]
 
         self.publish_garden_metadata(garden)
         # bandaid in the event the index is written more than once simultaneously
@@ -599,6 +601,8 @@ class GardenClient:
             not in (remote := self.get_published_garden(garden.doi)).pipeline_ids
         ):
             remote.pipeline_ids += [registered.doi]
+            remote.pipelines += [registered]
+            remote.pipeline_names += [registered.short_name]
             self.publish_garden_metadata(remote)
 
         return pipeline.doi
