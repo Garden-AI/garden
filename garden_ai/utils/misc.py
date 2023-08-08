@@ -21,9 +21,10 @@ logger = logging.getLogger()
 issubtype = beartype.door.is_subhint
 
 
-def get_cache_tag(pip_reqs: List[str]) -> str:
-    """Used for container uuid caching based on pip dependencies"""
-    return str(crc32(str(sorted(set(pip_reqs))).encode()))
+def get_cache_tag(pip_reqs: List[str], conda_deps: List[str], py_version: str) -> str:
+    """Used for container uuid caching based on pip/conda dependencies"""
+    full_spec = pip_reqs + conda_deps + [py_version]
+    return str(crc32(str(sorted(set(full_spec))).encode()))
 
 
 def safe_compose(f: Callable, g: Callable):
