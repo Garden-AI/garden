@@ -582,23 +582,23 @@ class GardenClient:
             or "Auto-generated pipeline that executes a single step which runs an inference.",
             **kwargs,
         )
-        container_uuid = self.build_container(pipeline)
-        self.register_pipeline(pipeline, container_uuid)
+        registered = self.register_pipeline(pipeline)
 
         garden = self.get_published_garden(garden_doi)
 
         # add pipeline to garden
-        if pipeline not in garden.pipelines:
-            garden.pipeline_ids += [pipeline.doi]
+        # DOES NOT WORK IN THE NEW SYSTEM. NEED BETTER SOLUTION
+        if registered not in garden.pipelines:
+            garden.pipeline_ids += [registered.doi]
 
         self.publish_garden_metadata(garden)
         # bandaid in the event the index is written more than once simultaneously
         # note: still not perfect, communication is key
         if (
-            pipeline.doi
+            registered.doi
             not in (remote := self.get_published_garden(garden.doi)).pipeline_ids
         ):
-            remote.pipeline_ids += [pipeline.doi]
+            remote.pipeline_ids += [registered.doi]
             self.publish_garden_metadata(remote)
 
         return pipeline.doi
@@ -665,16 +665,19 @@ class GardenClient:
         self._generate_presigned_urls_for_garden(garden)
         return garden
 
-    def publish_garden_metadata(self, garden: Garden) -> None:
+    def publish_garden_metadata(self, garden: Union[Garden, PublishedGarden]) -> None:
         """
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
         self._generate_presigned_urls_for_garden(garden)
-        published = PublishedGarden.from_garden(garden)
-        self._update_datacite(published)
+
+        if isinstance(garden, Garden):
+            garden = PublishedGarden.from_garden(garden)
+
+        self._update_datacite(garden)
         try:
-            self.backend_client.publish_garden_metadata(published)
+            self.backend_client.publish_garden_metadata(garden)
         except Exception as e:
             raise Exception(
                 f"Request to Garden backend to publish garden failed with error: {str(e)}"
