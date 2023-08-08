@@ -193,9 +193,9 @@ class Garden(BaseModel):
                 "please provide an alias for the new pipeline."
             )
 
-        self.pipelines.append(pipeline)
-        self.pipeline_ids.append(pipeline_id)
-        self.pipeline_names.append(pipeline.short_name)
+        self.pipelines += [pipeline]
+        self.pipeline_ids += [pipeline_id]
+        self.pipeline_names += [pipeline.short_name]
 
         if alias:
             try:
