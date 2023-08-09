@@ -244,10 +244,10 @@ class Garden(BaseModel):
                 self.pipeline_aliases[key] = new_name
                 return
 
-        pipeline_names = (
+        pipeline_names = [
             self.pipeline_aliases.get(cached.short_name) or cached.short_name
             for cached in self._pipeline_cache
-        )
+        ]
 
         if new_name in pipeline_names:
             raise ValueError(

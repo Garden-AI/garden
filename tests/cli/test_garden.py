@@ -152,10 +152,10 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
 @pytest.mark.cli
 def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker):
     def get_names(garden):
-        return (
+        return [
             garden.pipeline_aliases.get(cached.short_name) or cached.short_name
             for cached in garden._pipeline_cache
-        )
+        ]
 
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
