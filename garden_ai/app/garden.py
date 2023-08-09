@@ -259,7 +259,7 @@ def add_pipeline(
     if not to_add:
         raise typer.Exit(code=1)
 
-    if to_add in garden.pipelines:
+    if to_add.doi in garden.pipeline_ids:
         if pipeline_alias:
             old_name = (
                 garden.pipeline_aliases.get(to_add.short_name) or to_add.short_name
