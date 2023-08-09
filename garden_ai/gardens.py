@@ -10,7 +10,6 @@ from pydantic import (
     BaseModel,
     Field,
     PrivateAttr,
-    ValidationError,
     root_validator,
     validator,
 )
@@ -53,17 +52,6 @@ class Garden(BaseModel):
         description (str):
             A brief summary of the Garden and/or its purpose, to aid discovery by \
             other Gardeners.
-
-        pipelines (list[RegisteredPipeline]):
-            List of the pipelines associated with this garden, built dynamically \
-            from the `pipeline_ids` attribute. Note that these pipelines can \
-            also be accessed directly by their `short_name` (or alias) - see \
-            also `pipeline_names` attribute.
-
-        pipeline_names (list[str]):
-            List of python identifiers (i.e. variable names) usable for this \
-            garden's pipelines. Takes aliases into account (set when adding \
-            pipeline via CLI or using `rename_pipeline` method.)
 
         pipeline_ids: List[str] = Field(default_factory=list)
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
@@ -116,10 +104,9 @@ class Garden(BaseModel):
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
-    pipelines: List[RegisteredPipeline] = Field(default_factory=list)
     pipeline_ids: List[str] = Field(default_factory=list)
-    pipeline_names: List[str] = Field(default_factory=list)
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
+    _pipeline_cache: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @root_validator(pre=True)
@@ -139,11 +126,7 @@ class Garden(BaseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.pipelines = self.pipelines or self._collect_pipelines()
-        self.pipeline_names = self.pipeline_names or [
-            self.pipeline_aliases.get(pipeline.short_name) or pipeline.short_name
-            for pipeline in self.pipelines
-        ]
+        self._pipeline_cache = self._collect_pipelines()
         return
 
     def _repr_html_(self) -> str:
@@ -165,8 +148,6 @@ class Garden(BaseModel):
                 raise PipelineNotFoundException(
                     f"Could not find registered pipeline with id {doi}."
                 )
-            # set env vars for pipeline to use when remotely executing
-            pipeline._env_vars = self._env_vars
 
             pipelines += [pipeline]
 
@@ -187,24 +168,20 @@ class Garden(BaseModel):
                 f"Error: no pipeline was found in the local database with the given doi {pipeline_id}."
             )
 
-        if pipeline.short_name in self.pipeline_names and alias is None:
+        if alias is None and pipeline.short_name in (
+            self.pipeline_aliases.get(cached.short_name) or cached.short_name
+            for cached in self._pipeline_cache
+        ):
             raise ValueError(
                 f"Error: a pipeline with the name {pipeline.short_name} already exists in this garden, "
                 "please provide an alias for the new pipeline."
             )
 
-        self.pipelines += [pipeline]
         self.pipeline_ids += [pipeline_id]
-        self.pipeline_names += [pipeline.short_name]
+        self._pipeline_cache += [pipeline]
 
         if alias:
-            try:
-                self.rename_pipeline(pipeline.short_name, alias)
-            except ValueError as e:
-                # re-raise this particular exception so that the correct parameter is listed
-                if "valid identifier" in str(e):
-                    raise ValueError("alias must be a valid identifier.") from e
-                raise
+            self.rename_pipeline(pipeline.short_name, alias)
         return
 
     def expanded_metadata(self) -> Dict[str, Any]:
@@ -224,7 +201,7 @@ class Garden(BaseModel):
         """
         self._sync_author_metadata()
         data = self.dict()
-        data["pipelines"] = [p.expanded_metadata() for p in self.pipelines]
+        data["pipelines"] = [p.expanded_metadata() for p in self._pipeline_cache]
         return data
 
     def expanded_json(self) -> JSON:
@@ -235,74 +212,18 @@ class Garden(BaseModel):
         data = self.expanded_metadata()
         return json.dumps(data, default=garden_json_encoder)
 
-    def validate(self):
-        """Helper: perform validation on all fields, even fields which are still defaults."""
-        # This is useful for catching fields with a default value which would not
-        # otherwise be valid, (e.g.  `None` for any required field), in particular
-        # as a sanity check before committing to publishing/registering the user's
-        # Garden.
-
-        # This is mostly redundant for any already-set fields, as the validators
-        # for those would have (hopefully) already run when they were set. However,
-        # (because this is still python), it's relatively easy to *modify* some
-        # fields without ever *assigning* to them, which wouldn't trigger
-        # validation.
-
-        # Examples
-        # --------
-        # gc = GardenClient()
-        # pea_garden = gc.create_garden(
-        #     authors=["Mendel, Gregor"], title="Experiments on Plant Hybridization"
-        # )
-
-        # # NOTE: pydantic won't see this, as it's neither construction nor assignment
-        # pea_garden.authors.append(None)         # no complaints
-
-        # # checks all fields, even those smuggled in without triggering validation.
-        # pea_garden.validate()
-        # # ...
-        # # ValidationError: 1 validation error for Garden
-        # # authors -> 1
-        # #   none is not an allowed value (type=type_error.none.not_allowed)
-        try:
-            _ = self.__class__(**self.dict())
-        except ValidationError as err:
-            logger.error(err)
-            raise
-
     def _sync_author_metadata(self):
         """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata."""
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
 
-        for pipeline in self.pipelines:
+        for pipeline in self._pipeline_cache:
             new_contributors = set(pipeline.authors) | set(pipeline.contributors)
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
         return
-
-    def __getattr__(self, name):
-        #  note: this is only called as a fallback when __getattribute__ raises an exception,
-        #  existing attributes are not affected by overriding this
-        message_extra = ""
-        for pipeline in self.pipelines:
-            short_name = pipeline.short_name
-            alias = self.pipeline_aliases.get(short_name) or short_name
-            if name == alias:
-                return pipeline
-            elif name == short_name:
-                message_extra = f" Did you mean {alias}?"
-
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'."
-            + message_extra
-        )
-
-    def __dir__(self):
-        # this gets us jupyter/ipython/repl tab-completion of pipeline names
-        return list(super().__dir__()) + self.pipeline_names
 
     def rename_pipeline(self, old_name: str, new_name: str):
         """Rename a pipeline in this garden.
@@ -314,16 +235,22 @@ class Garden(BaseModel):
             ValueError: if the new_name is already in use, or if the old_name is \
             not found, or if the new_name is not a valid identifier.
         """
-        if hasattr(self, new_name):
+        pipeline_names = (
+            self.pipeline_aliases.get(cached.short_name) or cached.short_name
+            for cached in self._pipeline_cache
+        )
+
+        if new_name in pipeline_names:
             raise ValueError(
                 f"Error: found existing {new_name} attribute on this garden."
             )
-        if not hasattr(self, old_name):
+        if old_name not in pipeline_names:
             raise ValueError(
                 f"Error: could not find pipeline {old_name} on this garden."
             )
         if not new_name.isidentifier():
-            raise ValueError("new_name must be a valid identifier.")
+            raise ValueError("an alias must be a valid Python identifier.")
+
         self.pipeline_aliases[old_name] = new_name
         return
 
@@ -456,39 +383,12 @@ class PublishedGarden(BaseModel):
         # note: we want every PublishedGarden to be re-constructible
         # from mere json, so as a sanity check we use garden.json() instead of
         # garden.dict() directly
-        record = garden.expanded_json()  # this method or plain .json()?
+        record = garden.expanded_json()
         data = json.loads(record)
         return cls(**data)
 
     def _repr_html_(self) -> str:
         return garden_repr_html(self)
-
-    def expanded_metadata(self) -> Dict[str, Any]:
-        """
-        Helper method: builds the "complete" metadata dictionary with nested `Pipeline` and `step` metadata.
-
-        When serializing normally with `garden.{dict(), json()}`, only the DOIs of the pipelines in the garden are included.
-
-        This method returns a superset of `garden.dict()`, so that the following holds:
-            valid_garden == Garden(**valid_garden.expanded_metadata()) == Garden(**valid_garden.dict())
-
-        Returns:
-            A dictionary containing the `Garden` metadata augmented with a list of `RegisteredPipeline` metadata.
-
-        Raises:
-            PipelineNotFoundException: If `garden.pipeline_ids` references an unknown pipeline ID.
-        """
-        data = self.dict()
-        data["pipelines"] = [p.expanded_metadata() for p in self.pipelines]
-        return data
-
-    def expanded_json(self) -> JSON:
-        """Helper: return the expanded garden metadata as JSON.
-
-        See: ``Garden.expanded_metadata`` method
-        """
-        data = self.expanded_metadata()
-        return json.dumps(data, default=garden_json_encoder)
 
     def datacite_json(self) -> JSON:
         """Parse this `Garden`s metadata into a DataCite-schema-compliant JSON string."""
@@ -527,41 +427,6 @@ class PublishedGarden(BaseModel):
             else None,
         ).json()
 
-    def validate(self):
-        """Helper: perform validation on all fields, even fields which are still defaults."""
-        # This is useful for catching fields with a default value which would not
-        # otherwise be valid, (e.g.  `None` for any required field), in particular
-        # as a sanity check before committing to publishing/registering the user's
-        # Garden.
-
-        # This is mostly redundant for any already-set fields, as the validators
-        # for those would have (hopefully) already run when they were set. However,
-        # (because this is still python), it's relatively easy to *modify* some
-        # fields without ever *assigning* to them, which wouldn't trigger
-        # validation.
-
-        # Examples
-        # --------
-        # gc = GardenClient()
-        # pea_garden = gc.create_garden(
-        #     authors=["Mendel, Gregor"], title="Experiments on Plant Hybridization"
-        # )
-
-        # # NOTE: pydantic won't see this, as it's neither construction nor assignment
-        # pea_garden.authors.append(None)         # no complaints
-
-        # # checks all fields, even those smuggled in without triggering validation.
-        # pea_garden.validate()
-        # # ...
-        # # ValidationError: 1 validation error for Garden
-        # # authors -> 1
-        # #   none is not an allowed value (type=type_error.none.not_allowed)
-        try:
-            _ = self.__class__(**self.dict())
-        except ValidationError as err:
-            logger.error(err)
-            raise
-
     def __getattr__(self, name):
         #  note: this is only called as a fallback when __getattribute__ raises an exception,
         #  existing attributes are not affected by overriding this
@@ -595,24 +460,26 @@ class PublishedGarden(BaseModel):
 
 
 def garden_repr_html(garden: Union[Garden, PublishedGarden]) -> str:
+    if isinstance(garden, Garden):
+        data = garden.expanded_metadata()
+    else:
+        data = garden.dict()
+
     style = "<style>th {text-align: left;}</style>"
-    title = f"<h2>{garden.title}</h2>"
-    details = f"<p>Authors: {', '.join(garden.authors)}<br>DOI: {garden.doi}</p>"
+    title = f"<h2>{data['title']}</h2>"
+    details = f"<p>Authors: {', '.join(data['authors'])}<br>DOI: {data['doi']}</p>"
     pipelines = "<h3>Pipelines</h3>" + tabulate(
         [
-            {
-                key.title(): str(getattr(pipeline, key))
-                for key in ("title", "authors", "doi")
-            }
-            for pipeline in garden.pipelines
+            {key.title(): str(pipeline[key]) for key in ("title", "authors", "doi")}
+            for pipeline in data["pipelines"]
         ],
         headers="keys",
         tablefmt="html",
     )
     optional = "<h3>Additional data</h3>" + tabulate(
         [
-            (field, val)
-            for field, val in garden.dict().items()
+            (field, str(val))
+            for field, val in data.items()
             if field not in ("title", "authors", "doi")
             and "pipeline" not in field
             and val

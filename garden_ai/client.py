@@ -666,7 +666,6 @@ class GardenClient:
             raise GardenNotFoundException(
                 f"Could not find any Gardens with identifier {doi}."
             )
-        self._generate_presigned_urls_for_garden(garden)
         return garden
 
     def publish_garden_metadata(self, garden: Union[Garden, PublishedGarden]) -> None:
@@ -674,8 +673,6 @@ class GardenClient:
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
-        self._generate_presigned_urls_for_garden(garden)
-
         if isinstance(garden, Garden):
             garden = PublishedGarden.from_garden(garden)
 
@@ -710,9 +707,7 @@ class GardenClient:
         self._generate_presigned_urls_for_garden(garden)
         return garden
 
-    def _generate_presigned_urls_for_garden(
-        self, garden: Union[Garden, PublishedGarden]
-    ):
+    def _generate_presigned_urls_for_garden(self, garden: PublishedGarden):
         all_model_names = [
             model_name
             for pipeline in garden.pipelines
