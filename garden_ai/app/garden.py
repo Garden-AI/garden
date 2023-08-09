@@ -267,7 +267,7 @@ def add_pipeline(
             print(
                 f"Pipeline {pipeline_id} is already in Garden {garden_id} as {old_name}. Renaming to {pipeline_alias}."
             )
-            garden.rename_pipeline(old_name, pipeline_alias)
+            garden.rename_pipeline(to_add.short_name, pipeline_alias)
     else:
         garden.add_pipeline(pipeline_id, pipeline_alias)
     local_data.put_local_garden(garden)
