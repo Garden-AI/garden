@@ -235,6 +235,15 @@ class Garden(BaseModel):
             ValueError: if the new_name is already in use, or if the old_name is \
             not found, or if the new_name is not a valid identifier.
         """
+        if not new_name.isidentifier():
+            raise ValueError("an alias must be a valid Python identifier.")
+
+        # support re-aliasing
+        for key, val in self.pipeline_aliases.items():
+            if old_name == val:
+                self.pipeline_aliases[key] = new_name
+                return
+
         pipeline_names = (
             self.pipeline_aliases.get(cached.short_name) or cached.short_name
             for cached in self._pipeline_cache
@@ -248,8 +257,6 @@ class Garden(BaseModel):
             raise ValueError(
                 f"Error: could not find pipeline {old_name} on this garden."
             )
-        if not new_name.isidentifier():
-            raise ValueError("an alias must be a valid Python identifier.")
 
         self.pipeline_aliases[old_name] = new_name
         return
