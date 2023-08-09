@@ -68,7 +68,7 @@ class BackendClient:
         self._put("/doi", payload)
 
     def publish_garden_metadata(self, garden: PublishedGarden):
-        payload = json.loads(garden.expanded_json())
+        payload = json.loads(garden.json())
         self._post("/garden-search-record", payload)
 
     def _get_presigned_urls(
