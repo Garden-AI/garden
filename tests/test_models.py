@@ -27,10 +27,6 @@ def test_create_empty_garden(garden_client):
     assert not garden.title
 
 
-def test_validate_all_fields(garden_all_fields):
-    garden_all_fields.validate()
-
-
 def test_garden_datacite(garden_title_authors_doi_only):
     data = json.loads(
         PublishedGarden.from_garden(garden_title_authors_doi_only).datacite_json()
@@ -49,20 +45,6 @@ def test_pipeline_datacite(registered_pipeline_toy_example):
     assert data["publisher"] == "thegardens.ai"
 
 
-def test_validate_no_fields(garden_no_fields):
-    with pytest.raises(ValidationError):
-        garden_no_fields.validate()
-
-
-def test_validate_required_only(garden_no_fields):
-    garden = garden_no_fields
-    garden.authors = ["Mendel, Gregor"]
-    with pytest.raises(ValidationError):
-        garden.validate()
-    garden.title = "Experiments on Plant Hybridization"
-    garden.validate()
-
-
 def test_garden_can_access_pipeline_as_attribute(
     mocker, database_with_connected_pipeline
 ):
@@ -70,7 +52,8 @@ def test_garden_can_access_pipeline_as_attribute(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
     garden = local_data.get_local_garden_by_doi("10.23677/fake-doi")
-    assert isinstance(garden.fixture_pipeline, RegisteredPipeline)
+    published = PublishedGarden.from_garden(garden)
+    assert isinstance(published.fixture_pipeline, RegisteredPipeline)
 
 
 def test_step_wrapper():

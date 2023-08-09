@@ -151,6 +151,12 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
 
 @pytest.mark.cli
 def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker):
+    def get_names(garden):
+        return (
+            garden.pipeline_aliases.get(cached.short_name) or cached.short_name
+            for cached in garden._pipeline_cache
+        )
+
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
@@ -161,9 +167,11 @@ def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker
     pipeline_alias = "fixed_ur_pipeline"
 
     before_addition = local_data.get_local_garden_by_doi(garden_doi)
-    assert len(before_addition.pipelines) == 1
-    assert hasattr(before_addition, pipeline_old_name)
-    assert not hasattr(before_addition, pipeline_alias)
+    pipeline_names = get_names(before_addition)
+
+    assert len(before_addition.pipeline_ids) == 1
+    assert pipeline_old_name in pipeline_names
+    assert pipeline_alias not in pipeline_names
 
     command = [
         "garden",
@@ -179,5 +187,7 @@ def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker
     assert result.exit_code == 0
 
     after_addition = local_data.get_local_garden_by_doi(garden_doi)
-    assert not hasattr(after_addition, pipeline_old_name)
-    assert hasattr(after_addition, pipeline_alias)
+    new_pipeline_names = get_names(after_addition)
+
+    assert pipeline_old_name not in new_pipeline_names
+    assert pipeline_alias in new_pipeline_names
