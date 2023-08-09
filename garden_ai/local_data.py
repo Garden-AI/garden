@@ -23,11 +23,11 @@ class LocalDataException(Exception):
 
 
 class PipelineNotFoundException(KeyError):
-    """Exception raised when a Garden references an unknown pipeline doi"""
+    """Exception raised when a Garden references an unknown pipeline DOI"""
 
 
 class GardenNotFoundException(KeyError):
-    """Exception raised when no Garden is found with a given doi"""
+    """Exception raised when no Garden is found with a given DOI"""
 
 
 class ResourceType(Enum):
@@ -191,7 +191,7 @@ def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
     Parameters
     ----------
     doi str
-        The doi of the Garden you are fetching.
+        The DOI of the Garden you are fetching.
 
     Returns
     -------
@@ -206,7 +206,7 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     Parameters
     ----------
     doi str
-        The doi of the Pipeline you are fetching.
+        The DOI of the Pipeline you are fetching.
 
     Returns
     -------

@@ -22,7 +22,7 @@ def get_remote_garden_by_doi(doi: str, search_client: SearchClient) -> Published
         res = search_client.get_subject(GARDEN_INDEX_UUID, doi)
     except GlobusAPIError as e:
         if e.http_status == 404:
-            raise RemoteGardenException(f"Could not find Garden with doi {doi}") from e
+            raise RemoteGardenException(f"Could not find Garden with DOI {doi}") from e
         else:
             raise RemoteGardenException(
                 f"Could not reach Globus Search Index {GARDEN_INDEX_UUID}"

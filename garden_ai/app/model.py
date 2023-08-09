@@ -134,7 +134,7 @@ def add_dataset(
         None,
         "-d",
         "--doi",
-        help="If dataset has a doi it can be referenced by, include the doi.",
+        help="If dataset has a DOI it can be referenced by, include the DOI.",
         rich_help_panel="Recommended",
     ),
     data_type: str = typer.Option(
@@ -149,7 +149,7 @@ def add_dataset(
     if not model:
         raise ModelNotFoundException("This model cannot be found.")
     if not doi:
-        doi = Prompt.ask("Add the doi of the dataset? (leave blank to skip)")
+        doi = Prompt.ask("Add the DOI of the dataset? (leave blank to skip)")
     if not data_type:
         data_type = Prompt.ask("Add the filetype of the dataset (leave blank to skip)")
     only_one_dataset_option_provided = (url and not doi) or (doi and not url)
