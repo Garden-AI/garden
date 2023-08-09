@@ -594,28 +594,18 @@ class GardenClient:
         )
         registered = self.register_pipeline(pipeline)
 
-        garden = self.get_published_garden(garden_doi)
+        garden = self.clone_garden(garden_doi, silent=True)
+
+        # NOTE hack to allow the clone to update the remote record in-place
+        garden.doi = garden_doi
 
         # add pipeline to garden
-        # NOTE hack to get around the fact that there is no add_pipeline method for PublishedGardens
-        if registered.doi not in garden.pipeline_ids:
-            garden.pipeline_ids += [registered.doi]
-            garden.pipelines += [registered]
-            garden.pipeline_names += [registered.short_name]
+        garden.add_pipeline(registered.doi)
 
+        # update the record with new pipeline added
         self.publish_garden_metadata(garden)
-        # bandaid in the event the index is written more than once simultaneously
-        # note: still not perfect, communication is key
-        if (
-            registered.doi
-            not in (remote := self.get_published_garden(garden.doi)).pipeline_ids
-        ):
-            remote.pipeline_ids += [registered.doi]
-            remote.pipelines += [registered]
-            remote.pipeline_names += [registered.short_name]
-            self.publish_garden_metadata(remote)
 
-        return pipeline.doi
+        return registered.doi
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given DOI.
@@ -699,7 +689,7 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def local_garden_clone(self, doi: str) -> Garden:
+    def clone_garden(self, doi: str, *, silent: bool = False) -> Garden:
         """
         Queries Globus Search for the garden with the given DOI
         and creates a local clone of it that can be modified.
@@ -709,6 +699,7 @@ class GardenClient:
         Parameters
         ----------
         doi: The DOI of the garden you want to clone.
+        silent: Whether or not to print any messages.
 
         Returns
         -------
@@ -724,9 +715,10 @@ class GardenClient:
 
         garden = self.create_garden(**data)
 
-        log_msg = f"Garden {doi} successfully cloned locally and given replacement DOI {garden.doi}."
-        logger.info(log_msg)
-        print(log_msg)
+        if not silent:
+            log_msg = f"Garden {doi} successfully cloned locally and given replacement DOI {garden.doi}."
+            logger.info(log_msg)
+            print(log_msg)
 
         return garden
 
