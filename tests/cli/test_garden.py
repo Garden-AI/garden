@@ -153,7 +153,7 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
 def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker):
     def get_names(garden):
         return [
-            garden.pipeline_aliases.get(cached.short_name) or cached.short_name
+            garden.pipeline_aliases.get(cached.doi) or cached.short_name
             for cached in garden._pipeline_cache
         ]
 

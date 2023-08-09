@@ -57,7 +57,7 @@ class Garden(BaseModel):
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
-            A garden's doi usable for citations, generated automatically via \
+            A garden's DOI usable for citations, generated automatically via \
             DataCite using the required fields.
 
         version (str):
@@ -160,16 +160,22 @@ class Garden(BaseModel):
         Raises:
             ValueError: If any of the provided arguments would result in an invalid state.
         """
+        if pipeline_id in self.pipeline_ids:
+            raise ValueError(
+                "Error: this pipeline is already attached to this garden. "
+                "to rename a pipeline, see `rename_pipeline`"
+            )
+
         from .local_data import get_local_pipeline_by_doi
 
         pipeline = get_local_pipeline_by_doi(pipeline_id)
         if pipeline is None:
             raise ValueError(
-                f"Error: no pipeline was found in the local database with the given doi {pipeline_id}."
+                f"Error: no pipeline was found in the local database with the given DOI {pipeline_id}."
             )
 
         if alias is None and pipeline.short_name in (
-            self.pipeline_aliases.get(cached.short_name) or cached.short_name
+            self.pipeline_aliases.get(cached.doi) or cached.short_name
             for cached in self._pipeline_cache
         ):
             raise ValueError(
@@ -181,7 +187,7 @@ class Garden(BaseModel):
         self._pipeline_cache += [pipeline]
 
         if alias:
-            self.rename_pipeline(pipeline.short_name, alias)
+            self.rename_pipeline(pipeline_id, alias)
         return
 
     def expanded_metadata(self) -> Dict[str, Any]:
@@ -225,11 +231,11 @@ class Garden(BaseModel):
         self.contributors = list(known_contributors)
         return
 
-    def rename_pipeline(self, old_name: str, new_name: str):
+    def rename_pipeline(self, pipeline_id: str, new_name: str):
         """Rename a pipeline in this garden.
 
         Parameters:
-            old_name (str): the current short_name of the pipeline
+            pipeline_id (str): the DOI for the pipeline to be renamed
             new_name (str): the new short_name of the pipeline
         Raises:
             ValueError: if the new_name is already in use, or if the old_name is \
@@ -238,27 +244,21 @@ class Garden(BaseModel):
         if not new_name.isidentifier():
             raise ValueError("an alias must be a valid Python identifier.")
 
-        # support re-aliasing
-        for key, val in self.pipeline_aliases.items():
-            if old_name == val:
-                self.pipeline_aliases[key] = new_name
-                return
+        if pipeline_id not in self.pipeline_ids:
+            raise ValueError(
+                f"Error: could not find pipeline with DOI {pipeline_id} in this garden."
+            )
 
-        pipeline_names = [
-            self.pipeline_aliases.get(cached.short_name) or cached.short_name
+        pipeline_names = (
+            self.pipeline_aliases.get(cached.doi) or cached.short_name
             for cached in self._pipeline_cache
-        ]
-
+        )
         if new_name in pipeline_names:
             raise ValueError(
-                f"Error: found existing {new_name} attribute on this garden."
-            )
-        if old_name not in pipeline_names:
-            raise ValueError(
-                f"Error: could not find pipeline {old_name} on this garden."
+                f"Error: found existing pipeline with name {new_name} in this garden."
             )
 
-        self.pipeline_aliases[old_name] = new_name
+        self.pipeline_aliases[pipeline_id] = new_name
         return
 
     class Config:
@@ -304,7 +304,7 @@ class PublishedGarden(BaseModel):
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
-            A garden's doi usable for citations.
+            A garden's DOI usable for citations.
 
         version (str):
             optional, defaults to "0.0.1".
@@ -362,7 +362,7 @@ class PublishedGarden(BaseModel):
 
         if pipeline_aliases:
             values["pipeline_names"] = [
-                pipeline_aliases.get(pipeline["short_name"]) or pipeline["short_name"]
+                pipeline_aliases.get(pipeline["doi"]) or pipeline["short_name"]
                 for pipeline in pipelines
             ]
         else:
@@ -440,7 +440,7 @@ class PublishedGarden(BaseModel):
         message_extra = ""
         for pipeline in self.pipelines:
             short_name = pipeline.short_name
-            alias = self.pipeline_aliases.get(short_name) or short_name
+            alias = self.pipeline_aliases.get(pipeline.doi) or short_name
             if name == alias:
                 return pipeline
             elif name == short_name:
