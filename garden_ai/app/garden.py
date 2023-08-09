@@ -17,6 +17,7 @@ from garden_ai.globus_search.garden_search import (
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.app.console import console, get_local_garden_rich_table
+from garden_ai.app.completion import complete_garden, complete_pipeline
 
 logger = logging.getLogger()
 
@@ -227,6 +228,7 @@ def add_pipeline(
         ...,
         "-g",
         "--garden",
+        autocompletion=complete_garden,
         prompt="Please enter the DOI of a garden",
         help="The name of the garden you want to add a pipeline to",
         rich_help_panel="Required",
@@ -235,6 +237,7 @@ def add_pipeline(
         ...,
         "-p",
         "--pipeline",
+        autocompletion=complete_pipeline,
         prompt="Please enter the DOI of a pipeline",
         help="The name of the pipeline you want to add",
         rich_help_panel="Required",
@@ -280,6 +283,7 @@ def publish(
         ...,
         "-g",
         "--garden",
+        autocompletion=complete_garden,
         prompt="Please enter the DOI of a garden",
         help="The DOI of the garden you want to publish",
         rich_help_panel="Required",
@@ -330,6 +334,7 @@ def show(
         ...,
         help="The DOIs of the Gardens you want to show the local data for. "
         "e.g. ``garden show garden1_doi garden2_doi`` will show the local data for both Gardens listed.",
+        autocompletion=complete_garden,
     ),
 ):
     """Shows all info for some Gardens"""

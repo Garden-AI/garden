@@ -1,7 +1,12 @@
 import pytest
 
 from garden_ai import GardenClient, Model
-from garden_ai.mlmodel import LocalModel
+from garden_ai.mlmodel import (
+    LocalModel,
+    SerializationFormatException,
+    stage_model_for_upload,
+)
+from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
 @pytest.fixture
@@ -72,16 +77,25 @@ def toy_tensorflow_model():
 
 
 @pytest.mark.integration
-def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
+@pytest.mark.parametrize("serialize_type", [None, "pickle", "joblib", "keras"])
+def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model, serialize_type):
     # as if model.pkl already existed on disk
     import pickle
+    import joblib  # type: ignore
 
     tmp_path.mkdir(exist_ok=True)
     model_path = tmp_path / "model.pkl"
     model_path.touch()
 
-    with open(model_path, "wb") as f_out:
-        pickle.dump(toy_sklearn_model, f_out)
+    if serialize_type is None:
+        with open(model_path, "wb") as f_out:
+            pickle.dump(toy_sklearn_model, f_out)
+    elif serialize_type == "pickle":
+        with open(model_path, "wb") as f_out:
+            pickle.dump(toy_sklearn_model, f_out)
+    elif serialize_type == "joblib":
+        with open(model_path, "wb") as f_out:
+            joblib.dump(toy_sklearn_model, f_out)
 
     # simulate `$ garden-ai model register test-model-name tmp_path/model.pkl`
     name = "sk-test-model-name"
@@ -92,13 +106,19 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model):
         local_path=str(model_path),
         model_name=name,
         flavor="sklearn",
+        serialize_type=serialize_type,
         user_email="foo@example.com",
     )
-    registered_model = client.register_model(local_model)
 
-    # all mlflow models will have a 'predict' method
-    downloaded_model = Model(registered_model.full_name)
-    assert hasattr(downloaded_model, "predict")
+    if serialize_type == "keras":
+        # Assert that the 'SerializationFormatException' is raised
+        with pytest.raises(SerializationFormatException):
+            client.register_model(local_model)
+    else:
+        registered_model = client.register_model(local_model)
+        # all mlflow models will have a 'predict' method
+        downloaded_model = Model(registered_model.full_name)
+        assert hasattr(downloaded_model, "predict")
 
 
 @pytest.mark.integration
@@ -125,6 +145,34 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
     # all mlflow models will have a 'predict' method
     downloaded_model = Model(registered_model.full_name)
     assert hasattr(downloaded_model, "predict")
+
+
+@pytest.mark.integration
+def test_mlflow_pytorch_extra_paths(mocker, local_model, tmp_path):
+    import torch  # type: ignore
+
+    mock_log_variant = mocker.MagicMock()
+    mocker.patch("mlflow.pytorch.log_model", mock_log_variant)
+    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
+    model_path = get_fixture_file_path("fixture_models/pytorchtest.pth")
+    file_path = get_fixture_file_path("fixture_models/torch.py")
+    local_model = LocalModel(
+        model_name="test_model",
+        flavor="pytorch",
+        local_path=str(model_path),
+        user_email="willengler@uchicago.edu",
+        extra_paths=[str(file_path)],
+    )
+    staged_path = stage_model_for_upload(local_model)
+    assert staged_path.endswith("/artifacts/model")
+    expected_call = mocker.call(
+        torch.load(model_path),
+        "model",
+        registered_model_name=local_model.mlflow_name,
+        code_paths=local_model.extra_paths,
+        metadata={"garden_load_strategy": "pytorch"},
+    )
+    assert str(mock_log_variant.call_args) == str(expected_call)
 
 
 @pytest.mark.integration

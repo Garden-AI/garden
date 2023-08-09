@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from garden_ai import local_data
 from garden_ai.client import GardenClient
@@ -8,10 +8,11 @@ from garden_ai.mlmodel import (
     LocalModel,
     ModelFlavor,
     ModelNotFoundException,
+    SerializeType,
 )
 
 from garden_ai.app.console import console, get_local_model_rich_table
-
+from garden_ai.app.completion import complete_model
 import typer
 import rich
 from rich.prompt import Prompt
@@ -53,6 +54,30 @@ def register(
             "Currently we support the following flavors 'sklearn', 'tensorflow', and 'pytorch'."
         ),
     ),
+    serialize_type: Optional[str] = typer.Option(
+        None,
+        "--serialize-type",
+        "-s",
+        help=(
+            """
+            Optional serialization format your model is saved in:
+            'pickle', 'joblib', 'keras', 'torch'.
+            Will use a compatible default if not provided.
+            """
+        ),
+    ),
+    extra_paths: Optional[List[Path]] = typer.Option(
+        None,
+        "--extra-path",
+        "-e",
+        exists=True,
+        dir_okay=True,
+        file_okay=True,
+        writable=True,
+        readable=True,
+        resolve_path=True,
+        help=("The extra Python files that your model may require. Pytorch specific"),
+    ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
     if flavor not in [f.value for f in ModelFlavor]:
@@ -60,11 +85,18 @@ def register(
             f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
         )
 
+    if serialize_type and serialize_type not in [s.value for s in SerializeType]:
+        raise typer.BadParameter(
+            f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
+        )
+    extra_paths_str = [str(path) for path in extra_paths] if extra_paths else []
     client = GardenClient()
     local_model = LocalModel(
         local_path=str(model_path),
+        extra_paths=extra_paths_str,
         model_name=name,
         flavor=flavor,
+        serialize_type=serialize_type,
         user_email=client.get_email(),
     )
 
@@ -80,6 +112,7 @@ def add_dataset(
         ...,
         "-m",
         "--model",
+        autocompletion=complete_model,
         help="The name of the model you would like to link your dataset to",
         rich_help_panel="Required",
     ),
@@ -155,8 +188,9 @@ def list():
 def show(
     model_ids: List[str] = typer.Argument(
         ...,
-        help="The URIs of the models you want to show the local data for. "
+        help="The full model names of the models you want to show the local data for. "
         "e.g. ``model show email@addr.ess-model-name/2 email@addr.ess-model-name-2/4`` will show the local data for both models listed.",
+        autocompletion=complete_model,
     ),
 ):
     """Shows all info for some Models"""

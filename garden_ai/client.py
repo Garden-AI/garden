@@ -402,7 +402,11 @@ class GardenClient:
         built_container_uuid = build_container(self.compute_client, pipeline)
 
         cache = _read_local_cache()
-        tag = get_cache_tag(pipeline.pip_dependencies)
+        tag = get_cache_tag(
+            pipeline.pip_dependencies,
+            pipeline.conda_dependencies,
+            pipeline.python_version,
+        )
         cache[tag] = built_container_uuid
         _write_local_cache(cache)
 
@@ -412,7 +416,13 @@ class GardenClient:
         self, pipeline: Pipeline, container_uuid: Optional[str] = None
     ) -> RegisteredPipeline:
         if container_uuid is None:
-            cache = _read_local_cache().get(get_cache_tag(pipeline.pip_dependencies))
+            cache = _read_local_cache().get(
+                get_cache_tag(
+                    pipeline.pip_dependencies,
+                    pipeline.conda_dependencies,
+                    pipeline.python_version,
+                )
+            )
             if cache is not None:
                 container_uuid = cache
                 print("Cache hit! Using pre-built container.")

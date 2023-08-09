@@ -1,9 +1,15 @@
 import json
 import os
+import pytest
 
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 from garden_ai import PublishedGarden
-from garden_ai.mlmodel import stage_model_for_upload, LocalModel, _Model
+from garden_ai.mlmodel import (
+    stage_model_for_upload,
+    LocalModel,
+    _Model,
+    ModelUploadException,
+)
 from garden_ai.backend_client import BackendClient, PresignedUrlResponse
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 
@@ -54,7 +60,22 @@ def test_get_download_url(model_url_env_var):
     assert url == "presigned-url.aws.com"
 
 
-def test_load_model_before_predict(mocker, model_url_env_var):
+def test_invalid_extra_paths(mocker, local_model, tmp_path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
+    model_path = get_fixture_file_path("fixture_models/iris_model.pkl")
+    local_model = LocalModel(
+        model_name="test_model",
+        flavor="sklearn",
+        local_path=str(model_path),
+        user_email="willengler@uchicago.edu",
+        extra_paths=["invalid-path.py"],
+    )
+    with pytest.raises(ModelUploadException):
+        stage_model_for_upload(local_model)
+
+
+def test_load_model_before_predict(mocker, model_url_env_var, mlflow_metadata):
     from mlflow.pyfunc import PyFuncModel  # type: ignore
 
     mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
@@ -64,9 +85,51 @@ def test_load_model_before_predict(mocker, model_url_env_var):
     ).return_value = (
         "/Users/FakeUser/.garden/mlflow/willengler@uchicago.edu/test_model/unzipped"
     )
+    mocker.patch("builtins.open", mocker.mock_open(read_data=mlflow_metadata))
     model = _Model("willengler@uchicago.edu/test_model")
     assert model.model is not None
     assert isinstance(model.model, PyFuncModel)
+
+
+def test_load_model_before_predict_sklearn(
+    mocker, model_url_env_var, mlflow_metadata_sklearn
+):
+    from mlflow.pyfunc import PyFuncModel  # type: ignore
+
+    # Mock mlflow.sklearn.load_model with PyFuncModel output instead of sklearn model
+    # Done to avoid importing sklearn to test suite
+    mock_sklearn_model = mocker.MagicMock(PyFuncModel)
+    mocker.patch("mlflow.sklearn.load_model").return_value = mock_sklearn_model
+    mocker.patch(
+        "garden_ai._model._Model.download_and_stage"
+    ).return_value = (
+        "/Users/FakeUser/.garden/mlflow/willengler@uchicago.edu/test_model/unzipped"
+    )
+    mocker.patch("builtins.open", mocker.mock_open(read_data=mlflow_metadata_sklearn))
+    model = _Model("willengler@uchicago.edu/test_model")
+    assert model.model is not None
+    assert isinstance(model.model, PyFuncModel)
+
+
+def test_load_model_before_predict_torch(
+    mocker, model_url_env_var, mlflow_metadata_torch
+):
+    from mlflow.pyfunc import PyFuncModel  # type: ignore
+
+    # Mock mlflow.pytorch.load_model with PyFuncModel output instead of torch.nn.Module
+    # Done to avoid importing pytorch to test suite
+    mock_torch_model = mocker.MagicMock(PyFuncModel)
+    mocker.patch("mlflow.pytorch.load_model").return_value = mock_torch_model
+    mocker.patch(
+        "garden_ai._model._Model.download_and_stage"
+    ).return_value = (
+        "/Users/FakeUser/.garden/mlflow/willengler@uchicago.edu/test_model/unzipped"
+    )
+    mocker.patch("builtins.open", mocker.mock_open(read_data=mlflow_metadata_torch))
+    model = _Model("willengler@uchicago.edu/test_model")
+    assert model.model is not None
+    assert isinstance(model.model, _Model._TorchWrapper)
+    assert isinstance(model.model._wrapped_model, PyFuncModel)
 
 
 def test_generate_presigned_urls_for_garden(

@@ -1,9 +1,10 @@
 import os
 import pathlib
 import pickle
+import joblib  # type: ignore
 import shutil
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 import functools
 import mlflow  # type: ignore
 from pydantic import BaseModel, Field, validator
@@ -18,6 +19,12 @@ MODEL_STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
 class ModelUploadException(Exception):
     """Exception raised when an attempt to upload a model to ML Flow fails"""
+
+    pass
+
+
+class SerializationFormatException(Exception):
+    """Exception raised when a serialization format is not supported by a given flavor"""
 
     pass
 
@@ -38,6 +45,20 @@ class ModelFlavor(Enum):
     SKLEARN = "sklearn"
     PYTORCH = "pytorch"
     TENSORFLOW = "tensorflow"
+
+
+class SerializeType(
+    Enum
+):  # May be of value to incorporate this in the ModelFlavor enum.
+    """
+    Flavors can interact with multiple serialization types.
+    Constraints are enforced within the model staging process.
+    """
+
+    PICKLE = "pickle"
+    JOBLIB = "joblib"
+    KERAS = "keras"  # keras/tf native save format
+    TORCH = "torch"  # torch native save format
 
 
 class DatasetConnection(BaseModel):
@@ -72,6 +93,7 @@ class ModelMetadata(BaseModel):
     Attributes:
         model_name (str): A short and descriptive name of the model
         flavor (str): The framework used for this model. One of "sklearn", "tensorflow", or "torch".
+        serialize_type (str): The serialization/packaging format used for the model.
         dataset (DatasetConnection):
             A dataset record that the model was trained on.
         user_email (str): The email address of the user uploading the model.
@@ -83,6 +105,7 @@ class ModelMetadata(BaseModel):
     model_name: str = Field(...)
     user_email: str = Field(...)
     flavor: str = Field(...)
+    serialize_type: Optional[str] = None
     dataset: Optional[DatasetConnection] = Field(None)
     full_name: str = ""
     mlflow_name: str = ""
@@ -113,6 +136,15 @@ class ModelMetadata(BaseModel):
             raise ValueError(error_message)
         return model_name
 
+    @validator("serialize_type")
+    def must_be_a_supported_serialize_type(cls, serialize_type):
+        """
+        Validates the serialization type when provided by the user, as it is optional.
+        """
+        if serialize_type and serialize_type not in [s.value for s in SerializeType]:
+            raise ValueError("is not a supported model serialization format")
+        return serialize_type
+
 
 class LocalModel(ModelMetadata):
     """
@@ -122,10 +154,12 @@ class LocalModel(ModelMetadata):
     Extra attributes:
         local_path (str):
             Where the model is located on disk. Can be a file or a directory depending on the flavor.
-
+        extra_paths (List[str]):
+            Where the extra Python files for the model is located on disk. Pytorch model specific.
     """
 
     local_path: str = Field(...)
+    extra_paths: List[str] = Field(default_factory=list)
 
 
 def stage_model_for_upload(local_model: LocalModel) -> str:
@@ -137,29 +171,78 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
     Returns full path of model directory
     -------
     """
-    flavor, local_path = local_model.flavor, local_model.local_path
+    flavor, local_path, serialization_type, extra_paths = (
+        local_model.flavor,
+        local_model.local_path,
+        local_model.serialize_type,
+        local_model.extra_paths,
+    )
     try:
         if flavor == ModelFlavor.SKLEARN.value and pathlib.Path(local_path).is_file:
-            with open(local_path, "rb") as f:
-                loaded_model = pickle.load(f)
-                log_model_variant = mlflow.sklearn.log_model
+            if (
+                serialization_type == SerializeType.PICKLE.value
+                or serialization_type is None  # default to pickle for sklearn
+            ):
+                with open(local_path, "rb") as f:
+                    loaded_model = pickle.load(f)
+                    log_model_variant = mlflow.sklearn.log_model
+            elif serialization_type == SerializeType.JOBLIB.value:
+                with open(local_path, "rb") as f:
+                    loaded_model = joblib.load(f)
+                    log_model_variant = mlflow.sklearn.log_model
+            else:
+                raise SerializationFormatException(
+                    f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
+                )
+            metadata = {"garden_load_strategy": "sklearn"}
         elif flavor == ModelFlavor.TENSORFLOW.value:
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-            # ignore cpu guard info on tf import require before tf import
-            from tensorflow import keras  # type: ignore
+            if (
+                serialization_type == SerializeType.KERAS.value
+                or serialization_type is None
+            ):
+                os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+                # ignore cpu guard info on tf import require before tf import
+                from tensorflow import keras  # type: ignore
 
-            loaded_model = keras.models.load_model(local_path)
-            log_model_variant = (
-                mlflow.tensorflow.log_model
-            )  # TODO explore artifact path and sigs
+                loaded_model = keras.models.load_model(local_path)
+                log_model_variant = (
+                    mlflow.tensorflow.log_model
+                )  # TODO explore artifact path and sigs
+            else:
+                raise SerializationFormatException(
+                    f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
+                )
+            metadata = {"garden_load_strategy": "pyfunc"}
         elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
-            import torch  # type: ignore
+            if (
+                serialization_type == SerializeType.TORCH.value
+                or serialization_type is None
+            ):
+                import torch  # type: ignore
 
-            loaded_model = torch.load(local_path)
-            log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
+                if torch.cuda.is_available():
+                    loaded_model = torch.load(local_path)
+                else:
+                    loaded_model = torch.load(local_path, map_location="cpu")
+                for file in extra_paths:
+                    path = pathlib.Path(file)
+                    if not path.exists() or not path.is_file() or path.suffix != ".py":
+                        raise ModelUploadException(
+                            f"{path} is not a valid Python file. Please provide a valid Python file (.py)."
+                        )
+                log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
+            else:
+                raise SerializationFormatException(
+                    f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
+                )
+            metadata = {"garden_load_strategy": "pytorch"}
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
+        if extra_paths and flavor != ModelFlavor.PYTORCH.value:
+            raise ModelUploadException(
+                f"Sorry, extra files are only supported for pytorch models. The {flavor} flavor is not supported."
+            )
         # Create a folder structure for an experiment called "local" if it doesn't exist
         # in the user's .garden directory
         mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
@@ -175,6 +258,8 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 loaded_model,
                 artifact_path,
                 registered_model_name=local_model.mlflow_name,
+                code_paths=extra_paths,
+                metadata=metadata,
             )
             model_dir = os.path.join(
                 str(MODEL_STAGING_DIR),

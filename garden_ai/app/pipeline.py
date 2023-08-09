@@ -12,6 +12,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
+from garden_ai.app.completion import complete_pipeline
 from garden_ai.pipelines import Repository, Paper
 from garden_ai.local_data import put_local_pipeline, get_local_pipeline_by_doi
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
@@ -197,6 +198,7 @@ def add_repository(
         ...,
         "-d",
         "--doi",
+        autocompletion=complete_pipeline,
         help="The doi for the pipeline you would like to add a repository to",
         rich_help_panel="Required",
     ),
@@ -257,6 +259,7 @@ def add_paper(
         ...,
         "-d",
         "--doi",
+        autocompletion=complete_pipeline,
         help="The doi for the pipeline you would like to add a repository to",
         rich_help_panel="Required",
     ),
@@ -478,6 +481,7 @@ def show(
         ...,
         help="The DOIs of the pipelines you want to show the local data for. "
         "e.g. ``pipeline show pipeline1_doi pipeline2_doi`` will show the local data for both pipelines listed.",
+        autocompletion=complete_pipeline,
     ),
 ):
     """Shows all info for some Gardens"""
