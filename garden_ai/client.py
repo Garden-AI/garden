@@ -678,17 +678,16 @@ class GardenClient:
             )
         return garden
 
-    def publish_garden_metadata(self, garden: Union[Garden, PublishedGarden]) -> None:
+    def publish_garden_metadata(self, garden: Garden) -> None:
         """
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
-        if isinstance(garden, Garden):
-            garden = PublishedGarden.from_garden(garden)
+        published = PublishedGarden.from_garden(garden)
 
-        self._update_datacite(garden)
+        self._update_datacite(published)
         try:
-            self.backend_client.publish_garden_metadata(garden)
+            self.backend_client.publish_garden_metadata(published)
         except Exception as e:
             raise Exception(
                 f"Request to Garden backend to publish garden failed with error: {str(e)}"
@@ -700,6 +699,37 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
+    def local_garden_clone(self, doi: str) -> Garden:
+        """
+        Queries Globus Search for the garden with the given DOI
+        and creates a local clone of it that can be modified.
+
+        NOTE: the clone will have a different DOI than the original
+
+        Parameters
+        ----------
+        doi: The DOI of the garden you want to clone.
+
+        Returns
+        -------
+        Garden populated with metadata from the remote metadata record.
+        """
+        published = self.get_published_garden(doi)
+
+        for pipeline in published.pipelines:
+            local_data.put_local_pipeline(pipeline)
+
+        data = published.dict()
+        del data["doi"]  # the clone should not retain the DOI
+
+        garden = self.create_garden(**data)
+
+        log_msg = f"Garden {doi} successfully cloned locally and given replacement DOI {garden.doi}."
+        logger.info(log_msg)
+        print(log_msg)
+
+        return garden
+
     def get_published_garden(self, doi: str) -> PublishedGarden:
         """
         Queries Globus Search for the garden with this DOI.
@@ -710,7 +740,7 @@ class GardenClient:
 
         Returns
         -------
-        Garden populated with metadata from remote metadata record.
+        PublishedGarden populated with metadata from the remote metadata record.
 
         """
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
