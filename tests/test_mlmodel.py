@@ -85,7 +85,9 @@ def test_generate_presigned_urls_for_garden(
     )
     garden_all_fields.pipelines = [registered_pipeline_toy_example]
 
-    garden_client._generate_presigned_urls_for_garden(PublishedGarden.from_garden(garden_all_fields))
+    garden_client._generate_presigned_urls_for_garden(
+        PublishedGarden.from_garden(garden_all_fields)
+    )
     env_var_string = garden_all_fields.pipelines[0]._env_vars["GARDEN_MODELS"]
     as_dict = json.loads(env_var_string)
     assert as_dict["willengler@uchicago.edu/test_model"] == "presigned-url.aws.com"
