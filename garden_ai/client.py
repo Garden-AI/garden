@@ -364,7 +364,7 @@ class GardenClient:
         local_data.put_local_model(model)
 
     def _mint_draft_doi(self, test: bool = True) -> str:
-        """Register a new draft doi with DataCite via Garden backend.
+        """Register a new draft DOI with DataCite via Garden backend.
 
         Expects environment variable GARDEN_ENDPOINT to be set (not including `/doi`).
 
@@ -437,7 +437,7 @@ class GardenClient:
         return registered
 
     def add_paper(self, title: str, doi: str, **kwargs) -> None:
-        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given doi.
+        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -471,7 +471,7 @@ class GardenClient:
         local_data.put_local_pipeline(pipeline)
 
     def add_repository(self, doi: str, url: str, repo_name: str, **kwargs) -> None:
-        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given doi.
+        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -618,7 +618,7 @@ class GardenClient:
         return pipeline.doi
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
-        """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
+        """Return a callable ``RegisteredPipeline`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -651,7 +651,7 @@ class GardenClient:
         return local_data._get_user_email()
 
     def get_local_garden(self, doi: str) -> Garden:
-        """Return a registered ``Garden`` corresponding to the given doi.
+        """Return a registered ``Garden`` corresponding to the given DOI.
 
         Any ``RegisteredPipelines`` registered to the Garden will be callable
         as attributes on the garden by their (registered) short_name, e.g.
@@ -706,7 +706,7 @@ class GardenClient:
 
         Parameters
         ----------
-        doi: The doi of the garden you want.
+        doi: The DOI of the garden you want.
 
         Returns
         -------
