@@ -174,10 +174,11 @@ class Garden(BaseModel):
                 f"Error: no pipeline was found in the local database with the given DOI {pipeline_id}."
             )
 
-        if alias is None and pipeline.short_name in (
+        pipeline_names = (
             self.pipeline_aliases.get(cached.doi) or cached.short_name
             for cached in self._pipeline_cache
-        ):
+        )
+        if alias is None and pipeline.short_name in pipeline_names:
             raise ValueError(
                 f"Error: a pipeline with the name {pipeline.short_name} already exists in this garden, "
                 "please provide an alias for the new pipeline."
