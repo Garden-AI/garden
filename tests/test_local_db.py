@@ -65,9 +65,14 @@ def test_local_db_clone(mocker, garden_client, garden_all_fields, tmp_path):
         "garden_ai.client.GardenClient.get_published_garden",
         return_value=PublishedGarden.from_garden(garden_all_fields),
     )
-    mocker.patch("garden_ai.client.GardenClient.create_garden", return_value=None)
+    mocker.patch(
+        "garden_ai.client.GardenClient._mint_draft_doi",
+        return_value="10.26311/fake-doi",
+    )
 
-    garden_client.clone_garden(garden_all_fields.doi, silent=True)
+    # this test asserts that the clone operation is correctly populating
+    # the local db with the pipelines referenced by the remote garden
+    garden_client.clone_published_garden(garden_all_fields.doi, silent=True)
 
     assert local_data.get_local_pipeline_by_doi("10.26311/fake-doi") is not None
 
