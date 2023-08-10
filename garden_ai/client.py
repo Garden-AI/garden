@@ -594,7 +594,7 @@ class GardenClient:
         )
         registered = self.register_pipeline(pipeline)
 
-        garden = self.clone_garden(garden_doi, silent=True)
+        garden = self.clone_published_garden(garden_doi, silent=True)
 
         # NOTE hack to allow the clone to update the remote record in-place
         garden.doi = garden_doi
@@ -689,7 +689,7 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def clone_garden(self, doi: str, *, silent: bool = False) -> Garden:
+    def clone_published_garden(self, doi: str, *, silent: bool = False) -> Garden:
         """
         Queries Globus Search for the garden with the given DOI
         and creates a local clone of it that can be modified.
