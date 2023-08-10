@@ -295,13 +295,8 @@ class PublishedGarden(BaseModel):
         pipelines (list[RegisteredPipeline]):
             List of the pipelines associated with this garden \
             Note that these pipelines can also be accessed directly by their \
-            `short_name` (or alias) - see also `pipeline_names` attribute.
+            `short_name` (or alias).
 
-        pipeline_names (list[str]):
-            Automatically generated list of python identifiers (i.e. variable names) \
-            usable for this garden's pipelines. Takes aliases into account.
-
-        pipeline_ids: List[str] = Field(default_factory=list)
         pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
@@ -340,38 +335,8 @@ class PublishedGarden(BaseModel):
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
     pipelines: List[RegisteredPipeline] = Field(...)
-    pipeline_ids: List[str] = Field(...)
     pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
-    pipeline_names: List[str] = Field(...)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
-
-    @root_validator(pre=True)
-    def verify_pipeline_integrity(cls, values):
-        pipelines, pipeline_ids, pipeline_aliases = (
-            values.get(attr)
-            for attr in ("pipelines", "pipeline_ids", "pipeline_aliases")
-        )
-
-        if not (
-            len(pipelines) == len(pipeline_ids)
-            and all(pipeline["doi"] in pipeline_ids for pipeline in pipelines)
-        ):
-            raise ValueError(
-                "This garden has an invalid state. "
-                "Please verify consistency between the `pipelines` and `pipeline_ids` attributes."
-            )
-
-        if pipeline_aliases:
-            values["pipeline_names"] = [
-                pipeline_aliases.get(pipeline["doi"]) or pipeline["short_name"]
-                for pipeline in pipelines
-            ]
-        else:
-            values["pipeline_names"] = [
-                pipeline["short_name"] for pipeline in pipelines
-            ]
-
-        return values
 
     @validator("year")
     def valid_year(cls, year):
@@ -425,7 +390,7 @@ class PublishedGarden(BaseModel):
                     relatedIdentifierType="DOI",
                     relationType="HasPart",
                 )
-                for doi in self.pipeline_ids
+                for doi in (p.doi for p in self.pipelines)
             ],
             version=self.version,
             descriptions=[
@@ -454,7 +419,10 @@ class PublishedGarden(BaseModel):
 
     def __dir__(self):
         # this gets us jupyter/ipython/repl tab-completion of pipeline names
-        return list(super().__dir__()) + self.pipeline_names
+        pipeline_names = [
+            self.pipeline_aliases.get(p.doi) or p.short_name for p in self.pipelines
+        ]
+        return list(super().__dir__()) + pipeline_names
 
     class Config:
         # Configure pydantic per-model settings.

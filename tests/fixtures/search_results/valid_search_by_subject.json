@@ -23,9 +23,6 @@
                 "language": "en",
                 "tags": [],
                 "version": "0.0.1",
-                "pipeline_ids": [
-                    "10.26311/fake-pipeline-doi"
-                ],
                 "pipelines": [
                     {
                         "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
