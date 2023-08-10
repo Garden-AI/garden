@@ -7,7 +7,7 @@ from typing import Optional, Callable, List
 import requests
 
 from garden_ai.constants import GardenConstants
-from garden_ai.gardens import Garden
+from garden_ai.gardens import PublishedGarden
 
 logger = logging.getLogger()
 
@@ -67,8 +67,8 @@ class BackendClient:
     def update_doi_on_datacite(self, payload: dict):
         self._put("/doi", payload)
 
-    def publish_garden_metadata(self, garden: Garden):
-        payload = json.loads(garden.expanded_json())
+    def publish_garden_metadata(self, garden: PublishedGarden):
+        payload = json.loads(garden.json())
         self._post("/garden-search-record", payload)
 
     def _get_presigned_urls(

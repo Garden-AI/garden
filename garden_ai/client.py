@@ -29,7 +29,7 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
-from garden_ai.gardens import Garden
+from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_compute.containers import build_container
 from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
@@ -364,7 +364,7 @@ class GardenClient:
         local_data.put_local_model(model)
 
     def _mint_draft_doi(self, test: bool = True) -> str:
-        """Register a new draft doi with DataCite via Garden backend.
+        """Register a new draft DOI with DataCite via Garden backend.
 
         Expects environment variable GARDEN_ENDPOINT to be set (not including `/doi`).
 
@@ -389,7 +389,7 @@ class GardenClient:
         }  # required data is filled in on the backend
         return self.backend_client.mint_doi_on_datacite(payload)
 
-    def _update_datacite(self, obj: Union[Garden, Pipeline]) -> None:
+    def _update_datacite(self, obj: Union[PublishedGarden, RegisteredPipeline]) -> None:
         logger.info("Requesting update to DOI")
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
@@ -431,13 +431,13 @@ class GardenClient:
 
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
-        self._update_datacite(pipeline)
         registered = RegisteredPipeline.from_pipeline(pipeline)
+        self._update_datacite(registered)
         local_data.put_local_pipeline(registered)
         return registered
 
     def add_paper(self, title: str, doi: str, **kwargs) -> None:
-        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given doi.
+        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -471,7 +471,7 @@ class GardenClient:
         local_data.put_local_pipeline(pipeline)
 
     def add_repository(self, doi: str, url: str, repo_name: str, **kwargs) -> None:
-        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given doi.
+        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -592,29 +592,23 @@ class GardenClient:
             or "Auto-generated pipeline that executes a single step which runs an inference.",
             **kwargs,
         )
-        container_uuid = self.build_container(pipeline)
-        self.register_pipeline(pipeline, container_uuid)
+        registered = self.register_pipeline(pipeline)
 
-        garden = self.get_published_garden(garden_doi)
+        garden = self.clone_published_garden(garden_doi, silent=True)
+
+        # NOTE hack to allow the clone to update the remote record in-place
+        garden.doi = garden_doi
 
         # add pipeline to garden
-        if pipeline not in garden.pipelines:
-            garden.pipeline_ids += [pipeline.doi]
+        garden.add_pipeline(registered.doi)
 
+        # update the record with new pipeline added
         self.publish_garden_metadata(garden)
-        # bandaid in the event the index is written more than once simultaneously
-        # note: still not perfect, communication is key
-        if (
-            pipeline.doi
-            not in (remote := self.get_published_garden(garden.doi)).pipeline_ids
-        ):
-            remote.pipeline_ids += [pipeline.doi]
-            self.publish_garden_metadata(remote)
 
-        return pipeline.doi
+        return registered.doi
 
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
-        """Return a callable ``RegisteredPipeline`` corresponding to the given doi.
+        """Return a callable ``RegisteredPipeline`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -647,7 +641,7 @@ class GardenClient:
         return local_data._get_user_email()
 
     def get_local_garden(self, doi: str) -> Garden:
-        """Return a registered ``Garden`` corresponding to the given doi.
+        """Return a registered ``Garden`` corresponding to the given DOI.
 
         Any ``RegisteredPipelines`` registered to the Garden will be callable
         as attributes on the garden by their (registered) short_name, e.g.
@@ -656,7 +650,7 @@ class GardenClient:
                 #  pipeline would have been registered with short_name='my_pipeline'
                 my_garden.my_pipeline(*args, endpoint='where-to-execute')
             ```
-        Tip: To access the pipeline by a different name, use ``my_garden.rename_pipeline(old_name, new_name)``.
+        Tip: To access the pipeline by a different name, use ``my_garden.rename_pipeline(pipeline_id, new_name)``.
         To persist a new name for a pipeline, re-register it to the garden and specify an alias.
 
         Parameters
@@ -672,7 +666,6 @@ class GardenClient:
             raise GardenNotFoundException(
                 f"Could not find any Gardens with identifier {doi}."
             )
-        self._generate_presigned_urls_for_garden(garden)
         return garden
 
     def publish_garden_metadata(self, garden: Garden) -> None:
@@ -680,10 +673,11 @@ class GardenClient:
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
-        self._generate_presigned_urls_for_garden(garden)
-        self._update_datacite(garden)
+        published = PublishedGarden.from_garden(garden)
+
+        self._update_datacite(published)
         try:
-            self.backend_client.publish_garden_metadata(garden)
+            self.backend_client.publish_garden_metadata(published)
         except Exception as e:
             raise Exception(
                 f"Request to Garden backend to publish garden failed with error: {str(e)}"
@@ -695,24 +689,57 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, doi: str) -> Garden:
+    def clone_published_garden(self, doi: str, *, silent: bool = False) -> Garden:
+        """
+        Queries Globus Search for the garden with the given DOI
+        and creates a local clone of it that can be modified.
+
+        NOTE: the clone will have a different DOI than the original
+
+        Parameters
+        ----------
+        doi: The DOI of the garden you want to clone.
+        silent: Whether or not to print any messages.
+
+        Returns
+        -------
+        Garden populated with metadata from the remote metadata record.
+        """
+        published = self.get_published_garden(doi)
+
+        for pipeline in published.pipelines:
+            local_data.put_local_pipeline(pipeline)
+
+        data = published.dict()
+        del data["doi"]  # the clone should not retain the DOI
+
+        garden = self.create_garden(**data)
+
+        if not silent:
+            log_msg = f"Garden {doi} successfully cloned locally and given replacement DOI {garden.doi}."
+            logger.info(log_msg)
+            print(log_msg)
+
+        return garden
+
+    def get_published_garden(self, doi: str) -> PublishedGarden:
         """
         Queries Globus Search for the garden with this DOI.
 
         Parameters
         ----------
-        doi: The doi of the garden you want.
+        doi: The DOI of the garden you want.
 
         Returns
         -------
-        Garden populated with metadata from remote metadata record.
+        PublishedGarden populated with metadata from the remote metadata record.
 
         """
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         self._generate_presigned_urls_for_garden(garden)
         return garden
 
-    def _generate_presigned_urls_for_garden(self, garden: Garden):
+    def _generate_presigned_urls_for_garden(self, garden: PublishedGarden):
         all_model_names = [
             model_name
             for pipeline in garden.pipelines

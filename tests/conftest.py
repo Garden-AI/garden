@@ -180,7 +180,12 @@ def registered_pipeline_toy_example(pipeline_toy_example, noop_func_uuid):
 
 
 @pytest.fixture
-def garden_all_fields(registered_pipeline_toy_example):
+def garden_all_fields(mocker, registered_pipeline_toy_example):
+    mocker.patch(
+        "garden_ai.Garden._collect_pipelines",
+        return_value=[registered_pipeline_toy_example],
+    )
+
     pea_garden = Garden(
         authors=["Mendel, Gregor"],
         title="Experiments on Plant Hybridization",
@@ -192,7 +197,6 @@ def garden_all_fields(registered_pipeline_toy_example):
     pea_garden.version = "0.0.1"
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
     pea_garden.pipeline_ids += [registered_pipeline_toy_example.doi]
-    pea_garden.validate()
     return pea_garden
 
 

@@ -73,7 +73,7 @@ class DatasetConnection(BaseModel):
             A digital identifier to the dataset.
         url (str):
             Location where the dataset can be accessed. If using foundry \
-            dataset, both url and doi must be provided.
+            dataset, both url and DOI must be provided.
         data_type (str):
             Optional, the type of file of dataset.
 

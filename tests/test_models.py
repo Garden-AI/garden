@@ -5,7 +5,15 @@ from typing import Any, Iterable, List, Tuple, Union
 import pytest
 from pydantic import ValidationError
 
-from garden_ai import Garden, Pipeline, RegisteredPipeline, Step, local_data, step
+from garden_ai import (
+    Garden,
+    PublishedGarden,
+    Pipeline,
+    RegisteredPipeline,
+    Step,
+    local_data,
+    step,
+)
 
 
 def test_create_empty_garden(garden_client):
@@ -19,45 +27,22 @@ def test_create_empty_garden(garden_client):
     assert not garden.title
 
 
-def test_validate_all_fields(garden_all_fields):
-    garden_all_fields.validate()
-
-
 def test_garden_datacite(garden_title_authors_doi_only):
-    data = json.loads(garden_title_authors_doi_only.datacite_json())
-
-    assert isinstance(data["creators"], list)
-    assert isinstance(data["titles"], list)
-    assert data["publisher"] == "thegardens.ai"
-
-
-def test_pipeline_datacite(garden_client):
-    @step
-    def four() -> int:
-        return 4
-
-    pipeline = garden_client.create_pipeline(
-        authors=["Team, Garden"], title="Lorem Ipsum", steps=(four,)
+    data = json.loads(
+        PublishedGarden.from_garden(garden_title_authors_doi_only).datacite_json()
     )
-    data = json.loads(pipeline.datacite_json())
 
     assert isinstance(data["creators"], list)
     assert isinstance(data["titles"], list)
     assert data["publisher"] == "thegardens.ai"
 
 
-def test_validate_no_fields(garden_no_fields):
-    with pytest.raises(ValidationError):
-        garden_no_fields.validate()
+def test_pipeline_datacite(registered_pipeline_toy_example):
+    data = json.loads(registered_pipeline_toy_example.datacite_json())
 
-
-def test_validate_required_only(garden_no_fields):
-    garden = garden_no_fields
-    garden.authors = ["Mendel, Gregor"]
-    with pytest.raises(ValidationError):
-        garden.validate()
-    garden.title = "Experiments on Plant Hybridization"
-    garden.validate()
+    assert isinstance(data["creators"], list)
+    assert isinstance(data["titles"], list)
+    assert data["publisher"] == "thegardens.ai"
 
 
 def test_garden_can_access_pipeline_as_attribute(
@@ -67,7 +52,8 @@ def test_garden_can_access_pipeline_as_attribute(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
     )
     garden = local_data.get_local_garden_by_doi("10.23677/fake-doi")
-    assert isinstance(garden.fixture_pipeline, RegisteredPipeline)
+    published = PublishedGarden.from_garden(garden)
+    assert isinstance(published.fixture_pipeline, RegisteredPipeline)
 
 
 def test_step_wrapper():

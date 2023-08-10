@@ -199,7 +199,7 @@ def add_repository(
         "-d",
         "--doi",
         autocompletion=complete_pipeline,
-        help="The doi for the pipeline you would like to add a repository to",
+        help="The DOI for the pipeline you would like to add a repository to",
         rich_help_panel="Required",
     ),
     url: str = typer.Option(
@@ -260,7 +260,7 @@ def add_paper(
         "-d",
         "--doi",
         autocompletion=complete_pipeline,
-        help="The doi for the pipeline you would like to add a repository to",
+        help="The DOI for the pipeline you would like to add a repository to",
         rich_help_panel="Required",
     ),
     title: str = typer.Option(
@@ -358,7 +358,7 @@ def register(
         "[bold green]Building container and registering pipeline. This operation times out after 30 minutes."
     ):
         client.register_pipeline(user_pipeline)
-    console.print(f"Done! Pipeline was registered with doi {user_pipeline.doi}.")
+    console.print(f"Done! Pipeline was registered with DOI {user_pipeline.doi}.")
 
 
 @pipeline_app.command()

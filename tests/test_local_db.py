@@ -1,4 +1,4 @@
-from garden_ai import local_data
+from garden_ai import PublishedGarden, local_data
 from garden_ai.utils.misc import get_cache_tag
 
 
@@ -54,6 +54,27 @@ def test_local_storage_model(mocker, database_with_model, second_draft_of_model)
         second_draft_of_model.full_name
     )
     assert overwritten_model.flavor == "pytorch"
+
+
+def test_local_db_clone(mocker, garden_client, garden_all_fields, tmp_path):
+    # mock to replace "~/.garden/db"
+    mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
+
+    # mock fetch and new garden creation operations
+    mocker.patch(
+        "garden_ai.client.GardenClient.get_published_garden",
+        return_value=PublishedGarden.from_garden(garden_all_fields),
+    )
+    mocker.patch(
+        "garden_ai.client.GardenClient._mint_draft_doi",
+        return_value="10.26311/fake-doi",
+    )
+
+    # this test asserts that the clone operation is correctly populating
+    # the local db with the pipelines referenced by the remote garden
+    garden_client.clone_published_garden(garden_all_fields.doi, silent=True)
+
+    assert local_data.get_local_pipeline_by_doi("10.26311/fake-doi") is not None
 
 
 def test_local_cache(mocker, garden_client, pipeline_toy_example):

@@ -25,7 +25,9 @@
                 "version": "0.0.1",
                 "pipelines": [
                     {
+                        "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
                         "title": "Concept: a pipeline for soup",
+                        "short_name": "pea_pipeline",
                         "authors": [
                             "Mendel, Gregor"
                         ],

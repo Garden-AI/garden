@@ -262,19 +262,15 @@ def add_pipeline(
     if not to_add:
         raise typer.Exit(code=1)
 
-    if to_add in garden.pipelines:
+    if to_add.doi in garden.pipeline_ids:
         if pipeline_alias:
-            old_name = (
-                garden.pipeline_aliases.get(to_add.short_name) or to_add.short_name
-            )
+            old_name = garden.pipeline_aliases.get(to_add.doi) or to_add.short_name
             print(
                 f"Pipeline {pipeline_id} is already in Garden {garden_id} as {old_name}. Renaming to {pipeline_alias}."
             )
-            garden.rename_pipeline(old_name, pipeline_alias)
+            garden.rename_pipeline(to_add.doi, pipeline_alias)
     else:
-        garden.pipeline_ids += [to_add.doi]
-        if pipeline_alias:
-            garden.rename_pipeline(to_add.short_name, pipeline_alias)
+        garden.add_pipeline(pipeline_id, pipeline_alias)
     local_data.put_local_garden(garden)
     logger.info(f"Added pipeline {pipeline_id} to Garden {garden_id}")
 

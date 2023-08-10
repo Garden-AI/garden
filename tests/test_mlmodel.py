@@ -3,6 +3,7 @@ import os
 import pytest
 
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
+from garden_ai import PublishedGarden
 from garden_ai.mlmodel import (
     stage_model_for_upload,
     LocalModel,
@@ -145,9 +146,12 @@ def test_generate_presigned_urls_for_garden(
         "get_model_download_urls",
         return_value=[mock_presigned_url_response],
     )
-    garden_all_fields._pipelines = [registered_pipeline_toy_example]
 
-    garden_client._generate_presigned_urls_for_garden(garden_all_fields)
-    env_var_string = garden_all_fields.pipelines[0]._env_vars["GARDEN_MODELS"]
+    garden_all_fields._pipeline_cache = [registered_pipeline_toy_example]
+    published_garden = PublishedGarden.from_garden(garden_all_fields)
+
+    garden_client._generate_presigned_urls_for_garden(published_garden)
+
+    env_var_string = published_garden.pipelines[0]._env_vars["GARDEN_MODELS"]
     as_dict = json.loads(env_var_string)
     assert as_dict["willengler@uchicago.edu/test_model"] == "presigned-url.aws.com"
