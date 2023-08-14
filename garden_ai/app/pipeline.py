@@ -379,6 +379,11 @@ def shell(
         "--uuid",
         help="The UUID of the container you would like to shell into",
     ),
+    cleanup: bool = typer.Option(
+        False,
+        "--rm",
+        help="When set, the downloaded container image will be removed automatically",
+    ),
 ):
     import subprocess
 
@@ -411,16 +416,14 @@ def shell(
         location = location[location.index("bengal1") :]  # remove docker.io domain
 
         subprocess.run(["docker", "pull", location])
-        container = subprocess.run(
-            ["docker", "run", "--rm", "-it", "--entrypoint", "bash", location],
-            stdout=subprocess.PIPE,
-            encoding="utf-8",
-        ).stdout.strip()
-        subprocess.run(["docker", "kill", container])
-        subprocess.run(["docker", "rmi", location])
+        subprocess.run(
+            ["docker", "run", "--rm", "-it", "--entrypoint", "bash", location]
+        )
+        if cleanup:
+            subprocess.run(["docker", "rmi", location])
 
     except Exception as e:
-        # MVP error handling
+        # MVP error handling, courtesy of Steve
         print(f"An error occurred: {e}")
 
 
