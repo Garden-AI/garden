@@ -375,8 +375,8 @@ def shell(
     ),
     container_uuid: str = typer.Option(
         ...,
-        "-i",
-        "--id",
+        "-u",
+        "--uuid",
         help="The UUID of the container you would like to shell into",
     ),
 ):
@@ -391,20 +391,22 @@ def shell(
             raise typer.Exit(code=1)
         if doi and not container_uuid:
             registered = client.get_registered_pipeline(doi)
-            container_uuid = _read_local_cache().get(
+            cached_uuid = _read_local_cache().get(
                 get_cache_tag(
                     registered.pip_dependencies,
                     registered.conda_dependencies,
                     registered.python_version,
                 )
             )
-            if container_uuid is None:
+            if cached_uuid is None:
                 console.log(
                     "Fatal: the specified pipeline does not have its container uuid in the cache"
                 )
                 raise typer.Exit(code=1)
 
-        container_info = client.compute_client.get_container(container_uuid, "docker")
+        container_info = client.compute_client.get_container(
+            container_uuid or cached_uuid, "docker"
+        )
         location = container_info["location"]
         location = location[location.index("bengal1") :]  # remove docker.io domain
 
