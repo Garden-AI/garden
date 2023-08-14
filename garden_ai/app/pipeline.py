@@ -367,14 +367,14 @@ def register(
 @pipeline_app.command()
 def shell(
     doi: str = typer.Option(
-        ...,
+        None,
         "-d",
         "--doi",
         autocompletion=complete_pipeline,
         help="The DOI for the registered pipeline whose container you would like to shell into",
     ),
     container_uuid: str = typer.Option(
-        ...,
+        None,
         "-u",
         "--uuid",
         help="The UUID of the container you would like to shell into",
