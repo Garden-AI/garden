@@ -8,20 +8,23 @@ import typer
 import rich
 from rich import print
 from rich.prompt import Prompt
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.completion import complete_pipeline
 from garden_ai.pipelines import Repository, Paper
-from garden_ai.local_data import put_local_pipeline, get_local_pipeline_by_doi
+from garden_ai.local_data import (
+    _read_local_cache,
+    put_local_pipeline,
+    get_local_pipeline_by_doi,
+)
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
 )
 
-from garden_ai.utils.misc import clean_identifier
+from garden_ai.utils.misc import clean_identifier, get_cache_tag
 
 
 logger = logging.getLogger()
@@ -363,98 +366,56 @@ def register(
 
 @pipeline_app.command()
 def shell(
-    pipeline_file: Path = typer.Argument(
-        None,
-        dir_okay=False,
-        file_okay=True,
-        resolve_path=True,
-        help=("Path to a Python file containing your pipeline implementation."),
+    doi: str = typer.Option(
+        ...,
+        "-d",
+        "--doi",
+        autocompletion=complete_pipeline,
+        help="The DOI for the registered pipeline whose container you would like to shell into",
     ),
-    requirements_file: Path = typer.Argument(
-        None,
-        dir_okay=False,
-        file_okay=True,
-        resolve_path=True,
-        help=("Path to a Python file containing your pipeline requirements."),
-    ),
-    env_name: Path = typer.Argument(
-        None,
-        dir_okay=False,
-        file_okay=False,
-        help=("The name to give your pipeline's virtual environment."),
+    container_uuid: str = typer.Option(
+        ...,
+        "-i",
+        "--id",
+        help="The UUID of the container you would like to shell into",
     ),
 ):
-    import os
     import subprocess
-    import tempfile
-    import sys
 
+    client = GardenClient()
     try:
-        # Create a virtual environment in the temp directory
-        temp_dir = os.path.join(os.path.sep, tempfile.gettempdir(), env_name)
-        print(f"Setting up environment in {temp_dir} ...")
-        subprocess.run(["python3", "-m", "venv", temp_dir])
-
-        # Activate the environment os dependent
-        if sys.platform == "win32":
-            activate_script = os.path.join(temp_dir, "Scripts", "activate.bat")
-        elif sys.platform == "darwin":
-            activate_script = os.path.join(temp_dir, "bin", "activate")
-        else:
-            activate_script = os.path.join(temp_dir, "bin", "activate")
-
-        subprocess.run(f"source {activate_script}", shell=True)
-
-        # Upgrade pip in the virtual environment quietly
-        subprocess.run(
-            f"{temp_dir}/bin/python3 -m pip install -q --upgrade pip",
-            check=True,
-            shell=True,
-        )
-
-        # Install the requirements with nice spinner
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task(description="Installing requirements...", total=None)
-
-            subprocess.run(
-                f"{temp_dir}/bin/pip install -q -r {requirements_file}",
-                check=True,
-                shell=True,
+        if not doi and not container_uuid:
+            console.log(
+                "Either the DOI of a local pipeline or a container's UUID must be specified"
             )
-
-        # Start Python shell in the virtual environment with the pipeline file
-        print("Starting Garden test shell. Loading your pipeline one moment...")
-        python_command = os.path.join(temp_dir, "bin", "python")
-        subprocess.run([python_command, "-i", pipeline_file])
-
-        # Clean up prompt for the temporary environment
-        cleanup = typer.confirm(
-            "Would you like to cleanup (delete) the virtual environment?"
-        )
-        if cleanup:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                transient=True,
-            ) as progress:
-                progress.add_task(
-                    description="Removing up virtual environment...", total=None
+            raise typer.Exit(code=1)
+        if doi and not container_uuid:
+            registered = client.get_registered_pipeline(doi)
+            container_uuid = _read_local_cache().get(
+                get_cache_tag(
+                    registered.pip_dependencies,
+                    registered.conda_dependencies,
+                    registered.python_version,
                 )
-                import shutil
-
-                shutil.rmtree(
-                    temp_dir
-                )  # Remove the directory listed under temp_dir not the actual tmp directory
-        else:
-            print(
-                f"Virtual environment at {temp_dir} still remains and can be used for futher testing or manual removal."
             )
+            if container_uuid is None:
+                console.log(
+                    "Fatal: the specified pipeline does not have its container uuid in the cache"
+                )
+                raise typer.Exit(code=1)
 
-        print("Local Garden pipeline shell testing complete.")
+        container_info = client.compute_client.get_container(container_uuid, "docker")
+        location = container_info["location"]
+        location = location[location.index("bengal1") :]  # remove docker.io domain
+
+        subprocess.run(["docker", "pull", location])
+        container = subprocess.run(
+            ["docker", "run", "--rm", "--it", "--entrypoint", "bash", location],
+            stdout=subprocess.PIPE,
+            encoding="utf-8",
+        ).stdout.strip()
+        subprocess.run(["docker", "kill", container])
+        subprocess.run(["docker", "rmi", location])
 
     except Exception as e:
         # MVP error handling
