@@ -412,7 +412,7 @@ def shell(
 
         subprocess.run(["docker", "pull", location])
         container = subprocess.run(
-            ["docker", "run", "--rm", "--it", "--entrypoint", "bash", location],
+            ["docker", "run", "--rm", "-it", "--entrypoint", "bash", location],
             stdout=subprocess.PIPE,
             encoding="utf-8",
         ).stdout.strip()
