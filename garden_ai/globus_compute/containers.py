@@ -21,7 +21,9 @@ class BuildStatus(str, Enum):
     failed = "failed"
 
 
-def build_container(compute_client: Client, pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
+def build_container(
+    compute_client: Client, pipeline: Union[Pipeline, RegisteredPipeline]
+) -> str:
     name = str(pipeline.doi)
     cs = ContainerSpec(
         name=name,
