@@ -474,14 +474,14 @@ def container(
         resolve_path=True,
         help=("Path to a Python file containing your pipeline implementation"),
     ),
-    doi: str = typer.Argument(
+    doi: str = typer.Option(
         None,
         "-d",
         "--doi",
         autocompletion=complete_pipeline,
         help="The DOI for the pipeline whose container you would like to shell into",
     ),
-    container_uuid: str = typer.Argument(
+    container_uuid: str = typer.Option(
         None,
         "-u",
         "--uuid",
