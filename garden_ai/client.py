@@ -398,7 +398,7 @@ class GardenClient:
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
 
-    def build_container(self, pipeline: Pipeline) -> str:
+    def build_container(self, pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
         built_container_uuid = build_container(self.compute_client, pipeline)
 
         cache = _read_local_cache()

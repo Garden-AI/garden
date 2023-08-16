@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import jinja2
 import typer
@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.completion import complete_pipeline
-from garden_ai.pipelines import Repository, Paper
+from garden_ai.pipelines import RegisteredPipeline, Repository, Paper
 from garden_ai.local_data import (
     _read_local_cache,
     put_local_pipeline,
@@ -505,7 +505,9 @@ def container(
         if container_uuid:
             pass
         elif doi:
-            user_pipeline = client.get_registered_pipeline(doi)
+            user_pipeline: Union[
+                Pipeline, RegisteredPipeline
+            ] = client.get_registered_pipeline(doi)
         else:
             if (
                 not pipeline_file.exists()
