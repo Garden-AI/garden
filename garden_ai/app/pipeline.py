@@ -467,14 +467,21 @@ def shell(
 
 @pipeline_app.command()
 def container(
-    doi: str = typer.Option(
+    pipeline_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline implementation"),
+    ),
+    doi: str = typer.Argument(
         None,
         "-d",
         "--doi",
         autocompletion=complete_pipeline,
-        help="The DOI for the registered pipeline whose container you would like to shell into",
+        help="The DOI for the pipeline whose container you would like to shell into",
     ),
-    container_uuid: str = typer.Option(
+    container_uuid: str = typer.Argument(
         None,
         "-u",
         "--uuid",
@@ -490,25 +497,49 @@ def container(
 
     client = GardenClient()
     try:
-        if not doi and not container_uuid:
+        if not any((pipeline_file, doi, container_uuid)):
             console.log(
-                "Either the DOI of a local pipeline or a container's UUID must be specified"
+                "The DOI of a local pipeline, a container's UUID, or a pipeline file must be specified"
             )
             raise typer.Exit(code=1)
-        if doi and not container_uuid:
-            registered = client.get_registered_pipeline(doi)
+        if container_uuid:
+            pass
+        elif doi:
+            user_pipeline = client.get_registered_pipeline(doi)
+        else:
+            if (
+                not pipeline_file.exists()
+                or not pipeline_file.is_file()
+                or pipeline_file.suffix != ".py"
+            ):
+                console.log(
+                    f"{pipeline_file} is not a valid Python file. Please provide a valid Python file (.py)."
+                )
+                raise typer.Exit(code=1)
+            try:
+                user_pipeline = load_pipeline_from_python_file(pipeline_file)
+            except (
+                PipelineLoadException,
+                PipelineLoadScaffoldedException,
+            ) as e:
+                console.log(
+                    f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e)
+                )
+                raise
+
+        if not container_uuid:
             cached_uuid = _read_local_cache().get(
                 get_cache_tag(
-                    registered.pip_dependencies,
-                    registered.conda_dependencies,
-                    registered.python_version,
+                    user_pipeline.pip_dependencies,
+                    user_pipeline.conda_dependencies,
+                    user_pipeline.python_version,
                 )
             )
             if cached_uuid is None:
-                console.log(
-                    "Fatal: the specified pipeline does not have its container uuid in the cache"
-                )
-                raise typer.Exit(code=1)
+                with console.status(
+                    "[bold green]Building container. This operation times out after 30 minutes."
+                ):
+                    cached_uuid = client.build_container(user_pipeline)
 
         container_info = client.compute_client.get_container(
             container_uuid or cached_uuid, "docker"
