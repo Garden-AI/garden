@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import jinja2
 import typer
@@ -13,15 +13,19 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from garden_ai import GardenClient, Pipeline, step, GardenConstants
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.completion import complete_pipeline
-from garden_ai.pipelines import Repository, Paper
-from garden_ai.local_data import put_local_pipeline, get_local_pipeline_by_doi
+from garden_ai.pipelines import RegisteredPipeline, Repository, Paper
+from garden_ai.local_data import (
+    _read_local_cache,
+    put_local_pipeline,
+    get_local_pipeline_by_doi,
+)
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
 )
 
-from garden_ai.utils.misc import clean_identifier
+from garden_ai.utils.misc import clean_identifier, get_cache_tag
 
 
 logger = logging.getLogger()
@@ -459,6 +463,111 @@ def shell(
     except Exception as e:
         # MVP error handling
         print(f"An error occurred: {e}")
+
+
+@pipeline_app.command()
+def container(
+    container_uuid: str = typer.Option(
+        None,
+        "-u",
+        "--uuid",
+        help="The UUID of the container you would like to shell into, considered first when multiple options are provided",
+    ),
+    doi: str = typer.Option(
+        None,
+        "-d",
+        "--doi",
+        autocompletion=complete_pipeline,
+        help="The DOI for the pipeline whose container you would like to shell into, considered second when multiple options are provided",
+    ),
+    pipeline_file: Path = typer.Option(
+        None,
+        "-p",
+        "--pipeline-file",
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=(
+            "Path to a Python file containing your pipeline implementation, considered third when multiple options are provided"
+        ),
+    ),
+    cleanup: bool = typer.Option(
+        False,
+        "--rm",
+        help="When set, the downloaded container image will be removed automatically",
+    ),
+):
+    import subprocess
+
+    client = GardenClient()
+
+    if container_uuid:
+        container_info = client.compute_client.get_container(container_uuid, "docker")
+    elif doi:
+        user_pipeline: Union[
+            Pipeline, RegisteredPipeline
+        ] = client.get_registered_pipeline(doi)
+
+        cached_uuid = _read_local_cache().get(
+            get_cache_tag(
+                user_pipeline.pip_dependencies,
+                user_pipeline.conda_dependencies,
+                user_pipeline.python_version,
+            )
+        )
+        if cached_uuid is None:
+            with console.status(
+                "[bold green]Building container. This operation times out after 30 minutes."
+            ):
+                cached_uuid = client.build_container(user_pipeline)
+
+        container_info = client.compute_client.get_container(cached_uuid, "docker")
+    elif pipeline_file:
+        if (
+            not pipeline_file.exists()
+            or not pipeline_file.is_file()
+            or pipeline_file.suffix != ".py"
+        ):
+            console.log(
+                f"{pipeline_file} is not a valid Python file. Please provide a valid Python file (.py)."
+            )
+            raise typer.Exit(code=1)
+        try:
+            user_pipeline = load_pipeline_from_python_file(pipeline_file)
+        except (
+            PipelineLoadException,
+            PipelineLoadScaffoldedException,
+        ) as e:
+            console.log(
+                f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e)
+            )
+            raise
+        cached_uuid = _read_local_cache().get(
+            get_cache_tag(
+                user_pipeline.pip_dependencies,
+                user_pipeline.conda_dependencies,
+                user_pipeline.python_version,
+            )
+        )
+        if cached_uuid is None:
+            with console.status(
+                "[bold green]Building container. This operation times out after 30 minutes."
+            ):
+                cached_uuid = client.build_container(user_pipeline)
+
+        container_info = client.compute_client.get_container(cached_uuid, "docker")
+    else:
+        console.log(
+            "A container's UUID, the DOI of a local pipeline, or a pipeline file must be specified"
+        )
+        raise typer.Exit(code=1)
+
+    location = container_info["location"]
+
+    subprocess.run(["docker", "pull", location])
+    subprocess.run(["docker", "run", "--rm", "-it", "--entrypoint", "bash", location])
+    if cleanup:
+        subprocess.run(["docker", "rmi", location])
 
 
 @pipeline_app.command(no_args_is_help=False)

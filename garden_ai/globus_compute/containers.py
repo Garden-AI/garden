@@ -1,9 +1,10 @@
 from time import sleep, time
 from enum import Enum
+from typing import Union
 
 from globus_compute_sdk import Client, ContainerSpec  # type: ignore
 from globus_sdk import GlobusAPIError
-from garden_ai.pipelines import Pipeline
+from garden_ai.pipelines import Pipeline, RegisteredPipeline
 from garden_ai.app.console import console
 
 
@@ -20,7 +21,9 @@ class BuildStatus(str, Enum):
     failed = "failed"
 
 
-def build_container(compute_client: Client, pipeline: Pipeline) -> str:
+def build_container(
+    compute_client: Client, pipeline: Union[Pipeline, RegisteredPipeline]
+) -> str:
     name = str(pipeline.doi)
     cs = ContainerSpec(
         name=name,
