@@ -1,7 +1,6 @@
 import os
 
 import pytest
-from uuid import UUID
 from globus_compute_sdk import Client  # type: ignore
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import (
