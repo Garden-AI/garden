@@ -413,7 +413,9 @@ class GardenClient:
         return built_container_uuid
 
     def register_pipeline(self, pipeline: Pipeline) -> RegisteredPipeline:
-        container_uuid = pipeline.container_uuid
+        container_uuid = (
+            str(pipeline.container_uuid) if pipeline.container_uuid else None
+        )
         if container_uuid is None:
             cache = _read_local_cache().get(
                 get_cache_tag(
@@ -428,6 +430,7 @@ class GardenClient:
             else:
                 container_uuid = self.build_container(pipeline)
 
+        print(container_uuid)
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         registered = RegisteredPipeline.from_pipeline(pipeline)
