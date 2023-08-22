@@ -220,4 +220,4 @@ def test_register_pipeline_with_specified_uuid(
     # Did the container UUID get passed through the right way?
     mocked_fn = garden_ai.client.register_pipeline
     container_arg = mocked_fn.call_args[0][2]
-    assert container_arg == UUID(CONTAINER_UUID)
+    assert container_arg == CONTAINER_UUID
