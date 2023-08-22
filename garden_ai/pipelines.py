@@ -135,6 +135,9 @@ class Pipeline:
         func_uuid:
             Should not be set by users. Globus Compute function UUID corresponding to \
             the pipeline's composed steps.
+        container_uuid:
+            Optional, can be specified by a user if they have registered a custom container with  Globus Compute. \
+            The pipeline function will be registered against this container.
         pip_dependencies:
             Optional, populated by contents of `requirements_file` if specified. \
             Contains the currently installed version of the garden-ai package by \
@@ -152,6 +155,7 @@ class Pipeline:
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = Field(...)
     func_uuid: Optional[UUID] = Field(None)
+    container_uuid: Optional[UUID] = Field(None)
     description: Optional[str] = Field(None)
     version: Optional[str] = "0.0.1"
     year: str = Field(default_factory=lambda: str(datetime.now().year))

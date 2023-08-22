@@ -1,6 +1,7 @@
 import os
 
 import pytest
+from uuid import UUID
 from globus_compute_sdk import Client  # type: ignore
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import (
@@ -12,6 +13,7 @@ from globus_sdk import (
     SearchClient,
 )
 
+import garden_ai
 from garden_ai import GardenClient
 from garden_ai.client import AuthException
 
@@ -196,3 +198,26 @@ def test_client_credentials_grant(cc_grant_tuple):
     assert gc.auth_client.oauth2_validate_token(gc.garden_authorizer.access_token)[
         "active"
     ]
+
+
+def test_register_pipeline_with_specified_uuid(
+    mocker, garden_client, pipeline_toy_example
+):
+    CONTAINER_UUID = "3dc3170e-2cdc-4379-885d-435a0d85b581"
+    pipeline_toy_example.container_uuid = CONTAINER_UUID
+
+    # Mock register_pipeline so we can see if the container uuid gets passed in
+    mocker.patch(
+        "garden_ai.client.register_pipeline",
+        return_value="a4742a1b-966a-4913-a369-fb6555b8bfb9",
+    )
+    # Don't bother with DataCite
+    garden_client._update_datacite = lambda no_op: None
+
+    # Ok, invoke the client now
+    garden_client.register_pipeline(pipeline_toy_example)
+
+    # Did the container UUID get passed through the right way?
+    mocked_fn = garden_ai.client.register_pipeline
+    container_arg = mocked_fn.call_args[0][2]
+    assert container_arg == UUID(CONTAINER_UUID)
