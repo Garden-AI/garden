@@ -4,14 +4,14 @@ import shutil
 import requests
 
 from garden_ai.backend_client import BackendClient, PresignedUrlResponse
-from garden_ai.mlmodel import LocalModel
+from garden_ai.mlmodel import ModelMetadata
 
 
 def upload_mlmodel_to_s3(
-    local_directory: str, local_model: LocalModel, backend_client: BackendClient
+    local_directory: str, model_meta: ModelMetadata, backend_client: BackendClient
 ):
     # Get url from Garden API
-    presigned_url_response = backend_client.get_model_upload_url(local_model.full_name)
+    presigned_url_response = backend_client.get_model_upload_url(model_meta.full_name)
     _upload_directory_to_s3_presigned(local_directory, presigned_url_response)
 
 

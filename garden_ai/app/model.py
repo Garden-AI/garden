@@ -100,7 +100,7 @@ def register(
         user_email=client.get_email(),
     )
 
-    registered_model = client.register_model(local_model)
+    registered_model = client.register_model_from_disk(local_model)
     rich.print(
         f"Successfully uploaded your model! The full name to include in your pipeline is '{registered_model.full_name}'"
     )

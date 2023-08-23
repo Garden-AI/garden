@@ -113,9 +113,9 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model, serialize_type):
     if serialize_type == "keras":
         # Assert that the 'SerializationFormatException' is raised
         with pytest.raises(SerializationFormatException):
-            client.register_model(local_model)
+            client.register_model_from_disk(local_model)
     else:
-        registered_model = client.register_model(local_model)
+        registered_model = client.register_model_from_disk(local_model)
         # all mlflow models will have a 'predict' method
         downloaded_model = Model(registered_model.full_name)
         assert hasattr(downloaded_model, "predict")
@@ -140,7 +140,7 @@ def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
         flavor="pytorch",
         user_email="foo@example.com",
     )
-    registered_model = client.register_model(local_model)
+    registered_model = client.register_model_from_disk(local_model)
 
     # all mlflow models will have a 'predict' method
     downloaded_model = Model(registered_model.full_name)
@@ -194,7 +194,7 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format)
         flavor="tensorflow",
         user_email="foo@example.com",
     )
-    registered_model = client.register_model(local_model)
+    registered_model = client.register_model_from_disk(local_model)
 
     # all mlflow models will have a 'predict' method
     downloaded_model = Model(registered_model.full_name)

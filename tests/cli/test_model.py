@@ -23,7 +23,7 @@ def test_model_upload(mocker, tmp_path):
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    args = mock_client.register_model.call_args.args
+    args = mock_client.register_model_from_disk.call_args.args
     local_model = args[0]
     assert local_model.local_path == str(tmp_path)
     assert local_model.model_name == "unit-test-model"

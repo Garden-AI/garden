@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Callable
 from uuid import UUID
 
 import typer
@@ -47,6 +47,7 @@ from garden_ai.mlmodel import (
     Model,
     clear_mlflow_staging_directory,
     stage_model_from_disk,
+    stage_model_from_memory,
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
@@ -304,12 +305,33 @@ class GardenClient:
 
         return Pipeline(**data)
 
-    def register_model(self, local_model: LocalModel) -> ModelMetadata:
+    def register_model_from_disk(self, local_model: LocalModel) -> ModelMetadata:
+        def stage() -> str:
+            return stage_model_from_disk(local_model)
+
+        self._register_model_common(stage, local_model)
+        registered_model = ModelMetadata(**local_model.dict())
+        local_data.put_local_model(registered_model)
+        return registered_model
+
+    def register_model_from_memory(
+        self,
+        model: object,
+        model_meta: ModelMetadata,
+        extra_paths: Optional[List[str]] = None,
+    ) -> ModelMetadata:
+        def stage() -> str:
+            return stage_model_from_memory(model, model_meta, extra_paths)
+
+        self._register_model_common(stage, model_meta)
+        registered_model = model_meta
+        local_data.put_local_model(registered_model)
+        return registered_model
+
+    def _register_model_common(self, stage_model: Callable, model_meta: ModelMetadata):
         try:
-            # Create directory in MLModel format
-            model_directory = stage_model_from_disk(local_model)
-            # Push contents of directory to S3
-            upload_mlmodel_to_s3(model_directory, local_model, self.backend_client)
+            model_directory = stage_model()
+            upload_mlmodel_to_s3(model_directory, model_meta, self.backend_client)
         finally:
             try:
                 clear_mlflow_staging_directory()
@@ -320,9 +342,8 @@ class GardenClient:
                 logger.error("Original exception: " + str(e))
                 # We can still proceed, there is just some cruft in the user's home directory.
                 pass
-        registered_model = ModelMetadata(**local_model.dict())
+        registered_model = model_meta
         local_data.put_local_model(registered_model)
-        return registered_model
 
     def add_dataset(self, model_name: str, title: str, url: str, **kwargs) -> None:
         """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
@@ -575,7 +596,7 @@ class GardenClient:
                                                         tags=["materials science", "computer vision"]
         )
         """
-        registered_model = self.register_model(local_model)
+        registered_model = self.register_model_from_disk(local_model)
 
         # we ignore these type errors, because we want the step to be typed correctly but mypy does not acknowledge that it would be
         @step
