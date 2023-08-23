@@ -46,7 +46,7 @@ from garden_ai.mlmodel import (
     ModelNotFoundException,
     Model,
     clear_mlflow_staging_directory,
-    stage_model_for_upload,
+    stage_model_from_disk,
 )
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
@@ -307,7 +307,7 @@ class GardenClient:
     def register_model(self, local_model: LocalModel) -> ModelMetadata:
         try:
             # Create directory in MLModel format
-            model_directory = stage_model_for_upload(local_model)
+            model_directory = stage_model_from_disk(local_model)
             # Push contents of directory to S3
             upload_mlmodel_to_s3(model_directory, local_model, self.backend_client)
         finally:

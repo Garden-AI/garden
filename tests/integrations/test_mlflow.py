@@ -4,7 +4,7 @@ from garden_ai import GardenClient, Model
 from garden_ai.mlmodel import (
     LocalModel,
     SerializationFormatException,
-    stage_model_for_upload,
+    stage_model_from_disk,
 )
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
@@ -163,7 +163,7 @@ def test_mlflow_pytorch_extra_paths(mocker, local_model, tmp_path):
         user_email="willengler@uchicago.edu",
         extra_paths=[str(file_path)],
     )
-    staged_path = stage_model_for_upload(local_model)
+    staged_path = stage_model_from_disk(local_model)
     assert staged_path.endswith("/artifacts/model")
     expected_call = mocker.call(
         torch.load(model_path),

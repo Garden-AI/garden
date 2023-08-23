@@ -7,4 +7,4 @@
 			- LocalModel
 			- ModelMetadata
 			- DatasetConnection
-			- stage_model_for_upload
+			- stage_model_from_disk
