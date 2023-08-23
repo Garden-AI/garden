@@ -5,7 +5,7 @@ import pytest
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 from garden_ai import PublishedGarden
 from garden_ai.mlmodel import (
-    stage_model_for_upload,
+    stage_model_from_disk,
     LocalModel,
     _Model,
     ModelUploadException,
@@ -14,7 +14,7 @@ from garden_ai.backend_client import BackendClient, PresignedUrlResponse
 from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
 
 
-def test_stage_model_for_upload(mocker, tmp_path):
+def test_stage_model_from_disk(mocker, tmp_path):
     tmp_path.mkdir(parents=True, exist_ok=True)
     mocker.patch("garden_ai.mlmodel.MODEL_STAGING_DIR", new=tmp_path)
     model_path = get_fixture_file_path("fixture_models/iris_model.pkl")
@@ -25,7 +25,7 @@ def test_stage_model_for_upload(mocker, tmp_path):
         local_path=str(model_path),
         user_email="willengler@uchicago.edu",
     )
-    staged_path = stage_model_for_upload(local_model)
+    staged_path = stage_model_from_disk(local_model)
     assert staged_path.endswith("/artifacts/model")
     files_to_check = ["MLmodel", "model.pkl", "requirements.txt"]
 
@@ -72,7 +72,7 @@ def test_invalid_extra_paths(mocker, local_model, tmp_path):
         extra_paths=["invalid-path.py"],
     )
     with pytest.raises(ModelUploadException):
-        stage_model_for_upload(local_model)
+        stage_model_from_disk(local_model)
 
 
 def test_load_model_before_predict(mocker, model_url_env_var, mlflow_metadata):

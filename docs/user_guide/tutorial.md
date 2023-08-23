@@ -109,6 +109,21 @@ def run_inference(
 > [!NOTE]
 > Regardless of "flavor" (sklearn, pytorch, etc) used when registering the underlying ML model, the `Model` object will appear to have a single `predict` method which passes its input directly to your model and returns its prediction.
 
+Alternatively, if you install the garden-ai package in the environment where you are developing your model, you can use the Garden SDK to register your model without serializing it to disk. For example ...
+
+```python
+my_model = train_pytorch_model()
+
+from garden_ai import GardenClient
+from garden_ai.mlmodel import ModelMetadata
+
+garden_client = GardenClient()
+model_meta = ModelMetadata(model_name="torchmdnet-ethanol", flavor="pytorch", user_email="willengler@uchicago.edu")
+garden_client.register_model_from_memory(my_model, model_meta)
+
+```
+
+In this example the name of the registered model to invoke will be `willengler@uchicago.edu/torchmdnet-ethanol`.
 
 ### Register a Pipeline
 

@@ -3,8 +3,9 @@ import pytest
 from garden_ai import GardenClient, Model
 from garden_ai.mlmodel import (
     LocalModel,
+    ModelMetadata,
     SerializationFormatException,
-    stage_model_for_upload,
+    stage_model_from_disk,
 )
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
@@ -113,34 +114,42 @@ def test_mlflow_sklearn_register(tmp_path, toy_sklearn_model, serialize_type):
     if serialize_type == "keras":
         # Assert that the 'SerializationFormatException' is raised
         with pytest.raises(SerializationFormatException):
-            client.register_model(local_model)
+            client.register_model_from_disk(local_model)
     else:
-        registered_model = client.register_model(local_model)
+        registered_model = client.register_model_from_disk(local_model)
         # all mlflow models will have a 'predict' method
         downloaded_model = Model(registered_model.full_name)
         assert hasattr(downloaded_model, "predict")
 
 
 @pytest.mark.integration
-def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model):
-    # as if model.pkl already existed on disk
+@pytest.mark.parametrize("register_method", ["disk", "in_memory"])
+def test_mlflow_pytorch_register(tmp_path, toy_pytorch_model, register_method):
     import torch  # type: ignore
 
-    tmp_path.mkdir(exist_ok=True)
-    model_path = tmp_path / "pytorchtest.pth"
-    torch.save(toy_pytorch_model, model_path, _use_new_zipfile_serialization=False)
-
-    # simulate `$ garden-ai model register test-model-name tmp_path/pytorchtest.pt`
     name = "pt-test-model-name"
-    # actually register the model
     client = GardenClient()
-    local_model = LocalModel(
-        local_path=str(model_path),
+    model_meta = ModelMetadata(
         model_name=name,
         flavor="pytorch",
         user_email="foo@example.com",
     )
-    registered_model = client.register_model(local_model)
+
+    if register_method == "disk":
+        # as if model.pkl already existed on disk
+        # simulate `$ garden-ai model register test-model-name tmp_path/pytorchtest.pt`
+        tmp_path.mkdir(exist_ok=True)
+        model_path = tmp_path / "pytorchtest.pth"
+        torch.save(toy_pytorch_model, model_path, _use_new_zipfile_serialization=False)
+
+        # actually register the model
+        local_model = LocalModel(local_path=str(model_path), **model_meta.dict())
+        registered_model = client.register_model_from_disk(local_model)
+
+    else:
+        registered_model = client.register_model_from_memory(
+            toy_pytorch_model, model_meta
+        )
 
     # all mlflow models will have a 'predict' method
     downloaded_model = Model(registered_model.full_name)
@@ -163,7 +172,7 @@ def test_mlflow_pytorch_extra_paths(mocker, local_model, tmp_path):
         user_email="willengler@uchicago.edu",
         extra_paths=[str(file_path)],
     )
-    staged_path = stage_model_for_upload(local_model)
+    staged_path = stage_model_from_disk(local_model)
     assert staged_path.endswith("/artifacts/model")
     expected_call = mocker.call(
         torch.load(model_path),
@@ -194,7 +203,7 @@ def test_mlflow_tensorflow_register(tmp_path, toy_tensorflow_model, save_format)
         flavor="tensorflow",
         user_email="foo@example.com",
     )
-    registered_model = client.register_model(local_model)
+    registered_model = client.register_model_from_disk(local_model)
 
     # all mlflow models will have a 'predict' method
     downloaded_model = Model(registered_model.full_name)

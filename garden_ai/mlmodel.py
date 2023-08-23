@@ -162,7 +162,7 @@ class LocalModel(ModelMetadata):
     extra_paths: List[str] = Field(default_factory=list)
 
 
-def stage_model_for_upload(local_model: LocalModel) -> str:
+def stage_model_from_disk(local_model: LocalModel) -> str:
     """
     Parameters
     ----------
@@ -185,16 +185,13 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
             ):
                 with open(local_path, "rb") as f:
                     loaded_model = pickle.load(f)
-                    log_model_variant = mlflow.sklearn.log_model
             elif serialization_type == SerializeType.JOBLIB.value:
                 with open(local_path, "rb") as f:
                     loaded_model = joblib.load(f)
-                    log_model_variant = mlflow.sklearn.log_model
             else:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
-            metadata = {"garden_load_strategy": "sklearn"}
         elif flavor == ModelFlavor.TENSORFLOW.value:
             if (
                 serialization_type == SerializeType.KERAS.value
@@ -205,14 +202,10 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                 from tensorflow import keras  # type: ignore
 
                 loaded_model = keras.models.load_model(local_path)
-                log_model_variant = (
-                    mlflow.tensorflow.log_model
-                )  # TODO explore artifact path and sigs
             else:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
-            metadata = {"garden_load_strategy": "pyfunc"}
         elif flavor == ModelFlavor.PYTORCH.value and pathlib.Path(local_path).is_file:
             if (
                 serialization_type == SerializeType.TORCH.value
@@ -224,54 +217,92 @@ def stage_model_for_upload(local_model: LocalModel) -> str:
                     loaded_model = torch.load(local_path)
                 else:
                     loaded_model = torch.load(local_path, map_location="cpu")
-                for file in extra_paths:
-                    path = pathlib.Path(file)
-                    if not path.exists() or not path.is_file() or path.suffix != ".py":
-                        raise ModelUploadException(
-                            f"{path} is not a valid Python file. Please provide a valid Python file (.py)."
-                        )
-                log_model_variant = mlflow.pytorch.log_model  # TODO explore signatures
             else:
                 raise SerializationFormatException(
                     f"Unsupported serialization format of type {serialization_type} for flavor {flavor}"
                 )
-            metadata = {"garden_load_strategy": "pytorch"}
         else:
             raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
-        if extra_paths and flavor != ModelFlavor.PYTORCH.value:
-            raise ModelUploadException(
-                f"Sorry, extra files are only supported for pytorch models. The {flavor} flavor is not supported."
-            )
-        # Create a folder structure for an experiment called "local" if it doesn't exist
-        # in the user's .garden directory
-        mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
-        experiment_name = "local"
-        mlflow.set_experiment(experiment_name)
-        experiment_id = mlflow.get_experiment_by_name(experiment_name).experiment_id
-
-        # The only way to derive the full directory path MLFlow creates is with this context manager.
-        with mlflow.start_run(None, experiment_id) as run:
-            experiment_id = mlflow.active_run().info.experiment_id
-            artifact_path = "model"
-            log_model_variant(
-                loaded_model,
-                artifact_path,
-                registered_model_name=local_model.mlflow_name,
-                code_paths=extra_paths,
-                metadata=metadata,
-            )
-            model_dir = os.path.join(
-                str(MODEL_STAGING_DIR),
-                experiment_id,
-                run.info.run_id,
-                "artifacts",
-                artifact_path,
-            )
     except IOError as e:
         raise ModelUploadException("Could not open file " + local_path) from e
     except (pickle.PickleError, mlflow.MlflowException) as e:
         raise ModelUploadException("Could not parse model at " + local_path) from e
+
+    return stage_model_from_memory(loaded_model, local_model, extra_paths)
+
+
+def stage_model_from_memory(
+    loaded_model: object,
+    model_meta: ModelMetadata,
+    extra_paths: Optional[List[str]] = None,
+) -> str:
+    """
+
+    Parameters
+    ----------
+    loaded_model: a model object from one of the AI libraries we support
+    model_meta: includes what flavor of model we're dealing with and under what name we're saving it
+    extra_paths: optional. Paths of extra files to bundle for pytorch class definitions.
+
+    Returns full path of model directory
+    -------
+
+    """
+    if extra_paths is None:
+        extra_paths = []
+
+    flavor, mlflow_name = (
+        model_meta.flavor,
+        model_meta.mlflow_name,
+    )
+
+    if extra_paths and flavor != ModelFlavor.PYTORCH.value:
+        raise ModelUploadException(
+            f"Sorry, extra files are only supported for pytorch models. The {flavor} flavor is not supported."
+        )
+
+    load_strategy = "pyfunc"
+    if flavor == ModelFlavor.SKLEARN.value:
+        log_model_variant = mlflow.sklearn.log_model
+        load_strategy = "sklearn"
+    elif flavor == ModelFlavor.TENSORFLOW.value:
+        log_model_variant = mlflow.tensorflow.log_model
+    elif flavor == ModelFlavor.PYTORCH.value:
+        log_model_variant = mlflow.pytorch.log_model
+        for file in extra_paths:
+            path = pathlib.Path(file)
+            if not path.exists() or not path.is_file() or path.suffix != ".py":
+                raise ModelUploadException(
+                    f"{path} is not a valid Python file. Please provide a valid Python file (.py)."
+                )
+    else:
+        raise ModelUploadException(f"Unsupported model flavor {flavor}")
+
+    # Create a folder structure for an experiment called "local" if it doesn't exist
+    # in the user's .garden directory
+    mlflow.set_tracking_uri("file://" + str(MODEL_STAGING_DIR))
+    experiment_name = "local"
+    mlflow.set_experiment(experiment_name)
+    experiment_id = mlflow.get_experiment_by_name(experiment_name).experiment_id
+
+    # The only way to derive the full directory path MLFlow creates is with this context manager.
+    with mlflow.start_run(None, experiment_id) as run:
+        experiment_id = mlflow.active_run().info.experiment_id
+        artifact_path = "model"
+        log_model_variant(
+            loaded_model,
+            artifact_path,
+            registered_model_name=mlflow_name,
+            metadata={"garden_load_strategy": load_strategy},
+        )
+        model_dir = os.path.join(
+            str(MODEL_STAGING_DIR),
+            experiment_id,
+            run.info.run_id,
+            "artifacts",
+            artifact_path,
+        )
 
     return model_dir
 
