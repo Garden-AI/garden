@@ -51,8 +51,8 @@ def test_register_and_run_with_env_vars(dlhub_endpoint):
     pipeline_path = get_fixture_file_path("fixture_pipeline/env_vars_pipeline.py")
     # NOTE: this pipeline just returns a copy of the os.environ dictionary
     pipeline = load_pipeline_from_python_file(pipeline_path)
-    container_id = "3dc3170e-2cdc-4379-885d-435a0d85b581"
-    client.register_pipeline(pipeline, container_id)
+    pipeline.container_uuid = "3dc3170e-2cdc-4379-885d-435a0d85b581"
+    client.register_pipeline(pipeline)
 
     # load from client, setting mlflow env vars
     registered_pipeline = client.get_registered_pipeline(pipeline.doi)
@@ -79,8 +79,8 @@ def test_register_and_run_with_model(dlhub_endpoint):
     # NOTE: this pipeline references a model, and raises an exception if model
     # fails to lazy-download when model.predict() is called
     pipeline = load_pipeline_from_python_file(pipeline_path)
-    container_id = "3dc3170e-2cdc-4379-885d-435a0d85b581"
-    client.register_pipeline(pipeline, container_id)
+    pipeline.container_uuid = "3dc3170e-2cdc-4379-885d-435a0d85b581"
+    client.register_pipeline(pipeline)
 
     # load from client, setting mlflow env vars
     registered_pipeline = client.get_registered_pipeline(pipeline.doi)

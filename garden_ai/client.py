@@ -412,9 +412,10 @@ class GardenClient:
 
         return built_container_uuid
 
-    def register_pipeline(
-        self, pipeline: Pipeline, container_uuid: Optional[str] = None
-    ) -> RegisteredPipeline:
+    def register_pipeline(self, pipeline: Pipeline) -> RegisteredPipeline:
+        container_uuid = (
+            str(pipeline.container_uuid) if pipeline.container_uuid else None
+        )
         if container_uuid is None:
             cache = _read_local_cache().get(
                 get_cache_tag(
