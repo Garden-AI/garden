@@ -123,6 +123,8 @@ garden_client.register_model_from_memory(my_model, model_meta)
 
 ```
 
+In this example the name of the registered model to invoke will be `willengler@uchicago.edu/torchmdnet-ethanol`.
+
 ### Register a Pipeline
 
 Once we're satisfied with our pipeline's definition in `pipeline.py`, we can register the pipeline, allowing us to:
