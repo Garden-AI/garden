@@ -430,7 +430,6 @@ class GardenClient:
             else:
                 container_uuid = self.build_container(pipeline)
 
-        print(container_uuid)
         func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
         pipeline.func_uuid = UUID(func_uuid)
         registered = RegisteredPipeline.from_pipeline(pipeline)
