@@ -268,13 +268,8 @@ def stage_model_from_memory(
         load_strategy = "sklearn"
     elif flavor == ModelFlavor.TENSORFLOW.value:
         log_model_variant = mlflow.tensorflow.log_model
-        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-        # ignore cpu guard info on tf import require before tf import
-        from tensorflow import keras  # type: ignore
     elif flavor == ModelFlavor.PYTORCH.value:
         log_model_variant = mlflow.pytorch.log_model
-        import torch  # type: ignore
-
         for file in extra_paths:
             path = pathlib.Path(file)
             if not path.exists() or not path.is_file() or path.suffix != ".py":
