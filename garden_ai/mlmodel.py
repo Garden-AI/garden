@@ -1,17 +1,17 @@
+import functools
 import os
 import pathlib
 import pickle
-import joblib  # type: ignore
 import shutil
 from enum import Enum
-from typing import Optional, List
-import functools
+from typing import List, Optional
+
+import joblib  # type: ignore
 import mlflow  # type: ignore
 from pydantic import BaseModel, Field, validator
 
 from garden_ai import GardenConstants
 from garden_ai._model import _Model
-
 
 MODEL_STAGING_DIR = pathlib.Path(GardenConstants.GARDEN_DIR) / "mlflow"
 MODEL_STAGING_DIR.mkdir(parents=True, exist_ok=True)
@@ -243,7 +243,9 @@ def stage_model_from_memory(
     ----------
     loaded_model: a model object from one of the AI libraries we support
     model_meta: includes what flavor of model we're dealing with and under what name we're saving it
-    extra_paths: optional. Paths of extra files to bundle for pytorch class definitions.
+    extra_paths:
+        optional. Paths to extra necessary .py files or "package directories" (with an __init__.py)
+        to bundle with the model. This should not include your pipeline code.
 
     Returns full path of model directory
     -------
@@ -252,15 +254,31 @@ def stage_model_from_memory(
     if extra_paths is None:
         extra_paths = []
 
+    def validate_extra_path(path: pathlib.Path):
+        """helper: throw an error message if a given extra path doesn't look like either a python file or package directory"""
+        path = path.resolve()
+        if not path.exists():
+            raise ModelUploadException(f"Could not find {path}.")
+        elif path.is_file() and path.suffix != ".py":
+            raise ModelUploadException(
+                f"File at {path} is not a valid python file (does not end with .py)."
+            )
+        elif path.is_dir():
+            if not (path / "__init__.py").exists():
+                raise ModelUploadException(
+                    f"Directory at {path} is not a valid python package (missing an __init__.py file)."
+                )
+            for child in path.iterdir():
+                validate_extra_path(child)
+        return
+
+    for file in extra_paths:
+        validate_extra_path(pathlib.Path(file).resolve())
+
     flavor, mlflow_name = (
         model_meta.flavor,
         model_meta.mlflow_name,
     )
-
-    if extra_paths and flavor != ModelFlavor.PYTORCH.value:
-        raise ModelUploadException(
-            f"Sorry, extra files are only supported for pytorch models. The {flavor} flavor is not supported."
-        )
 
     load_strategy = "pyfunc"
     if flavor == ModelFlavor.SKLEARN.value:
@@ -270,12 +288,6 @@ def stage_model_from_memory(
         log_model_variant = mlflow.tensorflow.log_model
     elif flavor == ModelFlavor.PYTORCH.value:
         log_model_variant = mlflow.pytorch.log_model
-        for file in extra_paths:
-            path = pathlib.Path(file)
-            if not path.exists() or not path.is_file() or path.suffix != ".py":
-                raise ModelUploadException(
-                    f"{path} is not a valid Python file. Please provide a valid Python file (.py)."
-                )
     else:
         raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
@@ -295,6 +307,7 @@ def stage_model_from_memory(
             artifact_path,
             registered_model_name=mlflow_name,
             metadata={"garden_load_strategy": load_strategy},
+            code_paths=extra_paths,
         )
         model_dir = os.path.join(
             str(MODEL_STAGING_DIR),
@@ -332,6 +345,7 @@ def trackcalls(func):
 @trackcalls
 def Model(full_model_name: str) -> _Model:
     from garden_ai.utils.filesystem import PipelineLoadException
+
     from .local_data import get_local_model_by_name
 
     """Load a registered model from Garden-AI's (MLflow) tracking server.
