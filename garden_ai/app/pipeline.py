@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 
-import dill
+import dill  # type: ignore
 import jinja2
 import typer
 import rich
@@ -610,7 +610,7 @@ def debug(
     try:
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
         pipeline_url_json = client.generate_presigned_urls_for_pipeline(user_pipeline)
-        user_pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
+        _env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
     except (
         PipelineLoadException,
         PipelineLoadScaffoldedException,
@@ -618,7 +618,7 @@ def debug(
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise
     remote_func = make_func_to_serialize(user_pipeline)
-    curry = partial(remote_func, _env_vars=user_pipeline._env_vars)
+    curry = partial(remote_func, _env_vars=_env_vars)
 
     with TemporaryDirectory() as tmpdir:
         tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility
