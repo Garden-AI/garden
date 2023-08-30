@@ -645,8 +645,7 @@ def debug(
             with open(f"{tmpdir}/Dockerfile", "w+") as dockerfile:
                 dockerfile.write(
                     "FROM continuumio/miniconda3\n"
-                    f'ARG SERIAL="{tmp_filename}"\n'  # allows filepaths with spaces (precaution)
-                    "COPY $SERIAL .\n"
+                    f'COPY "{tmp_filename}" .\n'
                     f"RUN conda create -y -n env pip python={user_pipeline.python_version}\n"
                     'SHELL ["conda", "run", "--no-capture-output", "-n", "env", "/bin/bash", "-c"]\n'
                 )
