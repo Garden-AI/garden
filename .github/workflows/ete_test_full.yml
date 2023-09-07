@@ -25,7 +25,7 @@ jobs:
     needs: [get-latest-tag]
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8.16"]
         repository-ref: ["max/ete-updates"]
       fail-fast: false
       max-parallel: 1
@@ -81,7 +81,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8.16"]
         repository-ref: ["main"]
       max-parallel: 1
     name: collect-and-send-logs
