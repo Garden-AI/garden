@@ -97,7 +97,7 @@ torch_pipeline_name = "ETETorchPipeline"
 torch_model_name = "ETE-Test-Model-Torch"
 
 sklearn_model_location = os.path.abspath("./models/sklearn_model.pkl")
-tf_model_location = os.path.abspath("./models/keras_model")
+tf_model_location = os.path.abspath("./models/keras_model.keras")
 torch_model_location = os.path.abspath("./models/torch_model.pth")
 
 sklearn_input_data_location = os.path.abspath("./models/sklearn_test_input.pkl")
