@@ -270,6 +270,7 @@ def stage_model_from_memory(
         log_model_variant = mlflow.tensorflow.log_model
     elif flavor == ModelFlavor.PYTORCH.value:
         log_model_variant = mlflow.pytorch.log_model
+        load_strategy = "pytorch"
         for file in extra_paths:
             path = pathlib.Path(file)
             if not path.exists() or not path.is_file() or path.suffix != ".py":
