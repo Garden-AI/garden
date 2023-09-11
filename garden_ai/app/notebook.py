@@ -7,11 +7,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from garden_ai.app.console import console
-from garden_ai.container.containerize import (
+from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
     build_container,
     start_container,
-)  # type: ignore
+)
 
 logger = logging.getLogger()
 
