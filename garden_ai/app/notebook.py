@@ -11,7 +11,7 @@ from garden_ai.container.containerize import (
     IMAGE_NAME,
     build_container,
     start_container,
-)
+)  # type: ignore
 
 logger = logging.getLogger()
 

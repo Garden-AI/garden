@@ -81,7 +81,7 @@ def start_container(
         run_command.insert(idx, "-v")
 
         t = Thread(
-            target=lambda x: not time.sleep(2) and webbrowser.open_new_tab(x),
+            target=lambda x: not time.sleep(2) and webbrowser.open_new_tab(x),  # type: ignore
             args=[f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN}"],
         )
         t.start()
