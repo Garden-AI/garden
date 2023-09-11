@@ -103,5 +103,5 @@ def debug(
         help=("ID for a local baked container image to debug."),
     )
 ):
-    interpreter_cmd = "python -i -c 'import dill; dill.load_module(\"session.pkl\"); print(\"Your notebook state has been loaded!\")'"
+    interpreter_cmd = 'python -i -c \'import dill; dill.load_module("session.pkl"); print("Your notebook state has been loaded!")\''
     start_container(image_id, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
