@@ -19,10 +19,11 @@ notebook_app = typer.Typer(name="notebook")
 
 
 @notebook_app.callback(invoke_without_command=True)
-def notebook():
+def notebook(ctx: typer.Context):
     """sub-commands for operating with IPython notebooks"""
-    build_container(jupyter=True)
-    start_container(jupyter=True)
+    if ctx.invoked_subcommand is None:
+        build_container(jupyter=True)
+        start_container(jupyter=True)
 
 
 @notebook_app.command()
@@ -46,35 +47,53 @@ def bake(
         )
         raise typer.Exit(code=1)
 
-    copy = subprocess.run(["docker", "cp", notebook, "gardenai/base-jupyter:/garden"])
-    if copy.returncode:
-        console.log(
-            "Copy operation failed. If the target container has not been built, please run `garden-ai notebook build`."
-        )
-        raise typer.Exit(code=1)
+    CONTAINER_NAME = "garden_baking"
+    image_name = f"{IMAGE_NAME}-jupyter"
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "-it",
+            "-d",
+            "--rm",
+            "--name",
+            CONTAINER_NAME,
+            "--entrypoint",
+            "/bin/bash",
+            image_name,
+        ]
+    )
 
+    subprocess.run(["docker", "cp", notebook, f"{CONTAINER_NAME}:/garden"])
     with TemporaryDirectory() as tmpdir:
         tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility
 
         with open(f"{tmpdir}/bake.sh", "w+") as script:
             script.writelines(
                 [
-                    f"jupyter nbconvert --to script /garden/{notebook.name}\n",
-                    f'printf "\nimport dill\ndill.dump_module()" >> /garden/{notebook.stem}.py\n',  # saves to /tmp/session.pkl
+                    f"jupyter nbconvert --to python /garden/{notebook.name}\n",
+                    f"printf \"\nimport dill\ndill.dump_module('session.pkl')\n\" >> /garden/{notebook.stem}.py\n",
                     f"ipython /garden/{notebook.stem}.py",
                 ]
             )
 
         subprocess.run(
-            ["docker", "cp", f"{tmpdir}/bake.sh", "gardenai/base-jupyter:/garden"]
+            ["docker", "cp", f"{tmpdir}/bake.sh", f"{CONTAINER_NAME}:/garden"]
         )
 
-    start_container(
-        container_name="garden_baking",
-        entrypoint="/bin/bash",
-        args=["/garden/bake.sh"],
+    subprocess.run(
+        [
+            "docker",
+            "exec",
+            CONTAINER_NAME,
+            "/bin/bash",
+            "-c",
+            "find . -type f -print0 | xargs -0 dos2unix",
+        ]
     )
-    subprocess.run(["docker", "commit", "garden_baking", f"{IMAGE_NAME}-baked"])
+    subprocess.run(["docker", "exec", CONTAINER_NAME, "/bin/bash", "-c", "./bake.sh"])
+    subprocess.run(["docker", "commit", CONTAINER_NAME, f"{IMAGE_NAME}-baked"])
+    subprocess.run(["docker", "stop", CONTAINER_NAME])
 
 
 @notebook_app.command(no_args_is_help=True)
@@ -84,10 +103,5 @@ def debug(
         help=("ID for a local baked container image to debug."),
     )
 ):
-    interpreter_cmd = [
-        "python",
-        "-i",
-        "-c",
-        "'import dill; dill.load_module(); del dill; print(\"Your notebook state has been loaded!\")'",  # loads from /tmp/session.pkl
-    ]
-    start_container(image_id, entrypoint="/bin/bash", args=interpreter_cmd)
+    interpreter_cmd = "python -i -c 'import dill; dill.load_module(\"session.pkl\"); print(\"Your notebook state has been loaded!\")'"
+    start_container(image_id, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
