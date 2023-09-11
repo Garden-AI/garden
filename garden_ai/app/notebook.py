@@ -49,7 +49,7 @@ def bake(
     copy = subprocess.run(["docker", "cp", notebook, "gardenai/base-jupyter:/garden"])
     if copy.returncode:
         console.log(
-            f"Copy operation failed. If the target container has not been built, please run `garden-ai notebook build`."
+            "Copy operation failed. If the target container has not been built, please run `garden-ai notebook build`."
         )
         raise typer.Exit(code=1)
 
@@ -88,6 +88,6 @@ def debug(
         "python",
         "-i",
         "-c",
-        f"'import dill; dill.load_module(); del dill; print(\"Your notebook state has been loaded!\")'",  # loads from /tmp/session.pkl
+        "'import dill; dill.load_module(); del dill; print(\"Your notebook state has been loaded!\")'",  # loads from /tmp/session.pkl
     ]
     start_container(image_id, entrypoint="/bin/bash", args=interpreter_cmd)
