@@ -55,10 +55,12 @@ def start_container(
     jupyter: bool = False,
     entrypoint: Optional[str] = None,
     cleanup: bool = False,
-    args: Optional[List[str]] = None
+    args: Optional[List[str]] = None,
 ) -> None:
     if jupyter and entrypoint:
-        raise NotImplementedError("This combination of arguments results in undefined behavior, and is unsupported.")
+        raise NotImplementedError(
+            "This combination of arguments results in undefined behavior, and is unsupported."
+        )
 
     if args is None:
         args = []
