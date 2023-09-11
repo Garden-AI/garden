@@ -23,6 +23,7 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
                     "WORKDIR /garden\n",
                     "RUN apt-get update && ",
                     "apt-get install -y wget && ",
+                    "apt-get install -y dos2unix && ",
                     "apt-get clean && ",
                     "rm -rf /var/lib/apt/lists/*\n",
                     "RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-x86_64.sh -O ~/miniconda.sh && ",
