@@ -76,7 +76,9 @@ def register(
         writable=True,
         readable=True,
         resolve_path=True,
-        help=("The extra Python files that your model may require. Pytorch specific"),
+        help=(
+            "The extra python files or directories required to load your model (e.g. pytorch class definitions)."
+        ),
     ),
 ):
     """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
