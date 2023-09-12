@@ -232,6 +232,25 @@ def stage_model_from_disk(local_model: LocalModel) -> str:
     return stage_model_from_memory(loaded_model, local_model, extra_paths)
 
 
+def validate_extra_path(path: pathlib.Path):
+    """helper: throw an error message if a given extra path doesn't look like either a python file or package directory"""
+    path = path.resolve()
+    if not path.exists():
+        raise ModelUploadException(f"Could not find {path}.")
+    elif path.is_file() and path.suffix != ".py":
+        raise ModelUploadException(
+            f"File at {path} is not a valid python file (does not end with .py)."
+        )
+    elif path.is_dir():
+        if not (path / "__init__.py").exists():
+            raise ModelUploadException(
+                f"Directory at {path} is not a valid python package (missing an __init__.py file)."
+            )
+        for child in path.iterdir():
+            validate_extra_path(child)
+    return
+
+
 def stage_model_from_memory(
     loaded_model: object,
     model_meta: ModelMetadata,
@@ -253,24 +272,6 @@ def stage_model_from_memory(
     """
     if extra_paths is None:
         extra_paths = []
-
-    def validate_extra_path(path: pathlib.Path):
-        """helper: throw an error message if a given extra path doesn't look like either a python file or package directory"""
-        path = path.resolve()
-        if not path.exists():
-            raise ModelUploadException(f"Could not find {path}.")
-        elif path.is_file() and path.suffix != ".py":
-            raise ModelUploadException(
-                f"File at {path} is not a valid python file (does not end with .py)."
-            )
-        elif path.is_dir():
-            if not (path / "__init__.py").exists():
-                raise ModelUploadException(
-                    f"Directory at {path} is not a valid python package (missing an __init__.py file)."
-                )
-            for child in path.iterdir():
-                validate_extra_path(child)
-        return
 
     for file in extra_paths:
         validate_extra_path(pathlib.Path(file).resolve())
