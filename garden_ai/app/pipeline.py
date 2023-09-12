@@ -631,7 +631,7 @@ def debug(
             "python",
             "-i",
             "-c",
-            f'\'import dill; f = open("{tmpdir}/{tmp_filename}", "rb"); {user_pipeline.short_name} = dill.load(f); f.close(); del f; '
+            f'\'import dill; f = open("{tmpdir}/{tmp_filename}", "rb"); {user_pipeline.short_name} = dill.load(f); f.close(); del f; del dill; '
             f'print(f"Defined your pipeline as the function `{user_pipeline.short_name}`!")\'',
         ]
 
