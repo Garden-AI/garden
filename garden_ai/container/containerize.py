@@ -22,6 +22,7 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
                     "FROM python:3.10-slim\n",  # solution to hard-coding global Python version might be prudent (miniconda install link must match)
                     "WORKDIR /garden\n",
                     "RUN apt-get update && ",
+                    "apt-get install -y git && ",
                     "apt-get install -y wget && ",
                     "apt-get install -y dos2unix && ",
                     "apt-get clean && ",
