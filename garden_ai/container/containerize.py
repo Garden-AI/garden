@@ -5,7 +5,7 @@ import webbrowser
 
 from tempfile import TemporaryDirectory
 from threading import Thread
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 IMAGE_NAME = "gardenai/base"
 CONTAINER_NAME = "garden_ai"
@@ -97,6 +97,9 @@ def start_container(
         subprocess.run(["docker", "rmi", image_name])
 
 
-if __name__ == "__main__":
-    # build_container(jupyter=True)
-    start_container(jupyter=True)
+def garden_pipeline(func: Callable) -> Callable:
+    def garden_target(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    garden_target._check = True
+    return garden_target  # returns func back, but with `__name__ == garden_target` and a _check attr
