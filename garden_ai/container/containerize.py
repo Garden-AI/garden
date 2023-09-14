@@ -31,7 +31,7 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
                     "/bin/bash ~/miniconda.sh -b -p /opt/conda\n",
                     "ENV PATH=/opt/conda/bin:$PATH\n",
                     "RUN conda create -y --name env\n",
-                    'RUN pip install --no-build-isolation "dill" "pandas<3" "mlflow-skinny>=2.6"\n',
+                    'RUN pip install --no-build-isolation "dill==0.3.6" "pandas<3" "mlflow-skinny>=2.6"\n',
                 ]
             )
             if jupyter:
