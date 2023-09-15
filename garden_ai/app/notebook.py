@@ -124,7 +124,12 @@ def _funcx_invoke_pipeline(*args, **kwargs):
 
 
 @notebook_app.command()
-def publish():
+def publish(
+    tag: Path = typer.Argument(
+        None,
+        help=("Tag for the publically reachable baked container image."),
+    )
+):
     # add container to docker registry
     # when updating the container, the name MUST be changed (or the cache lookup will find old version)
     # subprocess.run(["docker", "push", "idarling/public:garden.v2"])
@@ -134,7 +139,7 @@ def publish():
     # perform container and function registration
     client = GardenClient()
     container_id = client.compute_client.register_container(
-        f"docker.io/idarling/public:garden.v2", "docker"
+        f"docker.io/idarling/public:{tag}", "docker"
     )
     print(f"Your container has been registered with UUID: {container_id}")
 
