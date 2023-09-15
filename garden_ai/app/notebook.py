@@ -6,6 +6,8 @@ import typer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from garden_ai import GardenClient
+from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
@@ -72,7 +74,7 @@ def bake(
             script.writelines(
                 [
                     f"jupyter nbconvert --to python /garden/{notebook.name}\n",
-                    f"printf \"\nimport dill\ndill.dump_module('session.pkl')\n\" >> /garden/{notebook.stem}.py\n",
+                    f"printf \"\nimport dill\ndill.dump_session('session.pkl')\n\" >> /garden/{notebook.stem}.py\n",
                     f"ipython /garden/{notebook.stem}.py",
                 ]
             )
@@ -94,6 +96,54 @@ def bake(
     subprocess.run(["docker", "exec", CONTAINER_NAME, "/bin/bash", "-c", "./bake.sh"])
     subprocess.run(["docker", "commit", CONTAINER_NAME, f"{IMAGE_NAME}-baked"])
     subprocess.run(["docker", "stop", CONTAINER_NAME])
+
+
+def _funcx_invoke_pipeline(*args, **kwargs):
+    import subprocess
+
+    # overwrite any init process that utilized an unsupported dill version
+    subprocess.run(["python", "-m", "pip", "install", "dill==0.3.5.1"])
+
+    import dill
+
+    dill.load_session("session.pkl")
+
+    # don't ask how I figured it out, I won't say.
+    # but apparently dill populates locals() in the interpreter and globals() when running a script
+    # *shrug*
+    for obj in globals().values():
+        if getattr(obj, "__name__", None) == "garden_target" and getattr(
+            obj, "_check", None
+        ):
+            target_func = obj
+            break
+    else:
+        raise ValueError("No function marked for invocation.")
+
+    return target_func(*args, **kwargs)
+
+
+@notebook_app.command()
+def publish():
+    # add container to docker registry
+    # when updating the container, the name MUST be changed (or the cache lookup will find old version)
+    # subprocess.run(["docker", "push", "idarling/public:garden.v2"])
+
+    import __main__
+
+    # perform container and function registration
+    client = GardenClient()
+    container_id = client.compute_client.register_container(
+        f"docker.io/idarling/public:garden.v2", "docker"
+    )
+    print(f"Your container has been registered with UUID: {container_id}")
+
+    redef_in_main(_funcx_invoke_pipeline)
+
+    func_id = client.compute_client.register_function(
+        __main__._funcx_invoke_pipeline, container_uuid=container_id, public=True
+    )
+    print(f"Your function has been registered with UUID: {func_id}")
 
 
 @notebook_app.command(no_args_is_help=True)
