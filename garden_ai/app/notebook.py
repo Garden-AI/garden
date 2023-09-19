@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import time
 
 import typer
 
@@ -28,29 +29,44 @@ def notebook(ctx: typer.Context):
         start_container(jupyter=True)
 
 
-@notebook_app.command()
-def build():
-    build_container(jupyter=True)
-
-
 @notebook_app.command(no_args_is_help=True)
-def bake(
-    notebook: Path = typer.Argument(
-        None,
+def plant(
+    source: Path = typer.Argument(
+        ...,
         dir_okay=False,
         file_okay=True,
         resolve_path=True,
-        help=("Path to a .ipynb file containing your pipeline implementation."),
-    )
+        help=(
+            "Path to a notebook or Python file containing your pipeline implementation."
+        ),
+    ),
+    req_file: Path = typer.Option(
+        None,
+        "-r",
+        "--requirements",
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to your requirements.txt file, defaults to next to source file."),
+    ),
 ):
-    if not notebook.exists() or not notebook.is_file() or notebook.suffix != ".ipynb":
+    if (
+        not source.exists()
+        or not source.is_file()
+        or source.suffix not in (".ipynb", ".py")
+    ):
         console.log(
-            f"{notebook} is not a valid notebook file. Please provide a valid notebook file (.ipynb)."
+            f"{source} is not a valid notebook or Python file. Please provide a valid file (.ipynb/.py)."
         )
         raise typer.Exit(code=1)
+    elif source.suffix == ".ipynb":
+        jupyter = True
+    else:
+        jupyter = False
 
-    CONTAINER_NAME = "garden_baking"
-    image_name = f"{IMAGE_NAME}-jupyter"
+    CONTAINER_NAME = "garden_planting"
+    image_name = f"{IMAGE_NAME}-planting"
+    build_container(image_name, jupyter=jupyter)
     subprocess.run(
         [
             "docker",
@@ -66,21 +82,28 @@ def bake(
         ]
     )
 
-    subprocess.run(["docker", "cp", notebook, f"{CONTAINER_NAME}:/garden"])
+    if not jupyter:
+        if req_file is None:
+            req_file = source.parent / "requirements.txt"
+        subprocess.run(["docker", "cp", req_file, f"{CONTAINER_NAME}:/garden"])
+
+    subprocess.run(["docker", "cp", source, f"{CONTAINER_NAME}:/garden"])
     with TemporaryDirectory() as tmpdir:
         tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility
 
-        with open(f"{tmpdir}/bake.sh", "w+") as script:
+        with open(f"{tmpdir}/plant.sh", "w") as script:
             script.writelines(
                 [
-                    f"jupyter nbconvert --to python /garden/{notebook.name}\n",
-                    f"printf \"\nimport dill\ndill.dump_session('session.pkl')\n\" >> /garden/{notebook.stem}.py\n",
-                    f"ipython /garden/{notebook.stem}.py",
+                    f"jupyter nbconvert --to python /garden/{source.name}\n"
+                    if jupyter
+                    else "python -m pip install -r /garden/requirements.txt\n",
+                    f"printf \"\nimport dill\ndill.dump_session('session.pkl')\n\" >> /garden/{source.stem}.py\n",
+                    f"{'i' if jupyter else ''}python /garden/{source.stem}.py",
                 ]
             )
 
         subprocess.run(
-            ["docker", "cp", f"{tmpdir}/bake.sh", f"{CONTAINER_NAME}:/garden"]
+            ["docker", "cp", f"{tmpdir}/plant.sh", f"{CONTAINER_NAME}:/garden"]
         )
 
     subprocess.run(
@@ -93,9 +116,22 @@ def bake(
             "find . -type f -print0 | xargs -0 dos2unix",
         ]
     )
-    subprocess.run(["docker", "exec", CONTAINER_NAME, "/bin/bash", "-c", "./bake.sh"])
-    subprocess.run(["docker", "commit", CONTAINER_NAME, f"{IMAGE_NAME}-baked"])
+    subprocess.run(["docker", "exec", CONTAINER_NAME, "/bin/bash", "-c", "./plant.sh"])
+    subprocess.run(["docker", "commit", CONTAINER_NAME, f"{IMAGE_NAME}-planted"])
     subprocess.run(["docker", "stop", CONTAINER_NAME])
+    time.sleep(3)  # takes a moment for the container to fully stop
+    subprocess.run(["docker", "rmi", image_name])
+
+
+@notebook_app.command(no_args_is_help=True)
+def debug(
+    image_id: Path = typer.Argument(
+        None,
+        help=("ID for a local planted container image to debug."),
+    )
+):
+    interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
+    start_container(image_id, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
 
 
 def _funcx_invoke_pipeline(*args, **kwargs):
@@ -108,9 +144,6 @@ def _funcx_invoke_pipeline(*args, **kwargs):
 
     dill.load_session("session.pkl")
 
-    # don't ask how I figured it out, I won't say.
-    # but apparently dill populates locals() in the interpreter and globals() when running a script
-    # *shrug*
     for obj in globals().values():
         if getattr(obj, "__name__", None) == "garden_target" and getattr(
             obj, "_check", None
@@ -127,12 +160,11 @@ def _funcx_invoke_pipeline(*args, **kwargs):
 def publish(
     tag: Path = typer.Argument(
         None,
-        help=("Tag for the publically reachable baked container image."),
+        help=("Tag for the publically reachable planted container image."),
     )
 ):
-    # add container to docker registry
-    # when updating the container, the name MUST be changed (or the cache lookup will find old version)
-    # subprocess.run(["docker", "push", "idarling/public:garden.v2"])
+    # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
+    # subprocess.run(["docker", "push", "idarling/public:garden.vPy"])
 
     import __main__
 
@@ -149,14 +181,3 @@ def publish(
         __main__._funcx_invoke_pipeline, container_uuid=container_id, public=True
     )
     print(f"Your function has been registered with UUID: {func_id}")
-
-
-@notebook_app.command(no_args_is_help=True)
-def debug(
-    image_id: Path = typer.Argument(
-        None,
-        help=("ID for a local baked container image to debug."),
-    )
-):
-    interpreter_cmd = 'python -i -c \'import dill; dill.load_module("session.pkl"); print("Your notebook state has been loaded!")\''
-    start_container(image_id, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
