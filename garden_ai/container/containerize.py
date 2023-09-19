@@ -16,7 +16,7 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
     with TemporaryDirectory() as tmpdir:
         tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility
 
-        with open(f"{tmpdir}/Dockerfile", "w+") as dockerfile:
+        with open(f"{tmpdir}/Dockerfile", "w") as dockerfile:
             dockerfile.writelines(
                 [
                     "FROM python:3.10-slim\n",  # solution to hard-coding global Python version might be prudent (miniconda install link must match)
