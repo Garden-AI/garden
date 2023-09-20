@@ -7,6 +7,7 @@ import typer
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import List
 from uuid import UUID
 
 from garden_ai import GardenClient, RegisteredPipeline, local_data
@@ -20,18 +21,22 @@ from garden_ai.container.containerize import (  # type: ignore
 
 logger = logging.getLogger()
 
-notebook_app = typer.Typer(name="notebook")
+prototype_app = typer.Typer(name="prototype")
 
 
-@notebook_app.callback(invoke_without_command=True)
-def notebook(ctx: typer.Context):
-    """sub-commands for operating with IPython notebooks"""
-    if ctx.invoked_subcommand is None:
-        build_container(jupyter=True)
-        start_container(jupyter=True)
+@prototype_app.callback()
+def prototype():
+    """sub-commands for experimenting with prototype publishing workflow"""
+    pass
 
 
-@notebook_app.command(no_args_is_help=True)
+@prototype_app.command()
+def notebook():
+    build_container(jupyter=True)
+    start_container(jupyter=True)
+
+
+@prototype_app.command(no_args_is_help=True)
 def plant(
     source: Path = typer.Argument(
         ...,
@@ -50,6 +55,15 @@ def plant(
         file_okay=True,
         resolve_path=True,
         help=("Path to your requirements.txt file, defaults to next to source file."),
+    ),
+    cp: List[Path] = typer.Option(
+        None,
+        "-c",
+        "--copy",
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path(s) to any other files to be copied into the container."),
     ),
 ):
     if (
@@ -130,7 +144,7 @@ def plant(
     subprocess.run(["docker", "rmi", image_name])
 
 
-@notebook_app.command(no_args_is_help=True)
+@prototype_app.command(no_args_is_help=True)
 def debug(
     image_id: Path = typer.Argument(
         None,
@@ -163,7 +177,7 @@ def _funcx_invoke_pipeline(*args, **kwargs):
     return target_func(*args, **kwargs)
 
 
-@notebook_app.command()
+@prototype_app.command()
 def register(
     record: Path = typer.Argument(
         ...,
