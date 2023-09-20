@@ -63,7 +63,7 @@ def plant(
         dir_okay=False,
         file_okay=True,
         resolve_path=True,
-        help=("Path(s) to any other files to be copied into the container."),
+        help=("Path to any other file to be copied into the container. This option can be supplied multiple times."),
     ),
 ):
     if (
@@ -107,6 +107,13 @@ def plant(
             raise typer.Exit(code=1)
 
         subprocess.run(["docker", "cp", req_file, f"{CONTAINER_NAME}:/garden"])
+
+    if cp is not None:
+        for path in cp:
+            if not path.exists() or not path.is_file():
+                console.log(f"{path} does not appear to be a valid path.")
+                raise typer.Exit(code=1)
+            subprocess.run(["docker", "cp", path, f"{CONTAINER_NAME}:/garden"])
 
     subprocess.run(["docker", "cp", source, f"{CONTAINER_NAME}:/garden"])
     with TemporaryDirectory() as tmpdir:
