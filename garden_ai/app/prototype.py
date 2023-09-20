@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import List
 from uuid import UUID
 
-from garden_ai import GardenClient, RegisteredPipeline, local_data
+from garden_ai import GardenClient, RegisteredPipeline, local_data, Step
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
 from garden_ai.container.containerize import (  # type: ignore
@@ -63,7 +63,9 @@ def plant(
         dir_okay=False,
         file_okay=True,
         resolve_path=True,
-        help=("Path to any other file to be copied into the container. This option can be supplied multiple times."),
+        help=(
+            "Path to any other file to be copied into the container. This option can be supplied multiple times."
+        ),
     ),
 ):
     if (
@@ -184,15 +186,19 @@ def _funcx_invoke_pipeline(*args, **kwargs):
     return target_func(*args, **kwargs)
 
 
-@prototype_app.command()
+@prototype_app.command(no_args_is_help=True)
 def register(
+    image: str = typer.Argument(
+        ...,
+        help=("The name of the image to be pushed and registered with Globus compute."),
+    ),
     record: Path = typer.Argument(
         ...,
         dir_okay=False,
         file_okay=True,
         resolve_path=True,
         help=("Path to a json record describing the metadata for your pipeline."),
-    )
+    ),
 ):
     if not record.exists() or not record.is_file():
         console.log(f"{record} does not appear to be a valid path.")
@@ -201,17 +207,22 @@ def register(
     with open(record, "r") as f:
         meta = json.load(f)
 
-    pipeline = client.create_pipeline(steps=(), **meta)
+    client = GardenClient()
+
+    # needed since a step is needed, steps arent useful under this construction
+    def four() -> int:
+        return 4
+
+    pipeline = client.create_pipeline(steps=(Step(four),), **meta)
 
     # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
-    # subprocess.run(["docker", "push", "idarling/public:garden.vPy"])
+    # subprocess.run(["docker", "push", image])
 
     import __main__
 
     # perform container and function registration
-    client = GardenClient()
     container_id = client.compute_client.register_container(
-        "docker.io/idarling/public:garden.v3", "docker"
+        f"docker.io/{image}", "docker"
     )
     # print(f"Your container has been registered with UUID: {container_id}")
     pipeline.container_uuid = container_id
@@ -228,4 +239,4 @@ def register(
     registered = RegisteredPipeline.from_pipeline(pipeline)
     client._update_datacite(registered)
     local_data.put_local_pipeline(registered)
-    print(f"Successfully registered your new pipeline with doi: {registered.doi}!")
+    print(f"Successfully registered your new pipeline with doi: {registered.doi}")
