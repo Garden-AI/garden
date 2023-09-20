@@ -24,7 +24,7 @@ logger = logging.getLogger()
 prototype_app = typer.Typer(name="prototype")
 
 
-@prototype_app.callback()
+@prototype_app.callback(no_args_is_help=True)
 def prototype():
     """sub-commands for experimenting with prototype publishing workflow"""
     pass
