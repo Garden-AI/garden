@@ -1,3 +1,4 @@
+import json
 import logging
 import subprocess
 import time
@@ -6,8 +7,9 @@ import typer
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import UUID
 
-from garden_ai import GardenClient
+from garden_ai import GardenClient, RegisteredPipeline, local_data
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
 from garden_ai.container.containerize import (  # type: ignore
@@ -85,6 +87,11 @@ def plant(
     if not jupyter:
         if req_file is None:
             req_file = source.parent / "requirements.txt"
+
+        if not req_file.exists() or not req_file.is_file():
+            console.log(f"{req_file} does not appear to be a valid path.")
+            raise typer.Exit(code=1)
+
         subprocess.run(["docker", "cp", req_file, f"{CONTAINER_NAME}:/garden"])
 
     subprocess.run(["docker", "cp", source, f"{CONTAINER_NAME}:/garden"])
@@ -157,12 +164,24 @@ def _funcx_invoke_pipeline(*args, **kwargs):
 
 
 @notebook_app.command()
-def publish(
-    tag: Path = typer.Argument(
-        None,
-        help=("Tag for the publically reachable planted container image."),
+def register(
+    record: Path = typer.Argument(
+        ...,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a json record describing the metadata for your pipeline."),
     )
 ):
+    if not record.exists() or not record.is_file():
+        console.log(f"{record} does not appear to be a valid path.")
+        raise typer.Exit(code=1)
+
+    with open(record, "r") as f:
+        meta = json.load(f)
+
+    pipeline = client.create_pipeline(steps=(), **meta)
+
     # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
     # subprocess.run(["docker", "push", "idarling/public:garden.vPy"])
 
@@ -171,13 +190,21 @@ def publish(
     # perform container and function registration
     client = GardenClient()
     container_id = client.compute_client.register_container(
-        f"docker.io/idarling/public:{tag}", "docker"
+        "docker.io/idarling/public:garden.v3", "docker"
     )
-    print(f"Your container has been registered with UUID: {container_id}")
+    # print(f"Your container has been registered with UUID: {container_id}")
+    pipeline.container_uuid = container_id
 
     redef_in_main(_funcx_invoke_pipeline)
 
     func_id = client.compute_client.register_function(
         __main__._funcx_invoke_pipeline, container_uuid=container_id, public=True
     )
-    print(f"Your function has been registered with UUID: {func_id}")
+    # print(f"Your function has been registered with UUID: {func_id}")
+    func_uuid = UUID(func_id)
+    pipeline.func_uuid = func_uuid
+
+    registered = RegisteredPipeline.from_pipeline(pipeline)
+    client._update_datacite(registered)
+    local_data.put_local_pipeline(registered)
+    print(f"Successfully registered your new pipeline with doi: {registered.doi}!")
