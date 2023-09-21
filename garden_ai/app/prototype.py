@@ -170,7 +170,7 @@ def _funcx_invoke_pipeline(*args, **kwargs):
     # overwrite any init process that utilized an unsupported dill version
     subprocess.run(["python", "-m", "pip", "install", "dill==0.3.5.1"])
 
-    import dill
+    import dill  # type: ignore
 
     dill.load_session("session.pkl")
 
