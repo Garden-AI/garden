@@ -16,12 +16,13 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
     with TemporaryDirectory() as tmpdir:
         tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility
 
-        with open(f"{tmpdir}/Dockerfile", "w+") as dockerfile:
+        with open(f"{tmpdir}/Dockerfile", "w") as dockerfile:
             dockerfile.writelines(
                 [
                     "FROM python:3.10-slim\n",  # solution to hard-coding global Python version might be prudent (miniconda install link must match)
                     "WORKDIR /garden\n",
                     "RUN apt-get update && ",
+                    "apt-get install -y git && ",
                     "apt-get install -y wget && ",
                     "apt-get install -y dos2unix && ",
                     "apt-get clean && ",
@@ -30,7 +31,7 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
                     "/bin/bash ~/miniconda.sh -b -p /opt/conda\n",
                     "ENV PATH=/opt/conda/bin:$PATH\n",
                     "RUN conda create -y --name env\n",
-                    'RUN pip install --no-build-isolation "dill" "pandas<3" "mlflow-skinny>=2.6"\n',
+                    'RUN pip install "dill==0.3.5.1"\n',
                 ]
             )
             if jupyter:
@@ -97,6 +98,9 @@ def start_container(
         subprocess.run(["docker", "rmi", image_name])
 
 
-if __name__ == "__main__":
-    # build_container(jupyter=True)
-    start_container(jupyter=True)
+def garden_pipeline(func):
+    def garden_target(*args, **kwargs):
+        return func(*args, **kwargs)
+
+    garden_target._check = True
+    return garden_target  # returns func back, but with `__name__ == garden_target` and a _check attr
