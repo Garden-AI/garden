@@ -216,7 +216,7 @@ def register(
     pipeline = client.create_pipeline(steps=(Step(four),), **meta)
 
     # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
-    # subprocess.run(["docker", "push", image])
+    subprocess.run(["docker", "push", image])
 
     import __main__
 
