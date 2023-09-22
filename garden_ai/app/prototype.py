@@ -154,11 +154,14 @@ def plant(
 
 
 @prototype_app.command()
-def debug():
-    interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
-    start_container(
-        f"{IMAGE_NAME}-planted", entrypoint="/bin/bash", args=["-c", interpreter_cmd]
+def debug(
+    image: str = typer.Argument(
+        f"{IMAGE_NAME}-planted",
+        help=("Name/ID for a local planted container image to debug."),
     )
+):
+    interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
+    start_container(image, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
 
 
 def _funcx_invoke_pipeline(*args, **kwargs):
