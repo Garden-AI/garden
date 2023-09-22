@@ -153,15 +153,12 @@ def plant(
     subprocess.run(["docker", "rmi", image_name])
 
 
-@prototype_app.command(no_args_is_help=True)
-def debug(
-    image_id: Path = typer.Argument(
-        None,
-        help=("ID for a local planted container image to debug."),
-    )
-):
+@prototype_app.command()
+def debug():
     interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
-    start_container(image_id, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
+    start_container(
+        f"{IMAGE_NAME}-planted", entrypoint="/bin/bash", args=["-c", interpreter_cmd]
+    )
 
 
 def _funcx_invoke_pipeline(*args, **kwargs):
@@ -216,7 +213,9 @@ def register(
     pipeline = client.create_pipeline(steps=(Step(four),), **meta)
 
     # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
+    subprocess.run(["docker", "tag", f"{IMAGE_NAME}-planted", image])
     subprocess.run(["docker", "push", image])
+    subprocess.run(["docker", "rmi", image])
 
     import __main__
 
