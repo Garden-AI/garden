@@ -60,7 +60,7 @@ jobs:
         id: full_test
         continue-on-error: true
         working-directory: ./tests/ete
-        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn --model-type sklearn-preprocessor --model-type pytorch --globus-compute-endpoint fresh --live-print-stdout
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn --model-type sklearn-preprocessor --model-type pytorch --globus-compute-endpoint fresh --use-cached-containers --live-print-stdout
         timeout-minutes: 50
       - name: Make artifact file if failed
         if: "contains(env.ETE_JOB_FINISHED, 'FALSE')"
