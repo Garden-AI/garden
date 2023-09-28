@@ -1797,8 +1797,22 @@ def _make_compute_endpoint(endpoint_name):
     rich_print(
         f"{_get_timestamp()} Making fresh compute endpoint [blue]{endpoint_name}[/blue]."
     )
-    subprocess.run(f"globus-compute-endpoint configure {endpoint_name}", shell=True)
-    subprocess.run(f"globus-compute-endpoint start {endpoint_name}", shell=True)
+    # subprocess.run(f"globus-compute-endpoint configure {endpoint_name}", shell=True)
+    process = subprocess.Popen(
+        f"globus-compute-endpoint configure {endpoint_name}",
+        shell=True,
+        executable="/bin/bash",
+        stdout=subprocess.PIPE,
+    )
+    process.wait()
+    # subprocess.run(f"globus-compute-endpoint start {endpoint_name}", shell=True)
+    process = subprocess.Popen(
+        f"globus-compute-endpoint start {endpoint_name}",
+        shell=True,
+        executable="/bin/bash",
+        stdout=subprocess.PIPE,
+    )
+    process.wait()
 
     compute_cli = globus_compute_sdk.Client()
     all_endpoints = compute_cli.get_endpoints()
@@ -1816,10 +1830,27 @@ def _delete_compute_endpoint(endpoint_name):
     rich_print(
         f"{_get_timestamp()} Deleting fresh compute endpoint [blue]{endpoint_name}[/blue]."
     )
-    subprocess.run(f"globus-compute-endpoint stop {endpoint_name}", shell=True)
+    # subprocess.run(f"globus-compute-endpoint stop {endpoint_name}", shell=True)
+    process = subprocess.Popen(
+        f"globus-compute-endpoint stop {endpoint_name}",
+        shell=True,
+        executable="/bin/bash",
+        stdout=subprocess.PIPE,
+    )
+    process.wait()
+    """
     subprocess.run(
         f"yes y | globus-compute-endpoint delete {endpoint_name}", shell=True
     )
+    """
+    process = subprocess.Popen(
+        f"yes y | globus-compute-endpoint delete {endpoint_name}",
+        shell=True,
+        executable="/bin/bash",
+        stdout=subprocess.PIPE,
+    )
+    process.wait()
+
     rich_print(
         f"{_get_timestamp()} Finished deleting fresh compute endpoint [blue]{endpoint_name}[/blue]."
     )
