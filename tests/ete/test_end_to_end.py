@@ -581,7 +581,8 @@ def collect_and_send_logs():
         # If total_added_msgs is less than 0, all outputs where skinny success,
         # Don't need to send to slack in this case
         if total_added_msgs > 0:
-            _send_slack_message(msg)
+            # _send_slack_message(msg)
+            rich_print(msg)
         else:
             rich_print(msg)
     except Exception as error:
