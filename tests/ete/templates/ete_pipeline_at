@@ -28,7 +28,7 @@ def run_inference(
     input_df: object,
     model=Model("{{ model_full_name }}"),
 ) -> object:
-    return model.predict(input_df)
+    return model.{{ pipeline_model_func }}(input_df)
 
 # the step functions will be composed in order by the pipeline:
 ALL_STEPS = (

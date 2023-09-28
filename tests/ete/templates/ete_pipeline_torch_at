@@ -1,9 +1,8 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
 from garden_ai import GardenClient, Model, Pipeline, step
-import globus_sdk, typing
+import typing
 
-confidential_client = globus_sdk.ConfidentialAppAuthClient("{{ GARDEN_API_CLIENT_ID }}", "{{ GARDEN_API_CLIENT_SECRET }}")
-client = GardenClient(auth_client=confidential_client)
+client = GardenClient()
 
 ##################################### STEPS #####################################
 """
@@ -29,7 +28,10 @@ def run_inference(
     input_df: object,
     model=Model("{{ model_full_name }}"),
 ) -> object:
-    return model.{{ pipeline_model_func }}(input_df)
+    import torch
+    model.eval()
+    with torch.no_grad():
+        return model.{{ pipeline_model_func }}(input_df)
 
 # the step functions will be composed in order by the pipeline:
 ALL_STEPS = (
