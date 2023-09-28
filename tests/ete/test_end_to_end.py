@@ -425,9 +425,9 @@ def run_garden_end_to_end(
 
         if (
             globus_compute_endpoint is not None
-            or globus_compute_endpoint != constants.default_endpoint
-            or globus_compute_endpoint != "default"
-            or globus_compute_endpoint != "fresh"
+            and globus_compute_endpoint != constants.default_endpoint
+            and globus_compute_endpoint != "default"
+            and globus_compute_endpoint != "fresh"
         ):
             raise Exception(
                 f"Invalid globus compute endpoint; For client credential runs, compute endpoint must be either '{constants.default_endpoint}', 'default', 'fresh' or None."
