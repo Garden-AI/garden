@@ -1,8 +1,11 @@
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Union
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 
+import dill  # type: ignore
 import jinja2
 import typer
 import rich
@@ -20,11 +23,11 @@ from garden_ai.local_data import (
     get_local_pipeline_by_doi,
 )
 from garden_ai.mlmodel import PipelineLoadScaffoldedException
+from garden_ai.utils._meta import make_func_to_serialize
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
     PipelineLoadException,
 )
-
 from garden_ai.utils.misc import clean_identifier, get_cache_tag
 
 
@@ -565,9 +568,105 @@ def container(
     location = container_info["location"]
 
     subprocess.run(["docker", "pull", location])
-    subprocess.run(["docker", "run", "--rm", "-it", "--entrypoint", "bash", location])
+    subprocess.run(["docker", "run", "-it", "--rm", "--entrypoint", "bash", location])
     if cleanup:
         subprocess.run(["docker", "rmi", location])
+
+
+@pipeline_app.command(no_args_is_help=True)
+def debug(
+    pipeline_file: Path = typer.Argument(
+        None,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        help=("Path to a Python file containing your pipeline implementation."),
+    ),
+    docker: bool = typer.Option(
+        False,
+        "--docker",
+        help="When set, the pipeline session will be loaded within an automatically built container",
+    ),
+    cleanup: bool = typer.Option(
+        False,
+        "--rm",
+        help="When set, the built container image will be removed automatically (only used when --docker is also supplied)",
+    ),
+):
+    import subprocess
+    from functools import partial
+
+    client = GardenClient()
+
+    if (
+        not pipeline_file.exists()
+        or not pipeline_file.is_file()
+        or pipeline_file.suffix != ".py"
+    ):
+        console.log(
+            f"{pipeline_file} is not a valid Python file. Please provide a valid Python file (.py)."
+        )
+        raise typer.Exit(code=1)
+    try:
+        user_pipeline = load_pipeline_from_python_file(pipeline_file)
+        pipeline_url_json = client.generate_presigned_urls_for_pipeline(user_pipeline)
+        _env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
+    except (
+        PipelineLoadException,
+        PipelineLoadScaffoldedException,
+    ) as e:
+        console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
+        raise
+    remote_func = make_func_to_serialize(user_pipeline)
+    curry = partial(remote_func, _env_vars=_env_vars)
+
+    with TemporaryDirectory() as tmpdir:
+        tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility
+        with NamedTemporaryFile(dir=tmpdir, delete=False) as tmp:
+            dill.dump(curry, tmp)
+            tmp_filename = Path(tmp.name).name
+
+        # contains everything, control flow dictates which pieces are removed
+        interpreter_cmd = [
+            "python",
+            "-i",
+            "-c",
+            f'\'import dill; f = open("{tmpdir}/{tmp_filename}", "rb"); {user_pipeline.short_name} = dill.load(f); f.close(); del f; del dill; '
+            f'print(f"Defined your pipeline as the function `{user_pipeline.short_name}`!")\'',
+        ]
+
+        if docker:
+            image_name = f"gardenai/{user_pipeline.short_name}"
+            # avoids SyntaxError in inline version
+            escaped_pip_deps = [f'"{dep}"' for dep in user_pipeline.pip_dependencies]
+            # remove tmpdir in container's path
+            interpreter_cmd[-1] = interpreter_cmd[-1].replace(f"{tmpdir}/", "")
+
+            with open(f"{tmpdir}/Dockerfile", "w+") as dockerfile:
+                dockerfile.write(
+                    "FROM continuumio/miniconda3\n"
+                    f'COPY "{tmp_filename}" .\n'
+                    f"RUN conda create -y -n env pip python={user_pipeline.python_version}\n"
+                    'SHELL ["conda", "run", "--no-capture-output", "-n", "env", "/bin/bash", "-c"]\n'
+                )
+                if user_pipeline.conda_dependencies:
+                    dockerfile.write(
+                        f"RUN conda install -y {' '.join(user_pipeline.conda_dependencies)}\n"
+                    )
+                dockerfile.write(
+                    f"RUN pip install --no-build-isolation dill {' '.join(escaped_pip_deps)}\n"
+                    f"ENTRYPOINT {' '.join(interpreter_cmd)}"
+                )
+
+            subprocess.run(["docker", "build", "-t", image_name, tmpdir])
+            subprocess.run(["docker", "run", "-it", "--rm", image_name])
+            if cleanup:
+                subprocess.run(["docker", "rmi", image_name])
+        else:
+            if os.name == "nt":
+                # remove encapsulating quotes bash needs
+                interpreter_cmd[-1] = interpreter_cmd[-1].replace("'", "")
+            subprocess.run(interpreter_cmd)
 
 
 @pipeline_app.command(no_args_is_help=False)
