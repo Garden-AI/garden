@@ -52,10 +52,10 @@ QUICK USE:
 
         Let's break down what each argument is doing:
             --garden-grant cc
-                This is going to initialize the GardenClient with a cc grant and bypass the naive app login.
+                Initializes the GardenClient with a cc grant and bypass the naive app login.
                 If you want to run using the naive app login, use '--garden-grant at'
                 NOTE: Using a cc login requires the user to provide the GARDEN_API_CLIENT_ID and GARDEN_API_CLIENT_SECRET
-                NOTE: Using a cc login only allows access to the default Garden compute endpoint.
+                NOTE: Using a cc login only allows access to the default Garden compute endpoint or any fresh endpoints created.
 
             --cli-id xxx
                 The GARDEN_API_CLIENT_ID. Used for cc logins only (see --garden-grant).
@@ -66,7 +66,7 @@ QUICK USE:
                 If this is not included during a cc run, test will prompt user for value.
 
             --model-type all
-                What model flavors to test. Can be 'sklearn', 'sklearn-preprocessor' 'tensorflow', 'pytorch', 'custom' or 'all'.
+                The model flavors to test. Can be 'sklearn', 'sklearn-preprocessor' 'tensorflow', 'pytorch', 'custom' or 'all'.
                 Will make pipeline for model type, add to new Garden, publish and test remote execution.
                 If you want to test only a subset of the flavors, say tensorflow and pytorch, just use --model-type
                 twice (--model-type tensorflow --model-type pytorch).
@@ -74,7 +74,7 @@ QUICK USE:
                 NOTE: See below for 'custom' run example.
 
             --globus-compute-endpoint default
-                What Globus compute endpoint to run the remote execution on.
+                The Globus compute endpoint to run the remote execution on.
                 If value not given, will skip running remote execution test.
                 If value is 'default', will test on DlHub test endpoint ('86a47061-f3d9-44f0-90dc-56ddc642c000').
                 If value is 'fresh' will create a new endpoint for this run.
@@ -82,15 +82,15 @@ QUICK USE:
                 Client credential runs cannot access endpoints that other users have created.
 
             --use-cached-containers
-                Use this if you want to used already cached containers for applicable pipelines.
-                Will build new containers for a pipeline every time if not included.
+                Use  previously cached containers for applicable pipelines.
+                If not included, will build a new container for a pipeline every time.
 
             --live-print-stdout
-                Use this if you want all Garden logs printed to stdout as well as the test logs.
+                Print all Garden logs to stdout, in addition to the test logs.
 
 
-        You can also run the test on any local models you have. Let's say we have a sklean model that we want to test end to end with Garden.
-        To do this, we could run:
+        You can also run the test on local models. Let's say we have a sklean model that we want to test end-to-end with Garden.
+        To do this, we run:
 
         poetry run python3 test_end_to_end.py run-garden-end-to-end
             --garden-grant cc
@@ -103,7 +103,7 @@ QUICK USE:
             --custom-model-flavor sklearn
             --custom-model-reqs path/to/reqs/requirments.txt
 
-        The test will go and load the model and requirements and make a pipeline with a run_inference predict step.
+        The test will load the model and requirements and then make a pipeline with a run_inference predict step.
         If you already have a pipeline for the model, you could instead run:
 
         poetry run python3 test_end_to_end.py run-garden-end-to-end
@@ -117,20 +117,20 @@ QUICK USE:
             --custom-model-flavor sklearn
             --custom-model-pipeline path/to/pipeline/pipeline.py
 
-        In general, for testing custom model files, you can provide the arguments:
+        In general, the following arguments are used for testing custom model files:
             --custom-model-path xxx
-                The path to a model file to run with the end to end test. Must be included for --model-type custom runs.
+                The path to a model file to run with the end-to-end test. Must be included for --model-type custom runs.
 
             --custom-model-flavor xxx
-                The flavor of a model to run with the end to end test. Must be included for --model-type custom runs.
+                The flavor of a model to run with the end-to-end test. Must be included for --model-type custom runs.
 
             --custom-model-pipeline xxx
-                The path to a pipeline file for a custom model to run with the end to end test.
+                The path to a pipeline file for a custom model to run with the end-to-end test.
                 Include if you already have a pipeline file for your model and don't want the test to autogenerate.
 
             --custom-model-reqs
-                The path to the requirements file for a custom model to run with the end to end test.
-                Include if you don't already have a pipeline file for your model and want the test to autogenerate.
+                The path to the requirements file for a custom model to run with the end-to-end test.
+                Include if you DON'T already have a pipeline file for your model and want the test to autogenerate.
 
 
     Github actions runs:
@@ -139,27 +139,27 @@ QUICK USE:
         There are two different workflows that use the test:
         '.github/workflows/ete_test_skinny.yml' and '.github/workflows/ete_test_full.yml'
 
-        The skinny test runs hourly on all supported python versions with only sklearn model.
-        It uses already built cached containers to speed up run time.
+        The skinny test runs hourly on all supported Python versions with only sklearn model.
+        It uses previously built cached containers to speed up runtime.
 
         The full test runs daily on py3.8.16 and tests all supported model flavors.
-        It will build a new container for the pipeline each time.
+        It builds a new container for the pipeline.
 
-        Both of these workflows can be triggered manually.
+        Both of these workflows can be run manually.
 
         Running these workflows on Github actions will also collect the results of the test and send
         a run summery message to the slack channel 'garden-errors'.
 
         RUNNING TEST WORKFLOWS FROM DIFFERENT BRANCHES:
-        You can also test other branches using the end to end test.
-        On your branch, for the workflow you want to run, change `repository-ref` on line 29 from main to the name of the branch.
+        You can also test other branches using the end-to-end test.
+        On the branch, for the workflow you want to run, change `repository-ref` on line 29 from 'main' to the name of the branch.
         Then from the actions tab in github, start the test from the workflow file on said branch.
 
 
 Overview of what the test is doing:
-    This script consists of two runnable commands: run-garden-end-to-end and collect-and-send-logs
+    This script consists of two commands: run-garden-end-to-end and collect-and-send-logs
 
-    run-garden-end-to-end is the actual end to end test. collect-and-send-logs is for internal github actions use only.
+    run-garden-end-to-end is the actual end-to-end test. collect-and-send-logs is for internal github actions use only.
 
     The test itself is going to:
         - Test creating a new Garden.
@@ -171,20 +171,20 @@ Overview of what the test is doing:
         - Test remote execution for all pipelines created in previous steps.
 
     Result collection:
-    When running from github actions, it will use github artifacts to store the test output. During the setup on github actions,
-    the ETE test makes a new env var ETE_ART_ID and sets it to a random uuid. This will be the name of the file the output is stored too.
+    When running from github actions, github artifacts is used to store the test output. During the setup on github actions,
+    the end-to-end test makes a new env var ETE_ART_ID and sets it to a random uuid. This uuid is also used for the name of the output file.
     After the test finishes running, _make_run_results_msg is called, which makes the output string for that run of the test.
-    _make_run_results_msg then calls _add_msg_to_artifact which base64 encodes the output msg, saves it to a new file at the location
+    _make_run_results_msg then calls _add_msg_to_artifact, which base64 encodes the output msg, saves it to a new file at the location
     ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt, and sets the env var ETE_JOB_FINISHED to TRUE.
 
-    Once the workflow has finished running the end to end test step, the value of ETE_JOB_FINISHED is checked.
+    Once the workflow has finished running the end-to-end test, the value of ETE_JOB_FINISHED is checked.
     If ETE_JOB_FINISHED is FALSE, the workflow creates the file ${{ env.ETE_ART_LOC }}/${{ env.ETE_ART_ID }}.txt and echos a failed message into it.
 
     The workflow then uploads the folder ${{ env.ETE_ART_LOC }} as a github artifact of the name ${{ env.ETE_ART_NAME }}. ${{ env.ETE_ART_NAME }} is
     the same for all jobs in this workflow, so all job outputs will get added to this artifact.
 
     Once the workflow has finished all the test jobs, the workflow runs collect-and-send-logs.
-    collect-and-send-logs grabs the artifact ${{ env.ETE_ART_NAME }} and reads the contents of all the files in it.
+    collect-and-send-logs grabs the artifact ${{ env.ETE_ART_NAME }} and reads the contents of all the files.
     At this point in the test, each job should have saved an output to a file in that artifact, so once collect-and-send-logs
     has decoded all the logs, the workflow can send the output to slack and the workflow is done.
 """
