@@ -51,6 +51,9 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
+      - name: Install globus-compute-endpoint
+        run: |
+          pip install globus-compute-endpoint
       - name: Set job env vars
         run: |
           echo "ETE_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
