@@ -1806,6 +1806,11 @@ def _make_compute_endpoint(endpoint_name):
         stdout=subprocess.PIPE,
     )
     process.wait()
+
+    out, err = process.communicate()
+    errcode = process.returncode
+    rich_print(f"configure out: {out} \n err: {err} \n errocde: {errcode}")
+
     # subprocess.run(f"globus-compute-endpoint start {endpoint_name}", shell=True)
     process = subprocess.Popen(
         f"globus-compute-endpoint start {endpoint_name}",
@@ -1814,6 +1819,10 @@ def _make_compute_endpoint(endpoint_name):
         stdout=subprocess.PIPE,
     )
     process.wait()
+
+    out, err = process.communicate()
+    errcode = process.returncode
+    rich_print(f"configure out: {out} \n err: {err} \n errocde: {errcode}")
 
     compute_cli = globus_compute_sdk.Client()
     all_endpoints = compute_cli.get_endpoints()

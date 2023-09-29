@@ -82,7 +82,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8.16"]
-        repository-ref: ["main"]
+        repository-ref: ["max/ete-updates"]
       max-parallel: 1
     name: collect-and-send-logs
     env:
