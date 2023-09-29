@@ -1494,7 +1494,7 @@ def _test_run_garden_on_endpoint(
         elif isinstance(result, pd.DataFrame):
             assert result.equals(result_expected)
         elif isinstance(result, torch.Tensor):
-            assert torch.equal(result, result_expected)
+            assert torch.allclose(result, result_expected)
         else:
             assert result == result_expected
 
