@@ -581,8 +581,7 @@ def collect_and_send_logs():
         # If total_added_msgs is less than 0, all outputs where skinny success,
         # Don't need to send to slack in this case
         if total_added_msgs > 0:
-            # _send_slack_message(msg)
-            rich_print(msg)
+            _send_slack_message(msg)
         else:
             rich_print(msg)
     except Exception as error:
@@ -1798,7 +1797,6 @@ def _make_compute_endpoint(endpoint_name):
     rich_print(
         f"{_get_timestamp()} Making fresh compute endpoint [blue]{endpoint_name}[/blue]."
     )
-    # subprocess.run(f"globus-compute-endpoint configure {endpoint_name}", shell=True)
     process = subprocess.Popen(
         f"globus-compute-endpoint configure {endpoint_name}",
         shell=True,
@@ -1807,11 +1805,6 @@ def _make_compute_endpoint(endpoint_name):
     )
     process.wait()
 
-    out, err = process.communicate()
-    errcode = process.returncode
-    rich_print(f"configure out: {out} \n err: {err} \n errocde: {errcode}")
-
-    # subprocess.run(f"globus-compute-endpoint start {endpoint_name}", shell=True)
     process = subprocess.Popen(
         f"globus-compute-endpoint start {endpoint_name}",
         shell=True,
@@ -1819,10 +1812,6 @@ def _make_compute_endpoint(endpoint_name):
         stdout=subprocess.PIPE,
     )
     process.wait()
-
-    out, err = process.communicate()
-    errcode = process.returncode
-    rich_print(f"configure out: {out} \n err: {err} \n errocde: {errcode}")
 
     compute_cli = globus_compute_sdk.Client()
     all_endpoints = compute_cli.get_endpoints()
@@ -1840,7 +1829,6 @@ def _delete_compute_endpoint(endpoint_name):
     rich_print(
         f"{_get_timestamp()} Deleting fresh compute endpoint [blue]{endpoint_name}[/blue]."
     )
-    # subprocess.run(f"globus-compute-endpoint stop {endpoint_name}", shell=True)
     process = subprocess.Popen(
         f"globus-compute-endpoint stop {endpoint_name}",
         shell=True,
@@ -1848,11 +1836,7 @@ def _delete_compute_endpoint(endpoint_name):
         stdout=subprocess.PIPE,
     )
     process.wait()
-    """
-    subprocess.run(
-        f"yes y | globus-compute-endpoint delete {endpoint_name}", shell=True
-    )
-    """
+
     process = subprocess.Popen(
         f"yes y | globus-compute-endpoint delete {endpoint_name}",
         shell=True,

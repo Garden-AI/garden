@@ -3,7 +3,7 @@ name: ETE Test Skinny
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"    #runs every hour everyday
+    - cron: "0 */3 * * *"    #runs every 3 hours everyday
 
 env:
   ETE_ART_LOC: "/home/runner/ete_artifact"
@@ -51,6 +51,9 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop
+      - name: Install globus-compute-endpoint
+        run: |
+          pip install globus-compute-endpoint
       - name: Set job env vars
         run: |
           echo "ETE_JOB_NAME_EXT=skinny build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
@@ -81,7 +84,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8.16"]
         repository-ref: ["main"]
       max-parallel: 1
     name: collect-and-send-logs
