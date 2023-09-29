@@ -15,7 +15,6 @@ nav:
     - Steps: Steps.md
     - Pipelines: Pipelines.md
     - Gardens: Gardens.md
-  - Changelog: changelog.md
 theme: material
 plugins:
   - search

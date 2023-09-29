@@ -6,7 +6,7 @@ This tutorial will guide you through developing a Garden from scratch: registeri
 #### Prerequisites
 
 1. A pre-trained machine learning model saved in a format compatible with the SDK, i.e., `sklearn`, `pytorch`, or `tensorflow`.
-2. The Garden CLI [installed](user_guide/installation) on your system.
+2. The Garden CLI [installed](../installation) on your system.
 
 
 ### Create a Pipeline
