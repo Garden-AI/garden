@@ -289,6 +289,7 @@ def stage_model_from_memory(
         log_model_variant = mlflow.tensorflow.log_model
     elif flavor == ModelFlavor.PYTORCH.value:
         log_model_variant = mlflow.pytorch.log_model
+        load_strategy = "pytorch"
     else:
         raise ModelUploadException(f"Unsupported model flavor {flavor}")
 
