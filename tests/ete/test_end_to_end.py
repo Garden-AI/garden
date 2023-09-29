@@ -1487,16 +1487,17 @@ def _test_run_garden_on_endpoint(
         with open(expected_data_file, "rb") as f:
             result_expected = pickle.load(f)
 
-        import torch
-
         if isinstance(result, np.ndarray):
             assert np.array_equal(result, result_expected)
         elif isinstance(result, pd.DataFrame):
             assert result.equals(result_expected)
-        elif isinstance(result, torch.Tensor):
-            assert torch.allclose(result, result_expected)
         else:
-            assert result == result_expected
+            import torch
+
+            if isinstance(result, torch.Tensor):
+                assert torch.allclose(result, result_expected)
+            else:
+                assert result == result_expected
 
         if is_fresh_endpoint:
             _delete_compute_endpoint(constants.fresh_endpoint_name)
