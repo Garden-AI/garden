@@ -6,13 +6,13 @@ In this tutorial, we will demonstrate how to serialize machine learning models u
 
 ## Table of Contents
 
-1. [Serialization with scikit-learn](#serialization-with-scikit-learn)
-   1.1. [Using pickle](#using-pickle)
-   1.2. [Using joblib](#using-joblib)
+1. [Serialization with scikit-learn](#1-serialization-with-scikit-learn)
+   1.1. [Using pickle](#11-using-pickle)
+   1.2. [Using joblib](#12-using-joblib)
 
-2. [Serialization with TensorFlow](#serialization-with-tensorflow)
+2. [Serialization with TensorFlow](#2-serialization-with-tensorflow)
 
-3. [Serialization with PyTorch](#serialization-with-pytorch)
+3. [Serialization with PyTorch](#3-serialization-with-pytorch)
 
 ## 1. Serialization with scikit-learn
 

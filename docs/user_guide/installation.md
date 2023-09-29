@@ -1,39 +1,18 @@
 # Installation
 
-Installing the `garden-ai` python package contains both our SDK and our CLI. We _highly_ recommend installing the CLI with `pipx` over plain `pip`.
+Installing the `garden-ai` python package contains both our SDK and our CLI. We _highly_ recommend installing the CLI with a virtual environment, using venv or conda.
 
-If you don't have `pipx` installed, please follow the instructions in the [pipx documentation](https://pypa.github.io/pipx/installation/) to install it.
-
-Once `pipx` is installed and configured, you can install the Garden package. The simplest installation is done by:
+Below are instructions for installing with venv.
 
 ```bash
-pipx install garden-ai
-pipx ensurepath
+mkdir my_garden_project
+cd my_garden_project
+python3 -m venv garden-env
+source myenv/bin/activate
+pip install garden-ai
 ```
 
-> [!NOTE] Note
-> To be able to `import garden_ai` in a notebook or other python session, you likely need to do a plain `pip install garden-ai` with the appropriate active virtual environment. Doing so won't interfere with the `pipx`-installed CLI.
-
-
-The base package includes support for sklearn by default. If you want to use Garden with PyTorch or TensorFlow, you need to specify additional "extras". For PyTorch, use:
-
-```bash
-pipx install garden-ai[pytorch]
-```
-
-For TensorFlow, use:
-
-```bash
-pipx install garden-ai[tensorflow]
-```
-
-If you want to use Garden with all the supported ML frameworks (sklearn, PyTorch, TensorFlow), you can install it with the `all` extra:
-
-```bash
-pipx install garden-ai[all]
-```
-
-This will ensure all necessary dependencies for all supported ML frameworks are installed.
+The base package includes support for sklearn by default. If you want to use Garden with PyTorch, TensorFlow, or other packages you will need to install them in your virtual environment as well.
 
 To verify your installation, you can check the version of Garden:
 
