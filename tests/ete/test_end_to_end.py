@@ -3,8 +3,6 @@ import sys
 import shutil
 import pickle
 import jinja2
-import uuid
-import json
 import functools
 import requests
 import subprocess
@@ -210,15 +208,20 @@ def run_garden_end_to_end(
     ),
     model_type: Optional[List[str]] = typer.Option(
         default=["sklearn"],
-        help="A model type to test. Must be either 'sklearn', 'sklearn-preprocessor' 'tensorflow', 'pytorch', 'custom' or 'all'. Include this argment multiple times to test a subset of flavors",
+        help="A model type to test. Must be either 'sklearn', 'sklearn-preprocessor' 'tensorflow', 'pytorch', "
+        "'custom' or 'all'. Include this argment multiple times to test a subset of flavors",
     ),
     use_cached_containers: Optional[bool] = typer.Option(
         default=False,
-        help="If test should use container cache for a faster run. If cannot find container cache, will still build new container from scratch. Will check both local cache file and pre-defined test caches.",
+        help="If test should use container cache for a faster run. If cannot find container cache, will "
+        "still build new container from scratch. Will check both local cache file and pre-defined test caches.",
     ),
     globus_compute_endpoint: Optional[str] = typer.Option(
         default=None,
-        help="The globus compute endpoint to remote run the test pipelines on. If none provided, then will skip testing remote execution. If value is 'default', will test on DlHub test endpoint ('86a47061-f3d9-44f0-90dc-56ddc642c000'). If value is 'fresh' will create a new endpoint for this run.",
+        help="The globus compute endpoint to remote run the test pipelines on. If none provided, then will skip "
+        "testing remote execution. If value is 'default', "
+        "will test on DlHub test endpoint ('86a47061-f3d9-44f0-90dc-56ddc642c000'). "
+        "If value is 'fresh' will create a new endpoint for this run.",
     ),
     live_print_stdout: Optional[bool] = typer.Option(
         default=False,
@@ -226,27 +229,35 @@ def run_garden_end_to_end(
     ),
     cli_id: Optional[str] = typer.Option(
         default=None,
-        help="The GARDEN_API_CLIENT_ID. Used for cc logins only (see --garden-grant). Will prompt for value if not provided and garden-grant is cc login.",
+        help="The GARDEN_API_CLIENT_ID. Used for cc logins only (see --garden-grant). Will prompt for value if not "
+        "provided and garden-grant is cc login.",
     ),
     cli_secret: Optional[str] = typer.Option(
         default=None,
-        help="The GARDEN_API_CLIENT_SECRET. Used for cc logins only (see --garden-grant). Will prompt for value if not provided and garden-grant is cc login.",
+        help="The GARDEN_API_CLIENT_SECRET. Used for cc logins only (see --garden-grant). "
+        "Will prompt for value if not provided and garden-grant is cc login.",
     ),
     custom_model_path: Optional[str] = typer.Option(
         default=None,
-        help="The path to a custom model file to run ETE test on. Used in '--model-type custom' runs only. Must be included for all '--model-type custom' runs.",
+        help="The path to a custom model file to run ETE test on. "
+        "Used in '--model-type custom' runs only. Must be included for all '--model-type custom' runs.",
     ),
     custom_pipeline_path: Optional[str] = typer.Option(
         default=None,
-        help="The path to pipeline for custom model to run ETE test on. If none provided, test will make make default pipeline instead with predict step. Used in '--model-type custom' runs only.",
+        help="The path to pipeline for custom model to run ETE test on. "
+        "If none provided, test will make make default pipeline instead with predict step. "
+        "Used in '--model-type custom' runs only.",
     ),
     custom_model_flavor: Optional[str] = typer.Option(
         default=None,
-        help="The flavor of custom model to run ETE test on. Must be either 'sklearn', 'tensorflow', or 'pytorch' Used in '--model-type custom' runs only. Must be included for all '--model-type custom' runs.",
+        help="The flavor of custom model to run ETE test on. "
+        "Must be either 'sklearn', 'tensorflow', or 'pytorch' Used in '--model-type custom' runs only. "
+        "Must be included for all '--model-type custom' runs.",
     ),
     custom_model_reqs: Optional[str] = typer.Option(
         default=None,
-        help="The path to custom models requirements file. Not needed if '--custom-pipeline-path' is given. Used in '--model-type custom' runs only.",
+        help="The path to custom models requirements file. Not needed if '--custom-pipeline-path' is given. "
+        "Used in '--model-type custom' runs only.",
     ),
 ):
     """See 'QUICK USE' at the top of test_end_to_end.py for more info on how to use."""
@@ -430,7 +441,8 @@ def run_garden_end_to_end(
             and globus_compute_endpoint != "fresh"
         ):
             raise Exception(
-                f"Invalid globus compute endpoint; For client credential runs, compute endpoint must be either '{constants.default_endpoint}', 'default', 'fresh' or None."
+                f"Invalid globus compute endpoint; For client credential runs, compute endpoint must be either "
+                f"'{constants.default_endpoint}', 'default', 'fresh' or None."
             )
 
         client = _make_garden_client_with_cc(
