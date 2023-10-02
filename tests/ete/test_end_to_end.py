@@ -18,13 +18,13 @@ from rich import print as rich_print
 import unittest.mock as mocker
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore
 
 import garden_ai  # type: ignore
 from garden_ai.app.main import app  # type: ignore
 
 import globus_sdk
-import globus_compute_sdk
+import globus_compute_sdk  # type: ignore
 
 import constants as consts  # type: ignore
 
@@ -206,10 +206,10 @@ def run_garden_end_to_end(
         default="cc",
         help="The grant type to initialize a GardenClient with. Must be either 'cc' for a client credential grant or 'at' for an access token grant.",
     ),
-    model_type: Optional[List[str]] = typer.Option(
+    model_type: List[str] = typer.Option(
         default=["sklearn"],
         help="A model type to test. Must be either 'sklearn', 'sklearn-preprocessor' 'tensorflow', 'pytorch', "
-        "'custom' or 'all'. Include this argment multiple times to test a subset of flavors",
+        "'custom' or 'all'. Include this argument multiple times to test a subset of flavors",
     ),
     use_cached_containers: Optional[bool] = typer.Option(
         default=False,
@@ -1504,7 +1504,7 @@ def _test_run_garden_on_endpoint(
         elif isinstance(result, pd.DataFrame):
             assert result.equals(result_expected)
         else:
-            import torch
+            import torch  # type: ignore
 
             if isinstance(result, torch.Tensor):
                 assert torch.allclose(result, result_expected)
