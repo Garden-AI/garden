@@ -12,6 +12,8 @@ security: # configuration for the `safety check` command
             reason: the scipy developers identified its CVE classification as unwarranted # optional, for internal note purposes to communicate with your team. This reason will be reported in the Safety reports
             # this exception can be removed when Python 3.8 is not supported
             # expires: '2022-10-21' # datetime string - date this ignore will expire, best practice to use this variable
+        60789: # Vulnerability ID
+            reason: this is a vulnerability of a dependency of mlflow. We don't use the subset of mlflow that uses this
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
     security:
