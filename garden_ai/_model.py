@@ -162,27 +162,6 @@ class _Model:
         """
         return self.model.predict(data)
 
-    # Dill serialization breaks using new __getattr__ if missing this.
-    def __getstate__(self):
-        return self.__dict__
-
-    def __getattr__(self, attr):
-        if attr == "_model":
-            # Dill deserialization infinitely recursive without this
-            raise AttributeError()
-        if self._model is not None:
-            if attr in self.__dict__:
-                # Use self definition of attr
-                return self.__dict__[attr]
-            else:
-                # self does not have definition of attr
-                # Search _model instead
-                return self._model.__getattribute__(attr)
-        else:
-            # _model is None, lazy load and try again.
-            self._lazy_load_model()
-            return getattr(self, attr)
-
     class _TorchWrapper(object):
         """
         Wrapper class for pytorch models.
@@ -202,3 +181,27 @@ class _Model:
             # _TorchWrapper does not have attr,
             # use _wrapped_model definition of attr instead
             return getattr(self._wrapped_model, attr)
+
+    # Dill serialization breaks using new __getattr__ if missing this.
+    def __getstate__(self):
+        return self.__dict__
+
+    def __getattr__(self, attr):
+        if attr == "_model":
+            # Dill deserialization infinitely recursive without this
+            raise AttributeError()
+        if self._model is not None:
+            if attr in self.__dict__:
+                # Use self definition of attr
+                return self.__dict__[attr]
+            else:
+                # self does not have definition of attr
+                # Search _model instead
+                if isinstance(self._model, self._TorchWrapper):
+                    return self._model._wrapped_model.__getattribute__(attr)
+                else:
+                    return self._model.__getattribute__(attr)
+        else:
+            # _model is None, lazy load and try again.
+            self._lazy_load_model()
+            return getattr(self, attr)

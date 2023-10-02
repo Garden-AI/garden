@@ -25,7 +25,7 @@ jobs:
     needs: [get-latest-tag]
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8.16"]
         repository-ref: ["main", "${{needs.get-latest-tag.outputs.latest-tag}}"]
       fail-fast: false
       max-parallel: 1
@@ -51,6 +51,9 @@ jobs:
         run: |
           poetry config virtualenvs.create false && \
           poetry install --no-interaction --no-ansi --with=test,develop --all-extras
+      - name: Install globus-compute-endpoint
+        run: |
+          pip install globus-compute-endpoint
       - name: Set job env vars
         run: |
           echo "ETE_JOB_NAME_EXT=full build (${{ matrix.python-version }}, ${{ matrix.repository-ref }})" >> $GITHUB_ENV
@@ -60,7 +63,7 @@ jobs:
         id: full_test
         continue-on-error: true
         working-directory: ./tests/ete
-        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type all --globus-compute-endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000 --live-print-stdout
+        run: python3 test_end_to_end.py run-garden-end-to-end --garden-grant cc --model-type sklearn --model-type sklearn-preprocessor --model-type pytorch --globus-compute-endpoint fresh --use-cached-containers --live-print-stdout
         timeout-minutes: 50
       - name: Make artifact file if failed
         if: "contains(env.ETE_JOB_FINISHED, 'FALSE')"
@@ -81,7 +84,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8.16"]
         repository-ref: ["main"]
       max-parallel: 1
     name: collect-and-send-logs
