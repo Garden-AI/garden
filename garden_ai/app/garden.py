@@ -11,9 +11,9 @@ from rich.prompt import Prompt
 from garden_ai import local_data
 from garden_ai.client import GardenClient
 from garden_ai.globus_search.garden_search import (
-    GARDEN_INDEX_UUID,
     RemoteGardenException,
 )
+from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.app.console import console, get_local_garden_rich_table
@@ -215,7 +215,9 @@ def search(
     try:
         results = client.search(query)
     except SearchAPIError as e:
-        logger.fatal(f"Could not query search index {GARDEN_INDEX_UUID}")
+        logger.fatal(
+            f"Could not query search index {GardenConstants.GARDEN_INDEX_UUID}"
+        )
         logger.fatal(e.error_data)
         raise typer.Exit(code=1) from e
 
