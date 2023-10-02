@@ -71,7 +71,17 @@ def start_container(
         f"{image_name}-jupyter" if jupyter and image_name == IMAGE_NAME else image_name
     )
 
-    run_command = ["docker", "run", "-it", "--rm", "--name", container_name, image_name]
+    run_command = [
+        "docker",
+        "run",
+        "-it",
+        "--rm",
+        "--platform",
+        "linux/x86_64",
+        "--name",
+        container_name,
+        image_name,
+    ]
     run_command += args
 
     if jupyter:

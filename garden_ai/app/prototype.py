@@ -92,6 +92,8 @@ def plant(
             "-it",
             "-d",
             "--rm",
+            "--platform",
+            "linux/x86_64",
             "--name",
             CONTAINER_NAME,
             "--entrypoint",
