@@ -48,7 +48,17 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
             else:
                 dockerfile.write('ENTRYPOINT ["/bin/bash"]')
 
-        subprocess.run(["docker", "buildx", "build", "--platform=linux/x86_64", "-t", image_name, tmpdir])
+        subprocess.run(
+            [
+                "docker",
+                "buildx",
+                "build",
+                "--platform=linux/x86_64",
+                "-t",
+                image_name,
+                tmpdir,
+            ]
+        )
 
 
 def start_container(
