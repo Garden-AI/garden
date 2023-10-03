@@ -178,8 +178,7 @@ class GardenClient:
     def _display_notebook_link(self, link):
         from IPython.display import display, HTML
 
-        url = "<a href={}>{}</a>".format(link, link)
-        display(HTML(url))
+        display(HTML(f"<a href={link}>{link}</a>"))
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
@@ -196,11 +195,11 @@ class GardenClient:
         authorize_url = self.auth_client.oauth2_get_authorize_url()
 
         try:
-            __IPYTHON__  # Check if running in notebook. Will only be defined if in one.
+            __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
             print("Authenticating with Globus in your default web browser: \n\n")
             self._display_notebook_link(
                 authorize_url
-            )  # Must display link as html to render properly in notebooks
+            )  # Must display url as html to render properly in notebooks
         except NameError as e:
             print(
                 f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
