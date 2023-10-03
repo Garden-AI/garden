@@ -189,9 +189,17 @@ class GardenClient:
         )
         authorize_url = self.auth_client.oauth2_get_authorize_url()
 
-        print(
-            f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
-        )
+        try:
+            __IPYTHON__  # Only defined if running in notebook
+            print("Authenticating with Globus in your default web browser: \n\n")
+            _display_notebook_link(
+                authorize_url
+            )  # Must display link as html to render properly in notebook
+        except NameError:
+            print(
+                f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
+            )
+
         time.sleep(2)
         typer.launch(authorize_url)
 
@@ -203,6 +211,12 @@ class GardenClient:
         except AuthAPIError:
             logger.fatal("Invalid Globus auth token received. Exiting")
             return None
+
+    def _display_notebook_link(link):
+        from IPython.display import display, HTML
+
+        url = "<a href={}>{}</a>".format(link, link)
+        display(HTML(url))
 
     def _create_authorizer(self, resource_server: str):
         if not self.auth_key_store.file_exists():
