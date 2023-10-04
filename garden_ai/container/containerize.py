@@ -48,7 +48,17 @@ def build_container(image_name: str = IMAGE_NAME, jupyter: bool = False) -> None
             else:
                 dockerfile.write('ENTRYPOINT ["/bin/bash"]')
 
-        subprocess.run(["docker", "build", "-t", image_name, tmpdir])
+        subprocess.run(
+            [
+                "docker",
+                "buildx",
+                "build",
+                "--platform=linux/x86_64",
+                "-t",
+                image_name,
+                tmpdir,
+            ]
+        )
 
 
 def start_container(
@@ -71,7 +81,17 @@ def start_container(
         f"{image_name}-jupyter" if jupyter and image_name == IMAGE_NAME else image_name
     )
 
-    run_command = ["docker", "run", "-it", "--rm", "--name", container_name, image_name]
+    run_command = [
+        "docker",
+        "run",
+        "-it",
+        "--rm",
+        "--platform",
+        "linux/x86_64",
+        "--name",
+        container_name,
+        image_name,
+    ]
     run_command += args
 
     if jupyter:

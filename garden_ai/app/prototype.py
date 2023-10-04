@@ -92,6 +92,8 @@ def plant(
             "-it",
             "-d",
             "--rm",
+            "--platform",
+            "linux/x86_64",
             "--name",
             CONTAINER_NAME,
             "--entrypoint",
@@ -145,6 +147,9 @@ def plant(
             "-c",
             "find . -type f -print0 | xargs -0 dos2unix",
         ]
+    )
+    subprocess.run(
+        ["docker", "exec", CONTAINER_NAME, "/bin/bash", "-c", "chmod +x plant.sh"]
     )
     subprocess.run(["docker", "exec", CONTAINER_NAME, "/bin/bash", "-c", "./plant.sh"])
     subprocess.run(["docker", "commit", CONTAINER_NAME, f"{IMAGE_NAME}-planted"])
