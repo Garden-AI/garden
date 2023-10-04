@@ -178,7 +178,11 @@ class GardenClient:
     def _display_notebook_link(self, link):
         from IPython.display import display, HTML
 
-        display(HTML(f"<a href={link}>{link}</a>"))
+        display(
+            HTML(
+                f'<a href="{link}" rel="noopener noreferrer" target="_blank">{link}</a>'
+            )
+        )
 
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
