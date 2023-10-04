@@ -204,7 +204,7 @@ class GardenClient:
             self._display_notebook_link(
                 authorize_url
             )  # Must display url as html to render properly in notebooks
-        except NameError as e:
+        except NameError:
             print(
                 f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
             )
