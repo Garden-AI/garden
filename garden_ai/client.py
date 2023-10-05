@@ -175,6 +175,15 @@ class GardenClient:
             code_serialization_strategy=DillCode(),
         )
 
+    def _display_notebook_link(self, link):
+        from IPython.display import display, HTML
+
+        display(
+            HTML(
+                f'<a href="{link}" rel="noopener noreferrer" target="_blank">{link}</a>'
+            )
+        )
+
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
@@ -189,9 +198,17 @@ class GardenClient:
         )
         authorize_url = self.auth_client.oauth2_get_authorize_url()
 
-        print(
-            f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
-        )
+        try:
+            __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
+            print("Authenticating with Globus in your default web browser: \n\n")
+            self._display_notebook_link(
+                authorize_url
+            )  # Must display url as html to render properly in notebooks
+        except NameError:
+            print(
+                f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
+            )
+
         time.sleep(2)
         typer.launch(authorize_url)
 
