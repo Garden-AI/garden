@@ -18,6 +18,8 @@ from garden_ai.container.containerize import (  # type: ignore
     build_container,
     start_container,
 )
+import tempfile
+import os
 
 logger = logging.getLogger()
 
@@ -28,6 +30,16 @@ prototype_app = typer.Typer(name="prototype")
 def prototype():
     """sub-commands for experimenting with prototype publishing workflow"""
     pass
+
+
+@prototype_app.command()
+def extract(
+    image: str = typer.Argument(
+        ...,
+        help=("The name of the image to extract metadata from."),
+    ),
+):
+    _extract_metadata_from_session(image)
 
 
 @prototype_app.command()
@@ -167,6 +179,45 @@ def debug(
 ):
     interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
     start_container(image, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
+
+
+def _extract_metadata_from_session(image_name) -> str:
+    python_script = """import dill
+
+dill.load_session("session.pkl")
+
+for obj in list(globals().values()):
+    if getattr(obj, "__name__", None) == "garden_target" and getattr(
+        obj, "_check", None
+    ):
+        target_func = obj
+        break
+else:
+    raise ValueError("No function marked for invocation.")
+print(target_func.__name__)
+    """
+
+    # Write the Python script to a temporary file on the host
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
+        f.write(python_script.encode())
+        temp_file_name = f.name
+
+    mount_file = f"{temp_file_name}:/tmp/script.py"
+    interpreter_cmd = "python /tmp/script.py"
+    stdout = start_container(
+        image_name,
+        entrypoint="/bin/bash",
+        mount_file=mount_file,
+        args=["-c", interpreter_cmd],
+    )
+
+    # Remove the temporary file
+    os.remove(temp_file_name)
+
+    print("GOT STDOUT")
+    print(stdout)
+    function_name = stdout
+    return function_name
 
 
 def _funcx_invoke_pipeline(*args, **kwargs):

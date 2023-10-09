@@ -68,7 +68,8 @@ def start_container(
     entrypoint: Optional[str] = None,
     cleanup: bool = False,
     args: Optional[List[str]] = None,
-) -> None:
+    mount_file: Optional[str] = None,
+) -> str:
     if jupyter and entrypoint:
         raise NotImplementedError(
             "This combination of arguments results in undefined behavior, and is unsupported."
@@ -94,6 +95,11 @@ def start_container(
     ]
     run_command += args
 
+    if mount_file:
+        idx = run_command.index(image_name)
+        run_command.insert(idx, mount_file)
+        run_command.insert(idx, "-v")
+
     if jupyter:
         idx = run_command.index(image_name)
         # yes, this is the correct order with which to insert
@@ -113,14 +119,22 @@ def start_container(
         run_command.insert(idx, entrypoint)
         run_command.insert(idx, "--entrypoint")
 
-    subprocess.run(run_command)
+    output = subprocess.run(run_command, capture_output=True, text=True)
+    print(output.stderr)
+
     if cleanup:
         subprocess.run(["docker", "rmi", image_name])
 
+    return output.stdout
 
-def garden_pipeline(func):
+
+def garden_pipeline(func, model_connectors=None):
+    if model_connectors is None:
+        model_connectors = []
+
     def garden_target(*args, **kwargs):
         return func(*args, **kwargs)
 
     garden_target._check = True
+    garden_target._model_connectors = model_connectors
     return garden_target  # returns func back, but with `__name__ == garden_target` and a _check attr
