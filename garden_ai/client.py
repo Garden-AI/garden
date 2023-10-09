@@ -54,12 +54,6 @@ from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
 from garden_ai.steps import step
 from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
 
-
-GARDEN_ENDPOINT = os.environ.get(
-    "GARDEN_ENDPOINT",
-    "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod",
-)
-
 COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
@@ -401,25 +395,8 @@ class GardenClient:
         model.dataset = dataset
         local_data.put_local_model(model)
 
-    def _mint_draft_doi(self, test: bool = True) -> str:
-        """Register a new draft DOI with DataCite via Garden backend.
-
-        Expects environment variable GARDEN_ENDPOINT to be set (not including `/doi`).
-
-        Parameters
-        ----------
-        test : bool
-            toggle which garden backend endpoint to hit; we do not yet have a
-            test endpoint so test=False raises NotImplementedError.
-
-        Raises
-        ------
-        NotImplementedError
-            see `test`
-        """
-
-        if not test:
-            raise NotImplementedError
+    def _mint_draft_doi(self) -> str:
+        """Register a new draft DOI with DataCite via Garden backend."""
 
         logger.info("Requesting draft DOI")
         payload = {

@@ -3,3 +3,4 @@ max-line-length = 150
 extend-ignore = E203
 exclude =
     fixtures
+    demos
