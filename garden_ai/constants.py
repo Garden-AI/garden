@@ -13,9 +13,7 @@ class GardenConstants:
     GARDEN_DIR = os.path.expanduser("~/.garden")
     URL_ENV_VAR_NAME = "GARDEN_MODELS"
     GARDEN_ENDPOINT = (
-        os.environ.get("GARDEN_ENDPOINT") or _PROD_ENDPOINT
-        if os.environ.get("GARDEN_ENV") == "prod"
-        else _DEV_ENDPOINT
+        _PROD_ENDPOINT if os.environ.get("GARDEN_ENV") == "prod" else _DEV_ENDPOINT
     )
     GARDEN_INDEX_UUID = (
         _PROD_SEARCH_INDEX
