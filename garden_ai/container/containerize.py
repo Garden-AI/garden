@@ -128,13 +128,16 @@ def start_container(
     return output.stdout
 
 
-def garden_pipeline(func, model_connectors=None):
+def garden_pipeline(model_connectors=None):
     if model_connectors is None:
         model_connectors = []
 
-    def garden_target(*args, **kwargs):
-        return func(*args, **kwargs)
+    def decorator(func):
+        def garden_target(*args, **kwargs):
+            return func(*args, **kwargs)
 
-    garden_target._check = True
-    garden_target._model_connectors = model_connectors
-    return garden_target  # returns func back, but with `__name__ == garden_target` and a _check attr
+        garden_target._check = True
+        garden_target._model_connectors = model_connectors
+        return garden_target  # returns func back, but with `__name__ == garden_target` and a _check attr
+
+    return decorator
