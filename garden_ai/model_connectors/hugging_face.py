@@ -1,4 +1,4 @@
-import huggingface_hub as hfh
+import huggingface_hub as hfh  # type: ignore
 from garden_ai.mlmodel import ModelMetadata
 import os
 
@@ -23,7 +23,7 @@ class HFConnector:
     def _repr_html_(self):
         try:
             __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
-            from IPython.display import display, Markdown
+            from IPython.display import display, Markdown  # type: ignore
 
             display(Markdown(self.model_card.text), display_id=True)
             return (

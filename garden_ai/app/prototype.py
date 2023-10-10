@@ -207,7 +207,7 @@ def extract(
 # Function to be run in planted container context.
 # Sends model metadata up to host as printed JSON.
 def _extract_metadata_from_planted_container():
-    import dill
+    import dill  # type: ignore
 
     dill.load_session("session.pkl")
 
