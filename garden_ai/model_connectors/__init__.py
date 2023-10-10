@@ -1,1 +1,1 @@
-from .hugging_face import HFConnector
+from .hugging_face import HFConnector  # noqa: F401
