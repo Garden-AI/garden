@@ -14,10 +14,11 @@ class HFConnector:
             model_name=model_part, user_email=user_part, flavor=flavor
         )
 
-    def download(self):
+    def stage(self) -> str:
         if not os.path.exists(self.local_dir):
             os.mkdir(self.local_dir)
         hfh.snapshot_download(self.repo_id, local_dir=self.local_dir)
+        return self.local_dir
 
     def _repr_html_(self):
         try:

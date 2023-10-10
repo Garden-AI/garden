@@ -2,6 +2,8 @@ import json
 import logging
 import subprocess
 import time
+import inspect
+import textwrap
 
 import typer
 
@@ -13,6 +15,7 @@ from uuid import UUID
 from garden_ai import GardenClient, RegisteredPipeline, local_data, Step
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
+from garden_ai.mlmodel import ModelMetadata
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
     build_container,
@@ -30,16 +33,6 @@ prototype_app = typer.Typer(name="prototype")
 def prototype():
     """sub-commands for experimenting with prototype publishing workflow"""
     pass
-
-
-@prototype_app.command()
-def extract(
-    image: str = typer.Argument(
-        ...,
-        help=("The name of the image to extract metadata from."),
-    ),
-):
-    _extract_metadata_from_session(image)
 
 
 @prototype_app.command()
@@ -171,41 +164,26 @@ def plant(
 
 
 @prototype_app.command()
-def debug(
+def extract(
     image: str = typer.Argument(
-        f"{IMAGE_NAME}-planted",
-        help=("Name/ID for a local planted container image to debug."),
-    )
+        ...,
+        help=("The name of the planted image to extract metadata from."),
+    ),
 ):
-    interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
-    start_container(image, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
-
-
-def _extract_metadata_from_session(image_name) -> str:
-    python_script = """import dill
-
-dill.load_session("session.pkl")
-
-for obj in list(globals().values()):
-    if getattr(obj, "__name__", None) == "garden_target" and getattr(
-        obj, "_check", None
-    ):
-        target_func = obj
-        break
-else:
-    raise ValueError("No function marked for invocation.")
-print(target_func.__name__)
-    """
+    function_source = inspect.getsource(_extract_metadata_from_planted_container)
+    function_body = function_source.split(":", 1)[1].strip()
+    # Leading 4 spaces is because the first line wasn't being indented
+    function_body_dedented = textwrap.dedent("    " + function_body)
 
     # Write the Python script to a temporary file on the host
     with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
-        f.write(python_script.encode())
+        f.write(function_body_dedented.encode())
         temp_file_name = f.name
 
     mount_file = f"{temp_file_name}:/tmp/script.py"
     interpreter_cmd = "python /tmp/script.py"
     stdout = start_container(
-        image_name,
+        image,
         entrypoint="/bin/bash",
         mount_file=mount_file,
         args=["-c", interpreter_cmd],
@@ -214,10 +192,46 @@ print(target_func.__name__)
     # Remove the temporary file
     os.remove(temp_file_name)
 
-    print("GOT STDOUT")
-    print(stdout)
-    function_name = stdout
-    return function_name
+    model_meta_records = []
+    for line in stdout.split("\n"):
+        if line.strip().startswith("{"):
+            as_obj = json.loads(line)
+            model_meta_records.append(ModelMetadata(**as_obj))
+    # TODO: incorporate metadata records into publishing step.
+    # For now just display them for proof of concept.
+    for model_meta in model_meta_records:
+        print(model_meta)
+
+
+# Function to be run in planted container context.
+# Sends model metadata up to host as printed JSON.
+def _extract_metadata_from_planted_container():
+    import dill
+
+    dill.load_session("session.pkl")
+
+    for obj in list(globals().values()):
+        if getattr(obj, "__name__", None) == "garden_target" and getattr(
+            obj, "_check", None
+        ):
+            target_func = obj
+            break
+    else:
+        raise ValueError("No function marked for invocation.")
+
+    for connector in target_func._model_connectors:
+        print(connector.metadata.json())
+
+
+@prototype_app.command()
+def debug(
+    image: str = typer.Argument(
+        f"{IMAGE_NAME}-planted",
+        help=("Name/ID for a local planted container image to debug."),
+    )
+):
+    interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
+    start_container(image, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
 
 
 def _funcx_invoke_pipeline(*args, **kwargs):
