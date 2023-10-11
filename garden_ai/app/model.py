@@ -1,7 +1,6 @@
 from typing import List
 
 from garden_ai import local_data
-from garden_ai.client import GardenClient
 from garden_ai.mlmodel import (
     DatasetConnection,
     ModelNotFoundException,
