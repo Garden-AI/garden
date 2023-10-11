@@ -182,7 +182,7 @@ def extract(
         temp_file_name = f.name
 
     mount_file = f"{temp_file_name}:/tmp/script.py"
-    interpreter_cmd = "python /tmp/script.py"
+    interpreter_cmd = "python3 /tmp/script.py"
     stdout = start_container(
         image,
         entrypoint="/bin/bash",
