@@ -1,7 +1,7 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
 import typing
 
-from garden_ai import GardenClient, Model, Pipeline, step
+from garden_ai import GardenClient, Pipeline, step
 
 ##################################### STEPS #####################################
 """

@@ -1,14 +1,10 @@
-from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from garden_ai import local_data
 from garden_ai.client import GardenClient
 from garden_ai.mlmodel import (
     DatasetConnection,
-    LocalModel,
-    ModelFlavor,
     ModelNotFoundException,
-    SerializeType,
 )
 
 from garden_ai.app.console import console, get_local_model_rich_table
@@ -29,83 +25,6 @@ def model():
     sub-commands for managing machine learning models
     """
     pass
-
-
-@model_app.command(no_args_is_help=True)
-def register(
-    name: str = typer.Argument(
-        ...,
-        help=("The name of your model"),
-    ),
-    model_path: Path = typer.Argument(
-        ...,
-        exists=True,
-        dir_okay=True,
-        file_okay=True,
-        writable=True,
-        readable=True,
-        resolve_path=True,
-        help=("The path to your model on your filesystem"),
-    ),
-    flavor: str = typer.Argument(
-        "sklearn",
-        help=(
-            "What ML library did you make the model with? "
-            "Currently we support the following flavors 'sklearn', 'tensorflow', and 'pytorch'."
-        ),
-    ),
-    serialize_type: Optional[str] = typer.Option(
-        None,
-        "--serialize-type",
-        "-s",
-        help=(
-            """
-            Optional serialization format your model is saved in:
-            'pickle', 'joblib', 'keras', 'torch'.
-            Will use a compatible default if not provided.
-            """
-        ),
-    ),
-    extra_paths: Optional[List[Path]] = typer.Option(
-        None,
-        "--extra-path",
-        "-e",
-        exists=True,
-        dir_okay=True,
-        file_okay=True,
-        writable=True,
-        readable=True,
-        resolve_path=True,
-        help=(
-            "The extra python files or directories required to load your model (e.g. pytorch class definitions)."
-        ),
-    ),
-):
-    """Register a model in Garden. Outputs a full model identifier that you can reference in a Pipeline."""
-    if flavor not in [f.value for f in ModelFlavor]:
-        raise typer.BadParameter(
-            f"Sorry, we only support 'sklearn', 'tensorflow', and 'pytorch'. The {flavor} flavor is not yet supported."
-        )
-
-    if serialize_type and serialize_type not in [s.value for s in SerializeType]:
-        raise typer.BadParameter(
-            f"Sorry, we only support 'pickle', 'joblib', 'keras', and 'torch'. The {serialize_type} format is not yet supported."
-        )
-    extra_paths_str = [str(path) for path in extra_paths] if extra_paths else []
-    client = GardenClient()
-    local_model = LocalModel(
-        local_path=str(model_path),
-        extra_paths=extra_paths_str,
-        model_name=name,
-        flavor=flavor,
-        serialize_type=serialize_type,
-        user_email=client.get_email(),
-    )
-
-    registered_model = client.register_model_from_disk(local_model)
-    rich.print(
-        f"Successfully uploaded your model! The full name to include in your pipeline is '{registered_model.full_name}'"
-    )
 
 
 @model_app.command(no_args_is_help=True)

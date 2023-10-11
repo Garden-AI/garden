@@ -7,10 +7,9 @@ from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: i
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from mlflow.pyfunc import PyFuncModel  # type: ignore
 
-import garden_ai
 from garden_ai import Garden, GardenClient, Pipeline, step
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.mlmodel import LocalModel, ModelMetadata
+from garden_ai.mlmodel import ModelMetadata
 from garden_ai.pipelines import RegisteredPipeline
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
@@ -240,54 +239,6 @@ dependencies:
 
 
 @pytest.fixture
-def step_with_model(mocker):
-    mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
-    mock_Model = mocker.MagicMock(garden_ai._model._Model)
-    mock_Model.model = mock_pyfunc_model
-    # Using existing registered model
-    mock_Model.full_name = "email@addr.ess/fake-model"
-    mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
-    mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
-
-    @step
-    def uses_model_in_default(
-        arg: object,
-        default_arg_model: object = garden_ai.Model("email@addr.ess/fake-model"),
-    ) -> object:
-        pass
-
-    return uses_model_in_default
-
-
-@pytest.fixture
-def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model):
-    # define a step using the decorator
-    @step(authors=["Sister Constance"])
-    def split_peas(ps: List) -> List[tuple]:
-        return [(p / 2, p / 2) for p in ps]
-
-    class Soup:
-        ...
-
-    @step(authors=["Friar Hugo"])
-    def make_soup(splits: List[tuple]) -> Soup:
-        return Soup()
-
-    ALL_STEPS = (split_peas, make_soup, step_with_model)  # see fixture
-
-    pea_edibility_pipeline = Pipeline(
-        title="Pea Edibility Pipeline",
-        steps=ALL_STEPS,
-        authors=["Brian Jacques"],
-        description="A pipeline for perfectly-reproducible soup ratings.",
-        requirements_file=str(tmp_requirements_txt),
-        doi="10.26311/fake-doi",
-    )
-
-    return pea_edibility_pipeline
-
-
-@pytest.fixture
 def database_with_unconnected_pipeline(tmp_path):
     source_path = get_fixture_file_path(
         "database_dumps/one_pipeline_one_garden_unconnected.txt"
@@ -331,11 +282,6 @@ def second_draft_of_model():
         user_email="test@example.com",
         flavor="pytorch",
     )
-
-
-@pytest.fixture
-def local_model(second_draft_of_model, tmp_path):
-    return LocalModel(**second_draft_of_model.dict(), local_path=str(tmp_path))
 
 
 @pytest.fixture

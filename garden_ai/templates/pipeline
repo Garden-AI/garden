@@ -1,5 +1,5 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-from garden_ai import GardenClient, Model, Pipeline, step
+from garden_ai import GardenClient, Pipeline, step
 import typing
 
 client = GardenClient()
@@ -39,7 +39,6 @@ def another_step(data: object) -> object:
 @step
 def run_inference(
     input_arg: object,
-    model=Model("{{ scaffolded_model_name }}"),
 ) -> object:
     pass
 

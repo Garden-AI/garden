@@ -23,14 +23,6 @@ def test_load_pipeline_from_valid_file_with_no_pipeline():
         load_pipeline_from_python_file(fixture_file_path)
 
 
-def test_load_pipeline_from_valid_file_with_invalid_model():
-    fixture_file_path = get_fixture_file_path(
-        "fixture_pipeline/invalid_model_pipeline.py"
-    )
-    with pytest.raises(ModelNotFoundException):
-        load_pipeline_from_python_file(fixture_file_path)
-
-
 def test_load_pipeline_from_invalid_file():
     fixture_file_path = get_fixture_file_path("fixture_pipeline/invalid_pipeline.py")
     with pytest.raises(SyntaxError):

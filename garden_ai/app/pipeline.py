@@ -22,7 +22,6 @@ from garden_ai.local_data import (
     put_local_pipeline,
     get_local_pipeline_by_doi,
 )
-from garden_ai.mlmodel import PipelineLoadScaffoldedException
 from garden_ai.utils._meta import make_func_to_serialize
 from garden_ai.utils.filesystem import (
     load_pipeline_from_python_file,
@@ -48,7 +47,6 @@ def template_pipeline(short_name: str, pipeline: Pipeline) -> str:
     return template.render(
         short_name=short_name,
         pipeline=pipeline,
-        scaffolded_model_name=GardenConstants.SCAFFOLDED_MODEL_NAME,
     )
 
 
@@ -355,10 +353,7 @@ def register(
         raise typer.Exit(code=1)
     try:
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
-    except (
-        PipelineLoadException,
-        PipelineLoadScaffoldedException,
-    ) as e:
+    except (PipelineLoadException,) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise
     with console.status(
@@ -537,10 +532,7 @@ def container(
             raise typer.Exit(code=1)
         try:
             user_pipeline = load_pipeline_from_python_file(pipeline_file)
-        except (
-            PipelineLoadException,
-            PipelineLoadScaffoldedException,
-        ) as e:
+        except (PipelineLoadException,) as e:
             console.log(
                 f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e)
             )
@@ -611,10 +603,7 @@ def debug(
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
         pipeline_url_json = client.generate_presigned_urls_for_pipeline(user_pipeline)
         _env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
-    except (
-        PipelineLoadException,
-        PipelineLoadScaffoldedException,
-    ) as e:
+    except (PipelineLoadException,) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise
     remote_func = make_func_to_serialize(user_pipeline)
