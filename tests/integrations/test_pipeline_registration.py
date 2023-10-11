@@ -25,7 +25,6 @@ def test_register_pipeline():
 
 @pytest.mark.integration
 def test_publish_garden():
-    # fixture_pipeline_path = get_fixture_file_path("fixture_pipeline/pipeline.py")
     command = "garden publish -g e1a3b50b-4efc-42c8-8422-644f4f858b87"
     result = runner.invoke(app, command)
     assert result.exit_code == 0
