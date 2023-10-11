@@ -3,9 +3,9 @@ alias: Architecture Overview
 ---
 ## Overview
 
-The Garden project is structured around four core concepts: `Gardens`, `Pipelines`, `steps`, and `Models`. Each of these is represented by one or more classes in our SDK.
+The Garden project is structured around three core concepts: `Gardens`, `Pipelines`, and `steps`. Each of these is represented by one or more classes in our SDK.
 
-Broadly speaking, `step` and `Model` are lower-level abstractions for users to bring existing work into our system (but won't necessarily be made easily available to other users). The higher-level  `Garden` and `Pipeline` objects define the *citable* and *reproducible* end products, and enable users to discover/share scientific work.
+Broadly speaking, `step`s are lower-level abstractions for users to bring existing work into our system (but won't necessarily be made easily available to other users). The higher-level  `Garden` and `Pipeline` objects define the *citable* and *reproducible* end products, and enable users to discover/share scientific work.
 
 ### [Steps](Steps.md)
 
@@ -27,46 +27,6 @@ You may define a pipeline which uses as many steps as you like, as long as there
 
 > [!NOTE]
 > `Any` and `None` are not allowed as hints, since they don't help us verify that steps would compose together(no type checking is done at runtime). Type annotations will also used to populate input/output metadata for pipelines, if not explicitly provided.
-
-### [Models](Models.md)
-
-The `Model` class represents a pre-trained machine learning model registered with our service. It includes information about the model itself, such as its flavor (framework used to develop the model, e.g. `sklearn`), serialization format, architecture, parameters, and state, as well as metadata such as links to training datasets. Currently, we support models in the following flavors: `sklearn`, `pytorch`, and `tensorflow`.
-
-Models in Garden are registered using the Garden CLI:
-
-```bash
-garden-ai model register path/to/model.pkl sklearn
-```
-
-> [!NOTE]
-> The output of this command gives you a *full model name*, like `"me@institution.edu-my-model-name"`, which can then be referenced by steps (see example below).
-
-Optionally you can pass in a serialization format:
-```bash
-garden-ai model register path/to/model.pkl sklearn --serialize-type joblib
-```
->[!NOTE]
-> For serialization types we currently support `pickle` and `joblib` for `sklearn`. For `tensorflow` and `pytorch` we use the default save/serialization methods, but if you deisre to be explicit these can be entered in the CLI via `--serialize-type keras` for tensorflow and `--serialize-type torch` for pytorch. If no serialize-type is provided, an attempt at using a flavor-compatible default will be made.
-
-
-
-
-Once a model has been registered, it should be used in a `Step` by referencing its name as a _**default argument**_, not in the body of the step's function.
-
-Here's an example of a step that names a registered model to perform inference:
-
-```python
-@step
-def run_inference(
-    cleaned_data: pd.DataFrame,
-    model=Model("me@institution.edu-my-model-name"),
-) -> np.ndarray:
-    """running some inference"""
-    results = model.predict(cleaned_data)
-    return results
-```
-
-This way, your pre-trained models can be easily integrated into any pipeline and executed as part of your workflows.
 
 ### [Pipelines](Pipelines.md)
 
