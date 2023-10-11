@@ -2,6 +2,10 @@ import json
 import logging
 import subprocess
 import time
+import inspect
+import textwrap
+import tempfile
+import os
 
 import typer
 
@@ -13,11 +17,13 @@ from uuid import UUID
 from garden_ai import GardenClient, RegisteredPipeline, local_data, Step
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
+from garden_ai.mlmodel import ModelMetadata
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
     build_container,
     start_container,
 )
+
 
 logger = logging.getLogger()
 
@@ -156,6 +162,66 @@ def plant(
     subprocess.run(["docker", "stop", CONTAINER_NAME])
     time.sleep(3)  # takes a moment for the container to fully stop
     subprocess.run(["docker", "rmi", image_name])
+
+
+@prototype_app.command()
+def extract(
+    image: str = typer.Argument(
+        ...,
+        help=("The name of the planted image to extract metadata from."),
+    ),
+):
+    function_source = inspect.getsource(_extract_metadata_from_planted_container)
+    function_body = function_source.split(":", 1)[1].strip()
+    # Leading 4 spaces is because the first line wasn't being indented
+    function_body_dedented = textwrap.dedent("    " + function_body)
+
+    # Write the Python script to a temporary file on the host
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
+        f.write(function_body_dedented.encode())
+        temp_file_name = f.name
+
+    mount_file = f"{temp_file_name}:/tmp/script.py"
+    interpreter_cmd = "python3 /tmp/script.py"
+    stdout = start_container(
+        image,
+        entrypoint="/bin/bash",
+        mount_file=mount_file,
+        args=["-c", interpreter_cmd],
+    )
+
+    # Remove the temporary file
+    os.remove(temp_file_name)
+
+    model_meta_records = []
+    for line in stdout.split("\n"):
+        if line.strip().startswith("{"):
+            as_obj = json.loads(line)
+            model_meta_records.append(ModelMetadata(**as_obj))
+    # TODO: incorporate metadata records into publishing step.
+    # For now just display them for proof of concept.
+    for model_meta in model_meta_records:
+        print(model_meta)
+
+
+# Function to be run in planted container context.
+# Sends model metadata up to host as printed JSON.
+def _extract_metadata_from_planted_container():
+    import dill  # type: ignore
+
+    dill.load_session("session.pkl")
+
+    for obj in list(globals().values()):
+        if getattr(obj, "__name__", None) == "garden_target" and getattr(
+            obj, "_check", None
+        ):
+            target_func = obj
+            break
+    else:
+        raise ValueError("No function marked for invocation.")
+
+    for connector in target_func._model_connectors:
+        print(connector.metadata.json())
 
 
 @prototype_app.command()
