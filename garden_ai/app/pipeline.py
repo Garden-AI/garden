@@ -601,13 +601,11 @@ def debug(
         raise typer.Exit(code=1)
     try:
         user_pipeline = load_pipeline_from_python_file(pipeline_file)
-        pipeline_url_json = client.generate_presigned_urls_for_pipeline(user_pipeline)
-        _env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
     except (PipelineLoadException,) as e:
         console.log(f"Could not parse {pipeline_file} as a Garden pipeline. " + str(e))
         raise
     remote_func = make_func_to_serialize(user_pipeline)
-    curry = partial(remote_func, _env_vars=_env_vars)
+    curry = partial(remote_func)
 
     with TemporaryDirectory() as tmpdir:
         tmpdir = tmpdir.replace("\\", "/")  # Windows compatibility

@@ -323,8 +323,6 @@ class Pipeline:
         if has_models:
             if not garden_client:
                 raise ValueError("Missing required kwarg 'garden_client'")
-            pipeline_url_json = garden_client.generate_presigned_urls_for_pipeline(self)
-            os.environ[GardenConstants.URL_ENV_VAR_NAME] = pipeline_url_json
 
         return self._composed_steps(*args, **kwargs)
 
