@@ -13,7 +13,7 @@ from rich import print
 from rich.prompt import Prompt
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from garden_ai import GardenClient, Pipeline, step, GardenConstants
+from garden_ai import GardenClient, Pipeline, step
 from garden_ai.app.console import console, get_local_pipeline_rich_table
 from garden_ai.app.completion import complete_pipeline
 from garden_ai.pipelines import RegisteredPipeline, Repository, Paper
@@ -587,8 +587,6 @@ def debug(
 ):
     import subprocess
     from functools import partial
-
-    client = GardenClient()
 
     if (
         not pipeline_file.exists()
