@@ -1,2 +1,0 @@
-## Please specify all pipeline dependencies here
-garden-ai @ git+https://github.com/garden-ai/garden.git

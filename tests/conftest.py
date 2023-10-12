@@ -135,49 +135,6 @@ def garden_no_fields():
 
 
 @pytest.fixture
-def pipeline_toy_example(tmp_requirements_txt):
-    # define a step using the decorator
-    @step(authors=["Sister Constance"])
-    def split_peas(ps: List) -> List[tuple]:
-        return [(p / 2, p / 2) for p in ps]
-
-    class Soup:
-        ...
-
-    @step(authors=["Friar Hugo"])
-    def make_soup(splits: List[tuple]) -> Soup:
-        return Soup()
-
-    @step(authors=["Abbot Mortimer"], input_info="a spoonful of Soup object")
-    def rate_soup(soup_sample: Soup) -> float:
-        return 10 / 10
-
-    rate_soup.contributors += ["Friar Hugo", "Sister Constance"]
-
-    pea_edibility_pipeline = Pipeline(
-        title="Pea Edibility Pipeline",
-        short_name="pea_pipeline",
-        steps=[split_peas, make_soup, rate_soup],
-        authors=["Brian Jacques"],
-        description="A pipeline for perfectly-reproducible soup ratings.",
-        requirements_file=str(tmp_requirements_txt),
-        doi="10.26311/fake-doi",
-    )
-
-    # the complete pipeline is now also callable by itself
-    assert pea_edibility_pipeline([1, 2, 3]) == 10 / 10
-    return pea_edibility_pipeline
-
-
-@pytest.fixture
-def registered_pipeline_toy_example(pipeline_toy_example, noop_func_uuid):
-    pipeline_toy_example.doi = "10.26311/fake-doi"
-    pipeline_toy_example.func_uuid = noop_func_uuid
-    pipeline_toy_example.short_name = "pipeline_toy_example"
-    return RegisteredPipeline.from_pipeline(pipeline_toy_example)
-
-
-@pytest.fixture
 def garden_all_fields(mocker, registered_pipeline_toy_example):
     mocker.patch(
         "garden_ai.Garden._collect_pipelines",
@@ -196,45 +153,6 @@ def garden_all_fields(mocker, registered_pipeline_toy_example):
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
     pea_garden.pipeline_ids += [registered_pipeline_toy_example.doi]
     return pea_garden
-
-
-@pytest.fixture
-def tmp_requirements_txt(tmp_path):
-    """
-    Fixture that creates a temporary requirements.txt file
-    """
-    contents = "Flask==2.1.1\npandas>=1.3.0\nnumpy==1.21.2\nscikit-learn>=0.24.2\n"
-    file_path = tmp_path / "requirements.txt"
-    with open(file_path, "w") as f:
-        f.write(contents)
-    return file_path
-
-
-@pytest.fixture
-def tmp_conda_yml(tmp_path):
-    """
-    Fixture that creates a temporary `conda.yml` file.
-    """
-    contents = """\
-name: my_env
-channels:
-- defaults
-dependencies:
-- python=3.8
-- flask=2.1.1
-- pandas>=1.3.0
-- pip:
-    - mlflow<3,>=2.2
-    - cloudpickle==2.2.1
-    - numpy==1.23.5
-    - psutil==5.9.4
-    - scikit-learn==1.2.2
-    - fake-package==9.9.9
-"""
-    file_path = tmp_path / "conda.yml"
-    with open(file_path, "w") as f:
-        f.write(contents)
-    return file_path
 
 
 @pytest.fixture

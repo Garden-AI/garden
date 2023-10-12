@@ -34,15 +34,13 @@ from garden_ai.globus_search import garden_search
 from garden_ai.local_data import (
     GardenNotFoundException,
     PipelineNotFoundException,
-    _read_local_cache,
-    _write_local_cache,
 )
 from garden_ai.mlmodel import (
     DatasetConnection,
     ModelNotFoundException,
 )
 from garden_ai.pipelines import RegisteredPipeline, Paper, Repository
-from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
+from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 

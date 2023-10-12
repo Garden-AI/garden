@@ -13,35 +13,6 @@ runner = CliRunner()
 
 
 @pytest.mark.cli
-def test_pipeline_create(pipeline_toy_example, mocker, tmp_path):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.pipeline.GardenClient").return_value = mock_client
-    command = [
-        "pipeline",
-        "create",
-        "--directory",
-        str(tmp_path),
-        "--title",
-        pipeline_toy_example.title,
-        "--description",
-        pipeline_toy_example.description,
-        "--year",
-        pipeline_toy_example.year,
-    ]
-    for name in pipeline_toy_example.authors:
-        command += ["--author", name]
-    for name in pipeline_toy_example.contributors:
-        command += ["--contributor", name]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    kwargs = mock_client.create_pipeline.call_args.kwargs
-    del kwargs["steps"]  # different steps on purpose -- can't get a function from cli
-    for key in kwargs:
-        assert kwargs[key] == getattr(pipeline_toy_example, key)
-
-
-@pytest.mark.cli
 def test_pipeline_add_paper(database_with_connected_pipeline, mocker):
     from garden_ai import local_data
 
