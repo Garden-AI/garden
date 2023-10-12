@@ -11,7 +11,7 @@ import typer
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-from typing import List
+from typing import Any, Dict, List
 from uuid import UUID
 
 from garden_ai import GardenClient, Pipeline, RegisteredPipeline, local_data
@@ -221,7 +221,7 @@ def _extract_metadata_from_planted_container() -> None:
     print(json.dumps(total_meta))  # stdout is captured
 
 
-def _extract(planted_image: str) -> dict:
+def _extract(planted_image: str) -> Dict[str, Any]:
     temp_file_name = _send_def_to_tmp_script(_extract_metadata_from_planted_container)
     mount_file = f"{temp_file_name}:/tmp/extract.py"
 
