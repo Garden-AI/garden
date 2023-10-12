@@ -4,8 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Union
-from uuid import UUID
+from typing import List, Union
 
 import typer
 from globus_compute_sdk import Client

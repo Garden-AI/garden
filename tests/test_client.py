@@ -12,7 +12,6 @@ from globus_sdk import (
     SearchClient,
 )
 
-import garden_ai
 from garden_ai import GardenClient
 from garden_ai.client import AuthException
 

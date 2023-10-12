@@ -1,7 +1,6 @@
 import logging
 from typing import List
 
-import dill  # type: ignore
 import typer
 import rich
 from rich.prompt import Prompt

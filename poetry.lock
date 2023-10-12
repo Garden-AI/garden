@@ -555,7 +555,7 @@ files = [
 name = "dparse"
 version = "0.6.3"
 description = "A parser for Python dependency files"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.6"
 files = [
@@ -565,7 +565,6 @@ files = [
 
 [package.dependencies]
 packaging = "*"
-pyyaml = {version = "*", optional = true, markers = "extra == \"conda\""}
 tomli = {version = "*", markers = "python_version < \"3.11\""}
 
 [package.extras]
@@ -931,18 +930,6 @@ python-versions = ">=3.7"
 files = [
     {file = "jmespath-1.0.1-py3-none-any.whl", hash = "sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980"},
     {file = "jmespath-1.0.1.tar.gz", hash = "sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe"},
-]
-
-[[package]]
-name = "joblib"
-version = "1.3.2"
-description = "Lightweight pipelining with Python functions"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "joblib-1.3.2-py3-none-any.whl", hash = "sha256:ef4331c65f239985f3f2220ecc87db222f08fd22097a3dd5698f693875f8cbb9"},
-    {file = "joblib-1.3.2.tar.gz", hash = "sha256:92f865e621e17784e7955080b6d042489e3b8e294949cc44c6eac304f59772b1"},
 ]
 
 [[package]]
@@ -2238,7 +2225,7 @@ files = [
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -2521,4 +2508,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "958774f1e3aa6412400235d04a8e2f3d68641cdbd22b7f929385de995455e209"
+content-hash = "161a40340f80abd7fb8334f7a79202f4ba61745df7292fa67e4a1744fc95266b"

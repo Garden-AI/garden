@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import dparse  # type: ignore
 import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field
 from tabulate import tabulate
