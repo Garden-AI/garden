@@ -139,6 +139,6 @@ def garden_pipeline(metadata: Pipeline, model_connectors=None):
 
         garden_target._pipeline_meta = metadata.dict()
         garden_target._model_connectors = model_connectors
-        return garden_target  # returns func back, but with `__name__ == garden_target` and _pipeline_meta
+        return garden_target  # returns func back, but with `__name__ == garden_target` and metadata
 
     return decorator
