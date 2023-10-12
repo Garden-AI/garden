@@ -11,7 +11,7 @@ import typer
 from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-from typing import Dict, List
+from typing import List
 from uuid import UUID
 
 from garden_ai import GardenClient, Pipeline, RegisteredPipeline, local_data
@@ -177,7 +177,7 @@ def debug(
 def _send_def_to_tmp_script(func) -> str:
     function_source = inspect.getsource(func)
     function_body = function_source.split(":", 1)[1].strip()
-    # Leading 4 spaces is because the first line wasn't being indented
+    # leading 4 spaces is because the first line wasn't being indented
     function_body_dedented = textwrap.dedent("    " + function_body)
 
     with NamedTemporaryFile(delete=False, suffix=".py") as f:
@@ -198,10 +198,9 @@ def _extract_metadata_from_planted_container() -> None:
 
     garden_decorated = []
 
-    for obj in list(globals().values()):
-        if (
-            getattr(obj, "__name__", None) == "garden_target"
-            and getattr(obj, "_pipeline_meta", None) is not None
+    for obj in globals().values():
+        if getattr(obj, "__name__", None) == "garden_target" and hasattr(
+            obj, "_pipeline_meta"  # could also check for _model_connectors
         ):
             garden_decorated.append(obj)
 
@@ -222,19 +221,18 @@ def _extract_metadata_from_planted_container() -> None:
     print(json.dumps(total_meta))  # stdout is captured
 
 
-def _extract(planted_image: str) -> Dict[str, str]:
+def _extract(planted_image: str) -> dict:
     temp_file_name = _send_def_to_tmp_script(_extract_metadata_from_planted_container)
-
     mount_file = f"{temp_file_name}:/tmp/extract.py"
-    interpreter_cmd = "python /tmp/extract.py"
+
     stdout = start_container(
         planted_image,
         entrypoint="/bin/bash",
         mount_file=mount_file,
-        args=["-c", interpreter_cmd],
+        args=["-c", "python /tmp/extract.py"],
     )
 
-    # Remove the temporary file
+    # remove the temporary file
     os.remove(temp_file_name)
 
     return json.loads(stdout)
@@ -283,14 +281,14 @@ def register(
         help=("The name of the image to be pushed and registered with Globus compute."),
     )
 ):
-    # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
+    # add container to docker registry
+    # when updating the container, the name MUST be changed or the cache lookup will find old version
     subprocess.run(["docker", "tag", f"{IMAGE_NAME}-planted", image])
     subprocess.run(["docker", "push", image])
     subprocess.run(["docker", "rmi", image])
 
     client = GardenClient()
 
-    # perform container and function registration
     container_id = client.compute_client.register_container(
         f"docker.io/{image}", "docker"
     )
