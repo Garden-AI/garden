@@ -4,21 +4,19 @@ import subprocess
 import time
 import inspect
 import textwrap
-import tempfile
 import os
 
 import typer
 
 from functools import partial
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import Dict, List
 from uuid import UUID
 
-from garden_ai import GardenClient, Pipeline, RegisteredPipeline, local_data, Step
+from garden_ai import GardenClient, Pipeline, RegisteredPipeline, local_data
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
-from garden_ai.mlmodel import ModelMetadata
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
     build_container,
@@ -182,7 +180,7 @@ def _send_def_to_tmp_script(func) -> str:
     # Leading 4 spaces is because the first line wasn't being indented
     function_body_dedented = textwrap.dedent("    " + function_body)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
+    with NamedTemporaryFile(delete=False, suffix=".py") as f:
         f.write(function_body_dedented.encode())
         temp_file_name = f.name
 
