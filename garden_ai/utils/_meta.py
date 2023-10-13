@@ -47,13 +47,12 @@ def make_func_to_serialize(pipeline):
 
 
 def garden_ai_compose_functions(*functions):
-    """helper: compose functions together and inject special `_env_vars` kwarg.
+    """helper: compose functions together.
 
     Defines other helper functions locally to prevent polluting the __main__
     namespace (see: `make_func_to_serialize`).
 
-    Any future "pipeline middleware" (like `inject_env_kwarg`) should also be
-    defined locally inside this function.
+    Any future "pipeline middleware" should be defined locally inside this function.
     """
 
     def compose(*functions):
@@ -67,25 +66,7 @@ def garden_ai_compose_functions(*functions):
 
         return comp_inner
 
-    def inject_env_kwarg(func):
-        """
-        Helper: modify a function so that it will accept an ``_env_vars`` keyword argument.
-
-        This can be used to dynamically set environment variables before executing the
-        original function, particularly useful if the function is executing remotely.
-        """
-
-        def env_inner(*args, _env_vars=None, **kwargs):
-            if _env_vars:
-                import os
-
-                for k, v in _env_vars.items():
-                    os.environ[k] = v
-            return func(*args, **kwargs)
-
-        return env_inner
-
-    return inject_env_kwarg(compose(*functions))
+    return compose(*functions)
 
 
 def exec_getsource(source, globals=None, locals=None):
@@ -113,7 +94,6 @@ def exec_getsource(source, globals=None, locals=None):
 
 def _load_pipeline_from_python_file(python_file):
     from garden_ai import Pipeline
-    from garden_ai.mlmodel import Model
     from garden_ai.utils.filesystem import PipelineLoadException
 
     with open(python_file, "r") as file:
@@ -143,13 +123,6 @@ class _USER_PIPELINE_MODULE:
     # Now, one of those class attributes is going to be a Pipeline instance
     for name, value in vars(cls).items():
         if isinstance(value, Pipeline):
-            if not Model.has_been_called:
-                logger.warning(
-                    f"No model exists in file. If this pipeline includes a model, please input the model in {python_file} "
-                    "with the name of a registered Garden model."
-                    "\nFor more information on how to use Garden, please read our docs: "
-                    "https://garden-ai.readthedocs.io/en/latest/"
-                )
             value.short_name = value.short_name or name
             return value
     raise PipelineLoadException(

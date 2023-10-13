@@ -8,7 +8,6 @@ _PROD_SEARCH_INDEX = "813d4556-cbd4-4ba9-97f2-a7155f70682f"
 
 
 class GardenConstants:
-    SCAFFOLDED_MODEL_NAME = "YOUR MODEL'S NAME HERE"
     GARDEN_TEST_EMAIL = "garden-test-runner@email.com"
     GARDEN_DIR = os.path.expanduser("~/.garden")
     URL_ENV_VAR_NAME = "GARDEN_MODELS"

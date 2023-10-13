@@ -1,12 +1,11 @@
 
 ## Tutorial: Develop a Garden from Scratch
 
-This tutorial will guide you through developing a Garden from scratch: registering a Model, creating and registering a Pipeline, adding the Pipeline to your Garden, and publishing your Garden. It will then show you how to use published Gardens, including how to find a published Garden and execute its pipeline(s) on a remote Globus Compute endpoint of choice.
+This tutorial will guide you through developing a Garden from scratch: creating and registering a Pipeline, adding the Pipeline to your Garden, and publishing your Garden. It will then show you how to use published Gardens, including how to find a published Garden and execute its pipeline(s) on a remote Globus Compute endpoint of choice.
 
 #### Prerequisites
 
-1. A pre-trained machine learning model saved in a format compatible with the SDK, i.e., `sklearn`, `pytorch`, or `tensorflow`.
-2. The Garden CLI [installed](../installation) on your system.
+1. The Garden CLI [installed](../installation) on your system.
 
 
 ### Create a Pipeline
@@ -41,19 +40,17 @@ def preprocessing(input_data: pd.DataFrame) -> pd.DataFrame:
     return filtered_data
 
 @step
-def run_inference(
+def do_analysis(
     cleaned_data: pd.DataFrame,
-    model=Model("YOUR MODEL NAME HERE"),  # See "Register Model" section below
 ) -> np.ndarray:
-    """running some inference"""
-    results = model.predict(cleaned_data)
-    return results
+    """running some analysis"""
+    return cleaned_data.describe()
 
 # instantiate the pipeline
 looking_glass_pipeline: Pipeline = client.create_pipeline(
     title="Looking Glass Pipeline",
     doi="10.26311/fake-doi",
-    steps=(preprocessing, run_inference),  # composes the fns defined above
+    steps=(preprocessing, do_analysis),  # composes the fns defined above
     requirements_file="/full/path/to/requirements.txt",
     authors=["Dee, Tweedle", "et al."],
     contributors=["Dum, Tweedle"],
@@ -75,55 +72,6 @@ When we're ready to test this pipeline locally before registering it with the Ga
 >>> from pipeline import looking_glass_pipeline
 >>> test_result = looking_glass_pipeline(my_test_data)
 ```
-
-
-### Register a Model
-
-In our pipeline's templated code, notice that one step had the default argument `model=Model("YOUR MODEL NAME HERE")`. This `Model` argument can be used in any step, and accepts the "full name" or URI of a pre-trained model which has been registered with the Garden service.
-
-Use the `garden-ai model register` subcommand to register your model:
-
-```bash
-garden-ai model register "my-model-name" /path/to/model.pkl sklearn
-```
-> [!NOTE] Note
-> If you have a model saved in a specific serialization format such as joblib or a pickle file, you can specify it with the optional CLI argument `--serialize-type`. Here is an example using joblib `garden-ai model register "my-model-name" /path/to/model.pkl sklearn --serialize-type joblib`. If not provided an attempt at using a flavor-compatible default will be made.
-
-This command will register your model with the Garden service and return a "full name", which is the name you chose prefixed with your email address, e.g. `"me@institution.edu/my-model-name"`. This full model name is how you can reference the registered model in your pipeline code:
-
-```python
-...
-
-@step
-def run_inference(
-    cleaned_data: pd.DataFrame,
-    model=Model("me@institution.edu/my-model-name"),
-) -> np.ndarray:
-    """running some inference"""
-    results = model.predict(cleaned_data)
-    return results
-
-```
-
-
-> [!NOTE]
-> Regardless of "flavor" (sklearn, pytorch, etc) used when registering the underlying ML model, the `Model` object will appear to have a single `predict` method which passes its input directly to your model and returns its prediction.
-
-Alternatively, if you install the garden-ai package in the environment where you are developing your model, you can use the Garden SDK to register your model without serializing it to disk. For example ...
-
-```python
-my_model = train_pytorch_model()
-
-from garden_ai import GardenClient
-from garden_ai.mlmodel import ModelMetadata
-
-garden_client = GardenClient()
-model_meta = ModelMetadata(model_name="torchmdnet-ethanol", flavor="pytorch", user_email="willengler@uchicago.edu")
-garden_client.register_model_from_memory(my_model, model_meta)
-
-```
-
-In this example the name of the registered model to invoke will be `willengler@uchicago.edu/torchmdnet-ethanol`.
 
 ### Register a Pipeline
 

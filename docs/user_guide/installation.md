@@ -12,8 +12,6 @@ source myenv/bin/activate
 pip install garden-ai
 ```
 
-The base package includes support for sklearn by default. If you want to use Garden with PyTorch, TensorFlow, or other packages you will need to install them in your virtual environment as well.
-
 To verify your installation, you can check the version of Garden:
 
 ```bash

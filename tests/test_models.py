@@ -198,31 +198,6 @@ def test_step_authors_are_pipeline_contributors(pipeline_toy_example):
             assert contributor in pipe.contributors
 
 
-def test_step_collect_model(step_with_model):
-    assert step_with_model.model_full_names == ["email@addr.ess/fake-model"]
-
-
-def test_pipeline_collects_own_requirements(
-    pipeline_using_step_with_model, tmp_requirements_txt
-):
-    with open(tmp_requirements_txt, "r") as f:
-        contents = f.read()
-        for dependency in pipeline_using_step_with_model.pip_dependencies:
-            assert (
-                dependency in contents
-                or dependency.startswith("mlflow")
-                or dependency.startswith("pandas")
-            )
-
-    assert "python=" not in "".join(pipeline_using_step_with_model.conda_dependencies)
-
-
-def test_pipeline_collects_step_models(pipeline_using_step_with_model):
-    assert pipeline_using_step_with_model.model_full_names == [
-        "email@addr.ess/fake-model"
-    ]
-
-
 def test_step_compose_ignores_defaults(tmp_requirements_txt):
     @step
     def returns_tuple(a: int, b: str) -> Tuple[int, str]:

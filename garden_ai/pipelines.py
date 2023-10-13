@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import pathlib
 import sys
 from datetime import datetime
@@ -246,10 +245,6 @@ class Pipeline:
 
     @validator("pip_dependencies", each_item=False)
     def ensure_minimal_dependencies(cls, pip_deps):
-        import mlflow  # type: ignore
-
-        if not any(req.startswith("mlflow") for req in pip_deps):
-            pip_deps += [f"mlflow-skinny=={mlflow.__version__}"]
         if not any(req.startswith("pandas") for req in pip_deps):
             pip_deps += ["pandas<3"]
         return pip_deps
@@ -327,8 +322,6 @@ class Pipeline:
         if has_models:
             if not garden_client:
                 raise ValueError("Missing required kwarg 'garden_client'")
-            pipeline_url_json = garden_client.generate_presigned_urls_for_pipeline(self)
-            os.environ[GardenConstants.URL_ENV_VAR_NAME] = pipeline_url_json
 
         return self._composed_steps(*args, **kwargs)
 

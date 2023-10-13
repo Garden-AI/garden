@@ -1,5 +1,5 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-from garden_ai import GardenClient, Model, Pipeline, step
+from garden_ai import GardenClient, Pipeline, step
 import typing
 
 ##################################### STEPS #####################################
@@ -39,7 +39,6 @@ def another_step(data: object) -> object:
 @step
 def run_inference(
     input_arg: object,
-    model=Model("YOUR MODEL'S NAME HERE"),
 ) -> object:
     pass
 
@@ -66,5 +65,5 @@ fixture_pipeline = Pipeline(
     description="",
     version="0.0.1",
     year=2023,
-    tags=[]
+    tags=[],
 )

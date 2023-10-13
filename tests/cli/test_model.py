@@ -2,32 +2,8 @@ import pytest
 from typer.testing import CliRunner
 
 from garden_ai.app.main import app
-from garden_ai.client import GardenClient
 
 runner = CliRunner()
-
-
-@pytest.mark.cli
-def test_model_upload(mocker, tmp_path):
-    user_email = "test@example.com"
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.model.GardenClient").return_value = mock_client
-    mock_client.get_email.return_value = user_email
-    command = [
-        "model",
-        "register",
-        "unit-test-model",
-        str(tmp_path),
-        "sklearn",
-    ]
-    result = runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    args = mock_client.register_model_from_disk.call_args.args
-    local_model = args[0]
-    assert local_model.local_path == str(tmp_path)
-    assert local_model.model_name == "unit-test-model"
-    assert local_model.flavor == "sklearn"
 
 
 @pytest.mark.cli

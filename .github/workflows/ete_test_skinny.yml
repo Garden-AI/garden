@@ -2,8 +2,8 @@ name: ETE Test Skinny
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 */3 * * *"    #runs every 3 hours everyday
+#  schedule:
+#    - cron: "0 */3 * * *"    #runs every 3 hours everyday
 
 env:
   ETE_ART_LOC: "/home/runner/ete_artifact"
