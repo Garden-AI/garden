@@ -226,7 +226,7 @@ class Garden(BaseModel):
         known_authors = set(self.authors) - known_contributors
 
         for pipeline in self._pipeline_cache:
-            new_contributors = set(pipeline.authors) | set(pipeline.contributors)
+            new_contributors = set(pipeline.authors)
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)

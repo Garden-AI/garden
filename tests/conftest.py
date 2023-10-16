@@ -7,6 +7,7 @@ from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 
 from garden_ai import Garden, GardenClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
+from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.mlmodel import ModelMetadata
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
@@ -130,6 +131,18 @@ def garden_title_authors_doi_only():
 @pytest.fixture
 def garden_no_fields():
     return Garden(doi="10.26311/fake-doi")  # DOI is required to instantiate
+
+
+@pytest.fixture
+def registered_pipeline_toy_example(noop_func_uuid):
+    return RegisteredPipeline(
+        title="Pea Edibility Pipeline",
+        short_name="pipeline_toy_example",
+        authors=["Brian Jacques"],
+        description="A pipeline for perfectly-reproducible soup ratings.",
+        func_uuid=noop_func_uuid,
+        doi="10.26311/fake-doi",
+    )
 
 
 @pytest.fixture

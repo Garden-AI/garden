@@ -19,16 +19,6 @@ logger = logging.getLogger()
 issubtype = beartype.door.is_subhint
 
 
-def get_cache_tag(
-    pip_reqs: List[str], conda_deps: List[str], py_version: Optional[str]
-) -> str:
-    """Used for container uuid caching based on pip/conda dependencies"""
-    full_spec = (
-        pip_reqs + conda_deps + [py_version or ".".join(map(str, sys.version_info[:3]))]
-    )
-    return str(crc32(str(sorted(set(full_spec))).encode()))
-
-
 def garden_json_encoder(obj):
     """workaround: pydantic supports custom encoders for all but built-in types.
 
