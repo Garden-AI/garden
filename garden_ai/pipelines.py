@@ -88,6 +88,7 @@ class RegisteredPipeline(BaseModel):
         tags:
         doi:
         func_uuid:
+        container_uuid:
         model_full_names:
         repositories:
         papers:
@@ -95,6 +96,7 @@ class RegisteredPipeline(BaseModel):
 
     doi: str = Field(...)
     func_uuid: Optional[UUID] = Field(...)
+    container_uuid: Optional[UUID] = Field(None)
     title: str = Field(...)
     short_name: str = Field(...)
     authors: List[str] = Field(...)

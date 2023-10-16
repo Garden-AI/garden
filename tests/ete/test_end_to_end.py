@@ -1,3 +1,6 @@
+# type: ignore
+# TODO: revisit end to end tests after publishing rework
+
 import os
 import sys
 import shutil
