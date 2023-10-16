@@ -257,7 +257,6 @@ def _funcx_invoke_pipeline(*args, **kwargs):
     return target_func(*args, **kwargs)
 
 
-# TODO: rework without old Pipeline class
 @prototype_app.command(no_args_is_help=True)
 def register(
     image: str = typer.Argument(
@@ -281,8 +280,6 @@ def register(
 
     client = GardenClient()
 
-    pipeline_meta = RegisteredPipeline(**meta)
-
     # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
     subprocess.run(["docker", "tag", f"{IMAGE_NAME}-planted", image])
     subprocess.run(["docker", "push", image])
@@ -294,7 +291,7 @@ def register(
     container_id = client.compute_client.register_container(
         f"docker.io/{image}", "docker"
     )
-    pipeline_meta.container_uuid = container_id
+    meta["container_id"] = container_id
 
     redef_in_main(_funcx_invoke_pipeline)
 
@@ -303,7 +300,9 @@ def register(
     )
     # print(f"Your function has been registered with UUID: {func_id}")
     func_uuid = UUID(func_id)
-    pipeline_meta.func_uuid = func_uuid
+    meta["func_uuid"] = func_uuid
+    meta["doi"] = client._mint_draft_doi()
+    pipeline_meta = RegisteredPipeline(**meta)
 
     client._update_datacite(pipeline_meta)
     local_data.put_local_pipeline(pipeline_meta)
