@@ -2,11 +2,8 @@ import base64
 import json
 import logging
 import re
-import sys
 from inspect import signature
 from keyword import iskeyword
-from typing import List, Optional
-from binascii import crc32
 
 import beartype.door
 import requests
