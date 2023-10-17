@@ -5,7 +5,6 @@ import re
 from inspect import signature
 from keyword import iskeyword
 
-import beartype.door
 import requests
 from pydantic.json import pydantic_encoder
 from typing_extensions import TypeAlias
@@ -13,7 +12,6 @@ from typing_extensions import TypeAlias
 JSON: TypeAlias = str
 
 logger = logging.getLogger()
-issubtype = beartype.door.is_subhint
 
 
 def garden_json_encoder(obj):
