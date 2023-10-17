@@ -4,8 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Union
-from uuid import UUID
+from typing import List, Union
 
 import typer
 from globus_compute_sdk import Client
@@ -30,21 +29,17 @@ from rich.prompt import Prompt
 from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
 from garden_ai.gardens import Garden, PublishedGarden
-from garden_ai.globus_compute.containers import build_container
-from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import (
     GardenNotFoundException,
     PipelineNotFoundException,
-    _read_local_cache,
-    _write_local_cache,
 )
 from garden_ai.mlmodel import (
     DatasetConnection,
     ModelNotFoundException,
 )
-from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
-from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
+from garden_ai.pipelines import RegisteredPipeline, Paper, Repository
+from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
@@ -288,26 +283,6 @@ class GardenClient:
 
         return Garden(**data)
 
-    def create_pipeline(
-        self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
-    ) -> Pipeline:
-        """Initialize and return a pipeline object.
-
-        If this pipeline's DOI has been used before to register a function for
-        remote execution, reuse the (funcx/globus compute) ID for consistency.
-
-        NOTE: this means that local modifications to a pipeline will not be
-        reflected when executing remotely until the pipeline is re-registered.
-        """
-        data = dict(kwargs)
-        if authors:
-            data["authors"] = authors
-        if title:
-            data["title"] = title
-        data["doi"] = data.get("doi") or self._mint_draft_doi()
-
-        return Pipeline(**data)
-
     def add_dataset(self, model_name: str, title: str, url: str, **kwargs) -> None:
         """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
 
@@ -364,45 +339,6 @@ class GardenClient:
         payload = {"data": {"type": "dois", "attributes": metadata}}
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
-
-    def build_container(self, pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
-        built_container_uuid = build_container(self.compute_client, pipeline)
-
-        cache = _read_local_cache()
-        tag = get_cache_tag(
-            pipeline.pip_dependencies,
-            pipeline.conda_dependencies,
-            pipeline.python_version,
-        )
-        cache[tag] = built_container_uuid
-        _write_local_cache(cache)
-
-        return built_container_uuid
-
-    def register_pipeline(self, pipeline: Pipeline) -> RegisteredPipeline:
-        container_uuid = (
-            str(pipeline.container_uuid) if pipeline.container_uuid else None
-        )
-        if container_uuid is None:
-            cache = _read_local_cache().get(
-                get_cache_tag(
-                    pipeline.pip_dependencies,
-                    pipeline.conda_dependencies,
-                    pipeline.python_version,
-                )
-            )
-            if cache is not None:
-                container_uuid = cache
-                print("Cache hit! Using pre-built container.")
-            else:
-                container_uuid = self.build_container(pipeline)
-
-        func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
-        pipeline.func_uuid = UUID(func_uuid)
-        registered = RegisteredPipeline.from_pipeline(pipeline)
-        self._update_datacite(registered)
-        local_data.put_local_pipeline(registered)
-        return registered
 
     def add_paper(self, title: str, doi: str, **kwargs) -> None:
         """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given DOI.

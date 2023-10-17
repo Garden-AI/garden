@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 from typing import List
 from uuid import UUID
 
-from garden_ai import GardenClient, RegisteredPipeline, local_data, Step
+from garden_ai import GardenClient, RegisteredPipeline, local_data
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
 from garden_ai.mlmodel import ModelMetadata
@@ -280,12 +280,6 @@ def register(
 
     client = GardenClient()
 
-    # needed since a step is needed, steps arent useful under this construction
-    def four() -> int:
-        return 4
-
-    pipeline = client.create_pipeline(steps=(Step(four),), **meta)
-
     # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
     subprocess.run(["docker", "tag", f"{IMAGE_NAME}-planted", image])
     subprocess.run(["docker", "push", image])
@@ -297,8 +291,7 @@ def register(
     container_id = client.compute_client.register_container(
         f"docker.io/{image}", "docker"
     )
-    # print(f"Your container has been registered with UUID: {container_id}")
-    pipeline.container_uuid = container_id
+    meta["container_id"] = container_id
 
     redef_in_main(_funcx_invoke_pipeline)
 
@@ -307,9 +300,10 @@ def register(
     )
     # print(f"Your function has been registered with UUID: {func_id}")
     func_uuid = UUID(func_id)
-    pipeline.func_uuid = func_uuid
+    meta["func_uuid"] = func_uuid
+    meta["doi"] = client._mint_draft_doi()
+    pipeline_meta = RegisteredPipeline(**meta)
 
-    registered = RegisteredPipeline.from_pipeline(pipeline)
-    client._update_datacite(registered)
-    local_data.put_local_pipeline(registered)
-    print(f"Successfully registered your new pipeline with doi: {registered.doi}")
+    client._update_datacite(pipeline_meta)
+    local_data.put_local_pipeline(pipeline_meta)
+    print(f"Successfully registered your new pipeline with doi: {pipeline_meta.doi}")
