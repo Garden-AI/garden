@@ -299,7 +299,7 @@ def register(
     for key, meta in total_meta.items():
         if "." in key:  # ignore connectors metadata
             continue
-        pipelines.append(Pipeline(container_uuid=container_id, **meta))
+        pipelines.append(RegisteredPipeline(container_uuid=container_id, **meta))
 
     import __main__
 

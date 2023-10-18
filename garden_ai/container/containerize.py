@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 from typing import List, Optional
 
-from garden_ai import Pipeline
+from garden_ai import RegisteredPipeline
 
 IMAGE_NAME = "gardenai/base"
 CONTAINER_NAME = "garden_ai"
@@ -129,7 +129,7 @@ def start_container(
     return output.stdout
 
 
-def garden_pipeline(metadata: Pipeline, model_connectors=None):
+def garden_pipeline(metadata: RegisteredPipeline, model_connectors=None):
     if model_connectors is None:
         model_connectors = []
 
