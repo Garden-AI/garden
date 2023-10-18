@@ -43,23 +43,6 @@ resource_type_to_id_key = {
 }
 
 
-def _read_local_cache() -> Dict[str, str]:
-    if not (LOCAL_STORAGE / "cache.json").exists():
-        return {}
-
-    with open(LOCAL_STORAGE / "cache.json", "r") as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise LocalDataException("Could not parse cache.json as valid json") from e
-    return data
-
-
-def _write_local_cache(data: Dict[str, str]) -> None:
-    with open(LOCAL_STORAGE / "cache.json", "w") as f:
-        json.dump(data, f)
-
-
 def _read_local_db() -> Dict:
     data = {}
     if (LOCAL_STORAGE / "data.json").exists():

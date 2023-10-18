@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import Any, Dict, List
 from uuid import UUID
 
-from garden_ai import GardenClient, Pipeline, RegisteredPipeline, local_data
+from garden_ai import GardenClient, RegisteredPipeline, local_data
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
 from garden_ai.container.containerize import (  # type: ignore

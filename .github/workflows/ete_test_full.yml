@@ -2,8 +2,8 @@ name: ETE Test Full
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 12 * * *"    #runs at 12:00 UTC everyday
+#  schedule:
+#    - cron: "0 12 * * *"    #runs at 12:00 UTC everyday
 
 env:
   ETE_ART_LOC: "/home/runner/ete_artifact"

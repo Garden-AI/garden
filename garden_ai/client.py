@@ -4,8 +4,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import List, Optional, Union, Callable
-from uuid import UUID
+from typing import List, Union
 
 import typer
 from globus_compute_sdk import Client
@@ -30,29 +29,17 @@ from rich.prompt import Prompt
 from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
 from garden_ai.gardens import Garden, PublishedGarden
-from garden_ai.globus_compute.containers import build_container
-from garden_ai.globus_compute.remote_functions import register_pipeline
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import (
     GardenNotFoundException,
     PipelineNotFoundException,
-    _read_local_cache,
-    _write_local_cache,
 )
 from garden_ai.mlmodel import (
-    LocalModel,
-    ModelMetadata,
     DatasetConnection,
     ModelNotFoundException,
-    Model,
-    clear_mlflow_staging_directory,
-    stage_model_from_disk,
-    stage_model_from_memory,
 )
-from garden_ai.model_file_transfer.upload import upload_mlmodel_to_s3
-from garden_ai.pipelines import Pipeline, RegisteredPipeline, Paper, Repository
-from garden_ai.steps import step
-from garden_ai.utils.misc import extract_email_from_globus_jwt, get_cache_tag
+from garden_ai.pipelines import RegisteredPipeline, Paper, Repository
+from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
@@ -296,66 +283,6 @@ class GardenClient:
 
         return Garden(**data)
 
-    def create_pipeline(
-        self, authors: Optional[List[str]] = None, title: Optional[str] = None, **kwargs
-    ) -> Pipeline:
-        """Initialize and return a pipeline object.
-
-        If this pipeline's DOI has been used before to register a function for
-        remote execution, reuse the (funcx/globus compute) ID for consistency.
-
-        NOTE: this means that local modifications to a pipeline will not be
-        reflected when executing remotely until the pipeline is re-registered.
-        """
-        data = dict(kwargs)
-        if authors:
-            data["authors"] = authors
-        if title:
-            data["title"] = title
-        data["doi"] = data.get("doi") or self._mint_draft_doi()
-
-        return Pipeline(**data)
-
-    def register_model_from_disk(self, local_model: LocalModel) -> ModelMetadata:
-        def stage() -> str:
-            return stage_model_from_disk(local_model)
-
-        self._register_model_common(stage, local_model)
-        registered_model = ModelMetadata(**local_model.dict())
-        local_data.put_local_model(registered_model)
-        return registered_model
-
-    def register_model_from_memory(
-        self,
-        model: object,
-        model_meta: ModelMetadata,
-        extra_paths: Optional[List[str]] = None,
-    ) -> ModelMetadata:
-        def stage() -> str:
-            return stage_model_from_memory(model, model_meta, extra_paths)
-
-        self._register_model_common(stage, model_meta)
-        registered_model = model_meta
-        local_data.put_local_model(registered_model)
-        return registered_model
-
-    def _register_model_common(self, stage_model: Callable, model_meta: ModelMetadata):
-        try:
-            model_directory = stage_model()
-            upload_mlmodel_to_s3(model_directory, model_meta, self.backend_client)
-        finally:
-            try:
-                clear_mlflow_staging_directory()
-            except Exception as e:
-                logger.error(
-                    "Could not clean up model staging directory. Check permissions on ~/.garden/mlflow"
-                )
-                logger.error("Original exception: " + str(e))
-                # We can still proceed, there is just some cruft in the user's home directory.
-                pass
-        registered_model = model_meta
-        local_data.put_local_model(registered_model)
-
     def add_dataset(self, model_name: str, title: str, url: str, **kwargs) -> None:
         """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
 
@@ -412,45 +339,6 @@ class GardenClient:
         payload = {"data": {"type": "dois", "attributes": metadata}}
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
-
-    def build_container(self, pipeline: Union[Pipeline, RegisteredPipeline]) -> str:
-        built_container_uuid = build_container(self.compute_client, pipeline)
-
-        cache = _read_local_cache()
-        tag = get_cache_tag(
-            pipeline.pip_dependencies,
-            pipeline.conda_dependencies,
-            pipeline.python_version,
-        )
-        cache[tag] = built_container_uuid
-        _write_local_cache(cache)
-
-        return built_container_uuid
-
-    def register_pipeline(self, pipeline: Pipeline) -> RegisteredPipeline:
-        container_uuid = (
-            str(pipeline.container_uuid) if pipeline.container_uuid else None
-        )
-        if container_uuid is None:
-            cache = _read_local_cache().get(
-                get_cache_tag(
-                    pipeline.pip_dependencies,
-                    pipeline.conda_dependencies,
-                    pipeline.python_version,
-                )
-            )
-            if cache is not None:
-                container_uuid = cache
-                print("Cache hit! Using pre-built container.")
-            else:
-                container_uuid = self.build_container(pipeline)
-
-        func_uuid = register_pipeline(self.compute_client, pipeline, container_uuid)
-        pipeline.func_uuid = UUID(func_uuid)
-        registered = RegisteredPipeline.from_pipeline(pipeline)
-        self._update_datacite(registered)
-        local_data.put_local_pipeline(registered)
-        return registered
 
     def add_paper(self, title: str, doi: str, **kwargs) -> None:
         """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given DOI.
@@ -528,101 +416,6 @@ class GardenClient:
         pipeline.repositories.append(repository)
         local_data.put_local_pipeline(pipeline)
 
-    def add_simple_model_to_garden(
-        self,
-        local_model: LocalModel,
-        garden_doi: str,
-        *,
-        input_type: type,
-        output_type: type,
-        title: str = None,
-        description: str = None,
-        **kwargs,
-    ) -> str:
-        """Take a `LocalModel` object and automatically perform all the necessary steps,
-        using the additional provided information, to publish the model such that it is prepared to be run remotely.
-
-        Parameters
-        ----------
-        local_model : LocalModel
-            The model for which remote executiotability is desired. The object's necessary fields are documented at
-            `~mlmodel.LocalModel` and its parent `~mlmodel.ModelMetadata`.
-
-        garden_doi : str
-            The DOI of a previously published Garden that the model will be added to in order to facilitate findability
-            and remote execution.
-
-        input_type : type
-            The type that describes the expected input to your model.
-
-        output_type : type
-            The type that describes the expected output of your model.
-
-        title : str
-            Title that describes the pipeline that is implicitly generated. If no title is provided, one will be generated.
-
-        description : str
-            Description of the pipeline that is implicitly generated. If no description is provided, one will be generated.
-
-        **kwargs :
-            Metadata for the new Pipeline object that runs the model. Keyword arguments matching
-            required or recommended fields will be (where necessary) coerced to the
-            appropriate type and validated per the documentation found at `~pipelines.Pipeline`.
-            NOTE: Some fields are necessary for proper publication. e.g. `pip_dependecies` if your model needs them.
-
-        Returns
-        -------
-        The DOI of your auto-generated pipeline. Use this DOI to access your pipeline at a later date.
-
-        Examples
-        --------
-        client = GardenClient()
-        local_model = LocalModel(
-            model_name="dendrite_segmentation",
-            flavor="tensorflow",
-            local_path="model.h5",
-            user_email=client.get_email()
-        )
-        my_pipeline = client.add_simple_model_to_garden(local_model, "10.1234/doi-here",
-                                                        input_type=np.ndarray,
-                                                        output_type=np.ndarray,
-                                                        authors=["Monty Python", "Guido van Rossum"],
-                                                        pip_dependencies=["tensorflow"],
-                                                        tags=["materials science", "computer vision"]
-        )
-        """
-        registered_model = self.register_model_from_disk(local_model)
-
-        # we ignore these type errors, because we want the step to be typed correctly but mypy does not acknowledge that it would be
-        @step
-        def run_inference(
-            input_arg: input_type, model=Model(registered_model.full_name)  # type: ignore
-        ) -> output_type:  # type: ignore
-            return model.predict(input_arg)
-
-        pipeline = self.create_pipeline(
-            title=title or f"Inference on model: {local_model.model_name}",
-            short_name=local_model.model_name,
-            steps=(run_inference,),
-            description=description
-            or "Auto-generated pipeline that executes a single step which runs an inference.",
-            **kwargs,
-        )
-        registered = self.register_pipeline(pipeline)
-
-        garden = self.clone_published_garden(garden_doi, silent=True)
-
-        # NOTE hack to allow the clone to update the remote record in-place
-        garden.doi = garden_doi
-
-        # add pipeline to garden
-        garden.add_pipeline(registered.doi)
-
-        # update the record with new pipeline added
-        self.publish_garden_metadata(garden)
-
-        return registered.doi
-
     def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
         """Return a callable ``RegisteredPipeline`` corresponding to the given DOI.
 
@@ -649,8 +442,6 @@ class GardenClient:
             raise PipelineNotFoundException(
                 f"Could not find any pipelines with DOI {doi}."
             )
-        pipeline_url_json = self.generate_presigned_urls_for_pipeline(pipeline)
-        pipeline._env_vars = {GardenConstants.URL_ENV_VAR_NAME: pipeline_url_json}
         return pipeline
 
     def get_email(self) -> str:
@@ -752,36 +543,4 @@ class GardenClient:
 
         """
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
-        self._generate_presigned_urls_for_garden(garden)
         return garden
-
-    def _generate_presigned_urls_for_garden(self, garden: PublishedGarden):
-        all_model_names = [
-            model_name
-            for pipeline in garden.pipelines
-            for model_name in pipeline.model_full_names
-        ]  # flatten all model names
-        all_presigned_urls = self.backend_client.get_model_download_urls(
-            all_model_names
-        )
-        for pipeline in garden.pipelines:
-            model_name_to_url = {
-                presigned_url.model_name: presigned_url.url
-                for presigned_url in all_presigned_urls
-                if presigned_url.model_name in pipeline.model_full_names
-            }
-            pipeline._env_vars = {
-                GardenConstants.URL_ENV_VAR_NAME: json.dumps(model_name_to_url)
-            }
-
-    def generate_presigned_urls_for_pipeline(
-        self, pipeline: Union[RegisteredPipeline, Pipeline]
-    ) -> str:
-        all_presigned_urls = self.backend_client.get_model_download_urls(
-            pipeline.model_full_names
-        )
-        model_name_to_url = {
-            presigned_url.model_name: presigned_url.url
-            for presigned_url in all_presigned_urls
-        }
-        return json.dumps(model_name_to_url)

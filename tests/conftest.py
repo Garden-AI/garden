@@ -1,17 +1,14 @@
 import os
-from typing import List
 
 import pytest
 from globus_compute_sdk import Client  # type: ignore
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
-from mlflow.pyfunc import PyFuncModel  # type: ignore
 
-import garden_ai
-from garden_ai import Garden, GardenClient, Pipeline, step
+from garden_ai import Garden, GardenClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.mlmodel import LocalModel, ModelMetadata
 from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.mlmodel import ModelMetadata
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -137,46 +134,15 @@ def garden_no_fields():
 
 
 @pytest.fixture
-def pipeline_toy_example(tmp_requirements_txt):
-    # define a step using the decorator
-    @step(authors=["Sister Constance"])
-    def split_peas(ps: List) -> List[tuple]:
-        return [(p / 2, p / 2) for p in ps]
-
-    class Soup:
-        ...
-
-    @step(authors=["Friar Hugo"])
-    def make_soup(splits: List[tuple]) -> Soup:
-        return Soup()
-
-    @step(authors=["Abbot Mortimer"], input_info="a spoonful of Soup object")
-    def rate_soup(soup_sample: Soup) -> float:
-        return 10 / 10
-
-    rate_soup.contributors += ["Friar Hugo", "Sister Constance"]
-
-    pea_edibility_pipeline = Pipeline(
+def registered_pipeline_toy_example(noop_func_uuid):
+    return RegisteredPipeline(
         title="Pea Edibility Pipeline",
-        short_name="pea_pipeline",
-        steps=[split_peas, make_soup, rate_soup],
+        short_name="pipeline_toy_example",
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
-        requirements_file=str(tmp_requirements_txt),
+        func_uuid=noop_func_uuid,
         doi="10.26311/fake-doi",
     )
-
-    # the complete pipeline is now also callable by itself
-    assert pea_edibility_pipeline([1, 2, 3]) == 10 / 10
-    return pea_edibility_pipeline
-
-
-@pytest.fixture
-def registered_pipeline_toy_example(pipeline_toy_example, noop_func_uuid):
-    pipeline_toy_example.doi = "10.26311/fake-doi"
-    pipeline_toy_example.func_uuid = noop_func_uuid
-    pipeline_toy_example.short_name = "pipeline_toy_example"
-    return RegisteredPipeline.from_pipeline(pipeline_toy_example)
 
 
 @pytest.fixture
@@ -198,93 +164,6 @@ def garden_all_fields(mocker, registered_pipeline_toy_example):
     pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
     pea_garden.pipeline_ids += [registered_pipeline_toy_example.doi]
     return pea_garden
-
-
-@pytest.fixture
-def tmp_requirements_txt(tmp_path):
-    """
-    Fixture that creates a temporary requirements.txt file
-    """
-    contents = "Flask==2.1.1\npandas>=1.3.0\nnumpy==1.21.2\nscikit-learn>=0.24.2\n"
-    file_path = tmp_path / "requirements.txt"
-    with open(file_path, "w") as f:
-        f.write(contents)
-    return file_path
-
-
-@pytest.fixture
-def tmp_conda_yml(tmp_path):
-    """
-    Fixture that creates a temporary `conda.yml` file.
-    """
-    contents = """\
-name: my_env
-channels:
-- defaults
-dependencies:
-- python=3.8
-- flask=2.1.1
-- pandas>=1.3.0
-- pip:
-    - mlflow<3,>=2.2
-    - cloudpickle==2.2.1
-    - numpy==1.23.5
-    - psutil==5.9.4
-    - scikit-learn==1.2.2
-    - fake-package==9.9.9
-"""
-    file_path = tmp_path / "conda.yml"
-    with open(file_path, "w") as f:
-        f.write(contents)
-    return file_path
-
-
-@pytest.fixture
-def step_with_model(mocker):
-    mock_pyfunc_model = mocker.MagicMock(PyFuncModel)
-    mock_Model = mocker.MagicMock(garden_ai._model._Model)
-    mock_Model.model = mock_pyfunc_model
-    # Using existing registered model
-    mock_Model.full_name = "email@addr.ess/fake-model"
-    mocker.patch("garden_ai.local_data.get_local_model_by_name").return_value = True
-    mocker.patch("garden_ai.mlmodel.Model").return_value = mock_Model
-
-    @step
-    def uses_model_in_default(
-        arg: object,
-        default_arg_model: object = garden_ai.Model("email@addr.ess/fake-model"),
-    ) -> object:
-        pass
-
-    return uses_model_in_default
-
-
-@pytest.fixture
-def pipeline_using_step_with_model(mocker, tmp_requirements_txt, step_with_model):
-    # define a step using the decorator
-    @step(authors=["Sister Constance"])
-    def split_peas(ps: List) -> List[tuple]:
-        return [(p / 2, p / 2) for p in ps]
-
-    class Soup:
-        ...
-
-    @step(authors=["Friar Hugo"])
-    def make_soup(splits: List[tuple]) -> Soup:
-        return Soup()
-
-    ALL_STEPS = (split_peas, make_soup, step_with_model)  # see fixture
-
-    pea_edibility_pipeline = Pipeline(
-        title="Pea Edibility Pipeline",
-        steps=ALL_STEPS,
-        authors=["Brian Jacques"],
-        description="A pipeline for perfectly-reproducible soup ratings.",
-        requirements_file=str(tmp_requirements_txt),
-        doi="10.26311/fake-doi",
-    )
-
-    return pea_edibility_pipeline
 
 
 @pytest.fixture
@@ -334,108 +213,10 @@ def second_draft_of_model():
 
 
 @pytest.fixture
-def local_model(second_draft_of_model, tmp_path):
-    return LocalModel(**second_draft_of_model.dict(), local_path=str(tmp_path))
-
-
-@pytest.fixture
-def model_url_env_var():
-    # Set the environment variable
-    os.environ[
-        "GARDEN_MODELS"
-    ] = '{"willengler@uchicago.edu/test_model": "presigned-url.aws.com"}'
-
-    yield  # Go run the test
-
-    # After the test, delete the environment variable
-    os.environ.pop("GARDEN_MODELS", None)
-
-
-@pytest.fixture
 def cc_grant_tuple():
     client_id = os.getenv("GARDEN_API_CLIENT_ID")
     client_secret = os.getenv("GARDEN_API_CLIENT_SECRET")
     return (client_id, client_secret)
-
-
-@pytest.fixture
-def mlflow_metadata():
-    metadata_string = """artifact_path: sklearn_test_model
-flavors:
-  python_function:
-    env:
-      conda: conda.yaml
-      virtualenv: python_env.yaml
-    loader_module: mlflow.sklearn
-    model_path: model.pkl
-    predict_fn: predict
-    python_version: 3.8.16
-  sklearn:
-    code: null
-    pickled_model: model.pkl
-    serialization_format: cloudpickle
-    sklearn_version: 1.3.0
-metadata:
-    garden_load_strategy: pyfunc
-mlflow_version: 2.4.2
-model_uuid: 7741a74966b04ee2b02ddc11c84260cb
-run_id: 6949be777da74b75b9c6dba8a4ecc5c6
-utc_time_created: '2023-07-31 15:17:38.890648'
-"""
-    return metadata_string
-
-
-@pytest.fixture
-def mlflow_metadata_sklearn():
-    metadata_string = """artifact_path: sklearn_test_model
-flavors:
-  python_function:
-    env:
-      conda: conda.yaml
-      virtualenv: python_env.yaml
-    loader_module: mlflow.sklearn
-    model_path: model.pkl
-    predict_fn: predict
-    python_version: 3.8.16
-  sklearn:
-    code: null
-    pickled_model: model.pkl
-    serialization_format: cloudpickle
-    sklearn_version: 1.3.0
-metadata:
-    garden_load_strategy: sklearn
-mlflow_version: 2.4.2
-model_uuid: 7741a74966b04ee2b02ddc11c84260cb
-run_id: 6949be777da74b75b9c6dba8a4ecc5c6
-utc_time_created: '2023-07-31 15:17:38.890648'
-"""
-    return metadata_string
-
-
-@pytest.fixture
-def mlflow_metadata_torch():
-    metadata_string = """artifact_path: torch_test_model
-flavors:
-  python_function:
-    data: data
-    env:
-      conda: conda.yaml
-      virtualenv: python_env.yaml
-    loader_module: mlflow.pytorch
-    pickle_module_name: mlflow.pytorch.pickle_module
-    python_version: 3.8.16
-  pytorch:
-    code: null
-    model_data: data
-    pytorch_version: 2.0.0
-metadata:
-    garden_load_strategy: pytorch
-mlflow_version: 2.4.2
-model_uuid: fd9d9378bc054c41b5e07730a4ed8cd6
-run_id: 4d906cddf11b4c99addb1c3374a0a2d1
-utc_time_created: '2023-07-28 20:28:33.634996'
-"""
-    return metadata_string
 
 
 # Fixture JSON responses from the Search API
