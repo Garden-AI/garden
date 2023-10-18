@@ -146,7 +146,18 @@ class RegisteredPipeline(BaseModel):
                 return future.result()
 
     def _repr_html_(self) -> str:
-        return pipeline_repr_html(self)
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{self.title}</h2>"
+        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, val)
+                for field, val in self.dict().items()
+                if field not in ("title", "authors", "doi", "steps") and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + optional
 
     def collect_models(self) -> List[ModelMetadata]:
         """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_full_names`."""
@@ -203,18 +214,3 @@ class RegisteredPipeline(BaseModel):
             if self.description
             else None,
         ).json()
-
-
-def pipeline_repr_html(pipeline: RegisteredPipeline) -> str:
-    style = "<style>th {text-align: left;}</style>"
-    title = f"<h2>{pipeline.title}</h2>"
-    details = f"<p>Authors: {', '.join(pipeline.authors)}<br>DOI: {pipeline.doi}</p>"
-    optional = "<h3>Additional data</h3>" + tabulate(
-        [
-            (field, val)
-            for field, val in pipeline.dict().items()
-            if field not in ("title", "authors", "doi", "steps") and val
-        ],
-        tablefmt="html",
-    )
-    return style + title + details + optional
