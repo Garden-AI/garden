@@ -292,25 +292,25 @@ def register(
     container_id = client.compute_client.register_container(
         f"docker.io/{image}", "docker"
     )
+    container_uuid = UUID(container_id)
     # print(f"Your container has been registered with UUID: {container_id}")
 
-    pipelines = []
+    pipeline_metas = []
     total_meta = _extract(image)
     for key, meta in total_meta.items():
         if "." in key:  # ignore connectors metadata
             continue
-        new_doi = client._mint_draft_doi()
-        pipelines.append(
-            RegisteredPipeline(doi=new_doi, container_uuid=container_id, **meta)
-        )
+        if "doi" not in meta:
+            meta["doi"] = client._mint_draft_doi()
+        pipeline_metas.append({"container_uuid": container_uuid, **meta})
 
     import __main__
 
     redef_in_main(_funcx_invoke_pipeline)
 
     funcx_unique_pipeline_funcs = [
-        partial(__main__._funcx_invoke_pipeline, pipeline.short_name)
-        for pipeline in pipelines
+        partial(__main__._funcx_invoke_pipeline, pipeline["short_name"])
+        for pipeline in pipeline_metas
     ]
 
     func_ids = [
@@ -321,13 +321,19 @@ def register(
     ]
     # print(f"Your function(s) has (have) been registered with UUID(s): {func_ids}")
 
-    for i, pipeline in enumerate(pipelines):
-        pipeline.func_uuid = UUID(func_ids[i])
+    registered_pipelines = []
+    for i, pipeline in enumerate(pipeline_metas):
+        pipeline["func_uuid"] = UUID(func_ids[i])
 
-        client._update_datacite(pipeline)
-        local_data.put_local_pipeline(pipeline)
+        registered = RegisteredPipeline(**pipeline)
+        registered_pipelines.append(registered)
 
-    pipeline_name_to_doi = {pipeline.short_name: pipeline.doi for pipeline in pipelines}
+        client._update_datacite(registered)
+        local_data.put_local_pipeline(registered)
+
+    pipeline_name_to_doi = {
+        registered.short_name: registered.doi for registered in registered_pipelines
+    }
 
     print(
         f"Successfully registered your new pipeline(s) with doi(s): {pipeline_name_to_doi}"
