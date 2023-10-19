@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-# import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -131,7 +130,7 @@ class RegisteredPipeline(BaseModel):
 
     doi: str = Field(...)
     func_uuid: UUID = Field(...)
-    container_uuid: UUID = Field(...)
+    container_uuid: Optional[UUID] = Field(None)
     title: str = Field(...)
     authors: List[str] = Field(...)
     short_name: str = Field(...)
