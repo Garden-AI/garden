@@ -299,7 +299,10 @@ def register(
     for key, meta in total_meta.items():
         if "." in key:  # ignore connectors metadata
             continue
-        pipelines.append(RegisteredPipeline(container_uuid=container_id, **meta))
+        new_doi = client._mint_draft_doi()
+        pipelines.append(
+            RegisteredPipeline(doi=new_doi, container_uuid=container_id, **meta)
+        )
 
     import __main__
 
@@ -318,20 +321,14 @@ def register(
     ]
     # print(f"Your function(s) has (have) been registered with UUID(s): {func_ids}")
 
-    registered_pipelines = []
     for i, pipeline in enumerate(pipelines):
         pipeline.func_uuid = UUID(func_ids[i])
 
-        registered = RegisteredPipeline.from_pipeline(pipeline)
-        client._update_datacite(registered)
-        local_data.put_local_pipeline(registered)
+        client._update_datacite(pipeline)
+        local_data.put_local_pipeline(pipeline)
 
-        registered_pipelines.append(registered)
-
-    registered_name_to_doi = {
-        registered.short_name: registered.doi for registered in registered_pipelines
-    }
+    pipeline_name_to_doi = {pipeline.short_name: pipeline.doi for pipeline in pipelines}
 
     print(
-        f"Successfully registered your new pipeline(s) with doi(s): {registered_name_to_doi}"
+        f"Successfully registered your new pipeline(s) with doi(s): {pipeline_name_to_doi}"
     )
