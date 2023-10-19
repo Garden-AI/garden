@@ -121,7 +121,7 @@ def start_container(
         run_command.insert(idx, entrypoint)
         run_command.insert(idx, "--entrypoint")
 
-    output = subprocess.run(run_command, capture_output=True, text=True)
+    output = subprocess.run(run_command, capture_output=True, encoding="utf-8")
 
     if cleanup:
         subprocess.run(["docker", "rmi", image_name])
