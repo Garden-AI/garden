@@ -8,7 +8,6 @@ import os
 
 import typer
 
-from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import Any, Dict, List
@@ -197,8 +196,9 @@ def _extract_metadata_from_planted_container() -> None:
     dill.load_session("session.pkl")
 
     garden_decorated = []
+    global_vars = list(globals().values())
 
-    for obj in globals().values():
+    for obj in global_vars:
         if getattr(obj, "__name__", None) == "garden_target" and hasattr(
             obj, "_pipeline_meta"  # could also check for _model_connectors
         ):
@@ -274,6 +274,13 @@ def _funcx_invoke_pipeline(short_name: str, *args, **kwargs):
     return target_func(*args, **kwargs)
 
 
+def _curry(func, arg):
+    def wrapper(*args, **kwargs):
+        return func(arg, *args, **kwargs)
+
+    return wrapper
+
+
 @prototype_app.command(no_args_is_help=True)
 def register(
     image: str = typer.Argument(
@@ -300,7 +307,7 @@ def register(
     for key, meta in total_meta.items():
         if "." in key:  # ignore connectors metadata
             continue
-        if "doi" not in meta:
+        if meta["doi"] is None:
             meta["doi"] = client._mint_draft_doi()
         pipeline_metas.append({"container_uuid": container_uuid, **meta})
 
@@ -309,7 +316,7 @@ def register(
     redef_in_main(_funcx_invoke_pipeline)
 
     funcx_unique_pipeline_funcs = [
-        partial(__main__._funcx_invoke_pipeline, pipeline["short_name"])
+        _curry(__main__._funcx_invoke_pipeline, pipeline["short_name"])
         for pipeline in pipeline_metas
     ]
 
