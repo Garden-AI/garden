@@ -178,26 +178,6 @@ class RegisteredPipeline(BaseModel):
                 )
                 return future.result()
 
-    """ @classmethod
-    def from_metadata(
-        cls,
-        metadata: PipelineMetadata,
-        *,
-        func_id: str,
-        container_id: str,
-        doi: Optional[str] = None,
-    ) -> RegisteredPipeline:
-        # note: we want every RegisteredPipeline to be re-constructible
-        # from mere json, so as a sanity check we use pipeline.json() instead of
-        # pipeline.dict() directly
-        record = metadata.json()
-        data = json.loads(record)
-
-        if doi is not None:
-            data["doi"] = doi
-
-        return cls(func_uuid=func_id, container_uuid=container_id, **data) """
-
     def _repr_html_(self) -> str:
         style = "<style>th {text-align: left;}</style>"
         title = f"<h2>{self.title}</h2>"
