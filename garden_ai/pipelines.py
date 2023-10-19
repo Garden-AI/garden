@@ -181,14 +181,28 @@ class RegisteredPipeline(BaseModel):
 
     """ @classmethod
     def from_metadata(
-        cls, metadata: PipelineMetadata, *, doi: str, func_id: str, container_id: str
+        cls,
+        metadata: PipelineMetadata,
+        *,
+        func_id: str,
+        container_id: str,
+        doi: Optional[str] = None,
     ) -> RegisteredPipeline:
         # note: we want every RegisteredPipeline to be re-constructible
         # from mere json, so as a sanity check we use pipeline.json() instead of
         # pipeline.dict() directly
         record = metadata.json()
         data = json.loads(record)
-        return cls(doi=doi, func_uuid=func_id, container_uuid=container_id, **data) """
+
+        if doi is not None:
+            data = {**data, "doi": doi}
+        elif "doi" not in data:
+            raise ValueError(
+                "Missing required field: doi. Please add a doi to your `PipelineMetadata` "
+                "or pass it to this function."
+            )
+
+        return cls(func_uuid=func_id, container_uuid=container_id, **data) """
 
     def _repr_html_(self) -> str:
         style = "<style>th {text-align: left;}</style>"
