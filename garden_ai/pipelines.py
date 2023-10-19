@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -21,9 +22,7 @@ from garden_ai.datacite import (
     Types,
 )
 from garden_ai.mlmodel import ModelMetadata
-from garden_ai.utils.misc import (
-    JSON,
-)
+from garden_ai.utils.misc import JSON
 
 logger = logging.getLogger()
 
@@ -73,34 +72,68 @@ class Paper(BaseModel):
     citation: Optional[str] = Field(None)
 
 
-class RegisteredPipeline(BaseModel):
-    """Metadata of a completed and registered `Pipeline` object.
-    Can be added to a Garden and execute on a remote Globus Compute endpoint.
+class PipelineMetadata(BaseModel):
+    """Mere metadata for a pipeline prior to its registration.
+    Passed to the `garden_pipeline` decorator during the registration
+    process.
 
-    `RegisteredPipelines` can be described completely by JSON
+    The optional doi field allows one to maintain the same DOI across
+    versions of the same pipeline.
+
+    `PipelineMetadata` objects can be described completely by JSON.
 
     Attributes:
+        doi:
         title:
         authors:
-        year:
-        description:
         short_name:
+        description:
+        year:
         tags:
+        model_full_names:
+        repositories:
+        papers:
+    """
+
+    doi: Optional[str] = Field(None)
+    title: str = Field(...)
+    authors: List[str] = Field(...)
+    short_name: str = Field(...)
+    description: Optional[str] = Field(None)
+    year: str = Field(default_factory=lambda: str(datetime.now().year))
+    tags: List[str] = Field(default_factory=list, unique_items=True)
+    model_full_names: List[str] = Field(default_factory=list)
+    repositories: List[Repository] = Field(default_factory=list)
+    papers: List[Paper] = Field(default_factory=list)
+
+
+class RegisteredPipeline(BaseModel):
+    """Metadata of a completed and registered pipeline.
+    Can be added to a Garden and executed on a remote Globus Compute endpoint.
+
+    `RegisteredPipeline` objects can be described completely by JSON.
+
+    Attributes:
         doi:
         func_uuid:
         container_uuid:
+        title:
+        authors:
+        short_name:
+        description:
+        year:
+        tags:
         model_full_names:
         repositories:
         papers:
     """
 
     doi: str = Field(...)
-    func_uuid: Optional[UUID] = Field(...)
+    func_uuid: UUID = Field(...)
     container_uuid: Optional[UUID] = Field(None)
     title: str = Field(...)
-    short_name: str = Field(...)
     authors: List[str] = Field(...)
-    # NOTE: steps are dicts here, not Step objects
+    short_name: str = Field(...)
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
@@ -145,8 +178,39 @@ class RegisteredPipeline(BaseModel):
                 )
                 return future.result()
 
+    """ @classmethod
+    def from_metadata(
+        cls,
+        metadata: PipelineMetadata,
+        *,
+        func_id: str,
+        container_id: str,
+        doi: Optional[str] = None,
+    ) -> RegisteredPipeline:
+        # note: we want every RegisteredPipeline to be re-constructible
+        # from mere json, so as a sanity check we use pipeline.json() instead of
+        # pipeline.dict() directly
+        record = metadata.json()
+        data = json.loads(record)
+
+        if doi is not None:
+            data["doi"] = doi
+
+        return cls(func_uuid=func_id, container_uuid=container_id, **data) """
+
     def _repr_html_(self) -> str:
-        return pipeline_repr_html(self)
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{self.title}</h2>"
+        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, val)
+                for field, val in self.dict().items()
+                if field not in ("title", "authors", "doi", "steps") and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + optional
 
     def collect_models(self) -> List[ModelMetadata]:
         """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_full_names`."""
@@ -203,18 +267,3 @@ class RegisteredPipeline(BaseModel):
             if self.description
             else None,
         ).json()
-
-
-def pipeline_repr_html(pipeline: RegisteredPipeline) -> str:
-    style = "<style>th {text-align: left;}</style>"
-    title = f"<h2>{pipeline.title}</h2>"
-    details = f"<p>Authors: {', '.join(pipeline.authors)}<br>DOI: {pipeline.doi}</p>"
-    optional = "<h3>Additional data</h3>" + tabulate(
-        [
-            (field, val)
-            for field, val in pipeline.dict().items()
-            if field not in ("title", "authors", "doi", "steps") and val
-        ],
-        tablefmt="html",
-    )
-    return style + title + details + optional
