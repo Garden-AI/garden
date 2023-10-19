@@ -195,12 +195,7 @@ class RegisteredPipeline(BaseModel):
         data = json.loads(record)
 
         if doi is not None:
-            data = {**data, "doi": doi}
-        elif "doi" not in data:
-            raise ValueError(
-                "Missing required field: doi. Please add a doi to your `PipelineMetadata` "
-                "or pass it to this function."
-            )
+            data["doi"] = doi
 
         return cls(func_uuid=func_id, container_uuid=container_id, **data) """
 
