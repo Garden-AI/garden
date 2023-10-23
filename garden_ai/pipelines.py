@@ -130,7 +130,7 @@ class RegisteredPipeline(BaseModel):
 
     doi: str = Field(...)
     func_uuid: UUID = Field(...)
-    container_uuid: Optional[UUID] = Field(None)
+    container_uuid: UUID = Field(...)
     title: str = Field(...)
     authors: List[str] = Field(...)
     short_name: str = Field(...)

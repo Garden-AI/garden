@@ -140,6 +140,7 @@ def registered_pipeline_toy_example(noop_func_uuid):
         short_name="pipeline_toy_example",
         authors=["Brian Jacques"],
         description="A pipeline for perfectly-reproducible soup ratings.",
+        container_uuid="4f5688ac-424d-443e-b525-97c72e4e013f",
         func_uuid=noop_func_uuid,
         doi="10.26311/fake-doi",
     )
