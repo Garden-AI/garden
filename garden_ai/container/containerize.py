@@ -7,6 +7,8 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 from typing import List, Optional
 
+from garden_ai import PipelineMetadata
+
 IMAGE_NAME = "gardenai/base"
 CONTAINER_NAME = "garden_ai"
 JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary valid token, safe b/c port is only exposed to localhost
@@ -119,7 +121,7 @@ def start_container(
         run_command.insert(idx, entrypoint)
         run_command.insert(idx, "--entrypoint")
 
-    output = subprocess.run(run_command, capture_output=True, text=True)
+    output = subprocess.run(run_command, capture_output=True, encoding="utf-8")
 
     if cleanup:
         subprocess.run(["docker", "rmi", image_name])
@@ -127,7 +129,7 @@ def start_container(
     return output.stdout
 
 
-def garden_pipeline(model_connectors=None):
+def garden_pipeline(metadata: PipelineMetadata, model_connectors=None):
     if model_connectors is None:
         model_connectors = []
 
@@ -135,8 +137,8 @@ def garden_pipeline(model_connectors=None):
         def garden_target(*args, **kwargs):
             return func(*args, **kwargs)
 
-        garden_target._check = True
+        garden_target._pipeline_meta = metadata.dict()
         garden_target._model_connectors = model_connectors
-        return garden_target  # returns func back, but with `__name__ == garden_target` and a _check attr
+        return garden_target  # returns func back, but with `__name__ == garden_target` and metadata
 
     return decorator

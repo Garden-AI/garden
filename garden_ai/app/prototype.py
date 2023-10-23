@@ -4,20 +4,18 @@ import subprocess
 import time
 import inspect
 import textwrap
-import tempfile
 import os
 
 import typer
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import List
+from tempfile import TemporaryDirectory, NamedTemporaryFile
+from typing import Any, Dict, List
 from uuid import UUID
 
 from garden_ai import GardenClient, RegisteredPipeline, local_data
 from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
-from garden_ai.mlmodel import ModelMetadata
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
     build_container,
@@ -165,66 +163,6 @@ def plant(
 
 
 @prototype_app.command()
-def extract(
-    image: str = typer.Argument(
-        ...,
-        help=("The name of the planted image to extract metadata from."),
-    ),
-):
-    function_source = inspect.getsource(_extract_metadata_from_planted_container)
-    function_body = function_source.split(":", 1)[1].strip()
-    # Leading 4 spaces is because the first line wasn't being indented
-    function_body_dedented = textwrap.dedent("    " + function_body)
-
-    # Write the Python script to a temporary file on the host
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
-        f.write(function_body_dedented.encode())
-        temp_file_name = f.name
-
-    mount_file = f"{temp_file_name}:/tmp/script.py"
-    interpreter_cmd = "python3 /tmp/script.py"
-    stdout = start_container(
-        image,
-        entrypoint="/bin/bash",
-        mount_file=mount_file,
-        args=["-c", interpreter_cmd],
-    )
-
-    # Remove the temporary file
-    os.remove(temp_file_name)
-
-    model_meta_records = []
-    for line in stdout.split("\n"):
-        if line.strip().startswith("{"):
-            as_obj = json.loads(line)
-            model_meta_records.append(ModelMetadata(**as_obj))
-    # TODO: incorporate metadata records into publishing step.
-    # For now just display them for proof of concept.
-    for model_meta in model_meta_records:
-        print(model_meta)
-
-
-# Function to be run in planted container context.
-# Sends model metadata up to host as printed JSON.
-def _extract_metadata_from_planted_container():
-    import dill  # type: ignore
-
-    dill.load_session("session.pkl")
-
-    for obj in list(globals().values()):
-        if getattr(obj, "__name__", None) == "garden_target" and getattr(
-            obj, "_check", None
-        ):
-            target_func = obj
-            break
-    else:
-        raise ValueError("No function marked for invocation.")
-
-    for connector in target_func._model_connectors:
-        print(connector.metadata.json())
-
-
-@prototype_app.command()
 def debug(
     image: str = typer.Argument(
         f"{IMAGE_NAME}-planted",
@@ -235,7 +173,82 @@ def debug(
     start_container(image, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
 
 
-def _funcx_invoke_pipeline(*args, **kwargs):
+def _send_def_to_tmp_script(func) -> str:
+    function_source = inspect.getsource(func)
+    function_body = function_source.split(":", 1)[1].strip()
+    # leading 4 spaces is because the first line wasn't being indented
+    function_body_dedented = textwrap.dedent("    " + function_body)
+
+    with NamedTemporaryFile(delete=False, suffix=".py") as f:
+        f.write(function_body_dedented.encode())
+        temp_file_name = f.name
+
+    # caller must remove the returned file
+    return temp_file_name
+
+
+# Function to be run in planted container context.
+# Sends model metadata up to host as printed JSON.
+def _extract_metadata_from_planted_container() -> None:
+    import json
+    import dill  # type: ignore
+
+    dill.load_session("session.pkl")
+
+    garden_decorated = []
+    global_vars = list(globals().values())
+
+    for obj in global_vars:
+        if getattr(obj, "__name__", None) == "garden_target" and hasattr(
+            obj, "_pipeline_meta"  # could also check for _model_connectors
+        ):
+            garden_decorated.append(obj)
+
+    if len(garden_decorated) == 0:
+        raise ValueError("No functions marked with garden decorator.")
+
+    total_meta = {}
+
+    for marked in garden_decorated:
+        key_name = marked._pipeline_meta["short_name"]
+        connector_key = f"{key_name}.connectors"
+
+        total_meta[key_name] = marked._pipeline_meta
+        total_meta[connector_key] = [
+            connector.metadata for connector in marked._model_connectors
+        ]
+
+    print(json.dumps(total_meta))  # stdout is captured
+
+
+def _extract(planted_image: str) -> Dict[str, Any]:
+    temp_file_name = _send_def_to_tmp_script(_extract_metadata_from_planted_container)
+    mount_file = f"{temp_file_name}:/tmp/extract.py"
+
+    stdout = start_container(
+        planted_image,
+        entrypoint="/bin/bash",
+        mount_file=mount_file,
+        args=["-c", "python /tmp/extract.py"],
+    )
+
+    # remove the temporary file
+    os.remove(temp_file_name)
+
+    return json.loads(stdout)
+
+
+@prototype_app.command(no_args_is_help=True)
+def extract(
+    image: str = typer.Argument(
+        ...,
+        help=("The name of the planted image to extract metadata from."),
+    ),
+):
+    print(_extract(image))
+
+
+def _funcx_invoke_pipeline(short_name: str, *args, **kwargs):
     import subprocess
 
     # overwrite any init process that utilized an unsupported dill version
@@ -246,15 +259,26 @@ def _funcx_invoke_pipeline(*args, **kwargs):
     dill.load_session("session.pkl")
 
     for obj in globals().values():
-        if getattr(obj, "__name__", None) == "garden_target" and getattr(
-            obj, "_check", None
+        if (
+            getattr(obj, "__name__", None) == "garden_target"
+            and (meta := getattr(obj, "_pipeline_meta", None)) is not None
+            and meta["short_name"] == short_name
         ):
             target_func = obj
             break
     else:
-        raise ValueError("No function marked for invocation.")
+        raise ValueError(
+            "No function matching the requested name was marked for invocation."
+        )
 
     return target_func(*args, **kwargs)
+
+
+def _curry(func, arg):
+    def wrapper(*args, **kwargs):
+        return func(arg, *args, **kwargs)
+
+    return wrapper
 
 
 @prototype_app.command(no_args_is_help=True)
@@ -262,48 +286,62 @@ def register(
     image: str = typer.Argument(
         ...,
         help=("The name of the image to be pushed and registered with Globus compute."),
-    ),
-    record: Path = typer.Argument(
-        ...,
-        dir_okay=False,
-        file_okay=True,
-        resolve_path=True,
-        help=("Path to a json record describing the metadata for your pipeline."),
-    ),
+    )
 ):
-    if not record.exists() or not record.is_file():
-        console.log(f"{record} does not appear to be a valid path.")
-        raise typer.Exit(code=1)
-
-    with open(record, "r") as f:
-        meta = json.load(f)
-
-    client = GardenClient()
-
-    # add container to docker registry (when updating the container, the name MUST be changed or the cache lookup will find old version)
+    # add container to docker registry
+    # when updating the container, the name MUST be changed or the cache lookup will find old version
     subprocess.run(["docker", "tag", f"{IMAGE_NAME}-planted", image])
     subprocess.run(["docker", "push", image])
     subprocess.run(["docker", "rmi", image])
 
-    import __main__
+    client = GardenClient()
 
-    # perform container and function registration
     container_id = client.compute_client.register_container(
         f"docker.io/{image}", "docker"
     )
-    meta["container_id"] = container_id
+    container_uuid = UUID(container_id)
+    # print(f"Your container has been registered with UUID: {container_id}")
+
+    pipeline_metas = []
+    total_meta = _extract(image)
+    for key, meta in total_meta.items():
+        if "." in key:  # ignore connectors metadata
+            continue
+        if meta["doi"] is None:
+            meta["doi"] = client._mint_draft_doi()
+        pipeline_metas.append({"container_uuid": container_uuid, **meta})
+
+    import __main__
 
     redef_in_main(_funcx_invoke_pipeline)
 
-    func_id = client.compute_client.register_function(
-        __main__._funcx_invoke_pipeline, container_uuid=container_id, public=True
-    )
-    # print(f"Your function has been registered with UUID: {func_id}")
-    func_uuid = UUID(func_id)
-    meta["func_uuid"] = func_uuid
-    meta["doi"] = client._mint_draft_doi()
-    pipeline_meta = RegisteredPipeline(**meta)
+    funcx_unique_pipeline_funcs = [
+        _curry(__main__._funcx_invoke_pipeline, pipeline["short_name"])
+        for pipeline in pipeline_metas
+    ]
 
-    client._update_datacite(pipeline_meta)
-    local_data.put_local_pipeline(pipeline_meta)
-    print(f"Successfully registered your new pipeline with doi: {pipeline_meta.doi}")
+    func_ids = [
+        client.compute_client.register_function(
+            unique_pipeline_func, container_uuid=container_id, public=True
+        )
+        for unique_pipeline_func in funcx_unique_pipeline_funcs
+    ]
+    # print(f"Your function(s) has (have) been registered with UUID(s): {func_ids}")
+
+    registered_pipelines = []
+    for i, pipeline in enumerate(pipeline_metas):
+        pipeline["func_uuid"] = UUID(func_ids[i])
+
+        registered = RegisteredPipeline(**pipeline)
+        registered_pipelines.append(registered)
+
+        client._update_datacite(registered)
+        local_data.put_local_pipeline(registered)
+
+    pipeline_name_to_doi = {
+        registered.short_name: registered.doi for registered in registered_pipelines
+    }
+
+    print(
+        f"Successfully registered your new pipeline(s) with doi(s): {pipeline_name_to_doi}"
+    )
