@@ -3,11 +3,11 @@ import logging
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional, Union, List
+from pydantic.json import pydantic_encoder
 
 from garden_ai.gardens import Garden
 from garden_ai.pipelines import RegisteredPipeline
 from garden_ai.mlmodel import ModelMetadata
-from garden_ai.utils.misc import garden_json_encoder
 from garden_ai.constants import GardenConstants
 
 LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)
@@ -59,7 +59,7 @@ def _read_local_db() -> Dict:
 
 
 def _write_local_db(data: Dict) -> None:
-    contents = json.dumps(data, default=garden_json_encoder)
+    contents = json.dumps(data, default=pydantic_encoder)
     with open(LOCAL_STORAGE / "data.json", "w+") as f:
         f.write(contents)
 
