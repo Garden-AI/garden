@@ -26,48 +26,11 @@
                 "pipelines": [
                     {
                         "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
+                        "container_uuid": "4f5688ac-424d-443e-b525-97c72e4e013f",
                         "title": "Concept: a pipeline for soup",
                         "short_name": "pea_pipeline",
                         "authors": [
                             "Mendel, Gregor"
-                        ],
-                        "steps": [
-                            {
-                                "func": "split_peas: (ps: List) -> List[tuple]",
-                                "authors": [
-                                    "Sister Constance"
-                                ],
-                                "contributors": [],
-                                "title": "split_peas",
-                                "description": null,
-                                "input_info": null,
-                                "output_info": null
-                            },
-                            {
-                                "func": "make_soup: (splits: List[tuple]) -> __main__.Soup",
-                                "authors": [
-                                    "Friar Hugo"
-                                ],
-                                "contributors": [],
-                                "title": "make_soup",
-                                "description": null,
-                                "input_info": null,
-                                "output_info": null
-                            },
-                            {
-                                "func": "rate_soup: (soup_sample: __main__.Soup) -> float",
-                                "authors": [
-                                    "Abbot Mortimer"
-                                ],
-                                "contributors": [
-                                    "Friar Hugo",
-                                    "Sister Constance"
-                                ],
-                                "title": "rate_soup",
-                                "description": null,
-                                "input_info": "a spoonful of Soup object",
-                                "output_info": null
-                            }
                         ],
                         "contributors": [
                             "Sister Constance",

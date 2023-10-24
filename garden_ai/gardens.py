@@ -13,8 +13,9 @@ from pydantic import (
     root_validator,
     validator,
 )
+from pydantic.json import pydantic_encoder
 
-from garden_ai.utils.misc import JSON, garden_json_encoder
+from garden_ai.utils.misc import JSON
 
 from .datacite import (
     Contributor,
@@ -217,7 +218,7 @@ class Garden(BaseModel):
         See: ``Garden.expanded_metadata`` method
         """
         data = self.expanded_metadata()
-        return json.dumps(data, default=garden_json_encoder)
+        return json.dumps(data, default=pydantic_encoder)
 
     def _sync_author_metadata(self):
         """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata."""

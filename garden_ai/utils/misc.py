@@ -2,32 +2,14 @@ import base64
 import json
 import logging
 import re
-from inspect import signature
 from keyword import iskeyword
 
 import requests
-from pydantic.json import pydantic_encoder
 from typing_extensions import TypeAlias
 
 JSON: TypeAlias = str
 
 logger = logging.getLogger()
-
-
-def garden_json_encoder(obj):
-    """workaround: pydantic supports custom encoders for all but built-in types.
-
-    In our case, this means we can't specify how to serialize
-    `function`s (like in every Step) in pydantic; there is an open PR to
-    fix this - https://github.com/pydantic/pydantic/pull/2745 - but it's
-    been in limbo for over a year, so this is the least-hacky option in
-    the meantime.
-    """
-    if isinstance(obj, type(lambda: None)):
-        # ^b/c isinstance(obj, function) can't work for ~reasons~ 🐍
-        return f"{obj.__name__}: {signature(obj)}"
-    else:
-        return pydantic_encoder(obj)
 
 
 def requests_to_curl(response: requests.Response) -> str:

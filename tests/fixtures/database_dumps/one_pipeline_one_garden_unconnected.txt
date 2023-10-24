@@ -3,51 +3,11 @@
     "10.23677/jx31-gx98": {
       "doi": "10.23677/jx31-gx98",
       "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
+      "container_uuid": "4f5688ac-424d-443e-b525-97c72e4e013f",
       "title": "Fixture pipeline",
       "short_name": "fixture_pipeline",
       "authors": [
         "Garden Team"
-      ],
-      "steps": [
-        {
-          "func": "preprocessing_step: (input_data: object) -> object",
-          "authors": [],
-          "contributors": [],
-          "title": "preprocessing_step",
-          "description": " ",
-          "input_info": "{'input_data': <class 'object'>}",
-          "output_info": "return: <class 'object'>",
-          "conda_dependencies": [],
-          "pip_dependencies": [],
-          "python_version": null,
-          "model_full_names": ["willengler@uchicago.edu/will-test-model"]
-        },
-        {
-          "func": "another_step: (data: object) -> object",
-          "authors": [],
-          "contributors": [],
-          "title": "another_step",
-          "description": null,
-          "input_info": "{'data': <class 'object'>}",
-          "output_info": "return: <class 'object'>",
-          "conda_dependencies": [],
-          "pip_dependencies": [],
-          "python_version": null,
-          "model_full_names": ["willengler@uchicago.edu/will-test-model"]
-        },
-        {
-          "func": "run_inference: (input_arg: object) -> object",
-          "authors": [],
-          "contributors": [],
-          "title": "run_inference",
-          "description": null,
-          "input_info": "{'input_arg': <class 'object'>}",
-          "output_info": "return: <class 'object'>",
-          "conda_dependencies": [],
-          "pip_dependencies": [],
-          "python_version": null,
-          "model_full_names": ["willengler@uchicago.edu/will-test-model"]
-        }
       ],
       "contributors": [],
       "description": "",
@@ -55,10 +15,6 @@
       "year": "2023",
       "tags": [],
       "python_version": "3.10.10",
-      "pip_dependencies": [
-        "garden-ai@ git+https://github.com/garden-ai/garden.git"
-      ],
-      "conda_dependencies": [],
       "model_full_names": ["willengler@uchicago.edu/will-test-model"]
     }
   },
