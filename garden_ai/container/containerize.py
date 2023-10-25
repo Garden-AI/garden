@@ -6,6 +6,8 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 from typing import List, Optional
 
+from garden_ai.pipelines import PipelineMetadata
+
 IMAGE_NAME = "gardenai/base"
 CONTAINER_NAME = "garden_ai"
 JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary valid token, safe b/c port is only exposed to localhost
