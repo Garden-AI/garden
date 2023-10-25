@@ -25,6 +25,7 @@ from garden_ai.container.containerize import (  # type: ignore
 from garden_ai.containers import JUPYTER_TOKEN, start_container_with_notebook
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils._meta import redef_in_main
+from garden_ai.local_data import _put_notebook_base_image, _get_notebook_base_image
 
 logger = logging.getLogger()
 
@@ -47,12 +48,13 @@ def start(
         readable=True,
         help=("Path to a .ipynb notebook to open in a fresh, isolated container. "),
     ),
-    base_image: str = typer.Option("gardenai/test:latest"),
+    base_image: Optional[str] = typer.Option(None),
 ):
     """Open a notebook file in a sandboxed environment. Optionally, specify a different base docker image.
 
     Changes to the notebook file will persist after the container shuts down.
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
+    If a different base image is chosen, that image will be reused as the default for this notebook in the future.
     """
     notebook_path = path.resolve()
     if notebook_path.suffix != ".ipynb":
@@ -67,6 +69,11 @@ def start(
         empty = nbformat.v4.new_notebook()
         with open(notebook_path, "w+") as fp:
             nbformat.write(empty, fp)
+
+    base_image = (
+        base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
+    )
+    _put_notebook_base_image(notebook_path, base_image)
 
     docker_client = docker.from_env()
     container = start_container_with_notebook(notebook_path, docker_client, base_image)
