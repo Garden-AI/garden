@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import Any, Dict, List
 from uuid import UUID
 
-import docker
+import docker  # type: ignore
 import typer
 
 from garden_ai import GardenClient, RegisteredPipeline, local_data
@@ -22,7 +22,7 @@ from garden_ai.container.containerize import (  # type: ignore
     build_container,
     start_container,
 )
-from garden_ai.containers import start_container_with_notebook, JUPYTER_TOKEN
+from garden_ai.containers import JUPYTER_TOKEN, start_container_with_notebook
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils._meta import redef_in_main
 
@@ -87,7 +87,7 @@ def start(
     return
 
 
-def _register_container_sigint_handler(container: docker.Container):
+def _register_container_sigint_handler(container: docker.models.containers.Container):
     """helper: ensure SIGINT/ Ctrl-C to our CLI stops a given container"""
     import signal
 

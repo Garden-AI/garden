@@ -7,7 +7,7 @@ JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary 
 
 def start_container_with_notebook(
     path: pathlib.Path, client: docker.DockerClient, base_image: str
-) -> docker.Container:
+) -> docker.models.containers.Container:
     """
     Start a Docker container with a Jupyter Notebook server.
 
