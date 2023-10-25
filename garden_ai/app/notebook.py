@@ -3,13 +3,12 @@ import json
 import logging
 import os
 import subprocess
-import tempfile
 import textwrap
 import time
 import webbrowser
 from pathlib import Path
-from tempfile import TemporaryDirectory, NamedTemporaryFile
-from typing import Any, Dict, List
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import docker  # type: ignore
@@ -23,9 +22,8 @@ from garden_ai.container.containerize import (  # type: ignore
     start_container,
 )
 from garden_ai.containers import JUPYTER_TOKEN, start_container_with_notebook
-from garden_ai.mlmodel import ModelMetadata
+from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils._meta import redef_in_main
-from garden_ai.local_data import _put_notebook_base_image, _get_notebook_base_image
 
 logger = logging.getLogger()
 
@@ -34,7 +32,7 @@ notebook_app = typer.Typer(name="notebook")
 
 @notebook_app.callback(no_args_is_help=True)
 def notebook():
-    """sub-commands for experimenting with prototype publishing workflow"""
+    """sub-commands for editing and publishing from sandboxed notebooks."""
     pass
 
 
@@ -70,11 +68,13 @@ def start(
         with open(notebook_path, "w+") as fp:
             nbformat.write(empty, fp)
 
+    # check/update local data for base image choice
     base_image = (
         base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
     )
     _put_notebook_base_image(notebook_path, base_image)
 
+    # start container and listen for Ctrl-C
     docker_client = docker.from_env()
     container = start_container_with_notebook(notebook_path, docker_client, base_image)
     _register_container_sigint_handler(container)
@@ -231,66 +231,6 @@ def plant(
 
 
 @notebook_app.command()
-def extract(
-    image: str = typer.Argument(
-        ...,
-        help=("The name of the planted image to extract metadata from."),
-    ),
-):
-    function_source = inspect.getsource(_extract_metadata_from_planted_container)
-    function_body = function_source.split(":", 1)[1].strip()
-    # Leading 4 spaces is because the first line wasn't being indented
-    function_body_dedented = textwrap.dedent("    " + function_body)
-
-    # Write the Python script to a temporary file on the host
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
-        f.write(function_body_dedented.encode())
-        temp_file_name = f.name
-
-    mount_file = f"{temp_file_name}:/tmp/script.py"
-    interpreter_cmd = "python3 /tmp/script.py"
-    stdout = start_container(
-        image,
-        entrypoint="/bin/bash",
-        mount_file=mount_file,
-        args=["-c", interpreter_cmd],
-    )
-
-    # Remove the temporary file
-    os.remove(temp_file_name)
-
-    model_meta_records = []
-    for line in stdout.split("\n"):
-        if line.strip().startswith("{"):
-            as_obj = json.loads(line)
-            model_meta_records.append(ModelMetadata(**as_obj))
-    # TODO: incorporate metadata records into publishing step.
-    # For now just display them for proof of concept.
-    for model_meta in model_meta_records:
-        print(model_meta)
-
-
-# Function to be run in planted container context.
-# Sends model metadata up to host as printed JSON.
-def _extract_metadata_from_planted_container():
-    import dill  # type: ignore
-
-    dill.load_session("session.pkl")
-
-    for obj in list(globals().values()):
-        if getattr(obj, "__name__", None) == "garden_target" and getattr(
-            obj, "_check", None
-        ):
-            target_func = obj
-            break
-    else:
-        raise ValueError("No function marked for invocation.")
-
-    for connector in target_func._model_connectors:
-        print(connector.metadata.json())
-
-
-@notebook_app.command()
 def debug(
     image: str = typer.Argument(
         f"{IMAGE_NAME}-planted",
@@ -319,6 +259,7 @@ def _send_def_to_tmp_script(func) -> str:
 # Sends model metadata up to host as printed JSON.
 def _extract_metadata_from_planted_container() -> None:
     import json
+
     import dill  # type: ignore
 
     dill.load_session("session.pkl")
@@ -366,7 +307,7 @@ def _extract(planted_image: str) -> Dict[str, Any]:
     return json.loads(stdout)
 
 
-@prototype_app.command(no_args_is_help=True)
+@notebook_app.command(no_args_is_help=True)
 def extract(
     image: str = typer.Argument(
         ...,
