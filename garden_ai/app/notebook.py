@@ -1,46 +1,107 @@
+import inspect
 import json
 import logging
-import subprocess
-import time
-import inspect
-import textwrap
 import os
-
-import typer
-
+import subprocess
+import tempfile
+import textwrap
+import time
+import webbrowser
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from typing import Any, Dict, List
 from uuid import UUID
 
+import docker
+import typer
+
 from garden_ai import GardenClient, RegisteredPipeline, local_data
-from garden_ai.utils._meta import redef_in_main
 from garden_ai.app.console import console
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
     build_container,
     start_container,
 )
-
+from garden_ai.containers import start_container_with_notebook, JUPYTER_TOKEN
+from garden_ai.mlmodel import ModelMetadata
+from garden_ai.utils._meta import redef_in_main
 
 logger = logging.getLogger()
 
-prototype_app = typer.Typer(name="prototype")
+notebook_app = typer.Typer(name="notebook")
 
 
-@prototype_app.callback(no_args_is_help=True)
-def prototype():
+@notebook_app.callback(no_args_is_help=True)
+def notebook():
     """sub-commands for experimenting with prototype publishing workflow"""
     pass
 
 
-@prototype_app.command()
-def notebook():
-    build_container(jupyter=True)
-    start_container(jupyter=True)
+@notebook_app.command(no_args_is_help=True)
+def start(
+    path: Path = typer.Argument(
+        ...,
+        file_okay=True,
+        dir_okay=False,
+        writable=True,
+        readable=True,
+        help=("Path to a .ipynb notebook to open in a fresh, isolated container. "),
+    ),
+    base_image: str = typer.Option("gardenai/test:latest"),
+):
+    """Open a notebook file in a sandboxed environment. Optionally, specify a different base docker image.
+
+    Changes to the notebook file will persist after the container shuts down.
+    Quit the process with Ctrl-C or by shutting down jupyter from the browser.
+    """
+    notebook_path = path.resolve()
+    if notebook_path.suffix != ".ipynb":
+        raise ValueError("File must be a jupyter notebook (.ipynb)")
+
+    if not notebook_path.exists():
+        # TODO replace this with our notebook template
+        # plain blank file causes jupyter error due to
+        # contents not being strictly json
+        import nbformat
+
+        empty = nbformat.v4.new_notebook()
+        with open(notebook_path, "w+") as fp:
+            nbformat.write(empty, fp)
+
+    docker_client = docker.from_env()
+    container = start_container_with_notebook(notebook_path, docker_client, base_image)
+    _register_container_sigint_handler(container)
+
+    typer.echo(
+        f"Notebook started! Opening http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN} in your default browser (you may need to refresh the page)"
+    )
+    webbrowser.open_new_tab(f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN}")
+
+    # stream logs from the container
+    for line in container.logs(stream=True):
+        print(line.decode("utf-8"), end="")
+
+    # block until the container finishes
+    container.wait()
+    typer.echo("Notebook has stopped.")
+    return
 
 
-@prototype_app.command(no_args_is_help=True)
+def _register_container_sigint_handler(container: docker.Container):
+    """helper: ensure SIGINT/ Ctrl-C to our CLI stops a given container"""
+    import signal
+
+    def handler(signal, frame):
+        """make SIGINT / Ctrl-C stop the container"""
+        typer.echo("Stopping notebook...")
+        container.stop()
+        raise typer.Exit(0)
+
+    signal.signal(signal.SIGINT, handler)
+    return
+
+
+@notebook_app.command(no_args_is_help=True)
 def plant(
     source: Path = typer.Argument(
         ...,
@@ -162,7 +223,67 @@ def plant(
     subprocess.run(["docker", "rmi", image_name])
 
 
-@prototype_app.command()
+@notebook_app.command()
+def extract(
+    image: str = typer.Argument(
+        ...,
+        help=("The name of the planted image to extract metadata from."),
+    ),
+):
+    function_source = inspect.getsource(_extract_metadata_from_planted_container)
+    function_body = function_source.split(":", 1)[1].strip()
+    # Leading 4 spaces is because the first line wasn't being indented
+    function_body_dedented = textwrap.dedent("    " + function_body)
+
+    # Write the Python script to a temporary file on the host
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
+        f.write(function_body_dedented.encode())
+        temp_file_name = f.name
+
+    mount_file = f"{temp_file_name}:/tmp/script.py"
+    interpreter_cmd = "python3 /tmp/script.py"
+    stdout = start_container(
+        image,
+        entrypoint="/bin/bash",
+        mount_file=mount_file,
+        args=["-c", interpreter_cmd],
+    )
+
+    # Remove the temporary file
+    os.remove(temp_file_name)
+
+    model_meta_records = []
+    for line in stdout.split("\n"):
+        if line.strip().startswith("{"):
+            as_obj = json.loads(line)
+            model_meta_records.append(ModelMetadata(**as_obj))
+    # TODO: incorporate metadata records into publishing step.
+    # For now just display them for proof of concept.
+    for model_meta in model_meta_records:
+        print(model_meta)
+
+
+# Function to be run in planted container context.
+# Sends model metadata up to host as printed JSON.
+def _extract_metadata_from_planted_container():
+    import dill  # type: ignore
+
+    dill.load_session("session.pkl")
+
+    for obj in list(globals().values()):
+        if getattr(obj, "__name__", None) == "garden_target" and getattr(
+            obj, "_check", None
+        ):
+            target_func = obj
+            break
+    else:
+        raise ValueError("No function marked for invocation.")
+
+    for connector in target_func._model_connectors:
+        print(connector.metadata.json())
+
+
+@notebook_app.command()
 def debug(
     image: str = typer.Argument(
         f"{IMAGE_NAME}-planted",
@@ -281,7 +402,7 @@ def _curry(func, arg):
     return wrapper
 
 
-@prototype_app.command(no_args_is_help=True)
+@notebook_app.command(no_args_is_help=True)
 def register(
     image: str = typer.Argument(
         ...,
