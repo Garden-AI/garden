@@ -23,7 +23,7 @@ def test_start_container_with_notebook(mock_docker_client):
     base_image = "gardenai/fake-image:soonest"
 
     with patch("garden_ai.containers.JUPYTER_TOKEN", JUPYTER_TOKEN):
-        container = start_container_with_notebook(path, mock_docker_client, base_image)
+        container = start_container_with_notebook(mock_docker_client, path, base_image)
 
     mock_docker_client.images.pull.assert_called_once_with(
         base_image, platform="linux/x86_64"

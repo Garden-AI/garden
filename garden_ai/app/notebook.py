@@ -109,7 +109,7 @@ def start(
         # start container and listen for Ctrl-C
         docker_client = docker.from_env()
         container = start_container_with_notebook(
-            notebook_path, docker_client, base_image
+            docker_client, notebook_path, base_image
         )
         _register_container_sigint_handler(container)
 
