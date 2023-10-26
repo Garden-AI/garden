@@ -1,4 +1,5 @@
 import pathlib
+from garden_ai.app.console import console
 
 import docker  # type: ignore
 
@@ -29,7 +30,8 @@ def start_container_with_notebook(
       and is exposed to the host on the same port.
     - The token for accessing the notebook is still the JUPYTER_TOKEN variable.
     """
-    client.images.pull(base_image, platform="linux/x86_64")
+    with console.status(f"[bold green] Pulling image: {base_image}"):
+        client.images.pull(base_image, platform="linux/x86_64")
     container = client.containers.run(
         base_image,
         platform="linux/x86_64",
