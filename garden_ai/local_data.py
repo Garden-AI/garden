@@ -2,13 +2,14 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional, Union, List
+from typing import Dict, List, Optional, Union
+
 from pydantic.json import pydantic_encoder
 
-from garden_ai.gardens import Garden
-from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata
 from garden_ai.constants import GardenConstants
+from garden_ai.gardens import Garden
+from garden_ai.mlmodel import ModelMetadata
+from garden_ai.pipelines import RegisteredPipeline
 
 LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
@@ -62,6 +63,24 @@ def _write_local_db(data: Dict) -> None:
     contents = json.dumps(data, default=pydantic_encoder)
     with open(LOCAL_STORAGE / "data.json", "w+") as f:
         f.write(contents)
+
+
+def _put_notebook_base_image(notebook_path: Path, base_image: str) -> None:
+    data = _read_local_db()
+    nb_key = str(notebook_path.resolve())
+    if "notebooks" not in data:
+        data["notebooks"] = {}
+    data["notebooks"][nb_key] = base_image
+    _write_local_db(data)
+    return
+
+
+def _get_notebook_base_image(notebook_path: Path) -> Optional[str]:
+    data = _read_local_db()
+    nb_key = str(notebook_path.resolve())
+    if "notebooks" not in data:
+        return None
+    return data["notebooks"].get(nb_key)
 
 
 def _store_user_email(email: str) -> None:

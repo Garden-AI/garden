@@ -2,12 +2,11 @@ import pathlib
 import subprocess
 import time
 import webbrowser
-
 from tempfile import TemporaryDirectory
 from threading import Thread
 from typing import List, Optional
 
-from garden_ai import PipelineMetadata
+from garden_ai.pipelines import PipelineMetadata
 
 IMAGE_NAME = "gardenai/base"
 CONTAINER_NAME = "garden_ai"
