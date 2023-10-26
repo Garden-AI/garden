@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import os
+import shutil
 import subprocess
 import textwrap
 import time
@@ -72,14 +73,9 @@ def start(
         raise ValueError("File must be a jupyter notebook (.ipynb)")
 
     if not notebook_path.exists():
-        # TODO replace this with our notebook template
-        # plain blank file causes jupyter error due to
-        # contents not being strictly json
-        import nbformat
-
-        empty = nbformat.v4.new_notebook()
-        with open(notebook_path, "w+") as fp:
-            nbformat.write(empty, fp)
+        top_level_dir = Path(__file__).parent.parent
+        source_path = top_level_dir / "notebook_templates" / "sklearn.ipynb"
+        shutil.copy(source_path, notebook_path)
 
     # check/update local data for base image choice
     if base_image in list(GardenConstants.PREMADE_IMAGES.keys()):
