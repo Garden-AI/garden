@@ -24,7 +24,7 @@ from garden_ai.container.containerize import (  # type: ignore
 from garden_ai.containers import JUPYTER_TOKEN, start_container_with_notebook
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils._meta import redef_in_main
-from garden_ai import GardenConstants 
+from garden_ai import GardenConstants
 
 logger = logging.getLogger()
 
@@ -41,7 +41,10 @@ def notebook():
 def list_premade_images():
     """List all Garden base docker images"""
     premade_images = ", ".join(
-        ["'" + image_name + "'" for image_name in list(GardenConstants.PREMADE_IMAGES.keys())]
+        [
+            "'" + image_name + "'"
+            for image_name in list(GardenConstants.PREMADE_IMAGES.keys())
+        ]
     )
     print(f"Garden premade images:\n{premade_images}")
 
