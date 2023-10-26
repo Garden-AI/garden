@@ -24,6 +24,7 @@ from garden_ai.container.containerize import (  # type: ignore
 from garden_ai.containers import JUPYTER_TOKEN, start_container_with_notebook
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils._meta import redef_in_main
+from garden_ai import GardenConstants
 
 logger = logging.getLogger()
 
@@ -34,6 +35,18 @@ notebook_app = typer.Typer(name="notebook")
 def notebook():
     """sub-commands for editing and publishing from sandboxed notebooks."""
     pass
+
+
+@notebook_app.command()
+def list_premade_images():
+    """List all Garden base docker images"""
+    premade_images = ", ".join(
+        [
+            "'" + image_name + "'"
+            for image_name in list(GardenConstants.PREMADE_IMAGES.keys())
+        ]
+    )
+    print(f"Garden premade images:\n{premade_images}")
 
 
 @notebook_app.command(no_args_is_help=True)
@@ -69,6 +82,9 @@ def start(
             nbformat.write(empty, fp)
 
     # check/update local data for base image choice
+    if base_image in list(GardenConstants.PREMADE_IMAGES.keys()):
+        base_image = GardenConstants.PREMADE_IMAGES[base_image]
+
     base_image = (
         base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
     )
