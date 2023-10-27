@@ -73,26 +73,24 @@ class Paper(BaseModel):
 
 
 class PipelineMetadata(BaseModel):
-    """Mere metadata for a pipeline prior to its registration.
-    Passed to the `garden_pipeline` decorator during the registration
-    process.
+    """Metadata for a pipeline prior to its registration. \
+    Passed to the `garden_pipeline` decorator during the registration process.
 
-    The optional doi field allows one to maintain the same DOI across
-    versions of the same pipeline.
-
-    `PipelineMetadata` objects can be described completely by JSON.
+    Use the optional doi field if you have already registered this pipeline \
+    and want to update it under the same DOI.
 
     Attributes:
-        doi:
-        title:
-        authors:
-        short_name:
-        description:
-        year:
-        tags:
-        model_full_names:
-        repositories:
-        papers:
+        doi: Optional. If you have a DOI you want to use for this pipeline, specify it here. \
+        (Especially if you have already registered a pipeline and are updating it.) \
+        Otherwise we will generate a DOI for you.
+        title: A short title that describes the pipeline.
+        description: A longer free text description of this pipeline.
+        authors: A list of the authors of this pipeline. You need at least one.
+        short_name: This will be the name of the Python method that people call to invoke your pipeline.
+        year: When did you make this pipeline? (Defaults to current year)
+        tags: Helpful tags
+        repositories: List of related code repositories, like GitHub or GitLab repos.
+        papers: List of related papers, like a paper that describes the model you are publishing here.
     """
 
     doi: Optional[str] = Field(None)
@@ -102,7 +100,9 @@ class PipelineMetadata(BaseModel):
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    model_full_names: List[str] = Field(default_factory=list)
+    model_full_names: List[str] = Field(
+        default_factory=list
+    )  # TODO: probably remove this soon
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
 
