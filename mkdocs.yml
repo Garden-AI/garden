@@ -11,8 +11,6 @@ nav:
       - Contributing: developer_guide/contributing.md
       - Remote Pipelines without garden-ai: developer_guide/Remote_pipelines_without_garden_dependency.md
   - API Reference:
-    - Models: Models.md
-    - Steps: Steps.md
     - Pipelines: Pipelines.md
     - Gardens: Gardens.md
 theme: material
