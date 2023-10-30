@@ -50,7 +50,7 @@ def start_container_with_notebook(
             "jupyter",
             "notebook",
             "--notebook-dir=/garden",
-            f"--ServerApp.token={JUPYTER_TOKEN}",
+            f"--NotebookApp.token={JUPYTER_TOKEN}",
             "--ip",
             "0.0.0.0",
             "--no-browser",

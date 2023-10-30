@@ -119,7 +119,9 @@ def start(
         _register_container_sigint_handler(container)
 
         typer.echo(
-            f"Notebook started! Opening http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN} in your default browser (you may need to refresh the page)"
+            "Notebook started! Opening "
+            f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN} in your default "
+            "browser (you may need to refresh the page)."
         )
         webbrowser.open_new_tab(f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN}")
 
@@ -127,11 +129,11 @@ def start(
         for line in container.logs(stream=True):
             print(line.decode("utf-8"), end="")
 
-        # block until the container finishes
-        container.wait()
     finally:
-        if container is not None:
-            container.remove(force=True)
+        if container is not None and container.id in docker_client.containers.list(
+            all=True
+        ):
+            container.remove()
         typer.echo("Notebook has stopped.")
     return
 
