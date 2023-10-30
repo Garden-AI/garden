@@ -2,7 +2,6 @@ import datetime
 import inspect
 import json
 import pathlib
-import textwrap
 from tempfile import TemporaryDirectory
 from typing import Optional
 
@@ -82,7 +81,12 @@ def build_notebook_session_image(
         # convert notebook to sister script in temp dir
         exporter = nbconvert.PythonExporter()
         script_contents, _notebook_meta = exporter.from_filename(str(notebook_path))
-        script_contents += "\nimport dill\ndill.dump_session('session.pkl')\n"
+
+        # append to generated script logic to save the interpreter session and garden metadata
+        import garden_ai.scripts.save_session_and_metadata  # type: ignore
+
+        script_extra = inspect.getsource(garden_ai.scripts.save_session_and_metadata)
+        script_contents += f"\n{script_extra}"
 
         script_path = temp_notebook_path.with_suffix(".py")
         script_path.write_text(script_contents)
@@ -125,58 +129,13 @@ def build_notebook_session_image(
 
 def extract_metadata_from_image(
     client: docker.DockerClient, image: docker.models.images.Image
-):
-    def _print_metadata_from_session() -> None:
-        import json
-
-        import dill  # type: ignore
-
-        dill.load_session("session.pkl")
-
-        decorated_fns = []
-        global_vars = list(globals().values())
-
-        for obj in global_vars:
-            if hasattr(obj, "_pipeline_meta") and hasattr(obj, "_model_connectors"):
-                decorated_fns.append(obj)
-
-        if len(decorated_fns) == 0:
-            raise ValueError("No functions marked with garden decorator.")
-
-        total_meta = {}
-
-        for marked in decorated_fns:
-            key_name = marked._pipeline_meta["short_name"]
-            connector_key = f"{key_name}.connectors"
-
-            total_meta[key_name] = marked._pipeline_meta
-            total_meta[connector_key] = [
-                connector.metadata for connector in marked._model_connectors
-            ]
-
-        print(json.dumps(total_meta))  # stdout is captured
-        return
-
-    # build a python command to define and immediately call the function above
-    function_source = textwrap.dedent(inspect.getsource(_print_metadata_from_session))
-    command = f'python -c "{function_source}\n_print_metadata_from_session()"'
-
-    # spin up the container
+) -> dict:
     container = client.containers.run(
-        image=image.id, command="/bin/sh", detach=True, tty=True, remove=True
+        image=image.id,
+        entrypoint="/bin/sh",
+        command=["-c", "cat /garden/metadata.json"],
+        remove=True,
+        detach=False,
     )
-
-    try:
-        # execute the python command in the container
-        exit_code, output = container.exec_run(command)
-
-        if exit_code != 0:
-            raise RuntimeError(
-                f"Command failed with code {exit_code}: {output.decode()}"
-            )
-
-        # output is the JSON string printed from `_print_metadata_from_session`.
-        return json.loads(output.decode())
-
-    finally:
-        container.remove(force=True)
+    raw_metadata = container.decode("utf-8")
+    return json.loads(raw_metadata)
