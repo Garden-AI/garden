@@ -7,6 +7,8 @@ if __name__ == "__main__":
 
     dill.dump_session("session.pkl")
 
+    from pydantic.json import pydantic_encoder
+
     import json
 
     decorated_fns = []
@@ -31,4 +33,4 @@ if __name__ == "__main__":
         ]
 
     with open("metadata.json", "w+") as fout:
-        json.dump(total_meta, fout)
+        json.dump(total_meta, fout, default=pydantic_encoder)
