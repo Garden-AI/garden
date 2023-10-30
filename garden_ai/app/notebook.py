@@ -146,7 +146,7 @@ def _register_container_sigint_handler(container: docker.models.containers.Conta
         """make SIGINT / Ctrl-C stop the container"""
         typer.echo("Stopping notebook...")
         container.stop()
-        raise typer.Exit(0)
+        return
 
     signal.signal(signal.SIGINT, handler)
     return

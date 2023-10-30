@@ -9,9 +9,10 @@ from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field
-from tabulate import tabulate
 
-from garden_ai.app.console import console
+# from tabulate import tabulate
+
+# from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
     Creator,
@@ -158,30 +159,24 @@ class RegisteredPipeline(PipelineMetadata):
             endpoint = GardenConstants.DLHUB_ENDPOINT
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
-            # TODO: refactor below once the remote-calling interface is settled.
-            # console/spinner is good ux but shouldn't live this deep in the
-            # sdk.
-            with console.status(
-                f"[bold green] executing remotely on endpoint {endpoint}"
-            ):
-                future = gce.submit_to_registered_function(
-                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
-                )
-                return future.result()
+            future = gce.submit_to_registered_function(
+                function_id=str(self.func_uuid), args=args, kwargs=kwargs
+            )
+            return future.result()
 
-    def _repr_html_(self) -> str:
-        style = "<style>th {text-align: left;}</style>"
-        title = f"<h2>{self.title}</h2>"
-        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
-        optional = "<h3>Additional data</h3>" + tabulate(
-            [
-                (field, val)
-                for field, val in self.dict().items()
-                if field not in ("title", "authors", "doi", "steps") and val
-            ],
-            tablefmt="html",
-        )
-        return style + title + details + optional
+    # def _repr_html_(self) -> str:
+    #     style = "<style>th {text-align: left;}</style>"
+    #     title = f"<h2>{self.title}</h2>"
+    #     details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+    #     optional = "<h3>Additional data</h3>" + tabulate(
+    #         [
+    #             (field, val)
+    #             for field, val in self.dict().items()
+    #             if field not in ("title", "authors", "doi", "steps") and val
+    #         ],
+    #         tablefmt="html",
+    #     )
+    #     return style + title + details + optional
 
     def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
