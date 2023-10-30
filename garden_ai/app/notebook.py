@@ -22,7 +22,11 @@ from garden_ai.container.containerize import (  # type: ignore
     build_container,
     start_container,
 )
-from garden_ai.containers import JUPYTER_TOKEN, start_container_with_notebook
+from garden_ai.containers import (
+    JUPYTER_TOKEN,
+    build_notebook_session_image,
+    start_container_with_notebook,
+)
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils._meta import redef_in_main
 from garden_ai import GardenConstants
@@ -129,6 +133,40 @@ def start(
             container.remove(force=True)
         typer.echo("Notebook has stopped.")
     return
+
+
+@notebook_app.command()
+def build(
+    path: Path = typer.Argument(
+        ...,
+        file_okay=True,
+        dir_okay=False,
+        writable=True,
+        readable=True,
+    ),
+    base_image: Optional[str] = typer.Option(None),
+    verbose: bool = typer.Option(False, "-v", "--verbose"),
+):
+    notebook_path = path.resolve()
+    if notebook_path.suffix != ".ipynb":
+        raise ValueError("File must be a jupyter notebook (.ipynb)")
+    if not notebook_path.exists():
+        raise ValueError(f"Could not find file at {notebook_path}")
+
+    base_image = (
+        base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
+    )
+    _put_notebook_base_image(notebook_path, base_image)
+
+    docker_client = docker.from_env()
+    image = build_notebook_session_image(
+        docker_client, notebook_path, base_image, print_logs=verbose
+    )
+    if image is None:
+        typer.echo("Failed to build image.")
+        raise typer.Exit(1)
+
+    typer.echo(f"Built image: {image}")
 
 
 def _register_container_sigint_handler(container: docker.models.containers.Container):

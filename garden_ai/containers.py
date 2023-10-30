@@ -1,6 +1,7 @@
 import datetime
 import pathlib
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 import docker  # type: ignore
 import nbconvert  # type: ignore
@@ -9,7 +10,10 @@ JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary 
 
 
 def start_container_with_notebook(
-    client: docker.DockerClient, path: pathlib.Path, base_image: str
+    client: docker.DockerClient,
+    path: pathlib.Path,
+    base_image: str,
+    platform="linux/x86_64",
 ) -> docker.models.containers.Container:
     """
     Start a Docker container with a Jupyter Notebook server.
@@ -18,11 +22,12 @@ def start_container_with_notebook(
     `/garden/notebook-name.ipynb`.
 
     Parameters:
+    - client (docker.DockerClient): The Docker client object to interact
+      with the Docker daemon.
     - path (pathlib.Path): The local path to the notebook.
     - base_image (str): The Docker image to be used as the base. It should
       have Jupyter Notebook pre-installed.
-    - client (docker.DockerClient): The Docker client object to interact
-      with the Docker daemon.
+    - platform (str): Passed directly to docker sdk. Defaults to "linux/x86_64".
 
     Returns:
     - docker.models.containers.Container: The started container object.
@@ -32,8 +37,7 @@ def start_container_with_notebook(
       and is exposed to the host on the same port.
     - The token for accessing the notebook is still the JUPYTER_TOKEN variable.
     """
-    with console.status(f"[bold green] Pulling image: {base_image}"):
-        client.images.pull(base_image, platform="linux/x86_64")
+    client.images.pull(base_image, platform=platform)
     container = client.containers.run(
         base_image,
         platform="linux/x86_64",
@@ -58,8 +62,12 @@ def start_container_with_notebook(
 
 
 def build_notebook_session_image(
-    client: docker.DockerClient, notebook_path: pathlib.Path, base_image: str
-) -> str:
+    client: docker.DockerClient,
+    notebook_path: pathlib.Path,
+    base_image: str,
+    platform="linux/x86_64",
+    print_logs=True,
+) -> Optional[docker.models.images.Image]:
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
 
@@ -70,13 +78,13 @@ def build_notebook_session_image(
 
         # convert notebook to sister script in temp dir
         exporter = nbconvert.PythonExporter()
-        script_contents, _notebook_meta = exporter.from_filename(notebook_path)
+        script_contents, _notebook_meta = exporter.from_filename(str(notebook_path))
         script_contents += "\nimport dill\ndill.dump_session('session.pkl')\n"
 
         script_path = temp_notebook_path.with_suffix(".py")
         script_path.write_text(script_contents)
 
-        client.images.pull(base_image, platform="linux/x86_64")
+        client.images.pull(base_image, platform=platform)
 
         # easier to grok than pure docker sdk equivalent
         dockerfile_content = f"""
@@ -84,7 +92,7 @@ def build_notebook_session_image(
         COPY {notebook_path.name} /garden/{notebook_path.name}
         COPY {script_path.name} /garden/{script_path.name}
         WORKDIR /garden
-        RUN python -m {script_path.stem}
+        RUN ipython {script_path.name}
         """
         dockerfile_path = temp_dir_path / "Dockerfile"
         with dockerfile_path.open("w") as f:
