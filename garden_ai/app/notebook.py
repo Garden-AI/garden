@@ -242,7 +242,18 @@ def register(
     # print(f"Your container has been registered with UUID: {container_id}")
 
     pipeline_metas = []
-    total_meta = _extract(image)
+
+    docker_client = docker.from_env()
+    container = docker_client.containers.run(
+        image=image,
+        entrypoint="/bin/sh",
+        command=["-c", "cat /garden/metadata.json"],
+        remove=True,
+        detach=False,
+    )
+    raw_metadata = container.decode("utf-8")
+    total_meta = json.loads(raw_metadata)
+
     for key, meta in total_meta.items():
         if "." in key:  # ignore connectors metadata
             continue
