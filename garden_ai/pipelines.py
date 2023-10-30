@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-
+import functools
 from datetime import datetime
 from typing import Any, List, Optional, Union
 from uuid import UUID
+
 
 import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field
@@ -96,7 +97,7 @@ class PipelineMetadata(BaseModel):
     doi: Optional[str] = Field(None)
     title: str = Field(...)
     authors: List[str] = Field(...)
-    short_name: str = Field(...)
+    short_name: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
@@ -204,3 +205,21 @@ class RegisteredPipeline(PipelineMetadata):
             if self.description
             else None,
         ).json()
+
+
+def garden_pipeline(metadata: PipelineMetadata, model_connectors=None):
+    model_connectors = model_connectors or []
+
+    def decorator(func):
+        @functools.wraps(func)
+        def garden_target(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        if metadata.short_name is None:
+            metadata.short_name = func.__name__
+
+        garden_target._pipeline_meta = metadata.dict()
+        garden_target._model_connectors = model_connectors
+        return garden_target  # returns func back, but with `__name__ == garden_target` and metadata
+
+    return decorator
