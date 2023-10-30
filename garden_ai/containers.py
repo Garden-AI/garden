@@ -98,14 +98,23 @@ def build_notebook_session_image(
         with dockerfile_path.open("w") as f:
             f.write(dockerfile_content)
 
-        # build the new image
         # notebook name + timestamp seemed like a good balance of
         # human-readability and uniqueness for a tag
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         image_name = f"{notebook_path.stem}-{timestamp}"
-        # TODO propagate errors from RUN
-        image, _ = client.images.build(
-            path=str(temp_dir_path), tag=image_name, platform="linux/x86_64"
-        )
-
-        return image_name
+        # build the image and propagate logs
+        try:
+            print("Building image ...")
+            image, logs = client.images.build(
+                path=str(temp_dir_path),
+                tag=image_name,
+                platform=platform,
+            )
+        except docker.errors.BuildError as err:
+            logs = err.build_log
+            raise
+        finally:
+            if print_logs:
+                for log in logs:
+                    print(log.get("stream", "").strip())
+        return image
