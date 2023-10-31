@@ -15,7 +15,7 @@ from uuid import UUID
 import docker  # type: ignore
 import typer
 
-from garden_ai import GardenClient, RegisteredPipeline, local_data
+from garden_ai import GardenClient, GardenConstants, RegisteredPipeline, local_data
 from garden_ai.app.console import console
 from garden_ai.container.containerize import (  # type: ignore
     IMAGE_NAME,
@@ -30,7 +30,6 @@ from garden_ai.containers import (
 )
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils._meta import redef_in_main
-from garden_ai import GardenConstants
 
 logger = logging.getLogger()
 
@@ -133,7 +132,6 @@ def _register_container_sigint_handler(container: docker.models.containers.Conta
     import signal
 
     def handler(signal, frame):
-        """make SIGINT / Ctrl-C stop the container"""
         typer.echo("Stopping notebook...")
         container.stop()
         return
@@ -177,6 +175,18 @@ def plant(
     typer.echo("Extracting metadata ...\n")
     metadata = extract_metadata_from_image(docker_client, image)
     print(metadata)
+    #
+
+
+def _make_function_to_register(func_name: str):
+    def call_pipeline(*args, **kwargs):
+        import dill  # type: ignore
+
+        dill.load_session("session.pkl")
+        func = globals()[func_name]
+        return func(*args, **kwargs)
+
+    return call_pipeline
 
 
 def _funcx_invoke_pipeline(short_name: str, *args, **kwargs):
@@ -221,6 +231,7 @@ def register(
 ):
     # add container to docker registry
     # when updating the container, the name MUST be changed or the cache lookup will find old version
+    # TODO
     subprocess.run(["docker", "tag", f"{IMAGE_NAME}-planted", image])
     subprocess.run(["docker", "push", image])
     subprocess.run(["docker", "rmi", image])
@@ -231,10 +242,8 @@ def register(
         f"docker.io/{image}", "docker"
     )
     container_uuid = UUID(container_id)
-    # print(f"Your container has been registered with UUID: {container_id}")
 
-    pipeline_metas = []
-
+    # extract metadata
     docker_client = docker.from_env()
     container = docker_client.containers.run(
         image=image,
@@ -244,46 +253,23 @@ def register(
         detach=False,
     )
     raw_metadata = container.decode("utf-8")
+
+    # register pipelines from metadata
     total_meta = json.loads(raw_metadata)
 
-    for key, meta in total_meta.items():
+    for key, record in total_meta.items():
         if "." in key:  # ignore connectors metadata
             continue
-        if meta["doi"] is None:
-            meta["doi"] = client._mint_draft_doi()
-        pipeline_metas.append({"container_uuid": container_uuid, **meta})
-
-    import __main__
-
-    redef_in_main(_funcx_invoke_pipeline)
-
-    funcx_unique_pipeline_funcs = [
-        _curry(__main__._funcx_invoke_pipeline, pipeline["short_name"])
-        for pipeline in pipeline_metas
-    ]
-
-    func_ids = [
-        client.compute_client.register_function(
-            unique_pipeline_func, container_uuid=container_id, public=True
+        if record["doi"] is None:
+            record["doi"] = client._mint_draft_doi()
+        record["container_uuid"] = container_uuid
+        # n.b. key is the original function name
+        to_register = _make_function_to_register(key)
+        record["func_uuid"] = client.compute_client.register_function(
+            to_register, container_uuid=container_id, public=True
         )
-        for unique_pipeline_func in funcx_unique_pipeline_funcs
-    ]
-    # print(f"Your function(s) has (have) been registered with UUID(s): {func_ids}")
-
-    registered_pipelines = []
-    for i, pipeline in enumerate(pipeline_metas):
-        pipeline["func_uuid"] = UUID(func_ids[i])
-
-        registered = RegisteredPipeline(**pipeline)
-        registered_pipelines.append(registered)
-
+        registered = RegisteredPipeline(**record)
         client._update_datacite(registered)
         local_data.put_local_pipeline(registered)
-
-    pipeline_name_to_doi = {
-        registered.short_name: registered.doi for registered in registered_pipelines
-    }
-
-    print(
-        f"Successfully registered your new pipeline(s) with doi(s): {pipeline_name_to_doi}"
-    )
+        print(f"Successfully registered pipeline: {key}: {registered.doi}")
+        # TODO publish to a garden too

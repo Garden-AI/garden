@@ -203,18 +203,10 @@ class RegisteredPipeline(PipelineMetadata):
 
 
 def garden_pipeline(metadata: PipelineMetadata, model_connectors=None):
-    model_connectors = model_connectors or []
+    def decorate(func):
+        # let func carry its own metadata
+        func._pipeline_meta = metadata.dict()
+        func._model_connectors = model_connectors or []
+        return func
 
-    def decorator(func):
-        @functools.wraps(func)
-        def garden_target(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        if metadata.short_name is None:
-            metadata.short_name = func.__name__
-
-        garden_target._pipeline_meta = metadata.dict()
-        garden_target._model_connectors = model_connectors
-        return garden_target  # returns func back, but with `__name__ == garden_target` and metadata
-
-    return decorator
+    return decorate

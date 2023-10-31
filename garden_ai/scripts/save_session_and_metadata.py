@@ -24,7 +24,7 @@ if __name__ == "__main__":
     total_meta = {}
 
     for marked in decorated_fns:
-        key_name = marked._pipeline_meta["short_name"]
+        key_name = marked.__name__
         connector_key = f"{key_name}.connectors"
 
         total_meta[key_name] = marked._pipeline_meta
