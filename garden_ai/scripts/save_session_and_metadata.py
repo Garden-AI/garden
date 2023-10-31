@@ -1,4 +1,4 @@
-# the contents of this script are appended to the automatically generated
+# the contents of this script are appended to the user's automatically generated
 # notebook script and run in the container in order to persist both a
 # session.pkl and a metadata.json in the final image
 if __name__ == "__main__":

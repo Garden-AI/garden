@@ -82,7 +82,8 @@ def build_notebook_session_image(
         exporter = nbconvert.PythonExporter()
         script_contents, _notebook_meta = exporter.from_filename(str(notebook_path))
 
-        # append to generated script logic to save the interpreter session and garden metadata
+        # append code to save the interpreter session and metadata
+        # to the script contents
         import garden_ai.scripts.save_session_and_metadata  # type: ignore
 
         script_extra = inspect.getsource(garden_ai.scripts.save_session_and_metadata)
