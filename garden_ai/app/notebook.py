@@ -108,33 +108,23 @@ def start(
     )
     _put_notebook_base_image(notebook_path, base_image)
 
-    container = None  # declared here for try/finally cleanup
+    # start container and listen for Ctrl-C
+    docker_client = docker.from_env()
+    container = start_container_with_notebook(notebook_path, docker_client, base_image)
+    _register_container_sigint_handler(container)
 
-    try:
-        # start container and listen for Ctrl-C
-        docker_client = docker.from_env()
-        container = start_container_with_notebook(
-            docker_client, notebook_path, base_image
-        )
-        _register_container_sigint_handler(container)
+    typer.echo(
+        f"Notebook started! Opening http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN} in your default browser (you may need to refresh the page)"
+    )
+    webbrowser.open_new_tab(f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN}")
 
-        typer.echo(
-            "Notebook started! Opening "
-            f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN} in your default "
-            "browser (you may need to refresh the page)."
-        )
-        webbrowser.open_new_tab(f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN}")
+    # stream logs from the container
+    for line in container.logs(stream=True):
+        print(line.decode("utf-8"), end="")
 
-        # stream logs from the container
-        for line in container.logs(stream=True):
-            print(line.decode("utf-8"), end="")
-
-    finally:
-        if container is not None and container.id in docker_client.containers.list(
-            all=True
-        ):
-            container.remove()
-        typer.echo("Notebook has stopped.")
+    # block until the container finishes
+    container.wait()
+    typer.echo("Notebook has stopped.")
     return
 
 
