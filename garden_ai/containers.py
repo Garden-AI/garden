@@ -30,7 +30,6 @@ def start_container_with_notebook(
       and is exposed to the host on the same port.
     - The token for accessing the notebook is still the JUPYTER_TOKEN variable.
     """
-
     with console.status(f"[bold green] Pulling image: {base_image}"):
         client.images.pull(base_image, platform="linux/x86_64")
     container = client.containers.run(
