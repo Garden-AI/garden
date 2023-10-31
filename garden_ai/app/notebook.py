@@ -60,7 +60,14 @@ def start(
         readable=True,
         help=("Path to a .ipynb notebook to open in a fresh, isolated container. "),
     ),
-    base_image: Optional[str] = typer.Option(None),
+    base_image: Optional[str] = typer.Option(
+        default=None,
+        help=(
+            "A Garden base image to boot the notebook in. "
+            "For example, to boot your notebook with the default Garden python 3.8 image, use --base-image 3.8-base. "
+            "To see all the available Garden base images, use 'garden-ai notebook list-premade-images'"
+        ),
+    ),
 ):
     """Open a notebook file in a sandboxed environment. Optionally, specify a different base docker image.
 
@@ -80,6 +87,16 @@ def start(
     # check/update local data for base image choice
     if base_image in list(GardenConstants.PREMADE_IMAGES.keys()):
         base_image = GardenConstants.PREMADE_IMAGES[base_image]
+    else:
+        premade_images = ", ".join(
+            [
+                "'" + image_name + "'"
+                for image_name in list(GardenConstants.PREMADE_IMAGES.keys())
+            ]
+        )
+        raise Exception(
+            f"The image '{base_image}' is not one of the Garen base images. The current Garden base images are: \n{premade_images}"
+        )
 
     base_image = (
         base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
