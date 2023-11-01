@@ -58,7 +58,7 @@ def start(
         dir_okay=False,
         writable=True,
         readable=True,
-        help=("Path to a .ipynb notebook to open in a fresh, isolated container. "),
+        help=("Path to a .ipynb notebook to open in a fresh, isolated container."),
     ),
     base_image: Optional[str] = typer.Option(
         default=None,
@@ -266,8 +266,34 @@ def debug(
         help=("Name/ID for a local planted container image to debug."),
     )
 ):
-    interpreter_cmd = 'python -i -c \'import dill; dill.load_session("session.pkl"); print("Your notebook state has been loaded!")\''
-    start_container(image, entrypoint="/bin/bash", args=["-c", interpreter_cmd])
+    """Open the debugging notebook in a pre-prepared container.
+
+    Changes to the notebook file will NOT persist after the container shuts down.
+    Quit the process with Ctrl-C or by shutting down jupyter from the browser.
+    """
+    top_level_dir = Path(__file__).parent.parent
+    debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
+
+    docker_client = docker.from_env()
+    container = start_container_with_notebook(debug_path, docker_client, image, False)
+    _register_container_sigint_handler(container)
+
+    typer.echo(
+        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/debug.ipynb?token={JUPYTER_TOKEN} "
+        "in your default browser (you may need to refresh the page)"
+    )
+    webbrowser.open_new_tab(
+        f"http://127.0.0.1:8888/notebooks/debug.ipynb?token={JUPYTER_TOKEN}"
+    )
+
+    # stream logs from the container
+    for line in container.logs(stream=True):
+        print(line.decode("utf-8"), end="")
+
+    # block until the container finishes
+    container.wait()
+    typer.echo("Notebook has stopped.")
+    return
 
 
 def _send_def_to_tmp_script(func) -> str:
