@@ -130,7 +130,13 @@ def build_notebook_session_image(
 
 def extract_metadata_from_image(
     client: docker.DockerClient, image: docker.models.images.Image
-) -> dict:
+) -> dict[str, dict]:
+    """return dict of metadata stored as `metadata.json` in the image.
+
+    keys are the original function names, values are respective PipelineMetadata dicts.
+
+    see also `garden_ai.scripts.save_session_and_metadata`
+    """
     container = client.containers.run(
         image=image.id,
         entrypoint="/bin/sh",

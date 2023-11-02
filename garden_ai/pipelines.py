@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import logging
-import functools
 from datetime import datetime
 from typing import Any, List, Optional, Union
 from uuid import UUID
 
-
 import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field
-
-# from tabulate import tabulate
 
 # from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
@@ -25,6 +21,9 @@ from garden_ai.datacite import (
 )
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import JSON
+
+# from tabulate import tabulate
+
 
 logger = logging.getLogger()
 
@@ -202,11 +201,16 @@ class RegisteredPipeline(PipelineMetadata):
         ).json()
 
 
-def garden_pipeline(metadata: PipelineMetadata, model_connectors=None, garden_doi=None):
+def garden_pipeline(
+    metadata: PipelineMetadata,
+    garden_doi: str,
+    model_connectors=None,
+):
     def decorate(func):
         # let func carry its own metadata
         func._pipeline_meta = metadata.dict()
         func._model_connectors = model_connectors or []
+        func._garden_doi = garden_doi
         return func
 
     return decorate

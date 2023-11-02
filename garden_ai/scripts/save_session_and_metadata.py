@@ -7,9 +7,9 @@ if __name__ == "__main__":
 
     dill.dump_session("session.pkl")
 
-    from pydantic.json import pydantic_encoder
-
     import json
+
+    from pydantic.json import pydantic_encoder
 
     decorated_fns = []
     global_vars = list(globals().values())
@@ -28,6 +28,8 @@ if __name__ == "__main__":
         connector_key = f"{key_name}.connectors"
 
         total_meta[key_name] = marked._pipeline_meta
+        # TODO add these as regular fields in PipelineMetadata
+        total_meta[key_name]["target_garden_doi"] = marked._garden_doi
         total_meta[connector_key] = [
             connector.metadata for connector in marked._model_connectors
         ]
