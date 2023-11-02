@@ -133,7 +133,7 @@ def extract_metadata_from_image(
 ) -> dict[str, dict]:
     """return dict of metadata stored as `metadata.json` in the image.
 
-    keys are the original function names, values are respective PipelineMetadata dicts.
+    keys are the original function names, values are respective metadata dicts.
 
     see also `garden_ai.scripts.save_session_and_metadata`
     """
