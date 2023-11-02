@@ -37,7 +37,8 @@ if __name__ == "__main__":
         total_meta[connector_key] = [
             connector.metadata for connector in marked._model_connectors
         ]
-        total_meta[doi_key] = marked._garden_doi
+        if marked._garden_doi:
+            total_meta[doi_key] = marked._garden_doi
 
     with open("metadata.json", "w+") as fout:
         json.dump(total_meta, fout, default=pydantic_encoder)

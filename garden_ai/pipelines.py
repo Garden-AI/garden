@@ -203,7 +203,7 @@ class RegisteredPipeline(PipelineMetadata):
 
 def garden_pipeline(
     metadata: PipelineMetadata,
-    garden_doi: str,
+    garden_doi: str = None,
     model_connectors=None,
 ):
     def decorate(func):

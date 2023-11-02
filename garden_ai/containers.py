@@ -67,6 +67,7 @@ def build_notebook_session_image(
     client: docker.DockerClient,
     notebook_path: pathlib.Path,
     base_image: str,
+    image_repo: str,
     platform="linux/x86_64",
     print_logs=True,
 ) -> Optional[docker.models.images.Image]:
@@ -106,16 +107,11 @@ def build_notebook_session_image(
         with dockerfile_path.open("w") as f:
             f.write(dockerfile_content)
 
-        # notebook name + timestamp seemed like a good balance of
-        # human-readability and uniqueness for a tag
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        image_tag = f"{notebook_path.stem}-{timestamp}"
         # build the image and propagate logs
         try:
             print("Building image ...")
             image, logs = client.images.build(
                 path=str(temp_dir_path),
-                tag=image_tag,
                 platform=platform,
             )
         except docker.errors.BuildError as err:
@@ -130,7 +126,7 @@ def build_notebook_session_image(
 
 def extract_metadata_from_image(
     client: docker.DockerClient, image: docker.models.images.Image
-) -> dict[str, dict]:
+) -> dict:
     """return dict of metadata stored as `metadata.json` in the image.
 
     keys are the original function names, values are respective metadata dicts.
@@ -146,3 +142,36 @@ def extract_metadata_from_image(
     )
     raw_metadata = container.decode("utf-8")
     return json.loads(raw_metadata)
+
+
+def push_image_to_public_repo(
+    client: docker.DockerClient,
+    image: docker.models.images.Image,
+    repo_name: str,
+    tag: str,
+) -> str:
+    """
+    Tags and pushes a Docker image to a new public repository.
+
+    Args:
+        client: The Docker client instance.
+        image: The Docker image to be pushed.
+        repo_name: The name of the public repository to push the image (e.g., "username/myrepo").
+        tag: The tag for the image.
+
+    Returns:
+        The full Docker Hub location of the pushed image (e.g. "docker.io/username/myrepo:tag" )
+    """
+    # Tag the image with the new repository name
+    image.tag(repo_name, tag=tag)
+
+    # push the image to the new repository and stream logs
+    push_logs = client.images.push(repo_name, tag=tag, stream=True, decode=True)
+    for log in push_logs:
+        if "status" in log:
+            print(log["status"], end="")
+            # include progress details if also present
+            if "progress" in log:
+                print(f" - {log['progress']}", end="")
+
+    return f"docker.io/{repo_name}:{tag}"
