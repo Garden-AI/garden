@@ -202,7 +202,7 @@ class RegisteredPipeline(PipelineMetadata):
         ).json()
 
 
-def garden_pipeline(metadata: PipelineMetadata, model_connectors=None):
+def garden_pipeline(metadata: PipelineMetadata, model_connectors=None, garden_doi=None):
     def decorate(func):
         # let func carry its own metadata
         func._pipeline_meta = metadata.dict()

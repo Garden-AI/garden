@@ -109,13 +109,13 @@ def build_notebook_session_image(
         # notebook name + timestamp seemed like a good balance of
         # human-readability and uniqueness for a tag
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        image_name = f"{notebook_path.stem}-{timestamp}"
+        image_tag = f"{notebook_path.stem}-{timestamp}"
         # build the image and propagate logs
         try:
             print("Building image ...")
             image, logs = client.images.build(
                 path=str(temp_dir_path),
-                tag=image_name,
+                tag=image_tag,
                 platform=platform,
             )
         except docker.errors.BuildError as err:

@@ -109,7 +109,7 @@ def start(
 
     # start container and listen for Ctrl-C
     docker_client = docker.from_env()
-    container = start_container_with_notebook(notebook_path, docker_client, base_image)
+    container = start_container_with_notebook(docker_client, notebook_path, base_image)
     _register_container_sigint_handler(container)
 
     typer.echo(
@@ -122,7 +122,17 @@ def start(
         print(line.decode("utf-8"), end="")
 
     # block until the container finishes
-    container.wait()
+    try:
+        container.reload()
+        container.wait()
+    except KeyboardInterrupt:
+        # handle windows Ctrl-C
+        typer.echo("Stopping notebook ...")
+        container.stop()
+    except docker.errors.NotFound:
+        # container already killed, no need to wait
+        pass
+
     typer.echo("Notebook has stopped.")
     return
 
@@ -175,7 +185,6 @@ def plant(
     typer.echo("Extracting metadata ...\n")
     metadata = extract_metadata_from_image(docker_client, image)
     print(metadata)
-    #
 
 
 def _make_function_to_register(func_name: str):
