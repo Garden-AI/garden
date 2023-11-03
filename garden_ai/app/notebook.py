@@ -1,28 +1,15 @@
 import datetime
-import inspect
-import json
 import logging
-import os
 import shutil
-import subprocess
-import textwrap
-import time
 import webbrowser
 from pathlib import Path
-from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 import docker  # type: ignore
 import typer
 
 from garden_ai import GardenClient, GardenConstants, RegisteredPipeline, local_data
-from garden_ai.app.console import console
-from garden_ai.container.containerize import (  # type: ignore
-    IMAGE_NAME,
-    build_container,
-    start_container,
-)
 from garden_ai.containers import (
     JUPYTER_TOKEN,
     build_notebook_session_image,
@@ -31,8 +18,6 @@ from garden_ai.containers import (
     start_container_with_notebook,
 )
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
-from garden_ai.pipelines import PipelineMetadata
-from garden_ai.utils._meta import redef_in_main
 
 logger = logging.getLogger()
 
@@ -154,7 +139,7 @@ def _register_container_sigint_handler(container: docker.models.containers.Conta
 
 
 @notebook_app.command()
-def plant(
+def publish(
     path: Path = typer.Argument(
         ...,
         file_okay=True,
