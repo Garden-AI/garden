@@ -121,7 +121,9 @@ class RegisteredPipeline(PipelineMetadata):
         notebook: Full JSON string of the notebook used to define this pipeline's environment.
     """
 
-    doi: str = Field(...)
+    doi: str = Field(
+        ...
+    )  # Repeating this field from base class because DOI is mandatory for RegisteredPipeline
     func_uuid: UUID = Field(...)
     container_uuid: UUID = Field(...)
     base_image_name: Optional[str] = Field(None)
