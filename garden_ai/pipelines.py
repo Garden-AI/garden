@@ -116,7 +116,7 @@ class RegisteredPipeline(PipelineMetadata):
         func_uuid: The ID of the Globus Compute function registered for this pipeline.
         container_uuid: ID returned from Globus Compute's register_container.
         base_image_name: The name of the base image selected by the user. eg, "3.9-base"
-        base_image_uri: The name and location of the base image used by this pipeline. eg, docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
+        base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
         full_image_uri: The name and location of the complete image used by this pipeline.
         notebook: Full JSON string of the notebook used to define this pipeline's environment.
     """
