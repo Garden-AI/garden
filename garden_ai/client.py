@@ -34,10 +34,6 @@ from garden_ai.local_data import (
     GardenNotFoundException,
     PipelineNotFoundException,
 )
-from garden_ai.mlmodel import (
-    DatasetConnection,
-    ModelNotFoundException,
-)
 from garden_ai.pipelines import RegisteredPipeline, Paper, Repository
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -282,45 +278,6 @@ class GardenClient:
         data["doi"] = data.get("doi") or self._mint_draft_doi()
 
         return Garden(**data)
-
-    def add_dataset(self, model_name: str, title: str, url: str, **kwargs) -> None:
-        """Adds a ``DatasetConnection`` to ``ModelMetadata`` corresponding to the given full model name.
-
-        Parameters
-        ----------
-        model_name : str
-            The previously registered model's full model name. Raises an
-            exception if not found.
-
-        title : str
-            An official name or title for the dataset.
-
-        url: str
-            The url to access this dataset.
-
-        **kwargs :
-            Metadata for the new DatasetConnection object. Keyword arguments matching
-            required or recommended fields will be (where necessary) coerced to the appropriate type.
-            May include: Optional[str] doi, Optional[str] data_type.
-
-        Raises
-        ------
-        ModelNotFoundException
-            Raised when no known model exists with the given identifier.
-        """
-        model = local_data.get_local_model_by_name(model_name)
-        data = dict(kwargs)
-        if not model:
-            raise ModelNotFoundException("This model could not be found")
-        if model_name:
-            data["model_name"] = model_name
-        if title:
-            data["title"] = title
-        if url:
-            data["url"] = url
-        dataset = DatasetConnection(**data)
-        model.dataset = dataset
-        local_data.put_local_model(model)
 
     def _mint_draft_doi(self) -> str:
         """Register a new draft DOI with DataCite via Garden backend."""

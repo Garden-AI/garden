@@ -145,6 +145,7 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
     garden = args[0]
     # Confirm that expanded gardens include pipelines
     denormalized_garden_metadata = garden.expanded_metadata()
+    print(denormalized_garden_metadata)
     assert str(denormalized_garden_metadata["pipelines"][0]["doi"]) == pipeline_doi
 
 

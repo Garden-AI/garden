@@ -100,9 +100,7 @@ class PipelineMetadata(BaseModel):
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    model_full_names: List[str] = Field(
-        default_factory=list
-    )  # TODO: probably remove this soon
+    models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
 
@@ -130,14 +128,14 @@ class RegisteredPipeline(BaseModel):
 
     doi: str = Field(...)
     func_uuid: UUID = Field(...)
-    container_uuid: UUID = Field(...)
+    container_uuid: UUID = Field(...)  # TODO: lots more container metadata
     title: str = Field(...)
     authors: List[str] = Field(...)
     short_name: str = Field(...)
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    model_full_names: List[str] = Field(default_factory=list)
+    models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
 
@@ -191,39 +189,6 @@ class RegisteredPipeline(BaseModel):
             tablefmt="html",
         )
         return style + title + details + optional
-
-    def collect_models(self) -> List[ModelMetadata]:
-        """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_full_names`."""
-        from .local_data import get_local_model_by_name
-
-        models = []
-        for model_name in self.model_full_names:
-            model = get_local_model_by_name(model_name)
-            if model:
-                models += [model]
-            else:
-                logger.warning(
-                    f"No record in local database for model {model_name}. "
-                    "Published garden will not have detailed metadata for that model."
-                )
-        return models
-
-    def expanded_metadata(self) -> Dict[str, Any]:
-        """Helper: build the "complete" metadata dict with nested ``Model`` metadata.
-
-        Notes:
-            When serializing normally with ``registered_pipeline.{dict(), \
-            json()}``, only the uris of the models in the pipeline are included. \
-            This returns a superset of `registered_pipeline.dict()`, so that the \
-            following holds: \
-                `pipeline == Registered_Pipeline(**pipeline.expanded_metadata()) == Registered_Pipeline(**pipeline.dict())`
-
-        Returns:
-            ``RegisteredPipeline`` metadata dict augmented with a list of ``RegisteredModel`` metadata
-        """
-        data = self.dict()
-        data["models"] = [m.dict() for m in self.collect_models()]
-        return data
 
     def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
