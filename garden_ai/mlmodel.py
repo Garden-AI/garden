@@ -54,7 +54,7 @@ class ModelMetadata(BaseModel):
     datasets: List[DatasetConnection] = Field(default_factory=list)
 
     @validator("model_repository")
-    def must_be_a_supported_flavor(cls, model_repository):
+    def must_be_a_supported_repository(cls, model_repository):
         if model_repository not in [mr.value for mr in ModelRepository]:
             raise ValueError("is not a supported flavor")
         return model_repository
