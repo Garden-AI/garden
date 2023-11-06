@@ -1,7 +1,6 @@
 import os
 import uuid
 from garden_ai import GardenConstants
-from garden_ai.mlmodel import SerializeType
 
 
 class ETEConstants:
