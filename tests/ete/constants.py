@@ -135,7 +135,4 @@ class ETEConstants:
 
         self.default_endpoint = GardenConstants.DLHUB_ENDPOINT
 
-        self.sklearn_serialize = SerializeType.PICKLE.value
-        self.keras_serialize = SerializeType.KERAS.value
-        self.torch_serialize = SerializeType.TORCH.value
         self.custom_serialize = None
