@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Union
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore

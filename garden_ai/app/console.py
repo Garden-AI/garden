@@ -76,30 +76,3 @@ def get_local_pipeline_rich_table(
         resource_table_cols=resource_table_cols,
         table_name=table_name,
     )
-
-
-def get_local_model_rich_table(
-    resource_table_cols: List[str], table_name: str
-) -> Table:
-    """Helper: fetch all models from ~/.garden/data.json and returns a rich table to print.
-
-    Parameters
-    ----------
-    resource_table_cols List[str]
-        A list of the model fields you want included as col headers in the table.
-    table_name str
-        Name of the rich table
-
-    Returns
-    -------
-    Table
-        Returns a rich table of all local models.
-    """
-    from garden_ai.local_data import get_all_local_models
-
-    local_models = get_all_local_models()
-    return _get_rich_resource_table(
-        resource_objs=local_models,
-        resource_table_cols=resource_table_cols,
-        table_name=table_name,
-    )

@@ -8,7 +8,6 @@ from pydantic.json import pydantic_encoder
 
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
-from garden_ai.mlmodel import ModelMetadata
 from garden_ai.pipelines import RegisteredPipeline
 
 LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)

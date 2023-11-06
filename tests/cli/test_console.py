@@ -4,7 +4,6 @@ from garden_ai import local_data
 from garden_ai.app.console import (
     get_local_garden_rich_table,
     get_local_pipeline_rich_table,
-    get_local_model_rich_table,
 )
 
 

@@ -8,7 +8,6 @@ from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from garden_ai import Garden, GardenClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
