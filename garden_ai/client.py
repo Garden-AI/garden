@@ -504,13 +504,13 @@ class GardenClient:
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         return garden
 
-    def _register_pipelines_from_user_image(
+    def _register_and_publish_from_user_image(
         self,
         docker_client: docker.DockerClient,
         image: docker.models.images.Image,
         image_location: str,
     ):
-        """Register pipelines and re-publish affected gardens from a user's finished notebook session image.
+        """Register pipelines and (re-)publish affected gardens from a user's finished notebook session image.
 
         Parameters:
         - docker_client : docker.DockerClient

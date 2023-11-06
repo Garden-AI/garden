@@ -193,8 +193,10 @@ def publish(
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     image_tag = f"{notebook_path.stem}-{timestamp}"
     typer.echo(f"Pushing image to repository: {image_repo}")
+
     image_location = push_image_to_public_repo(
-        docker_client, image, image_repo, image_tag
+        docker_client, image, image_repo, image_tag, print_logs=verbose
     )
+    typer.echo(f"Successfully pushed image to: {image_location}")
     # register container and pipelines with globus compute; re-publish gardens
-    client._register_pipelines_from_user_image(docker_client, image, image_location)
+    client._register_and_publish_from_user_image(docker_client, image, image_location)

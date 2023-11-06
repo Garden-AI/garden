@@ -155,6 +155,7 @@ def push_image_to_public_repo(
     image: docker.models.images.Image,
     repo_name: str,
     tag: str,
+    print_logs=True,
 ) -> str:
     """
     Tags and pushes a Docker image to a new public repository.
@@ -164,6 +165,7 @@ def push_image_to_public_repo(
         image: The Docker image to be pushed.
         repo_name: The name of the public repository to push the image (e.g., "username/myrepo").
         tag: The tag for the image.
+        print_logs: Whether to stream logs from docker push to stdout (default: True)
 
     Returns:
         The full Docker Hub location of the pushed image (e.g. "docker.io/username/myrepo:tag" )
@@ -174,8 +176,10 @@ def push_image_to_public_repo(
     # push the image to the new repository and stream logs
     push_logs = client.images.push(repo_name, tag=tag, stream=True, decode=True)
     for log in push_logs:
+        if not print_logs:
+            continue
         if "status" in log:
-            print(log["status"], end="")
+            print(log["status"])
             # include progress details if also present
             if "progress" in log:
                 print(f" - {log['progress']}", end="")
