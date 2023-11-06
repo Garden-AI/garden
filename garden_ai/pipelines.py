@@ -105,39 +105,31 @@ class PipelineMetadata(BaseModel):
     papers: List[Paper] = Field(default_factory=list)
 
 
-class RegisteredPipeline(BaseModel):
+class RegisteredPipeline(PipelineMetadata):
     """Metadata of a completed and registered pipeline.
     Can be added to a Garden and executed on a remote Globus Compute endpoint.
 
-    `RegisteredPipeline` objects can be described completely by JSON.
+    Has all the user-given metadata from PipelineMetadata plus extra fields added by Garden
+    during publication.
 
     Attributes:
-        doi:
-        func_uuid:
-        container_uuid:
-        title:
-        authors:
-        short_name:
-        description:
-        year:
-        tags:
-        model_full_names:
-        repositories:
-        papers:
+        func_uuid: The ID of the Globus Compute function registered for this pipeline.
+        container_uuid: ID returned from Globus Compute's register_container.
+        base_image_name: The name of the base image selected by the user. eg, "3.9-base"
+        base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
+        full_image_uri: The name and location of the complete image used by this pipeline.
+        notebook: Full JSON string of the notebook used to define this pipeline's environment.
     """
 
-    doi: str = Field(...)
+    doi: str = Field(
+        ...
+    )  # Repeating this field from base class because DOI is mandatory for RegisteredPipeline
     func_uuid: UUID = Field(...)
     container_uuid: UUID = Field(...)
-    title: str = Field(...)
-    authors: List[str] = Field(...)
-    short_name: str = Field(...)
-    description: Optional[str] = Field(None)
-    year: str = Field(default_factory=lambda: str(datetime.now().year))
-    tags: List[str] = Field(default_factory=list, unique_items=True)
-    models: List[ModelMetadata] = Field(default_factory=list)
-    repositories: List[Repository] = Field(default_factory=list)
-    papers: List[Paper] = Field(default_factory=list)
+    base_image_name: Optional[str] = Field(None)
+    base_image_uri: Optional[str] = Field(None)
+    full_image_uri: Optional[str] = Field(None)
+    notebook: Optional[str] = Field(None)
 
     def __call__(
         self,
