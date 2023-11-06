@@ -4,16 +4,14 @@ import shutil
 import webbrowser
 from pathlib import Path
 from typing import Optional
-from uuid import UUID
 
 import docker  # type: ignore
 import typer
 
-from garden_ai import GardenClient, GardenConstants, RegisteredPipeline, local_data
+from garden_ai import GardenClient, GardenConstants, local_data
 from garden_ai.containers import (
     JUPYTER_TOKEN,
     build_notebook_session_image,
-    extract_metadata_from_image,
     push_image_to_public_repo,
     start_container_with_notebook,
 )
@@ -198,65 +196,5 @@ def publish(
     image_location = push_image_to_public_repo(
         docker_client, image, image_repo, image_tag
     )
-
-    # register image with globus compute
-    container_uuid = UUID(
-        client.compute_client.register_container(image_location, "docker")
-    )
-
-    # register pipelines and add to gardens according to metadata
-    typer.echo("Extracting metadata ...\n")
-    metadata = extract_metadata_from_image(docker_client, image)
-    print(metadata)
-
-    dirty_gardens = set()  # good for gardens to get dirty, actually
-    for key, record in metadata.items():
-        if "." in key:
-            continue
-        # register function with globus compute
-        # and populate required RegisteredPipeline fields
-        to_register = _make_function_to_register(key)
-        record["container_uuid"] = container_uuid
-        record["func_uuid"] = client.compute_client.register_function(
-            to_register, container_uuid=str(container_uuid), public=True
-        )
-        record["doi"] = record.get("doi") or client._mint_draft_doi()
-        record["short_name"] = record.get("short_name") or key
-        registered = RegisteredPipeline(**record)
-        client._update_datacite(registered)
-        local_data.put_local_pipeline(registered)
-        print(
-            f"Successfully registered pipeline: {registered.short_name}: {registered.doi}"
-        )
-
-        # fetch garden we're adding this to, if one is specified
-        garden_doi = metadata.get(f"{key}.garden_doi")
-        if garden_doi:
-            garden = local_data.get_local_garden_by_doi(garden_doi)
-            if garden is None:
-                msg = (
-                    f"Could not add pipeline {key} to garden "
-                    f"{garden_doi}: could not find local garden with that DOI"
-                )
-                raise ValueError(msg)
-            garden.add_pipeline(registered.doi)
-            local_data.put_local_garden(garden)
-            dirty_gardens |= {garden.doi}
-            print(f"Added pipeline {registered.short_name} to garden {garden.doi}!")
-
-    for doi in dirty_gardens:
-        garden = local_data.get_local_garden_by_doi(doi)
-        if garden:
-            print(f"(Re-)publishing garden {garden.doi} with updated pipeline(s)")
-            client.publish_garden_metadata(garden)
-
-
-def _make_function_to_register(func_name: str):
-    def call_pipeline(*args, **kwargs):
-        import dill  # type: ignore
-
-        dill.load_session("session.pkl")
-        func = globals()[func_name]
-        return func(*args, **kwargs)
-
-    return call_pipeline
+    # register container and pipelines with globus compute; re-publish gardens
+    client._register_pipelines_from_user_image(docker_client, image, image_location)
