@@ -27,7 +27,7 @@ def start_container_with_notebook(
       with the Docker daemon.
     - path (pathlib.Path): The local path to the notebook.
     - base_image (str): The Docker image to be used as the base. It should
-      have Jupyter Notebook pre-installed.
+      have Jupyter pre-installed.
     - platform (str): Passed directly to docker sdk. Defaults to "linux/x86_64".
 
     Returns:
@@ -66,10 +66,32 @@ def build_notebook_session_image(
     client: docker.DockerClient,
     notebook_path: pathlib.Path,
     base_image: str,
-    image_repo: str,
     platform="linux/x86_64",
     print_logs=True,
 ) -> Optional[docker.models.images.Image]:
+    """
+    Build the docker image to register with Globus Compute locally.
+
+    From the specified base image, this:
+    - generates a plain python script from the user's notebook,
+    - copies both to the container
+    - RUNs the script for side effects, including writing the session.pkl and metadata.json
+
+    This does not tag or push the image.
+
+    Args:
+        client: A Docker client instance to manage Docker resources.
+        notebook_path: A Path object to the Jupyter notebook file.
+        base_image: The name of the base Docker image to use.
+        platform: The target platform for the Docker build (default is "linux/x86_64").
+        print_logs: Flag to enable streaming build logs to the console (default is True).
+
+    Returns:
+        The docker `Image` object if the build succeeds, otherwise None.
+
+    Raises:
+        docker.errors.BuildError: If the Docker image build fails.
+    """
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
 
@@ -94,7 +116,7 @@ def build_notebook_session_image(
 
         client.images.pull(base_image, platform=platform)
 
-        # easier to grok than pure docker sdk equivalent
+        # easier to grok than pure docker sdk equivalent (if one exists)
         dockerfile_content = f"""
         FROM {base_image}
         COPY {notebook_path.name} /garden/{notebook_path.name}
@@ -122,10 +144,11 @@ def build_notebook_session_image(
                     image = client.images.get(image_id)
 
         except docker.errors.BuildError as err:
-            print("Build failed:")
-            for chunk in err.build_log:
-                if "stream" in chunk:
-                    print(chunk["stream"].strip())
+            print("Build failed")
+            if print_logs:
+                for chunk in err.build_log:
+                    if "stream" in chunk:
+                        print(chunk["stream"].strip())
             raise
         return image
 
@@ -133,11 +156,11 @@ def build_notebook_session_image(
 def extract_metadata_from_image(
     client: docker.DockerClient, image: docker.models.images.Image
 ) -> dict:
-    """return dict of metadata stored as `metadata.json` in the image.
+    """Load dict of metadata stored as `metadata.json` in the image.
 
     keys are the original function names, values are respective metadata dicts.
 
-    see also `garden_ai.scripts.save_session_and_metadata`
+    see also: `garden_ai.scripts.save_session_and_metadata`
     """
     container = client.containers.run(
         image=image.id,
