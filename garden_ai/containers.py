@@ -109,17 +109,24 @@ def build_notebook_session_image(
         # build the image and propagate logs
         try:
             print("Building image ...")
-            image, logs = client.images.build(
-                path=str(temp_dir_path),
-                platform=platform,
+            stream = client.api.build(
+                path=str(temp_dir_path), platform=platform, decode=True
             )
+            image = None
+            for chunk in stream:
+                if "stream" in chunk:
+                    if print_logs:
+                        print(chunk["stream"].strip())
+                if "aux" in chunk and "ID" in chunk["aux"]:
+                    image_id = chunk["aux"]["ID"]
+                    image = client.images.get(image_id)
+
         except docker.errors.BuildError as err:
-            logs = err.build_log
+            print("Build failed:")
+            for chunk in err.build_log:
+                if "stream" in chunk:
+                    print(chunk["stream"].strip())
             raise
-        finally:
-            if print_logs:
-                for log in logs:
-                    print(log.get("stream", "").strip())
         return image
 
 

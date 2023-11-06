@@ -223,7 +223,7 @@ class Garden(BaseModel):
         """
         self._sync_author_metadata()
         data = self.dict()
-        data["pipelines"] = [p.dict() for p in self._pipeline_cache]
+        data["pipelines"] = [p.dict() for p in self._collect_pipelines()]
         return data
 
     def expanded_json(self) -> JSON:
