@@ -128,7 +128,7 @@ class RegisteredPipeline(BaseModel):
 
     doi: str = Field(...)
     func_uuid: UUID = Field(...)
-    container_uuid: UUID = Field(...)  # TODO: lots more container metadata
+    container_uuid: UUID = Field(...)
     title: str = Field(...)
     authors: List[str] = Field(...)
     short_name: str = Field(...)
