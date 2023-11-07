@@ -153,7 +153,9 @@ def debug(
     debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
 
     docker_client = docker.from_env()
-    container = start_container_with_notebook(debug_path, docker_client, image, False)
+    container = start_container_with_notebook(
+        docker_client, debug_path, image, mount=False
+    )
     _register_container_sigint_handler(container)
 
     typer.echo(
