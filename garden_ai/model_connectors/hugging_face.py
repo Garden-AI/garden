@@ -4,14 +4,15 @@ import os
 
 
 class HFConnector:
-    def __init__(self, repo_id: str, revision=None, local_dir=None, flavor="sklearn"):
+    def __init__(self, repo_id: str, revision=None, local_dir=None):
         self.repo_id = repo_id
         self.revision = revision
         self.local_dir = local_dir or "hf_model"
         self.model_card = hfh.ModelCard.load(repo_id)
-        user_part, model_part = self.repo_id.split("/")
         self.metadata = ModelMetadata(
-            model_name=model_part, user_email=user_part, flavor=flavor
+            model_identifier=self.repo_id,
+            model_repository="Hugging Face",
+            model_version=self.revision,
         )
 
     def stage(self) -> str:

@@ -8,7 +8,6 @@ from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 from garden_ai import Garden, GardenClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.pipelines import RegisteredPipeline
-from garden_ai.mlmodel import ModelMetadata
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -170,7 +169,7 @@ def garden_all_fields(mocker, registered_pipeline_toy_example):
 @pytest.fixture
 def database_with_unconnected_pipeline(tmp_path):
     source_path = get_fixture_file_path(
-        "database_dumps/one_pipeline_one_garden_unconnected.txt"
+        "database_dumps/one_pipeline_one_garden_unconnected.json"
     )
     with open(source_path, "r") as file:
         contents = file.read()
@@ -183,7 +182,7 @@ def database_with_unconnected_pipeline(tmp_path):
 @pytest.fixture
 def database_with_connected_pipeline(tmp_path):
     source_path = get_fixture_file_path(
-        "database_dumps/one_pipeline_one_garden_connected.txt"
+        "database_dumps/one_pipeline_one_garden_connected.json"
     )
     with open(source_path, "r") as file:
         contents = file.read()
@@ -191,26 +190,6 @@ def database_with_connected_pipeline(tmp_path):
     with open(data_file, "w") as f:
         f.write(contents)
     return tmp_path
-
-
-@pytest.fixture
-def database_with_model(tmp_path):
-    source_path = get_fixture_file_path("database_dumps/one_model.json")
-    with open(source_path, "r") as file:
-        contents = file.read()
-    data_file = tmp_path / "data.json"
-    with open(data_file, "w") as f:
-        f.write(contents)
-    return tmp_path
-
-
-@pytest.fixture
-def second_draft_of_model():
-    return ModelMetadata(
-        model_name="unit-test-model",
-        user_email="test@example.com",
-        flavor="pytorch",
-    )
 
 
 @pytest.fixture

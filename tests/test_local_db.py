@@ -39,22 +39,6 @@ def test_local_storage_keyerror(
     assert from_record == pipeline
 
 
-def test_local_storage_model(mocker, database_with_model, second_draft_of_model):
-    # mock to replace "~/.garden/db"
-    mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=database_with_model)
-
-    # Starts out as sklearn model
-    orginal_model = local_data.get_local_model_by_name(second_draft_of_model.full_name)
-    assert orginal_model.flavor == "sklearn"
-
-    # New version of same model name should get overwritten in local DB
-    local_data.put_local_model(second_draft_of_model)
-    overwritten_model = local_data.get_local_model_by_name(
-        second_draft_of_model.full_name
-    )
-    assert overwritten_model.flavor == "pytorch"
-
-
 def test_local_db_clone(mocker, garden_client, garden_all_fields, tmp_path):
     # mock to replace "~/.garden/db"
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)

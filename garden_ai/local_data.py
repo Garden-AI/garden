@@ -8,7 +8,6 @@ from pydantic.json import pydantic_encoder
 
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
-from garden_ai.mlmodel import ModelMetadata
 from garden_ai.pipelines import RegisteredPipeline
 
 LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)
@@ -34,13 +33,11 @@ class GardenNotFoundException(KeyError):
 class ResourceType(Enum):
     GARDEN = "gardens"
     PIPELINE = "pipelines"
-    MODEL = "models"
 
 
 resource_type_to_id_key = {
     ResourceType.GARDEN: "doi",
     ResourceType.PIPELINE: "doi",
-    ResourceType.MODEL: "full_name",
 }
 
 
@@ -83,6 +80,18 @@ def _get_notebook_base_image(notebook_path: Path) -> Optional[str]:
     return data["notebooks"].get(nb_key)
 
 
+def _store_user_image_repo(repo: str) -> None:
+    data = _read_local_db()
+    data["user_image_repo"] = repo
+    _write_local_db(data)
+
+
+def _get_user_image_repo() -> Optional[str]:
+    data = _read_local_db()
+    maybe_repo = data.get("user_image_repo")
+    return maybe_repo
+
+
 def _store_user_email(email: str) -> None:
     data = _read_local_db()
     data["user_email"] = email
@@ -107,7 +116,7 @@ def _put_resource_from_metadata(
 
 
 def _put_resource_from_obj(
-    resource: Union[Garden, RegisteredPipeline, ModelMetadata],
+    resource: Union[Garden, RegisteredPipeline],
     resource_type: ResourceType,
 ) -> None:
     resource_metadata = resource.dict()
@@ -116,18 +125,16 @@ def _put_resource_from_obj(
 
 def _make_obj_from_record(
     record: Dict, resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline, ModelMetadata]:
+) -> Union[Garden, RegisteredPipeline]:
     if resource_type is ResourceType.GARDEN:
         return Garden(**record)
-    elif resource_type is ResourceType.PIPELINE:
-        return RegisteredPipeline(**record)
     else:
-        return ModelMetadata(**record)
+        return RegisteredPipeline(**record)
 
 
 def _get_resource_by_id(
     id_: str, resource_type: ResourceType
-) -> Optional[Union[Garden, RegisteredPipeline, ModelMetadata]]:
+) -> Optional[Union[Garden, RegisteredPipeline]]:
     data = _read_local_db()
     resources = data.get(resource_type.value, {})
     if resources and id_ in resources:
@@ -136,20 +143,9 @@ def _get_resource_by_id(
         return None
 
 
-def _delete_old_model_versions(model_name: str):
-    data = _read_local_db()
-    models_by_uri = data.get(ResourceType.MODEL.value, {})
-    # Use `list` so that we don't delete items while iterating.
-    for k, v in list(models_by_uri.items()):
-        if v["model_name"] == model_name:
-            del models_by_uri[k]
-    data[ResourceType.MODEL.value] = models_by_uri
-    _write_local_db(data)
-
-
 def _get_resource_by_type(
     resource_type: ResourceType,
-) -> Optional[List[Union[Garden, RegisteredPipeline, ModelMetadata]]]:
+) -> Optional[List[Union[Garden, RegisteredPipeline]]]:
     data = _read_local_db()
     resource_data = data.get(resource_type.value, {})
     resource_objs = []
@@ -217,24 +213,6 @@ def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
     return _get_resource_by_id(doi, ResourceType.PIPELINE)  # type: ignore
 
 
-def put_local_model(model: ModelMetadata):
-    """Helper: write a record to 'local database' for a given RegisteredModel
-    Overwrites any existing entry with the same model_name in ~/.garden/data.json.
-
-    Parameters
-    ----------
-    model Model
-        The object to json-serialize and write/update in the local database.
-        a TypeError will be raised if not a Model.
-    """
-    _delete_old_model_versions(model.model_name)
-    _put_resource_from_obj(model, resource_type=ResourceType.MODEL)
-
-
-def get_local_model_by_name(model_full_name: str):
-    return _get_resource_by_id(model_full_name, ResourceType.MODEL)  # type: ignore
-
-
 def get_all_local_gardens() -> Optional[List[Garden]]:
     """Helper: fetch all Garden records from ~/.garden/data.json.
 
@@ -261,17 +239,3 @@ def get_all_local_pipelines() -> Optional[List[RegisteredPipeline]]:
         If successful, a list of all the RegisteredPipeline objects in data.json.
     """
     return _get_resource_by_type(ResourceType.PIPELINE)  # type: ignore
-
-
-def get_all_local_models() -> Optional[List[ModelMetadata]]:
-    """Helper: fetch all model records from ~/.garden/data.json.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    Optional[ModelMetadata]
-        If successful, a list of all the RegisteredModel objects in data.json.
-    """
-    return _get_resource_by_type(ResourceType.MODEL)  # type: ignore

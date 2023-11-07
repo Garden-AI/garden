@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import logging
-
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Union
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field
-from tabulate import tabulate
 
-from garden_ai.app.console import console
+# from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
     Creator,
@@ -23,6 +21,9 @@ from garden_ai.datacite import (
 )
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import JSON
+
+# from tabulate import tabulate
+
 
 logger = logging.getLogger()
 
@@ -96,50 +97,40 @@ class PipelineMetadata(BaseModel):
     doi: Optional[str] = Field(None)
     title: str = Field(...)
     authors: List[str] = Field(...)
-    short_name: str = Field(...)
+    short_name: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
-    model_full_names: List[str] = Field(
-        default_factory=list
-    )  # TODO: probably remove this soon
+    models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
 
 
-class RegisteredPipeline(BaseModel):
+class RegisteredPipeline(PipelineMetadata):
     """Metadata of a completed and registered pipeline.
     Can be added to a Garden and executed on a remote Globus Compute endpoint.
 
-    `RegisteredPipeline` objects can be described completely by JSON.
+    Has all the user-given metadata from PipelineMetadata plus extra fields added by Garden
+    during publication.
 
     Attributes:
-        doi:
-        func_uuid:
-        container_uuid:
-        title:
-        authors:
-        short_name:
-        description:
-        year:
-        tags:
-        model_full_names:
-        repositories:
-        papers:
+        func_uuid: The ID of the Globus Compute function registered for this pipeline.
+        container_uuid: ID returned from Globus Compute's register_container.
+        base_image_name: The name of the base image selected by the user. eg, "3.9-base"
+        base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
+        full_image_uri: The name and location of the complete image used by this pipeline.
+        notebook: Full JSON string of the notebook used to define this pipeline's environment.
     """
 
-    doi: str = Field(...)
+    doi: str = Field(
+        ...
+    )  # Repeating this field from base class because DOI is mandatory for RegisteredPipeline
     func_uuid: UUID = Field(...)
     container_uuid: UUID = Field(...)
-    title: str = Field(...)
-    authors: List[str] = Field(...)
-    short_name: str = Field(...)
-    description: Optional[str] = Field(None)
-    year: str = Field(default_factory=lambda: str(datetime.now().year))
-    tags: List[str] = Field(default_factory=list, unique_items=True)
-    model_full_names: List[str] = Field(default_factory=list)
-    repositories: List[Repository] = Field(default_factory=list)
-    papers: List[Paper] = Field(default_factory=list)
+    base_image_name: Optional[str] = Field(None)
+    base_image_uri: Optional[str] = Field(None)
+    full_image_uri: Optional[str] = Field(None)
+    notebook: Optional[str] = Field(None)
 
     def __call__(
         self,
@@ -167,63 +158,24 @@ class RegisteredPipeline(BaseModel):
             endpoint = GardenConstants.DLHUB_ENDPOINT
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
-            # TODO: refactor below once the remote-calling interface is settled.
-            # console/spinner is good ux but shouldn't live this deep in the
-            # sdk.
-            with console.status(
-                f"[bold green] executing remotely on endpoint {endpoint}"
-            ):
-                future = gce.submit_to_registered_function(
-                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
-                )
-                return future.result()
+            future = gce.submit_to_registered_function(
+                function_id=str(self.func_uuid), args=args, kwargs=kwargs
+            )
+            return future.result()
 
-    def _repr_html_(self) -> str:
-        style = "<style>th {text-align: left;}</style>"
-        title = f"<h2>{self.title}</h2>"
-        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
-        optional = "<h3>Additional data</h3>" + tabulate(
-            [
-                (field, val)
-                for field, val in self.dict().items()
-                if field not in ("title", "authors", "doi", "steps") and val
-            ],
-            tablefmt="html",
-        )
-        return style + title + details + optional
-
-    def collect_models(self) -> List[ModelMetadata]:
-        """Collect the RegisteredModel objects that are present in the local DB corresponding to this Pipeline's list of `model_full_names`."""
-        from .local_data import get_local_model_by_name
-
-        models = []
-        for model_name in self.model_full_names:
-            model = get_local_model_by_name(model_name)
-            if model:
-                models += [model]
-            else:
-                logger.warning(
-                    f"No record in local database for model {model_name}. "
-                    "Published garden will not have detailed metadata for that model."
-                )
-        return models
-
-    def expanded_metadata(self) -> Dict[str, Any]:
-        """Helper: build the "complete" metadata dict with nested ``Model`` metadata.
-
-        Notes:
-            When serializing normally with ``registered_pipeline.{dict(), \
-            json()}``, only the uris of the models in the pipeline are included. \
-            This returns a superset of `registered_pipeline.dict()`, so that the \
-            following holds: \
-                `pipeline == Registered_Pipeline(**pipeline.expanded_metadata()) == Registered_Pipeline(**pipeline.dict())`
-
-        Returns:
-            ``RegisteredPipeline`` metadata dict augmented with a list of ``RegisteredModel`` metadata
-        """
-        data = self.dict()
-        data["models"] = [m.dict() for m in self.collect_models()]
-        return data
+    # def _repr_html_(self) -> str:
+    #     style = "<style>th {text-align: left;}</style>"
+    #     title = f"<h2>{self.title}</h2>"
+    #     details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+    #     optional = "<h3>Additional data</h3>" + tabulate(
+    #         [
+    #             (field, val)
+    #             for field, val in self.dict().items()
+    #             if field not in ("title", "authors", "doi", "steps") and val
+    #         ],
+    #         tablefmt="html",
+    #     )
+    #     return style + title + details + optional
 
     def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
@@ -247,3 +199,18 @@ class RegisteredPipeline(BaseModel):
             if self.description
             else None,
         ).json()
+
+
+def garden_pipeline(
+    metadata: PipelineMetadata,
+    garden_doi: str = None,
+    model_connectors=None,
+):
+    def decorate(func):
+        # let func carry its own metadata
+        func._pipeline_meta = metadata.dict()
+        func._model_connectors = model_connectors or []
+        func._garden_doi = garden_doi
+        return func
+
+    return decorate
