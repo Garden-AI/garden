@@ -5,15 +5,9 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, cast
 
-from tabulate import tabulate
-from pydantic import (
-    BaseModel,
-    Field,
-    PrivateAttr,
-    root_validator,
-    validator,
-)
+from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
 from pydantic.json import pydantic_encoder
+from tabulate import tabulate
 
 from garden_ai.utils.misc import JSON
 
@@ -154,18 +148,27 @@ class Garden(BaseModel):
 
         return pipelines
 
-    def add_pipeline(self, pipeline_id: str, alias: Optional[str] = None):
+    def add_pipeline(
+        self, pipeline_id: str, alias: Optional[str] = None, replace=False
+    ):
         """
         Fetches the pipeline with the given DOI from the local database and adds it to this garden.
+
+        If replace=True, any pipeline with the same `short_name` will be
+            replaced, else raise a ValueError (default)
 
         Raises:
             ValueError: If any of the provided arguments would result in an invalid state.
         """
         if pipeline_id in self.pipeline_ids:
-            raise ValueError(
-                "Error: this pipeline is already attached to this garden. "
-                "to rename a pipeline, see `rename_pipeline`"
-            )
+            if replace:
+                self.remove_pipeline(pipeline_id)
+                self._pipeline_cache = self._collect_pipelines()
+            else:
+                raise ValueError(
+                    "Error: this pipeline is already attached to this garden. "
+                    "to rename a pipeline, see `rename_pipeline`"
+                )
 
         from .local_data import get_local_pipeline_by_doi
 
@@ -192,6 +195,17 @@ class Garden(BaseModel):
             self.rename_pipeline(pipeline_id, alias)
         return
 
+    def remove_pipeline(self, pipeline_id: str):
+        if pipeline_id not in self.pipeline_ids:
+            raise ValueError(
+                f"Error: no pipeline with DOI {pipeline_id} found in this garden. "
+            )
+        self.pipeline_ids.remove(pipeline_id)
+        if pipeline_id in self.pipeline_aliases:
+            del self.pipeline_aliases[pipeline_id]
+
+        return
+
     def expanded_metadata(self) -> Dict[str, Any]:
         """
         Helper method: builds the "complete" metadata dictionary with nested `Pipeline` and `step` metadata.
@@ -209,7 +223,7 @@ class Garden(BaseModel):
         """
         self._sync_author_metadata()
         data = self.dict()
-        data["pipelines"] = [p.dict() for p in self._pipeline_cache]
+        data["pipelines"] = [p.dict() for p in self._collect_pipelines()]
         return data
 
     def expanded_json(self) -> JSON:

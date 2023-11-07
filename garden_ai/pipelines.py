@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import logging
-
 from datetime import datetime
 from typing import Any, List, Optional, Union
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
 from pydantic import BaseModel, Field
-from tabulate import tabulate
 
-from garden_ai.app.console import console
+# from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
     Creator,
@@ -23,6 +21,7 @@ from garden_ai.datacite import (
 )
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import JSON
+
 
 logger = logging.getLogger()
 
@@ -96,7 +95,7 @@ class PipelineMetadata(BaseModel):
     doi: Optional[str] = Field(None)
     title: str = Field(...)
     authors: List[str] = Field(...)
-    short_name: str = Field(...)
+    short_name: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     tags: List[str] = Field(default_factory=list, unique_items=True)
@@ -157,30 +156,10 @@ class RegisteredPipeline(PipelineMetadata):
             endpoint = GardenConstants.DLHUB_ENDPOINT
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
-            # TODO: refactor below once the remote-calling interface is settled.
-            # console/spinner is good ux but shouldn't live this deep in the
-            # sdk.
-            with console.status(
-                f"[bold green] executing remotely on endpoint {endpoint}"
-            ):
-                future = gce.submit_to_registered_function(
-                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
-                )
-                return future.result()
-
-    def _repr_html_(self) -> str:
-        style = "<style>th {text-align: left;}</style>"
-        title = f"<h2>{self.title}</h2>"
-        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
-        optional = "<h3>Additional data</h3>" + tabulate(
-            [
-                (field, val)
-                for field, val in self.dict().items()
-                if field not in ("title", "authors", "doi", "steps") and val
-            ],
-            tablefmt="html",
-        )
-        return style + title + details + optional
+            future = gce.submit_to_registered_function(
+                function_id=str(self.func_uuid), args=args, kwargs=kwargs
+            )
+            return future.result()
 
     def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
@@ -204,3 +183,18 @@ class RegisteredPipeline(PipelineMetadata):
             if self.description
             else None,
         ).json()
+
+
+def garden_pipeline(
+    metadata: PipelineMetadata,
+    garden_doi: str = None,
+    model_connectors=None,
+):
+    def decorate(func):
+        # let func carry its own metadata
+        func._pipeline_meta = metadata.dict()
+        func._model_connectors = model_connectors or []
+        func._garden_doi = garden_doi
+        return func
+
+    return decorate
