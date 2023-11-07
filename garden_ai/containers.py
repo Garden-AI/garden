@@ -8,8 +8,6 @@ from typing import Optional
 import docker  # type: ignore
 import nbconvert  # type: ignore
 
-from rich.console import console
-
 JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary valid token, safe b/c port is only exposed to localhost
 
 
@@ -17,7 +15,8 @@ def start_container_with_notebook(
     client: docker.DockerClient,
     path: pathlib.Path,
     base_image: str,
-    platform="linux/x86_64", mount: bool = True
+    platform: str = "linux/x86_64",
+    mount: bool = True,
 ) -> docker.models.containers.Container:
     """
     Start a Docker container with a Jupyter Notebook server.
@@ -43,9 +42,7 @@ def start_container_with_notebook(
       and is exposed to the host on the same port.
     - The token for accessing the notebook is still the JUPYTER_TOKEN variable.
     """
-    # first check if the image is present, otherwise attempt to pull
-    with console.status(f"[bold green] Pulling image: {base_image}"):
-        client.images.pull(base_image, platform=platform)
+    client.images.pull(base_image, platform=platform)
 
     if mount:
         volumes = {str(path): {"bind": f"/garden/{path.name}", "mode": "rw"}}
