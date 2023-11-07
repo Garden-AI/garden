@@ -129,27 +129,25 @@ def build_notebook_session_image(
             f.write(dockerfile_content)
 
         # build the image and propagate logs
-        try:
-            print("Building image ...")
-            stream = client.api.build(
-                path=str(temp_dir_path), platform=platform, decode=True
-            )
-            image = None
-            for chunk in stream:
-                if "stream" in chunk:
-                    if print_logs:
-                        print(chunk["stream"].strip())
-                if "aux" in chunk and "ID" in chunk["aux"]:
-                    image_id = chunk["aux"]["ID"]
-                    image = client.images.get(image_id)
+        print("Building image ...")
+        stream = client.api.build(
+            path=str(temp_dir_path), platform=platform, decode=True
+        )
+        image = None
+        for chunk in stream:
+            if "stream" in chunk:
+                if print_logs:
+                    print(chunk["stream"].strip())
+            if "aux" in chunk and "ID" in chunk["aux"]:
+                image_id = chunk["aux"]["ID"]
+                image = client.images.get(image_id)
+            if "error" in chunk or "errorDetail" in chunk:
+                error_message = chunk.get(
+                    "error", chunk.get("errorDetail", {}).get("message", "")
+                )
+                print("Build failed:", error_message)
+                raise docker.errors.BuildError(reason=error_message, build_log=stream)
 
-        except docker.errors.BuildError as err:
-            print("Build failed")
-            if print_logs:
-                for chunk in err.build_log:
-                    if "stream" in chunk:
-                        print(chunk["stream"].strip())
-            raise
         return image
 
 
@@ -162,14 +160,14 @@ def extract_metadata_from_image(
 
     see also: `garden_ai.scripts.save_session_and_metadata`
     """
-    container = client.containers.run(
+    container_stdout = client.containers.run(
         image=image.id,
         entrypoint="/bin/sh",
         command=["-c", "cat /garden/metadata.json"],
         remove=True,
         detach=False,
     )
-    raw_metadata = container.decode("utf-8")
+    raw_metadata = container_stdout.decode("utf-8")
     return json.loads(raw_metadata)
 
 
@@ -202,9 +200,9 @@ def push_image_to_public_repo(
         if not print_logs:
             continue
         if "status" in log:
-            print(log["status"])
-            # include progress details if also present
             if "progress" in log:
-                print(f" - {log['progress']}", end="")
+                print(f"{log['status']} - {log['progress']}")
+            else:
+                print(log["status"])
 
     return f"docker.io/{repo_name}:{tag}"

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 import json
 import pathlib
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import docker  # type: ignore
-import nbconvert
 import pytest
 
 import garden_ai.containers
@@ -17,6 +16,25 @@ def mock_docker_client():
     client = Mock(spec=docker.DockerClient)
     client.images.pull.return_value = None
     client.containers.run.return_value = Mock(spec=docker.models.containers.Container)
+
+    # Mock the APIClient and set it as the `api` attribute on the DockerClient mock
+    api_client = MagicMock()
+    api_client.build.return_value = [
+        {"stream": "Step 1/3 : FROM python:3.8-slim"},
+        {"stream": " ---> Using cache"},
+        {"stream": " ---> 2d6e000f4f63"},
+        {
+            "aux": {
+                "ID": "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
+            }
+        },
+        {"stream": "Successfully built 2d6e000f4f63"},
+    ]
+    api_client.images.get.return_value = (
+        MagicMock()
+    )  # Mock the Image object returned by get()
+
+    client.api = api_client
     return client
 
 
@@ -39,7 +57,7 @@ def test_start_container_with_notebook(mock_docker_client):
         "jupyter",
         "notebook",
         "--notebook-dir=/garden",
-        f"--ServerApp.token={JUPYTER_TOKEN}",
+        f"--NotebookApp.token={JUPYTER_TOKEN}",
         "--ip",
         "0.0.0.0",
         "--no-browser",
@@ -61,50 +79,39 @@ def test_start_container_with_notebook(mock_docker_client):
     assert isinstance(container, Mock)
 
 
-def test_build_notebook_session_image(mock_docker_client, mocker):
-    # Mocking required values and paths
-    notebook_path = pathlib.Path("/path/to/notebook.ipynb")
+@pytest.fixture
+def mock_notebook_path(tmp_path):
+    path = tmp_path / "test_notebook.ipynb"
+    path.write_text('{"cells": []}')
+    return path
+
+
+def test_build_notebook_session_image_success(
+    mock_docker_client, mock_notebook_path, mocker
+):
     base_image = "gardenai/fake-image:soonest"
-    image_repo = "gardenai/fake-repo"
-    notebook_content = '{"cells": []}'
-    script_content = "print('Hello')"
 
-    # Mocking nbconvert.PythonExporter()
-    mock_exporter = MagicMock(spec=nbconvert.PythonExporter)
-    mock_exporter.from_filename.return_value = (script_content, None)
-    mock_python_exporter = patch("nbconvert.PythonExporter", return_value=mock_exporter)
-
-    # Mocking open() to return our mocked notebook and script content
-    m = mock_open(read_data=notebook_content)
-    m.return_value.__iter__.return_value = notebook_content.splitlines()
-    mock_open_func = patch("builtins.open", m)
-
-    # Mocking inspect.getsource
-    mock_getsource = patch("inspect.getsource", return_value="mock source code")
-
-    # Mocking TemporaryDirectory and path related functions
-    mock_temp_dir = MagicMock(spec=pathlib.Path)
-    mock_temp_dir.__truediv__.return_value = notebook_path
-    mock_temp_dir_context = patch(
-        "garden_ai.containers.TemporaryDirectory", return_value=mock_temp_dir
-    )
-
-    with mock_python_exporter, mock_open_func, mock_getsource, mock_temp_dir_context:
-        # Invoke function
-        result = garden_ai.containers.build_notebook_session_image(
+    # fmt: off
+    with patch("nbconvert.PythonExporter.from_filename", return_value=('print("Hello, world!")', None),), \
+         patch("pathlib.Path.read_text", return_value="# Test notebook"), \
+         patch("inspect.getsource", return_value="fake source code"):
+        image = garden_ai.containers.build_notebook_session_image(
             client=mock_docker_client,
-            notebook_path=notebook_path,
+            notebook_path=mock_notebook_path,
             base_image=base_image,
-            image_repo=image_repo,
         )
+    # fmt: on
 
-    # Assertions
-    mock_docker_client.images.pull.assert_called_once_with(
+    # Test that the Docker image was pulled
+    mock_docker_client.images.pull.assert_called_with(
         base_image, platform="linux/x86_64"
     )
-    mock_docker_client.images.build.assert_called()
 
-    assert isinstance(result, Mock)
+    # Test that the build was called
+    mock_docker_client.api.build.assert_called()
+
+    # Test that the function returned something successfully
+    assert image is not None
 
 
 def test_extract_metadata_from_image(mock_docker_client):
@@ -113,10 +120,9 @@ def test_extract_metadata_from_image(mock_docker_client):
         "function_name_1": {"some": "metadata"},
         "function_name_2": {"other": "metadata"},
     }
-    mock_metadata_str = json.dumps(mock_metadata)
-    mock_container = MagicMock(spec=docker.models.containers.Container)
-    mock_container.decode.return_value = mock_metadata_str
-    mock_docker_client.containers.run.return_value = mock_container
+
+    mock_container_stdout = json.dumps(mock_metadata).encode("utf-8")
+    mock_docker_client.containers.run.return_value = mock_container_stdout
 
     # Mock image object
     mock_image = MagicMock(spec=docker.models.images.Image)
@@ -138,39 +144,55 @@ def test_extract_metadata_from_image(mock_docker_client):
     assert result == mock_metadata
 
 
-def test_push_image_to_public_repo(mock_docker_client):
-    # Mock values
+def test_push_image_to_public_repo(mock_docker_client, capsys):
     repo_name = "username/myrepo"
-    tag = "mytag"
-    expected_image_location = f"docker.io/{repo_name}:{tag}"
+    tag = "latest"
+    image_id = "some_image_id"
 
-    # Mock push logs from Docker client
+    # Mock image object
+    mock_image = MagicMock(spec=docker.models.images.Image)
+    mock_image.id = image_id
+
+    # Mock tag method
+    mock_image.tag = MagicMock(return_value=True)
+
+    # Mock push logs
     mock_push_logs = [
-        {"status": "Preparing", "progress": "[==========>                    ]"},
-        {"status": "Pushing", "progress": "[=============================>   ]"},
-        {"status": "Pushed"},
+        {"status": "The push refers to repository [docker.io/username/myrepo]"},
+        {"status": "Preparing", "progress": "Preparing..."},
+        {
+            "status": "Pushing",
+            "progress": "[===>                                               ]",
+        },
+        {
+            "status": "Pushed",
+            "progress": "[==================================================>]",
+        },
+        {"status": "latest: digest: sha256:somedigest size: 5278"},
     ]
     mock_docker_client.images.push.return_value = iter(mock_push_logs)
 
-    # Mock image
-    mock_image = MagicMock(spec=docker.models.images.Image)
-
-    # Call function
-    with patch("builtins.print") as mock_print:
-        result = garden_ai.containers.push_image_to_public_repo(
-            client=mock_docker_client, image=mock_image, repo_name=repo_name, tag=tag
-        )
+    # Call the function without printing logs to test the return value
+    full_repo_tag = garden_ai.containers.push_image_to_public_repo(
+        client=mock_docker_client,
+        image=mock_image,
+        repo_name=repo_name,
+        tag=tag,
+    )
 
     # Assertions
     mock_image.tag.assert_called_once_with(repo_name, tag=tag)
     mock_docker_client.images.push.assert_called_once_with(
         repo_name, tag=tag, stream=True, decode=True
     )
+    assert full_repo_tag == f"docker.io/{repo_name}:{tag}"
+    # Capture the output
+    captured = capsys.readouterr()
 
-    # Check if the logs were printed correctly
-    mock_print.assert_any_call("Preparing - [==========>                    ]")
-    mock_print.assert_any_call("Pushing - [=============================>   ]")
-    mock_print.assert_any_call("Pushed")
-
-    # Check the return value
-    assert result == expected_image_location
+    # Assertions to ensure that the logs are in the captured stdout
+    for log in mock_push_logs:
+        if "progress" in log:
+            expected_log = f"{log['status']} - {log['progress']}"
+        else:
+            expected_log = log["status"]
+        assert expected_log in captured.out

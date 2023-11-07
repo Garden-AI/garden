@@ -92,6 +92,7 @@ def start(
         base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
     )
     _put_notebook_base_image(notebook_path, base_image)
+    print(f"Using base image: {base_image}")
 
     # start container and listen for Ctrl-C
     docker_client = docker.from_env()
@@ -169,6 +170,7 @@ def publish(
         base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
     )
     _put_notebook_base_image(notebook_path, base_image)
+    print(f"Using base image: {base_image}")
 
     # check for preferred image repository
     image_repo = image_repo or local_data._get_user_image_repo()
@@ -178,11 +180,12 @@ def publish(
     else:
         # remember for next time
         local_data._store_user_image_repo(image_repo)
+    print(f"Using image repository: {image_repo}")
 
     # Build the image
     docker_client = docker.from_env()
     image = build_notebook_session_image(
-        docker_client, notebook_path, base_image, image_repo, print_logs=verbose
+        docker_client, notebook_path, base_image, print_logs=verbose
     )
     if image is None:
         typer.echo("Failed to build image.")
@@ -192,8 +195,8 @@ def publish(
     # generate tag and and push image to dockerhub
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     image_tag = f"{notebook_path.stem}-{timestamp}"
-    typer.echo(f"Pushing image to repository: {image_repo}")
 
+    typer.echo(f"Pushing image to repository: {image_repo}")
     image_location = push_image_to_public_repo(
         docker_client, image, image_repo, image_tag, print_logs=verbose
     )
