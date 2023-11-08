@@ -160,12 +160,13 @@ def debug(
     image = build_notebook_session_image(
         docker_client, path, base_image, print_logs=False
     )
+    image_name = str(image.tags[0])  # str used to guarantee type-check
 
     top_level_dir = Path(__file__).parent.parent
     debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
 
     container = start_container_with_notebook(
-        docker_client, debug_path, image, mount=False
+        docker_client, debug_path, image_name, mount=False
     )
     _register_container_sigint_handler(container)
 
