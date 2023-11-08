@@ -139,9 +139,15 @@ def _register_container_sigint_handler(container: docker.models.containers.Conta
 
 @notebook_app.command()
 def debug(
-    image: str = typer.Argument(
+    path: Path = typer.Argument(
         ...,
-        help=("Name/ID for a local planted container image to debug."),
+        file_okay=True,
+        dir_okay=False,
+        writable=True,
+        readable=True,
+        help=(
+            "Path to a .ipynb notebook whose remote environment will be approximated for debugging."
+        ),
     )
 ):
     """Open the debugging notebook in a pre-prepared container.
@@ -149,10 +155,13 @@ def debug(
     Changes to the notebook file will NOT persist after the container shuts down.
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
     """
+    docker_client = docker.from_env()
+    base_image = _get_notebook_base_image(path) or "gardenai/test:latest"
+    image = build_notebook_session_image(docker_client, path, base_image, print_logs=False)
+
     top_level_dir = Path(__file__).parent.parent
     debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
 
-    docker_client = docker.from_env()
     container = start_container_with_notebook(
         docker_client, debug_path, image, mount=False
     )
