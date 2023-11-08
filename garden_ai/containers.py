@@ -214,12 +214,19 @@ def push_image_to_public_repo(
     # push the image to the new repository and stream logs
     push_logs = client.images.push(repo_name, tag=tag, stream=True, decode=True)
     for log in push_logs:
-        if not print_logs:
-            continue
-        if "status" in log:
-            if "progress" in log:
-                print(f"{log['status']} - {log['progress']}")
-            else:
-                print(log["status"])
+        if "error" in log:
+            # docker sdk doesn't throw its own exception if the repo doesn't
+            # exist or the push fails, just records the error in logs
+            error_message = log["error"]
+            raise docker.errors.InvalidRepository(
+                f"Error pushing image to {repo_name}:{tag} - {error_message}"
+            )
+
+        if print_logs:
+            if "status" in log:
+                if "progress" in log:
+                    print(f"{log['status']} - {log['progress']}")
+                else:
+                    print(log["status"])
 
     return f"docker.io/{repo_name}:{tag}"
