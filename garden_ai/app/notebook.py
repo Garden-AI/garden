@@ -157,7 +157,9 @@ def debug(
     """
     docker_client = docker.from_env()
     base_image = _get_notebook_base_image(path) or "gardenai/test:latest"
-    image = build_notebook_session_image(docker_client, path, base_image, print_logs=False)
+    image = build_notebook_session_image(
+        docker_client, path, base_image, print_logs=False
+    )
 
     top_level_dir = Path(__file__).parent.parent
     debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
