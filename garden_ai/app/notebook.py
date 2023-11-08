@@ -137,7 +137,7 @@ def _register_container_sigint_handler(container: docker.models.containers.Conta
     return
 
 
-@notebook_app.command()
+@notebook_app.command(no_args_is_help=True)
 def debug(
     path: Path = typer.Argument(
         ...,
@@ -191,7 +191,7 @@ def debug(
     return
 
 
-@notebook_app.command()
+@notebook_app.command(no_args_is_help=True)
 def publish(
     path: Path = typer.Argument(
         ...,
