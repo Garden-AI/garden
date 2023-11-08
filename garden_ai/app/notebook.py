@@ -160,6 +160,9 @@ def debug(
     image = build_notebook_session_image(
         docker_client, path, base_image, print_logs=False
     )
+    if image is None:
+        typer.echo("Failed to build image.")
+        raise typer.Exit(1)
     image_name = str(image.tags[0])  # str used to guarantee type-check
 
     top_level_dir = Path(__file__).parent.parent
