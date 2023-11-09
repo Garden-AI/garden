@@ -22,6 +22,8 @@ from garden_ai.datacite import (
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import JSON
 
+# from tabulate import tabulate
+
 
 logger = logging.getLogger()
 
@@ -160,6 +162,20 @@ class RegisteredPipeline(PipelineMetadata):
                 function_id=str(self.func_uuid), args=args, kwargs=kwargs
             )
             return future.result()
+
+    # def _repr_html_(self) -> str:
+    #     style = "<style>th {text-align: left;}</style>"
+    #     title = f"<h2>{self.title}</h2>"
+    #     details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+    #     optional = "<h3>Additional data</h3>" + tabulate(
+    #         [
+    #             (field, val)
+    #             for field, val in self.dict().items()
+    #             if field not in ("title", "authors", "doi", "steps") and val
+    #         ],
+    #         tablefmt="html",
+    #     )
+    #     return style + title + details + optional
 
     def datacite_json(self) -> JSON:
         """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""

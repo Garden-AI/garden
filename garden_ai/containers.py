@@ -1,6 +1,8 @@
 import inspect
 import json
+import os
 import pathlib
+import tarfile
 from tempfile import TemporaryDirectory
 from typing import Optional
 
@@ -14,7 +16,9 @@ def start_container_with_notebook(
     client: docker.DockerClient,
     path: pathlib.Path,
     base_image: str,
-    platform="linux/x86_64",
+    platform: str = "linux/x86_64",
+    mount: bool = True,
+    pull: bool = True,
 ) -> docker.models.containers.Container:
     """
     Start a Docker container with a Jupyter Notebook server.
@@ -29,6 +33,10 @@ def start_container_with_notebook(
     - base_image (str): The Docker image to be used as the base. It should
       have Jupyter pre-installed.
     - platform (str): Passed directly to docker sdk. Defaults to "linux/x86_64".
+    - mount (bool): Whether the notebook should be mounted (True) or just
+      copied in (False).
+    - pull (bool): Whether the base_image exists locally or needs to be
+      pulled down.
 
     Returns:
     - docker.models.containers.Container: The started container object.
@@ -38,13 +46,20 @@ def start_container_with_notebook(
       and is exposed to the host on the same port.
     - The token for accessing the notebook is still the JUPYTER_TOKEN variable.
     """
-    client.images.pull(base_image, platform=platform)
+    if pull:
+        client.images.pull(base_image, platform=platform)
+
+    if mount:
+        volumes = {str(path): {"bind": f"/garden/{path.name}", "mode": "rw"}}
+    else:
+        volumes = {}
+
     container = client.containers.run(
         base_image,
         platform="linux/x86_64",
         detach=True,
         ports={"8888/tcp": 8888},
-        volumes={str(path): {"bind": f"/garden/{path.name}", "mode": "rw"}},
+        volumes=volumes,
         entrypoint=[
             "jupyter",
             "notebook",
@@ -59,6 +74,27 @@ def start_container_with_notebook(
         tty=True,
         remove=True,
     )
+
+    if not mount:
+        with TemporaryDirectory() as temp_dir:
+            temp_dir_path = pathlib.Path(temp_dir)
+            temp_tar_path = f"{str(temp_dir_path / path.name)}.tar"
+
+            # when the notebook is added to tar, do not include parent dirs
+            # by changing the workdir to the parent of the notebook
+            curr_dir = os.getcwd()
+            os.chdir(path.parent)
+
+            with tarfile.open(temp_tar_path, mode="w") as tar:
+                tar.add(path.name)
+            with open(temp_tar_path, "rb") as f:
+                stream = f.read()
+
+            # explicitly return to previous directory
+            os.chdir(curr_dir)
+
+        container.put_archive("/garden", stream)
+
     return container
 
 
@@ -66,8 +102,8 @@ def build_notebook_session_image(
     client: docker.DockerClient,
     notebook_path: pathlib.Path,
     base_image: str,
-    platform="linux/x86_64",
-    print_logs=True,
+    platform: str = "linux/x86_64",
+    print_logs: bool = True,
 ) -> Optional[docker.models.images.Image]:
     """
     Build the docker image to register with Globus Compute locally.
@@ -176,7 +212,7 @@ def push_image_to_public_repo(
     image: docker.models.images.Image,
     repo_name: str,
     tag: str,
-    print_logs=True,
+    print_logs: bool = True,
 ) -> str:
     """
     Tags and pushes a Docker image to a new public repository.
