@@ -85,7 +85,7 @@ def start(
             ]
         )
         raise Exception(
-            f"The image '{base_image}' is not one of the Garen base images. The current Garden base images are: \n{premade_images}"
+            f"The image '{base_image}' is not one of the Garden base images. The current Garden base images are: \n{premade_images}"
         )
 
     base_image = (
@@ -100,9 +100,12 @@ def start(
     _register_container_sigint_handler(container)
 
     typer.echo(
-        f"Notebook started! Opening http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN} in your default browser (you may need to refresh the page)"
+        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN} "
+        "in your default browser (you may need to refresh the page)"
     )
-    webbrowser.open_new_tab(f"http://127.0.0.1:8888/tree?token={JUPYTER_TOKEN}")
+    webbrowser.open_new_tab(
+        f"http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN}"
+    )
 
     # stream logs from the container
     for line in container.logs(stream=True):
@@ -145,6 +148,7 @@ def debug(
         dir_okay=False,
         writable=True,
         readable=True,
+        exists=True,
         help=(
             "Path to a .ipynb notebook whose remote environment will be approximated for debugging."
         ),
@@ -158,27 +162,27 @@ def debug(
     docker_client = docker.from_env()
     base_image = _get_notebook_base_image(path) or "gardenai/test:latest"
     image = build_notebook_session_image(
-        docker_client, path, base_image, print_logs=False
+        docker_client, path, base_image, print_logs=True
     )
     if image is None:
         typer.echo("Failed to build image.")
         raise typer.Exit(1)
-    image_name = str(image.tags[0])  # str used to guarantee type-check
+    image_name = str(image.id)  # str used to guarantee type-check
 
     top_level_dir = Path(__file__).parent.parent
     debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
 
     container = start_container_with_notebook(
-        docker_client, debug_path, image_name, mount=False
+        docker_client, debug_path, image_name, mount=False, pull=False
     )
     _register_container_sigint_handler(container)
 
     typer.echo(
-        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/debug.ipynb?token={JUPYTER_TOKEN} "
+        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{debug_path.name}?token={JUPYTER_TOKEN} "
         "in your default browser (you may need to refresh the page)"
     )
     webbrowser.open_new_tab(
-        f"http://127.0.0.1:8888/notebooks/debug.ipynb?token={JUPYTER_TOKEN}"
+        f"http://127.0.0.1:8888/notebooks/{debug_path.name}?token={JUPYTER_TOKEN}"
     )
 
     # stream logs from the container
