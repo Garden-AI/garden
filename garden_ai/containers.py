@@ -93,7 +93,7 @@ def start_container_with_notebook(
             # explicitly return to previous directory
             os.chdir(curr_dir)
 
-            container.put_archive("/garden", stream)
+        container.put_archive("/garden", stream)
 
     return container
 
