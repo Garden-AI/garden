@@ -15,6 +15,7 @@ from garden_ai.containers import (
     push_image_to_public_repo,
     start_container_with_notebook,
 )
+from garden_ai.client import NotebookImageMetadata
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 
 logger = logging.getLogger()
@@ -250,7 +251,10 @@ def publish(
         raise typer.Exit(1)
     typer.echo(f"Built image: {image}")
 
-    # generate tag and and push image to dockerhub
+    # get the raw notebook JSON to pass along to the UI
+    raw_notebook_contents = notebook_path.read_text()
+
+    # generate tag and push image to dockerhub
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     image_tag = f"{notebook_path.stem}-{timestamp}"
 
@@ -260,4 +264,9 @@ def publish(
     )
     typer.echo(f"Successfully pushed image to: {image_location}")
     # register container and pipelines with globus compute; re-publish gardens
-    client._register_and_publish_from_user_image(docker_client, image, image_location)
+    notebook_image_metadata = NotebookImageMetadata(
+        base_image, image_location, raw_notebook_contents
+    )
+    client._register_and_publish_from_user_image(
+        docker_client, image, notebook_image_metadata
+    )

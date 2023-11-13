@@ -32,11 +32,10 @@ if __name__ == "__main__":
         connector_key = f"{key_name}.connectors"
         doi_key = f"{key_name}.garden_doi"
 
-        total_meta[key_name] = marked._pipeline_meta
-        # TODO add these as regular fields in PipelineMetadata/ RegisteredPipeline?
-        total_meta[connector_key] = [
+        marked._pipeline_meta.models += [
             connector.metadata for connector in marked._model_connectors
         ]
+        total_meta[key_name] = marked._pipeline_meta
         if marked._garden_doi:
             total_meta[doi_key] = marked._garden_doi
 
