@@ -116,7 +116,6 @@ class RegisteredPipeline(PipelineMetadata):
     Attributes:
         func_uuid: The ID of the Globus Compute function registered for this pipeline.
         container_uuid: ID returned from Globus Compute's register_container.
-        base_image_name: The name of the base image selected by the user. eg, "3.9-base"
         base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
         full_image_uri: The name and location of the complete image used by this pipeline.
         notebook: Full JSON string of the notebook used to define this pipeline's environment.
@@ -127,7 +126,6 @@ class RegisteredPipeline(PipelineMetadata):
     )  # Repeating this field from base class because DOI is mandatory for RegisteredPipeline
     func_uuid: UUID = Field(...)
     container_uuid: UUID = Field(...)
-    base_image_name: Optional[str] = Field(None)
     base_image_uri: Optional[str] = Field(None)
     full_image_uri: Optional[str] = Field(None)
     notebook: Optional[str] = Field(None)
@@ -207,9 +205,10 @@ def garden_pipeline(
     model_connectors=None,
 ):
     def decorate(func):
+        if model_connectors:
+            metadata.models += [connector.metadata for connector in model_connectors]
         # let func carry its own metadata
         func._pipeline_meta = metadata.dict()
-        func._model_connectors = model_connectors or []
         func._garden_doi = garden_doi
         return func
 

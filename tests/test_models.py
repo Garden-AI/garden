@@ -4,7 +4,10 @@ from garden_ai import (
     PublishedGarden,
     RegisteredPipeline,
     local_data,
+    garden_pipeline,
+    PipelineMetadata,
 )
+from garden_ai.model_connectors import HFConnector
 
 
 def test_create_empty_garden(garden_client):
@@ -45,3 +48,28 @@ def test_garden_can_access_pipeline_as_attribute(
     garden = local_data.get_local_garden_by_doi("10.23677/fake-doi")
     published = PublishedGarden.from_garden(garden)
     assert isinstance(published.fixture_pipeline, RegisteredPipeline)
+
+
+def test_garden_pipeline_decorator():
+    pipeline_meta = PipelineMetadata(
+        title="My Pipeline",
+        authors=["Willie", "Waylon", "Johnny", "Kris"],
+        description="A garden pipeline",
+        tags=["garden_ai"],
+    )
+
+    model_connector = HFConnector("willengler-uc/iris-classifier")
+
+    @garden_pipeline(
+        metadata=pipeline_meta,
+        model_connectors=[model_connector],
+        garden_doi="10.23677/fake-doi",
+    )
+    def my_pipeline():
+        pass
+
+    assert my_pipeline._pipeline_meta["title"] == "My Pipeline"
+    models = my_pipeline._pipeline_meta["models"]
+    assert len(models) == 1
+    assert models[0]["model_identifier"] == "willengler-uc/iris-classifier"
+    assert my_pipeline._garden_doi == "10.23677/fake-doi"

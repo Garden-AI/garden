@@ -224,11 +224,11 @@ def publish(
         raise ValueError(f"Could not find file at {notebook_path}")
 
     # check for preferred base image
-    base_image = (
+    base_image_location = (
         base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
     )
-    _put_notebook_base_image(notebook_path, base_image)
-    print(f"Using base image: {base_image}")
+    _put_notebook_base_image(notebook_path, base_image_location)
+    print(f"Using base image: {base_image_location}")
 
     # check for preferred image repository
     image_repo = image_repo or local_data._get_user_image_repo()
@@ -243,21 +243,29 @@ def publish(
     # Build the image
     docker_client = docker.from_env()
     image = build_notebook_session_image(
-        docker_client, notebook_path, base_image, print_logs=verbose
+        docker_client, notebook_path, base_image_location, print_logs=verbose
     )
     if image is None:
         typer.echo("Failed to build image.")
         raise typer.Exit(1)
     typer.echo(f"Built image: {image}")
 
-    # generate tag and and push image to dockerhub
+    # get the raw notebook JSON to pass along to the UI
+    raw_notebook_contents = notebook_path.read_text()
+
+    # generate tag and push image to dockerhub
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     image_tag = f"{notebook_path.stem}-{timestamp}"
 
     typer.echo(f"Pushing image to repository: {image_repo}")
-    image_location = push_image_to_public_repo(
+    full_image_location = push_image_to_public_repo(
         docker_client, image, image_repo, image_tag, print_logs=verbose
     )
-    typer.echo(f"Successfully pushed image to: {image_location}")
-    # register container and pipelines with globus compute; re-publish gardens
-    client._register_and_publish_from_user_image(docker_client, image, image_location)
+    typer.echo(f"Successfully pushed image to: {full_image_location}")
+    client._register_and_publish_from_user_image(
+        docker_client,
+        image,
+        base_image_location,
+        full_image_location,
+        raw_notebook_contents,
+    )
