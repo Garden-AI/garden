@@ -205,9 +205,10 @@ def garden_pipeline(
     model_connectors=None,
 ):
     def decorate(func):
+        if model_connectors:
+            metadata.models += [connector.metadata for connector in model_connectors]
         # let func carry its own metadata
         func._pipeline_meta = metadata.dict()
-        func._model_connectors = model_connectors or []
         func._garden_doi = garden_doi
         return func
 
