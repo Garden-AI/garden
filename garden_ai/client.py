@@ -1,5 +1,4 @@
 # mypy: disable-error-code="import"
-from dataclasses import dataclass
 import json
 import logging
 import os
