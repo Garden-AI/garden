@@ -77,15 +77,6 @@ def test_garden_pipeline_decorator():
 
 
 def test_garden_step_decorator():
-    pipeline_meta = PipelineMetadata(
-        title="My Pipeline",
-        authors=["Willie", "Waylon", "Johnny", "Kris"],
-        description="A garden pipeline",
-        tags=["garden_ai"],
-    )
-
-    model_connector = HFConnector("willengler-uc/iris-classifier")
-
     @garden_step(description="My nifty step")
     def my_step():
         pass
