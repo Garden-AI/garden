@@ -539,10 +539,11 @@ class GardenClient:
         )
 
         metadata = extract_metadata_from_image(docker_client, image)
+        common_steps = metadata.pop("steps")
 
         for key, record in metadata.items():
             if "." in key:
-                # skip "{key}.garden_doi" and "{key}.connectors" for now
+                # skip "{key}.garden_doi" and "{key}.pipeline_step" for now
                 continue
 
             # register function & populate RegisteredPipeline fields
@@ -551,6 +552,10 @@ class GardenClient:
             record["func_uuid"] = self.compute_client.register_function(
                 to_register, container_uuid=str(container_uuid), public=True
             )
+            pipeline_step = metadata.get(f"{key}.pipeline_step")
+            all_steps = common_steps[:]
+            all_steps.append(pipeline_step)
+            record["steps"] = all_steps
             record["doi"] = record.get("doi") or self._mint_draft_doi()
             record["short_name"] = record.get("short_name") or key
             record["notebook"] = notebook_contents

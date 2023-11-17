@@ -5,6 +5,7 @@ from garden_ai import (
     RegisteredPipeline,
     local_data,
     garden_pipeline,
+    garden_step,
     PipelineMetadata,
 )
 from garden_ai.model_connectors import HFConnector
@@ -68,8 +69,17 @@ def test_garden_pipeline_decorator():
     def my_pipeline():
         pass
 
-    assert my_pipeline._pipeline_meta["title"] == "My Pipeline"
-    models = my_pipeline._pipeline_meta["models"]
+    assert my_pipeline._garden_pipeline.title == "My Pipeline"
+    models = my_pipeline._garden_pipeline.models
     assert len(models) == 1
-    assert models[0]["model_identifier"] == "willengler-uc/iris-classifier"
-    assert my_pipeline._garden_doi == "10.23677/fake-doi"
+    assert models[0].model_identifier == "willengler-uc/iris-classifier"
+    assert my_pipeline._garden_pipeline._target_garden_doi == "10.23677/fake-doi"
+
+
+def test_garden_step_decorator():
+    @garden_step(description="My nifty step")
+    def my_step():
+        pass
+
+    assert my_step._garden_step.function_name == "my_step"
+    assert my_step._garden_step.description == "My nifty step"

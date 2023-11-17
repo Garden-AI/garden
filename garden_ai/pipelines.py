@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import inspect
 import logging
 from datetime import datetime
 from typing import Any, List, Optional, Union
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
-# from garden_ai.app.console import console
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
     Creator,
@@ -73,6 +73,24 @@ class Paper(BaseModel):
     citation: Optional[str] = Field(None)
 
 
+class Step(BaseModel):
+    """
+    The `Step` class represents a key function in a pipeline that a publisher wants to highlight.
+
+    Attributes:
+        function_name (str):
+            The name of the step function.
+        function_text (str):
+            The full Python code that makes up the function.
+        description (str):
+            An optional string describing the function.
+    """
+
+    function_name: str = Field(...)
+    function_text: str = Field(...)
+    description: Optional[str] = Field(None)
+
+
 class PipelineMetadata(BaseModel):
     """Metadata for a pipeline prior to its registration. \
     Passed to the `garden_pipeline` decorator during the registration process.
@@ -104,6 +122,10 @@ class PipelineMetadata(BaseModel):
     models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
+    _target_garden_doi: Optional[str] = PrivateAttr(
+        None
+    )  # Used internally for publishing.
+    _as_step: Optional[Step] = PrivateAttr(None)  # Used internally for publishing.
 
 
 class RegisteredPipeline(PipelineMetadata):
@@ -119,6 +141,7 @@ class RegisteredPipeline(PipelineMetadata):
         base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
         full_image_uri: The name and location of the complete image used by this pipeline.
         notebook: Full JSON string of the notebook used to define this pipeline's environment.
+        steps: Ordered list of Python functions that the pipeline author wants to highlight.
     """
 
     doi: str = Field(
@@ -129,6 +152,7 @@ class RegisteredPipeline(PipelineMetadata):
     base_image_uri: Optional[str] = Field(None)
     full_image_uri: Optional[str] = Field(None)
     notebook: Optional[str] = Field(None)
+    steps: List[Step] = Field(default_factory=list)
 
     def __call__(
         self,
@@ -149,8 +173,6 @@ class RegisteredPipeline(PipelineMetadata):
 
         Returns:
             Results from the pipeline's composed steps called with the given input data.
-
-
         """
         if not endpoint:
             endpoint = GardenConstants.DLHUB_ENDPOINT
@@ -207,9 +229,26 @@ def garden_pipeline(
     def decorate(func):
         if model_connectors:
             metadata.models += [connector.metadata for connector in model_connectors]
+        metadata._as_step = Step(
+            function_text=inspect.getsource(func),
+            function_name=func.__name__,
+            description="Top level pipeline function",
+        )
+        metadata._target_garden_doi = garden_doi
         # let func carry its own metadata
-        func._pipeline_meta = metadata.dict()
-        func._garden_doi = garden_doi
+        func._garden_pipeline = metadata
+        return func
+
+    return decorate
+
+
+def garden_step(description: str = None):
+    def decorate(func):
+        func._garden_step = Step(
+            function_text=inspect.getsource(func),
+            function_name=func.__name__,
+            description=description,
+        )
         return func
 
     return decorate
