@@ -84,12 +84,14 @@ def start(
                 for image_name in list(GardenConstants.PREMADE_IMAGES.keys())
             ]
         )
-        raise Exception(
+        logger.warning(
             f"The image '{base_image}' is not one of the Garden base images. The current Garden base images are: \n{premade_images}"
         )
 
     base_image = (
-        base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
+        base_image
+        or _get_notebook_base_image(notebook_path)
+        or "gardenai/base:python-3.10-jupyter"
     )
     _put_notebook_base_image(notebook_path, base_image)
     print(f"Using base image: {base_image}")
@@ -160,7 +162,7 @@ def debug(
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
     """
     docker_client = docker.from_env()
-    base_image = _get_notebook_base_image(path) or "gardenai/test:latest"
+    base_image = _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
     image = build_notebook_session_image(
         docker_client, path, base_image, print_logs=True
     )
@@ -225,7 +227,9 @@ def publish(
 
     # check for preferred base image
     base_image_location = (
-        base_image or _get_notebook_base_image(notebook_path) or "gardenai/test:latest"
+        base_image
+        or _get_notebook_base_image(notebook_path)
+        or "gardenai/base:python-3.10-jupyter"
     )
     _put_notebook_base_image(notebook_path, base_image_location)
     print(f"Using base image: {base_image_location}")
