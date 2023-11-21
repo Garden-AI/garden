@@ -6,7 +6,6 @@ nav:
       - Introduction: user_guide/introduction.md
       - Installation: user_guide/installation.md
       - Tutorial: user_guide/tutorial.md
-      - Serialization: user_guide/serialization.md
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
       - Remote Pipelines without garden-ai: developer_guide/Remote_pipelines_without_garden_dependency.md
