@@ -1,63 +1,169 @@
 
-## Tutorial: Develop a Garden from Scratch
+## Tutorial: Develop a Garden and Pipeline from Scratch
 
-This tutorial will guide you through developing a Garden from scratch: creating and registering a Pipeline, adding the Pipeline to your Garden, and publishing your Garden. It will then show you how to use published Gardens, including how to find a published Garden and execute its pipeline(s) on a remote Globus Compute endpoint of choice.
+This tutorial will walk you through a simple end-to-end example of developing a single `Pipeline` from scratch in a notebook; publishing it to a new `Garden`; and finally running the Pipeline remotely via that `Garden`.
 
+This means doing the following:
+- Create a new Garden using the CLI (`garden-ai garden create`)
+- Open a notebook using the CLI (`garden-ai notebook start`)
+- Define and decorate a function in the notebook to make it a `Pipeline`
+	- Optional: debug the completed notebook (`garden-ai notebook debug`)
+- Publish the notebook using the CLI, attaching the `Pipeline` to the `Garden` in the process (`garden-ai notebook publish`)
+- Test remote execution from anywhere on our tutorial endpoint
 #### Prerequisites
+- You'll need the `garden-ai` CLI as well as a local install of `docker` logged in to a Dockerhub account with a public image repository. See [installation](installation.md) for more details.
+- We've used huggingface to host the [sample model weights](https://huggingface.co/Garden-AI/sklearn-seedling/tree/main) for this tutorial. If you're following along with your own pretrained model weights, you will likely also want a huggingface account to do the same.
 
-1. The Garden CLI [installed](../installation) on your system.
+### Step 0: Train Your Model
+Garden is geared towards publishing and sharing models which have already been trained. If you don't have one handy, we'd recommend training a small model using one of the scikit-learn [toy datasets](https://scikit-learn.org/stable/datasets/toy_dataset.html) and uploading the weights to a public huggingface repo in order to follow along.
 
+### Step 1: Creating a New Garden
+First, we're going to make a new `Garden` using the CLI so that we can eventually share our `Pipeline` with others. Before we've added any `Pipeline`s, a brand new `Garden` is going to be nothing more than some citation metadata, which is at least a title, one or more authors, and a year (the minimum needed mint a DOI).
 
-### Create a Pipeline
-
-> [!NOTE] Note
-> Pipeline creation is currently under construction. Check back soon. 👷🏽
-
-
-### Register a Pipeline
-
-> [!NOTE] Note
-> Pipeline registration is currently under construction. Check back soon. 👷🏽
-
-### Create Your Garden
-
-With your pipeline registered, it's time to create a Garden to house your pipeline(s). Use the Garden CLI to create your Garden:
-
+Here's what this might look like:
 ```bash
 garden-ai garden create \
 	--title "Garden of Live Flowers" \
 	--author "The Red Queen" --year 1871
 ```
 
-The output of this will give you a DOI you can use to reference this garden in other commands.
+To see the full list of metadata fields you can specify from the CLI, try `garden-ai garden create --help`.
 
-### Add Pipeline to Your Garden
-
-You can add your registered pipeline to your newly created garden using the `garden add-pipeline` subcommand, like so:
-
+In the output of that command, you should see something like:
 ```bash
-garden-ai garden add-pipeline \
-	--garden='10.garden/doi' \
-	--pipeline='10.pipeline/doi'
+...
+Garden 'Garden of Live Flowers' created with DOI: 10.23677/z2b3-3p02
+```
+
+Make a note of this DOI for later, so we can publish our `Pipeline` to this specific `Garden` (see also: `garden-ai garden list` to list all local `Garden`s).
+
+### Step 2: Starting the Notebook
+
+We're going to define our `Pipeline` in a regular Jupyter notebook file (`.ipynb`) on our local filesystem, which we can open and edit with the `garden-ai notebook start [path/to/my.ipynb]` command. We're using a scikit-learn model and python 3.10 for this tutorial, so we'll choose the `3.10-sklearn` base image from the CLI, like so:
+```bash
+garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn
 ```
 
 
 > [!NOTE] Note
-> If adding the pipeline to an already-published Garden, you specify the Garden by its DOI. You'll need to publish the Garden again for others to see the new Pipeline, however.
+> If you open the same notebook again later, you can omit the `--base-image` argument to default to the most recently used base image.
 
-### Publish Your Garden
-
-Finally, after creating your Garden and adding the pipeline, it's time to publish your Garden:
+This might take a little while to download the base image (if necessary) but should automatically open the notebook in your default browser, where you can edit the notebook. You should eventually see output like this:
 
 ```bash
-garden-ai garden publish --garden='10.garden/doi'
+$ garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn
+Using base image: gardenai/base:python-3.10-jupyter-sklearn
+Notebook started! Opening http://127.0.0.1:8888/notebooks/tutorial_notebook.ipynb?token=791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd in your default browser (you may need to refresh the page)
+
+[stream of jupyter logs]
 ```
 
-The output of this command will contain a DOI, which you can use to cite and share your Garden, as shown in the next section of this tutorial.
+Because `tutorial_notebook.ipynb` didn't already exist, this command created and opened a [template notebook](https://github.com/Garden-AI/garden/blob/main/garden_ai/notebook_templates/sklearn.ipynb) for us. Any changes we make from there will still persist in `tutorial_notebook.ipynb` after the container has stopped.
 
-Congratulations! You've just developed a Garden from scratch. Now your work is findable, accessible, interoperable and reusable 🌱.
 
-## Using Published Gardens
+>[!NOTE] `garden-ai notebook start` vs `jupyter notebook`
+> Editing a notebook opened with `garden-ai notebook start` should feel very similar to opening that same notebook with `jupyter notebook`. However, Garden opens the notebook in a **fully isolated** Docker container (instead of whichever local environment happens to have Jupyter installed).
+>
+> This is a similar execution model to Google Colab, but with the container running locally instead of on Google servers. This means you'll need to `%pip install` any dependencies not found in your selected base image at the top of your notebook.
+
+
+#### Step 3: Developing a Pipeline
+
+The notebook we've just opened is what will set up the context in which our Pipeline will run, including side-effects like installing `pip` (or `conda`) dependencies.
+
+Depending on the base image you chose, some dependencies might already be present.
+
+The first cell of our notebook is often just a few `pip install`s:
+```ipython
+%pip install garden-ai==0.6.1
+%pip install scikit-learn==1.3.0
+%pip install joblib==1.3.2
+# %pip install some-other-library etc
+```
+
+Best practice is to pin exact versions of your dependencies wherever possible, but this is especially important for the library used to train the model and/or originally save the model weights (`scikit-learn==1.3.0` and `joblib==1.3.2` in this case).
+
+Next, we fill out the citation metadata for our `Pipeline`:
+```ipython
+from garden_ai.pipelines import PipelineMetadata
+my_pipeline_meta = PipelineMetadata(
+    title="Tutorial Pipeline",
+    authors=["me", "you", "our collaborator"],
+    tags=["example", "science", "cool"],
+)
+```
+This metadata is used to mint a DOI for the `Pipeline` automatically, and is key for the discoverability of your work. At least a title and authors are required; for a full list of allowed metadata fields, see: [Pipelines](../Pipelines.md).
+
+Next, we'll want to make sure our `Pipeline` function will have access to the model weights we're storing on huggingface, which we do with a "Model Connector" like so:
+```ipython
+from garden_ai.model_connectors import HFConnector
+tutorial_hf_repo = HFConnector("Garden-AI/sklearn-seedling")
+```
+
+>[!NOTE] Note
+> Our `Pipeline` function could simply download the weights from huggingface directly, but by using a Model Connector like the `HFConnector` above we can automatically extract model metadata provided by huggingface and associate it with the `Pipeline` that uses the model.
+
+We can now define a function for our pipeline which uses the `tutorial_hf_repo` connector to download the model (as well as a helper function to clean the input data):
+
+```ipython
+import pandas as pd
+import joblib
+
+def preprocess(input_df: pd.DataFrame) -> pd.DataFrame:
+    input_df.fillna(0, inplace=True)
+    return input_df
+
+
+def run_tutorial_model(input_df: pd.DataFrame) -> pd.DataFrame:
+    """Clean input data, load pretrained model weights, and run inference."""
+    cleaned_df = preprocess(input_df)
+    # use our model connector's `.stage()` method to download model weights
+    download_path = tutorial_hf_repo.stage()
+    model = joblib.load(f"{download_path}/model.joblib")
+    return model.predict(cleaned_df)
+```
+
+But this isn't a `Pipeline` yet -- we still need to mark it as a `Pipeline` and link the metadata to the function. We do this with the `garden_pipeline` decorator:
+```ipython
+from garden_ai import garden_pipeline
+
+import pandas as pd
+import joblib
+
+# helper, no need to decorate
+def preprocess(input_df: pd.DataFrame) -> pd.DataFrame:
+    input_df.fillna(0, inplace=True)
+    return input_df
+
+
+@garden_pipeline(
+	metadata=my_pipeline_meta,            # link PipelineMetadata from above
+	model_connectors=[tutorial_hf_repo],  # link HFConnector metadata
+	garden_doi="10.23677/z2b3-3p02",      # publish to the Garden we created earlier
+)
+def run_tutorial_model(input_df: pd.DataFrame) -> pd.DataFrame:
+    """Clean input data, load pretrained model weights, and run inference."""
+    cleaned_df = preprocess(input_df)
+    # use our model connector's `.stage()` method to download model weights
+    download_path = tutorial_hf_repo.stage()
+    model = joblib.load(f"{download_path}/model.joblib")
+    return model.predict(cleaned_df)
+```
+
+
+#### Step 4: Optional Debugging Step
+
+- `garden-ai notebook debug` command
+- explain difference between the `debug` and `start` notebook contexts
+
+#### Step 5: Publishing the Notebook
+
+- `garden-ai notebook publish` command and successful output
+- Explain how this attaches the `Pipeline` to the `Garden`.
+- Emphasize that pipelines can still attach to other gardens
+
+#### Step 6: Remote Execution
+[OLD CONTENT]
 
 Now that your Garden is published, let's see how you (or others) can find and use published Gardens.
 
