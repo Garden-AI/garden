@@ -9,7 +9,7 @@ This means doing the following:
 - Define and decorate a function in the notebook to make it a `Pipeline`
 	- Optional: debug the completed notebook (`garden-ai notebook debug`)
 - Publish the notebook using the CLI, attaching the `Pipeline` to the `Garden` in the process (`garden-ai notebook publish`)
-- Test remote execution from anywhere on our tutorial endpoint
+- Test remote execution on our tutorial endpoint
 #### Prerequisites
 - You'll need the `garden-ai` CLI as well as a local install of `docker` logged in to a Dockerhub account with a public image repository. See [installation](installation.md) for more details.
 - We've used huggingface to host the [sample model weights](https://huggingface.co/Garden-AI/sklearn-seedling/tree/main) for this tutorial. If you're following along with your own pretrained model weights, you will likely also want a huggingface account to do the same.
@@ -64,7 +64,7 @@ Because `tutorial_notebook.ipynb` didn't already exist, this command created and
 >[!NOTE] `garden-ai notebook start` vs `jupyter notebook`
 > Editing a notebook opened with `garden-ai notebook start` should feel very similar to opening that same notebook with `jupyter notebook`. However, Garden opens the notebook in a **fully isolated** Docker container (instead of whichever local environment happens to have Jupyter installed).
 >
-> This is a similar execution model to Google Colab, but with the container running locally instead of on Google servers. This means you'll need to `%pip install` any dependencies not found in your selected base image at the top of your notebook.
+> This is a similar execution model to Google Colab, but with the container running locally instead of on Google servers. Like Colab, you'll need to `%pip install` any dependencies not already found in your selected base image at the top of your notebook.
 
 
 #### Step 3: Developing a Pipeline
@@ -123,7 +123,7 @@ def run_tutorial_model(input_df: pd.DataFrame) -> pd.DataFrame:
     return model.predict(cleaned_df)
 ```
 
-But this isn't a `Pipeline` yet -- we still need to mark it as a `Pipeline` and link the metadata to the function. We do this with the `garden_pipeline` decorator:
+But our `run_tutorial_model` function isn't a proper `Pipeline` yet -- we still need to mark it as a `Pipeline` and link the metadata to the function. We do this with the `@garden_pipeline` decorator:
 ```ipython
 from garden_ai import garden_pipeline
 
@@ -150,11 +150,23 @@ def run_tutorial_model(input_df: pd.DataFrame) -> pd.DataFrame:
     return model.predict(cleaned_df)
 ```
 
+Now that we've finished developing our `Pipeline`, it's a good idea to restart the kernel and run all cells to sanity-check that your pipeline function is working as expected before moving on to the publication step.
 
 #### Step 4: Optional Debugging Step
 
-- `garden-ai notebook debug` command
-- explain difference between the `debug` and `start` notebook contexts
+If you're finding that a pipeline function works correctly following a "restart kernel and run all cells" when run from within a `garden-ai notebook start` session but fails on remote execution, the `garden-ai notebook debug` command is the best place to start troubleshooting.
+
+Unfortunately, the notebook session you had active when manually running your notebook won't always be *exactly* equivalent to the session ultimately saved for remote inference. This could be for a couple reasons:
+	- The remote execution context is a session which has been saved and reloaded, which may not be a perfect re-creation of the session before it was saved.
+	- Your notebook is converted to a plain python script before being executed, and there may be unexpected discrepancies between the notebook and the notebook-as-script causing problems.
+
+The `garden-ai notebook debug` command accepts the same arguments as `garden-ai notebook start`, but instead of opening the notebook in a base image, it opens a debugging notebook in an image with your notebook session saved (i.e. the one that remote inference will use).
+
+The debugging notebook only has a snippet of code to reload your saved session -- this is as close to the remote execution context as possible without actually executing remotely.
+
+If calling your pipeline function in the `garden-ai notebook debug` session behaves the same as calling your pipeline function in a `garden-ai notebook start` session, that likely indicates a problem with the remote endpoint.
+
+If calling your pipeline function in the `garden-ai notebook debug` session behaves differently than in a `garden-ai notebook start` session, that indicates a problem with serializing or deserializing your notebook state. If this is the case, please open an issue on our [Github](https://github.com/Garden-AI/garden/issues), including the notebook so we can reproduce the bug.
 
 #### Step 5: Publishing the Notebook
 
