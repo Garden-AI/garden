@@ -55,7 +55,7 @@ class BackendClient:
         self, notebook_contents: dict, username: str, notebook_name: str
     ):
         payload = {
-            "notebook_json": notebook_contents,
+            "notebook_json": json.dumps(notebook_contents),
             "notebook_name": notebook_name,
             "folder": username,
         }
