@@ -45,7 +45,8 @@ garden-ai --version
 
 You should see the version of your installed Garden package printed to the console.
 
-Garden also supports tab completion in the CLI to show options of local models, pipelines, and gardens.
+The Garden CLI also supports tab completion to show options of local pipelines and gardens.
+
 If you want to use Garden with tab completion, run:
 ```bash
 garden-ai --install-completion

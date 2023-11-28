@@ -1,60 +1,64 @@
 ---
 alias: Architecture Overview
 ---
-## Overview
+## Garden Project Conceptual Overview
 
-The Garden project is structured around two core concepts: `Gardens` and `Pipelines`. Each of these is represented by one or more classes in our SDK.
+The Garden project is structured around two "proper noun" concepts: `Garden` and `Pipeline`.
 
-`Garden` and `Pipeline` objects define the *citable* and *reproducible* end products, and enable users to discover/share scientific work.
+`Garden` and `Pipeline` objects define the *citable* and *reproducible* end products, and enable users to discover and share each other's scientific work.
+### Core Concepts
+1. **Gardens:**
 
-### [Pipelines](Pipelines.md)
+    - A `Garden` is a user-curated collection or portfolio of related `Pipeline`s, aimed at promoting discoverability.
+    - `Garden`s are the primary way to discover and run published `Pipeline`s.
+    - A `Pipeline` from a different `Garden` can be added to your `Garden` simply by adding the other `Pipeline`'s DOI to your `Garden` and publishing.
+    - A `Garden` is typically created and published from the CLI, e.g.:
+    ```bash
+	garden-ai garden create \
+		--title "Garden of Live Flowers" \
+		--author "The Red Queen" --year 1871
+	```
 
-The primary purpose of a Pipeline in the Garden framework is to make the code and models it contains _citable_ and _reproducible_. Pipelines collect enough metadata for us to do two things: mint a DOI, and build a container spec in which its code could run.
+2. **Pipelines:**
 
-#### Creating a Pipeline
-
-
-> [!NOTE] Note
-> Pipeline creation is currently under construction. Check back soon. 👷🏽
-
-#### Registering a Pipeline
-
-> [!NOTE] Note
-> Pipeline registration is currently under construction. Check back soon. 👷🏽o
-
-### [Gardens](Gardens.md)
-
-Finally, a `Garden` is how we make all this work _discoverable_: a garden is user-curated collection of related pipelines, each potentially associated with a scientific ML model. All that a `Garden` "really is" is a set of `Pipeline` citations (more specifically, `RegisteredPipeline` DOIs) that you can conveniently run.
-
+    - A `Pipeline` is a plain Python function, enriched with citation metadata and registered with our service for reproducibility and remote execution (via Globus Compute).
+    - Users can execute a `Pipeline` remotely via any `Garden` it has been published to.
+    - A `Pipeline` is typically defined in a regular Jupyter/ipynb notebook, and functions like an "entrypoint" to a saved notebook session when registered and published to a `Garden`.
+    - A `Pipeline` is registered when its notebook is published.
+    - When a notebook is published, all the `Pipeline`s in the notebook are published to their respective gardens -- `Pipeline`s defined in the same notebook need not be published to the same `Garden`.
 
 > [!NOTE]
-> A garden's pipelines are still callable, and are accessible as attributes - for example, if I've registered `my_pipeline` and added it to `my_garden`, I can execute it remotely like `my_garden.my_pipeline(*args, endpoint="...")`
+> The `Pipeline`s attached to a `Garden` are callable and accessible like attributes -- for example, if I've registered `my_pipeline` and added it to `some_garden`, executing it remotely might look like `some_garden.my_pipeline(*args, endpoint="...")`.
 
 
-Here's how a `Garden` is typically created using the Garden CLI:
+### The `@garden_pipeline` Decorator:
 
-```bash
-garden-ai garden create \
-	--title "Garden of Live Flowers" \
-	--author "The Red Queen" --year 1871
-```
+- This decorator is used to designate which functions in the notebook should be registered as public/published `Pipeline`s.
+- It distinguishes between functions meant for public use and those that are simply part of the execution context.
+- This is also how users attach citation metadata to a `Pipeline`, such as authors or other related published work like papers or datasets
 
+### Notebook Workflow - Defining and Developing Pipelines
 
+1. **Development in IPython Notebooks:**
 
-Also note that `RegisteredPipeline` can only be executed remotely on Globus Compute -- it's still callable, but needs to be called with the keyword argument `endpoint=...` specifying a valid Globus Compute endpoint, like: `garden_instance.pipeline_name(*args, endpoint=...)`.
+    - The process begins by writing an IPython notebook containing functions marked as pipelines using the `@garden_pipeline` decorator.
+    - The `garden-ai` CLI provides a `garden-ai notebook start path/to/my.ipynb` command to open a notebook in an isolated local Docker container (conceptually similar to a Google Colab notebook, but running locally and with a choice of prebuilt base images).
+	- See [installation](user_guide/installation.md) for Docker-specific prerequisites
 
-Finally, a `Garden` can be published with the CLI, minting its DOI and making it findable/accessible to others. After completing the development of a Garden and adding any number of pipelines, it can be published like so:
+2. **Publishing Notebooks:**
 
-```bash
-garden-ai garden publish --garden='10.garden/doi'
-```
+    - Once the notebook is complete and defines one or more `Pipeline`s, the `garden-ai notebook publish path/to/my.ipynb` command is used to finalize and register each `Pipeline` in the notebook for remote execution with Globus Compute.
 
-Which enables other users to fetch that garden and call any of its pipelines with their own input and on their own Globus Compute endpoint. This might look like:
+See the [tutorial](user_guide/tutorial.md) for a more detailed walkthrough of the notebook publication flow.
+### Containerization and Execution Context:
 
-```python
->>> gc = GardenClient()
->>> other_garden = gc.get_garden_by_doi('10.garden/doi') # someone else's doi
->>> my_data = pd.DataFrame(...)
->>> results = other_garden.their_pipeline_name(my_data, endpoint="...")
->>> print(results)  # neat!
-```
+- Upon publishing with the `garden-ai notebook publish` command, the entire notebook is run like a script in the specified base image, and the Python interpreter state is "baked in" to the final registered container using the `dill` library.
+
+- On the remote end, executing a registered `Pipeline` entails spinning up its respective container, loading the saved interpreter session, then calling the decorated function.
+
+### Publishing
+
+1. **Garden Publishing:**
+    - A `Garden` is created, manipulated, and published using the CLI, making it accessible to other users.
+2. **Pipeline Publishing:**
+    - A `Pipeline` is published by attaching it to a published `Garden`. This can be done either manually from the CLI, or automatically by specifying a particular `Garden` DOI in the `@garden_pipeline` decorator.
