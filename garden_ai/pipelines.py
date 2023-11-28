@@ -140,7 +140,7 @@ class RegisteredPipeline(PipelineMetadata):
         container_uuid: ID returned from Globus Compute's register_container.
         base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
         full_image_uri: The name and location of the complete image used by this pipeline.
-        notebook: Full JSON string of the notebook used to define this pipeline's environment.
+        notebook_url: Link to the notebook used to build this pipeline.
         steps: Ordered list of Python functions that the pipeline author wants to highlight.
     """
 
@@ -151,7 +151,7 @@ class RegisteredPipeline(PipelineMetadata):
     container_uuid: UUID = Field(...)
     base_image_uri: Optional[str] = Field(None)
     full_image_uri: Optional[str] = Field(None)
-    notebook: Optional[str] = Field(None)
+    notebook_url: Optional[str] = Field(None)
     steps: List[Step] = Field(default_factory=list)
 
     def __call__(
