@@ -30,8 +30,9 @@ jobs:
           poetry-version: 1.2.2
       - name: Install dependencies
         run: |
-          poetry config virtualenvs.create false && \
-          poetry install --no-interaction --no-ansi --with=test
+         pip install --upgrade pip && \
+         poetry config virtualenvs.create false && \
+         poetry install --no-interaction --no-ansi --with=test
       - name: black lint
         uses: psf/black@stable
         with:

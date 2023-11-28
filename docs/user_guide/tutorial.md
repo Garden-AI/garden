@@ -17,6 +17,8 @@ This means doing the following:
 ### Step 0: Train Your Model
 Garden is geared towards publishing and sharing models which have already been trained. If you don't have one handy, we'd recommend training a small model using one of the scikit-learn [toy datasets](https://scikit-learn.org/stable/datasets/toy_dataset.html) and uploading the weights to a public huggingface repo in order to follow along.
 
+The code to train the toy model used in this tutorial is available [here](https://huggingface.co/Garden-AI/sklearn-seedling/blob/main/Train_Model.ipynb).
+
 ### Step 1: Creating a New Garden
 First, we're going to make a new `Garden` using the CLI so that we can eventually share our `Pipeline` with others. Before we've added any `Pipeline`s, a brand new `Garden` is going to be nothing more than some citation metadata, which is at least a title, one or more authors, and a year (the minimum needed mint a DOI).
 
@@ -166,7 +168,7 @@ The debugging notebook only has a snippet of code to reload your saved session -
 
 If calling your pipeline function in the `garden-ai notebook debug` session behaves the same as calling your pipeline function in a `garden-ai notebook start` session, that likely indicates a problem with the remote endpoint.
 
-If calling your pipeline function in the `garden-ai notebook debug` session behaves differently than in a `garden-ai notebook start` session, that indicates a problem with serializing or deserializing your notebook state. If this is the case, please open an issue on our [Github](https://github.com/Garden-AI/garden/issues), including the notebook so we can reproduce the bug.
+If calling your pipeline function in the `garden-ai notebook debug` session behaves differently than in a `garden-ai notebook start` session, that indicates a problem with serializing or deserializing your notebook state. If this is the case, please open an issue on our [Github](https://github.com/Garden-AI/garden/issues), including the notebook and any additional context that might be useful so we can reproduce the bug.
 
 #### Step 5: Publishing the Notebook
 
