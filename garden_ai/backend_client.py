@@ -51,7 +51,7 @@ class BackendClient:
         payload = json.loads(garden.json())
         self._post("/garden-search-record", payload)
 
-    def upload_garden_metadata(
+    def upload_notebook(
         self, notebook_contents: dict, username: str, notebook_name: str
     ):
         payload = {

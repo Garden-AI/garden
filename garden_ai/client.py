@@ -455,7 +455,7 @@ class GardenClient:
         """
         username = self.get_email()
         try:
-            return self.backend_client.upload_garden_metadata(
+            return self.backend_client.upload_notebook(
                 notebook_contents, username, notebook_name
             )
         except Exception as e:
