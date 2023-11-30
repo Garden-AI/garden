@@ -448,6 +448,21 @@ class GardenClient:
                 f"Request to Garden backend to publish garden failed with error: {str(e)}"
             )
 
+    def upload_notebook(self, notebook_contents: dict, notebook_name: str) -> str:
+        """
+        POSTs a notebook's contents to the backend /notebook route
+        so that we can store a link to the full notebook contents in the pipeline metadata.
+        """
+        username = self.get_email()
+        try:
+            return self.backend_client.upload_notebook(
+                notebook_contents, username, notebook_name
+            )
+        except Exception as e:
+            raise Exception(
+                f"Request to Garden backend to publish notebook failed with error: {str(e)}"
+            )
+
     def search(self, query: str) -> str:
         """
         Given a Globus Search advanced query, returns JSON Globus Search result string with gardens as entries.
@@ -509,7 +524,7 @@ class GardenClient:
         image: docker.models.images.Image,
         base_image_uri: str,
         full_image_uri: str,
-        notebook_contents: str,
+        notebook_url: str,
     ):
         """Register pipelines and (re-)publish affected gardens from a user's finished notebook session image.
 
@@ -524,8 +539,8 @@ class GardenClient:
             The public location of the base image that the user image was built on top of.
         - full_image_uri: str
             The public location of the full user image built by running the notebook.
-        - notebook_contents: str
-            The raw JSON contents of the Jupyter notebook used to construct the image.
+        - notebook_url: str
+            URL that points to the full contents of the notebook.
 
         Raises:
         - ValueError
@@ -558,7 +573,7 @@ class GardenClient:
             record["steps"] = all_steps
             record["doi"] = record.get("doi") or self._mint_draft_doi()
             record["short_name"] = record.get("short_name") or key
-            record["notebook"] = notebook_contents
+            record["notebook_url"] = notebook_url
             record["base_image_uri"] = base_image_uri
             record["full_image_uri"] = full_image_uri
 

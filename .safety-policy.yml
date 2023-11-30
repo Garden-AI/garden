@@ -16,6 +16,8 @@ security: # configuration for the `safety check` command
             reason: this is a vulnerability of a dependency of mlflow. We don't use the subset of mlflow that uses this
         60841: # Vulnerability ID
             reason: this is a vulnerability of a dependency of mlflow. We don't use the subset of mlflow that uses this
+        62044:
+            reason: This doesn't affect us and Owen has resolved this on another branch.
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
     security:

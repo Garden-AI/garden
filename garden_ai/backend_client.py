@@ -50,3 +50,14 @@ class BackendClient:
     def publish_garden_metadata(self, garden: PublishedGarden):
         payload = json.loads(garden.json())
         self._post("/garden-search-record", payload)
+
+    def upload_notebook(
+        self, notebook_contents: dict, username: str, notebook_name: str
+    ):
+        payload = {
+            "notebook_json": json.dumps(notebook_contents),
+            "notebook_name": notebook_name,
+            "folder": username,
+        }
+        resp = self._post("/notebook", payload)
+        return resp["notebook_url"]

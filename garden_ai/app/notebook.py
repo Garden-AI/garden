@@ -4,6 +4,7 @@ import shutil
 import webbrowser
 from pathlib import Path
 from typing import Optional
+import json
 
 import docker  # type: ignore
 import typer
@@ -16,6 +17,7 @@ from garden_ai.containers import (
     start_container_with_notebook,
 )
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
+from garden_ai.utils.notebooks import clear_cells, is_over_size_limit
 
 logger = logging.getLogger()
 
@@ -217,6 +219,12 @@ def publish(
         ),
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose"),
+    keep_outputs: bool = typer.Option(
+        False,
+        "--keep-outputs",
+        help="By default, Garden will clear all cell outputs before publishing. "
+        "If you would like to have your cell outputs visible on the UI, use this flag.",
+    ),
 ):
     client = GardenClient()
     notebook_path = path.resolve()
@@ -244,6 +252,24 @@ def publish(
         local_data._store_user_image_repo(image_repo)
     print(f"Using image repository: {image_repo}")
 
+    # Pre-process the notebook and make sure it's not too big
+    raw_notebook_contents = notebook_path.read_text()
+    try:
+        notebook_contents = json.loads(raw_notebook_contents)
+    except json.JSONDecodeError:
+        typer.echo("Could not parse notebook JSON.")
+        raise typer.Exit(1)
+
+    if not keep_outputs:
+        notebook_contents = clear_cells(notebook_contents)
+
+    if is_over_size_limit(notebook_contents):
+        typer.echo("Garden can't publish notebooks bigger than 5MB.")
+        raise typer.Exit(1)
+
+    # Push the notebook to the Garden API
+    notebook_url = client.upload_notebook(notebook_contents, notebook_path.name)
+
     # Build the image
     docker_client = docker.from_env()
     image = build_notebook_session_image(
@@ -253,9 +279,6 @@ def publish(
         typer.echo("Failed to build image.")
         raise typer.Exit(1)
     typer.echo(f"Built image: {image}")
-
-    # get the raw notebook JSON to pass along to the UI
-    raw_notebook_contents = notebook_path.read_text()
 
     # generate tag and push image to dockerhub
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -271,5 +294,5 @@ def publish(
         image,
         base_image_location,
         full_image_location,
-        raw_notebook_contents,
+        notebook_url,
     )
