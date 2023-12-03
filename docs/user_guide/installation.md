@@ -20,9 +20,8 @@ This command should return the version of Docker installed on your system.
 
 3. **Configure Docker Credentials:** Make sure to configure your Docker credentials on your system. This allows `garden-ai` to push and pull images to and from Docker Hub on your behalf. You can do this by running:
 ```bash
-docker login
+docker login -u <username> -p <password>
 ```
-and entering your Docker Hub username and password when prompted.
 # Installation
 
 Installing the `garden-ai` python package contains both our SDK and our CLI. We _highly_ recommend installing the CLI with a virtual environment, using venv or conda.
