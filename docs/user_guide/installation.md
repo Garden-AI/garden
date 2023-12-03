@@ -32,7 +32,7 @@ Below are instructions for installing with venv.
 mkdir my_garden_project
 cd my_garden_project
 python3 -m venv garden-env
-source myenv/bin/activate
+source garden-env/bin/activate
 pip install garden-ai
 ```
 
