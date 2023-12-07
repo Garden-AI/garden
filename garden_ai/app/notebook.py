@@ -5,6 +5,7 @@ import webbrowser
 from pathlib import Path
 from typing import Optional
 import json
+import time
 
 import docker  # type: ignore
 import typer
@@ -57,16 +58,18 @@ def start(
         readable=True,
         help=("Path to a .ipynb notebook to open in a fresh, isolated container."),
     ),
-    base_image: Optional[str] = typer.Option(
-        default=None,
+    base_image_name: Optional[str] = typer.Option(
+        None,
+        "--base-image",
         help=(
             "A Garden base image to boot the notebook in. "
             "For example, to boot your notebook with the default Garden python 3.8 image, use --base-image 3.8-base. "
             "To see all the available Garden base images, use 'garden-ai notebook list-premade-images'"
         ),
     ),
-    custom_image: Optional[str] = typer.Option(
-        default=None,
+    custom_image_uri: Optional[str] = typer.Option(
+        None,
+        "--custom-image",
         help=(
             "Power users only! Provide a uri of a publicly available docker image to boot the notebook in."
         ),
@@ -98,7 +101,9 @@ def start(
 
     # Figure out what base image uri we should start the notebook in
     base_image_uri = _get_base_image_uri(
-        base_image, custom_image, notebook_path if need_to_create_notebook else None
+        base_image_name,
+        custom_image_uri,
+        None if need_to_create_notebook else notebook_path,
     )
 
     # Now we have all we need to prompt the user to proceed
@@ -110,26 +115,31 @@ def start(
 
     if need_to_create_notebook:
         template_file_name = GardenConstants.IMAGES_TO_FLAVOR.get(
-            base_image, "empty.ipynb"
+            base_image_name, "empty.ipynb"
         )
         top_level_dir = Path(__file__).parent.parent
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
 
-    _put_notebook_base_image(notebook_path, base_image)
+    _put_notebook_base_image(notebook_path, base_image_uri)
     print(
-        f"Full name of base image: {base_image}. If you start this notebook again from the same folder, it will use this image by default."
+        f"Starting notebook inside base image with full name {base_image_uri}. If you start this notebook again from the same folder, it will use this image by default."
     )
 
     # start container and listen for Ctrl-C
     docker_client = docker.from_env()
-    container = start_container_with_notebook(docker_client, notebook_path, base_image)
+    container = start_container_with_notebook(
+        docker_client, notebook_path, base_image_uri
+    )
     _register_container_sigint_handler(container)
 
     typer.echo(
         f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN} "
         "in your default browser (you may need to refresh the page)"
     )
+
+    # Give the notebook server a few seconds to start up so that the user doesn't have to refresh manually
+    time.sleep(3)
     webbrowser.open_new_tab(
         f"http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN}"
     )
@@ -173,7 +183,7 @@ def _get_base_image_uri(
 
     if not any([base_image_name, custom_image_uri, last_used_image_uri]):
         typer.echo(
-            "Please specify a base image. The current Garden base images are: \n{BASE_IMAGE_NAMES}"
+            f"Please specify a base image. The current Garden base images are: \n{BASE_IMAGE_NAMES}"
         )
         raise typer.Exit(1)
 
