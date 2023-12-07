@@ -120,7 +120,8 @@ def start(
 
     _put_notebook_base_image(notebook_path, base_image_uri)
     print(
-        f"Starting notebook inside base image with full name {base_image_uri}. If you start this notebook again from the same folder, it will use this image by default."
+        f"Starting notebook inside base image with full name {base_image_uri}. "
+        f"If you start this notebook again from the same folder, it will use this image by default."
     )
 
     # start container and listen for Ctrl-C
@@ -195,7 +196,8 @@ def _get_base_image_uri(
             return GardenConstants.PREMADE_IMAGES[base_image_name]
         else:
             typer.echo(
-                f"The image you specified ({base_image_name}) is not one of the Garden base images. The current Garden base images are: \n{BASE_IMAGE_NAMES}"
+                f"The image you specified ({base_image_name}) is not one of the Garden base images. "
+                f"The current Garden base images are: \n{BASE_IMAGE_NAMES}"
             )
             raise typer.Exit(1)
 
