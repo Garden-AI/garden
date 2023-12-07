@@ -29,10 +29,7 @@ logger = logging.getLogger()
 notebook_app = typer.Typer(name="notebook")
 
 BASE_IMAGE_NAMES = ", ".join(
-    [
-        "'" + image_name + "'"
-        for image_name in list(GardenConstants.PREMADE_IMAGES.keys())
-    ]
+    ["'" + image_name + "'" for image_name in GardenConstants.PREMADE_IMAGES.keys()]
 )
 
 
