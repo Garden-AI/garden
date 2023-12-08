@@ -3,7 +3,7 @@ import logging
 import shutil
 import webbrowser
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 import json
 import time
 
@@ -203,6 +203,9 @@ def _get_base_image_uri(
                 f"The current Garden base images are: \n{BASE_IMAGE_NAMES}"
             )
             raise typer.Exit(1)
+
+    # last_used_image_uri is definitely non-None at this point
+    last_used_image_uri = cast(str, last_used_image_uri)
 
     # 3: If the user didn't specify an image explicitly, use the last image they used for this notebook.
     return last_used_image_uri
