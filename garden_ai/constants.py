@@ -40,3 +40,23 @@ class GardenConstants:
         "3.11-torch": "gardenai/base:python-3.11-jupyter-torch",
         "3.10-all-extras": "gardenai/base:python-3.10-jupyter-all",
     }
+
+    IMAGES_TO_FLAVOR = {
+        "3.8-base": "empty.ipynb",
+        "3.9-base": "empty.ipynb",
+        "3.10-base": "empty.ipynb",
+        "3.11-base": "empty.ipynb",
+        "3.8-sklearn": "sklearn.ipynb",
+        "3.9-sklearn": "sklearn.ipynb",
+        "3.10-sklearn": "sklearn.ipynb",
+        "3.11-sklearn": "sklearn.ipynb",
+        "3.8-tensorflow": "tensorflow.ipynb",
+        "3.9-tensorflow": "tensorflow.ipynb",
+        "3.10-tensorflow": "tensorflow.ipynb",
+        "3.11-tensorflow": "tensorflow.ipynb",
+        "3.8-torch": "torch.ipynb",
+        "3.9-torch": "torch.ipynb",
+        "3.10-torch": "torch.ipynb",
+        "3.11-torch": "torch.ipynb",
+        "3.10-all-extras": "empty.ipynb",
+    }
