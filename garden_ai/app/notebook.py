@@ -166,7 +166,7 @@ def _get_base_image_uri(
     base_image_name: Optional[str],
     custom_image_uri: Optional[str],
     notebook_path: Optional[Path],
-) -> Optional[str]:
+) -> str:
     # First make sure that we have enough information to get a base image uri
     if base_image_name and custom_image_uri:
         typer.echo(
