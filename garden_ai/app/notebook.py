@@ -112,8 +112,11 @@ def start(
     if need_to_create_notebook:
         if base_image_name:
             template_file_name = GardenConstants.IMAGES_TO_FLAVOR.get(
-                base_image_name or "", "empty.ipynb"
+                base_image_name, "empty.ipynb"
             )
+        else:
+            template_file_name = "empty.ipynb"
+
         top_level_dir = Path(__file__).parent.parent
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
