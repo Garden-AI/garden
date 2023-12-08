@@ -86,8 +86,7 @@ def start(
         need_to_create_notebook = True
         new_notebook_name = generate_botanical_filename()
         notebook_path = Path.cwd() / new_notebook_name
-
-    if path is not None:
+    else:
         notebook_path = path.resolve()
         if notebook_path.suffix != ".ipynb":
             typer.echo("File must be a jupyter notebook (.ipynb)")
@@ -111,9 +110,10 @@ def start(
     typer.confirm(message, abort=True)
 
     if need_to_create_notebook:
-        template_file_name = GardenConstants.IMAGES_TO_FLAVOR.get(
-            base_image_name, "empty.ipynb"
-        )
+        if base_image_name:
+            template_file_name = GardenConstants.IMAGES_TO_FLAVOR.get(
+                base_image_name or "", "empty.ipynb"
+            )
         top_level_dir = Path(__file__).parent.parent
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
@@ -165,7 +165,7 @@ def start(
 def _get_base_image_uri(
     base_image_name: Optional[str],
     custom_image_uri: Optional[str],
-    notebook_path: Optional[str],
+    notebook_path: Optional[Path],
 ) -> Optional[str]:
     # First make sure that we have enough information to get a base image uri
     if base_image_name and custom_image_uri:
