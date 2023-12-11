@@ -31,7 +31,7 @@ logger = logging.getLogger()
 class Repository(BaseModel):
     """
     The `Repository` class represents all the metadata we want to \
-    publically expose about the repositories used to build the pipeline.
+    publically expose about the repositories used to build the entrypoint.
 
     Attributes:
         repo_name (str):
@@ -52,7 +52,7 @@ class Repository(BaseModel):
 class Paper(BaseModel):
     """
     The `Paper` class represents all the metadata we want to \
-    publically expose about the paper used to build the pipeline.
+    publically expose about the paper used to build the entrypoint.
 
     Attributes:
         title (str):
@@ -75,7 +75,7 @@ class Paper(BaseModel):
 
 class Step(BaseModel):
     """
-    The `Step` class represents a key function in a pipeline that a publisher wants to highlight.
+    The `Step` class represents a key function in a entrypoint that a publisher wants to highlight.
 
     Attributes:
         function_name (str):
@@ -91,22 +91,22 @@ class Step(BaseModel):
     description: Optional[str] = Field(None)
 
 
-class PipelineMetadata(BaseModel):
-    """Metadata for a pipeline prior to its registration. \
-    Passed to the `garden_pipeline` decorator during the registration process.
+class EntrypointMetadata(BaseModel):
+    """Metadata for a entrypoint prior to its registration. \
+    Passed to the `garden_entrypoint` decorator during the registration process.
 
-    Use the optional doi field if you have already registered this pipeline \
+    Use the optional doi field if you have already registered this entrypoint \
     and want to update it under the same DOI.
 
     Attributes:
-        doi: Optional. If you have a DOI you want to use for this pipeline, specify it here. \
-        (Especially if you have already registered a pipeline and are updating it.) \
+        doi: Optional. If you have a DOI you want to use for this entrypoint, specify it here. \
+        (Especially if you have already registered a entrypoint and are updating it.) \
         Otherwise we will generate a DOI for you.
-        title: A short title that describes the pipeline.
-        description: A longer free text description of this pipeline.
-        authors: A list of the authors of this pipeline. You need at least one.
-        short_name: This will be the name of the Python method that people call to invoke your pipeline.
-        year: When did you make this pipeline? (Defaults to current year)
+        title: A short title that describes the entrypoint.
+        description: A longer free text description of this entrypoint.
+        authors: A list of the authors of this entrypoint. You need at least one.
+        short_name: This will be the name of the Python method that people call to invoke your entrypoint.
+        year: When did you make this entrypoint? (Defaults to current year)
         tags: Helpful tags
         repositories: List of related code repositories, like GitHub or GitLab repos.
         papers: List of related papers, like a paper that describes the model you are publishing here.
@@ -128,25 +128,25 @@ class PipelineMetadata(BaseModel):
     _as_step: Optional[Step] = PrivateAttr(None)  # Used internally for publishing.
 
 
-class RegisteredPipeline(PipelineMetadata):
-    """Metadata of a completed and registered pipeline.
+class RegisteredEntrypoint(EntrypointMetadata):
+    """Metadata of a completed and registered entrypoint.
     Can be added to a Garden and executed on a remote Globus Compute endpoint.
 
-    Has all the user-given metadata from PipelineMetadata plus extra fields added by Garden
+    Has all the user-given metadata from EntrypointMetadata plus extra fields added by Garden
     during publication.
 
     Attributes:
-        func_uuid: The ID of the Globus Compute function registered for this pipeline.
+        func_uuid: The ID of the Globus Compute function registered for this entrypoint.
         container_uuid: ID returned from Globus Compute's register_container.
-        base_image_uri: Name and location of the base image used by this pipeline. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
-        full_image_uri: The name and location of the complete image used by this pipeline.
-        notebook_url: Link to the notebook used to build this pipeline.
-        steps: Ordered list of Python functions that the pipeline author wants to highlight.
+        base_image_uri: Name and location of the base image used by this entrypoint. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
+        full_image_uri: The name and location of the complete image used by this entrypoint.
+        notebook_url: Link to the notebook used to build this entrypoint.
+        steps: Ordered list of Python functions that the entrypoint author wants to highlight.
     """
 
     doi: str = Field(
         ...
-    )  # Repeating this field from base class because DOI is mandatory for RegisteredPipeline
+    )  # Repeating this field from base class because DOI is mandatory for RegisteredEntrypoint
     func_uuid: UUID = Field(...)
     container_uuid: UUID = Field(...)
     base_image_uri: Optional[str] = Field(None)
@@ -160,19 +160,19 @@ class RegisteredPipeline(PipelineMetadata):
         endpoint: Union[UUID, str] = None,
         **kwargs: Any,
     ) -> Any:
-        """Remotely execute this ``RegisteredPipeline``'s function from the function uuid.
+        """Remotely execute this ``RegisteredEntrypoint``'s function from the function uuid.
 
         Args:
             *args (Any):
-                Input data passed through the first step in the pipeline
+                Input data passed through the first step in the entrypoint
             endpoint (UUID | str | None):
-                Where to run the pipeline. Must be a valid Globus Compute endpoint UUID.
+                Where to run the entrypoint. Must be a valid Globus Compute endpoint UUID.
                 If no endpoint is specified, the DLHub default compute endpoint is used.
             **kwargs (Any):
-                Additional keyword arguments passed directly to the first step in the pipeline.
+                Additional keyword arguments passed directly to the first step in the entrypoint.
 
         Returns:
-            Results from the pipeline's composed steps called with the given input data.
+            Results from the entrypoint's composed steps called with the given input data.
         """
         if not endpoint:
             endpoint = GardenConstants.DLHUB_ENDPOINT
@@ -198,7 +198,7 @@ class RegisteredPipeline(PipelineMetadata):
     #     return style + title + details + optional
 
     def datacite_json(self) -> JSON:
-        """Parse this `Pipeline`'s metadata into a DataCite-schema-compliant JSON string."""
+        """Parse this `Entrypoint`'s metadata into a DataCite-schema-compliant JSON string."""
 
         # Leverages a pydantic class `DataCiteSchema`, which was automatically generated from:
         # https://github.com/datacite/schema/blob/master/source/json/kernel-4.3/datacite_4.3_schema.json
@@ -207,7 +207,7 @@ class RegisteredPipeline(PipelineMetadata):
 
         return DataciteSchema(
             identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
-            types=Types(resourceType="AI/ML Pipeline", resourceTypeGeneral="Software"),  # type: ignore
+            types=Types(resourceType="AI/ML Entrypoint", resourceTypeGeneral="Software"),  # type: ignore
             creators=[Creator(name=name) for name in self.authors],
             titles=[Title(title=self.title)],
             publisher="thegardens.ai",
@@ -221,8 +221,8 @@ class RegisteredPipeline(PipelineMetadata):
         ).json()
 
 
-def garden_pipeline(
-    metadata: PipelineMetadata,
+def garden_entrypoint(
+    metadata: EntrypointMetadata,
     garden_doi: str = None,
     model_connectors=None,
 ):
@@ -232,11 +232,11 @@ def garden_pipeline(
         metadata._as_step = Step(
             function_text=inspect.getsource(func),
             function_name=func.__name__,
-            description="Top level pipeline function",
+            description="Top level entrypoint function",
         )
         metadata._target_garden_doi = garden_doi
         # let func carry its own metadata
-        func._garden_pipeline = metadata
+        func._garden_entrypoint = metadata
         return func
 
     return decorate

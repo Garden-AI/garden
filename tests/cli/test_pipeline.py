@@ -12,21 +12,21 @@ runner = CliRunner()
 
 
 @pytest.mark.cli
-def test_pipeline_add_paper(database_with_connected_pipeline, mocker):
+def test_entrypoint_add_paper(database_with_connected_entrypoint, mocker):
     from garden_ai import local_data
 
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
-    pipeline_doi = "10.23677/jx31-gx98"
+    entrypoint_doi = "10.23677/jx31-gx98"
 
-    before_addition = local_data.get_local_pipeline_by_doi(pipeline_doi)
+    before_addition = local_data.get_local_entrypoint_by_doi(entrypoint_doi)
     assert len(before_addition.papers) == 0
     command = [
-        "pipeline",
+        "entrypoint",
         "add-paper",
         "--doi",
-        str(pipeline_doi),
+        str(entrypoint_doi),
         "--title",
         "This is not a real paper",
         "--paper-doi",
@@ -40,7 +40,7 @@ def test_pipeline_add_paper(database_with_connected_pipeline, mocker):
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    after_addition = local_data.get_local_pipeline_by_doi(pipeline_doi)
+    after_addition = local_data.get_local_entrypoint_by_doi(entrypoint_doi)
     first_paper = after_addition.papers[0]
     assert len(after_addition.papers) != 0
     assert first_paper.title == "This is not a real paper"
@@ -49,21 +49,21 @@ def test_pipeline_add_paper(database_with_connected_pipeline, mocker):
 
 
 @pytest.mark.cli
-def test_pipeline_add_repository(database_with_connected_pipeline, mocker):
+def test_entrypoint_add_repository(database_with_connected_entrypoint, mocker):
     from garden_ai import local_data
 
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
-    pipeline_doi = "10.23677/jx31-gx98"
+    entrypoint_doi = "10.23677/jx31-gx98"
 
-    before_addition = local_data.get_local_pipeline_by_doi(pipeline_doi)
+    before_addition = local_data.get_local_entrypoint_by_doi(entrypoint_doi)
     assert len(before_addition.repositories) == 0
     command = [
-        "pipeline",
+        "entrypoint",
         "add-repository",
         "--doi",
-        str(pipeline_doi),
+        str(entrypoint_doi),
         "--url",
         "https://fakerepository-link.org",
         "--repository_name",
@@ -78,7 +78,7 @@ def test_pipeline_add_repository(database_with_connected_pipeline, mocker):
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    after_addition = local_data.get_local_pipeline_by_doi(pipeline_doi)
+    after_addition = local_data.get_local_entrypoint_by_doi(entrypoint_doi)
     first_repo = after_addition.repositories[0]
     assert len(after_addition.repositories) == 1
     assert first_repo.url == "https://fakerepository-link.org"
@@ -87,56 +87,56 @@ def test_pipeline_add_repository(database_with_connected_pipeline, mocker):
 
 
 @pytest.mark.cli
-def test_pipeline_list(database_with_connected_pipeline, tmp_path, mocker):
+def test_entrypoint_list(database_with_connected_entrypoint, tmp_path, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
 
-    pipeline_title = "Fixture pipeline"
-    pipeline_doi = "10.23677/jx31-gx98"
+    entrypoint_title = "Fixture entrypoint"
+    entrypoint_doi = "10.23677/jx31-gx98"
 
     command = [
-        "pipeline",
+        "entrypoint",
         "list",
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    assert pipeline_title in result.stdout
-    assert pipeline_doi in result.stdout
+    assert entrypoint_title in result.stdout
+    assert entrypoint_doi in result.stdout
 
 
 @pytest.mark.cli
-def test_pipeline_show(database_with_connected_pipeline, tmp_path, mocker):
+def test_entrypoint_show(database_with_connected_entrypoint, tmp_path, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
 
-    pipeline_title = "Fixture pipeline"
-    pipeline_doi = "10.23677/jx31-gx98"
+    entrypoint_title = "Fixture entrypoint"
+    entrypoint_doi = "10.23677/jx31-gx98"
 
     command = [
-        "pipeline",
+        "entrypoint",
         "show",
-        pipeline_doi,
+        entrypoint_doi,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    assert pipeline_title in result.stdout
-    assert pipeline_doi in result.stdout
+    assert entrypoint_title in result.stdout
+    assert entrypoint_doi in result.stdout
 
     command = [
-        "pipeline",
+        "entrypoint",
         "show",
-        "not_a_pipeline_id",
-        pipeline_doi,
+        "not_a_entrypoint_id",
+        entrypoint_doi,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
-    assert pipeline_title in result.stdout
-    assert pipeline_doi in result.stdout
+    assert entrypoint_title in result.stdout
+    assert entrypoint_doi in result.stdout
 
 
 def test_clean_identifier():

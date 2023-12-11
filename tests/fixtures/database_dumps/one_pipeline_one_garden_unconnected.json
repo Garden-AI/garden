@@ -1,11 +1,11 @@
 {
-  "pipelines": {
+  "entrypoints": {
     "10.23677/jx31-gx98": {
       "doi": "10.23677/jx31-gx98",
       "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
       "container_uuid": "4f5688ac-424d-443e-b525-97c72e4e013f",
-      "title": "Fixture pipeline",
-      "short_name": "fixture_pipeline",
+      "title": "Fixture entrypoint",
+      "short_name": "fixture_entrypoint",
       "authors": [
         "Garden Team"
       ],
@@ -43,7 +43,7 @@
       "language": "en",
       "tags": [],
       "version": "0.0.1",
-      "pipeline_ids": []
+      "entrypoint_ids": []
     }
   }
 }

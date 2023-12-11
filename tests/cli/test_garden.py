@@ -43,9 +43,9 @@ def test_garden_create(garden_all_fields, tmp_path, mocker):
     assert garden_all_fields.doi in re.compile(r"\x1b[^m]*m").sub("", result.stdout)
 
 
-def test_garden_list(database_with_connected_pipeline, tmp_path, mocker):
+def test_garden_list(database_with_connected_entrypoint, tmp_path, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
 
     garden_title = "Will Test Garden"
@@ -63,9 +63,9 @@ def test_garden_list(database_with_connected_pipeline, tmp_path, mocker):
 
 
 @pytest.mark.cli
-def test_garden_show(database_with_connected_pipeline, tmp_path, mocker):
+def test_garden_show(database_with_connected_entrypoint, tmp_path, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
 
     garden_title = "Will Test Garden"
@@ -96,38 +96,38 @@ def test_garden_show(database_with_connected_pipeline, tmp_path, mocker):
 
 
 @pytest.mark.cli
-def test_garden_pipeline_add(database_with_unconnected_pipeline, mocker):
+def test_garden_entrypoint_add(database_with_unconnected_entrypoint, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_unconnected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_unconnected_entrypoint
     )
 
     garden_doi = "10.23677/fake-doi"
-    pipeline_doi = "10.23677/jx31-gx98"
+    entrypoint_doi = "10.23677/jx31-gx98"
 
     before_addition = local_data.get_local_garden_by_doi(garden_doi)
-    assert len(before_addition.pipeline_ids) == 0
+    assert len(before_addition.entrypoint_ids) == 0
 
-    command = ["garden", "add-pipeline", "-g", garden_doi, "-p", pipeline_doi]
+    command = ["garden", "add-entrypoint", "-g", garden_doi, "-p", entrypoint_doi]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
     garden_after_addition = local_data.get_local_garden_by_doi(garden_doi)
-    # expanded metadata includes "pipelines" attribute
+    # expanded metadata includes "entrypoints" attribute
     after_addition = garden_after_addition.expanded_metadata()
-    assert len(after_addition["pipelines"]) == 1
-    assert after_addition["pipelines"][0]["doi"] == pipeline_doi
+    assert len(after_addition["entrypoints"]) == 1
+    assert after_addition["entrypoints"][0]["doi"] == entrypoint_doi
 
 
 @pytest.mark.cli
-def test_garden_publish(database_with_connected_pipeline, mocker):
+def test_garden_publish(database_with_connected_entrypoint, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
 
     garden_doi = "10.23677/fake-doi"
-    pipeline_doi = "10.23677/jx31-gx98"
+    entrypoint_doi = "10.23677/jx31-gx98"
     mock_client._mint_draft_doi.return_value = garden_doi
 
     command = [
@@ -143,50 +143,50 @@ def test_garden_publish(database_with_connected_pipeline, mocker):
 
     args = mock_client.publish_garden_metadata.call_args.args
     garden = args[0]
-    # Confirm that expanded gardens include pipelines
+    # Confirm that expanded gardens include entrypoints
     denormalized_garden_metadata = garden.expanded_metadata()
-    assert str(denormalized_garden_metadata["pipelines"][0]["doi"]) == pipeline_doi
+    assert str(denormalized_garden_metadata["entrypoints"][0]["doi"]) == entrypoint_doi
 
 
 @pytest.mark.cli
-def test_garden_pipeline_add_with_alias(database_with_connected_pipeline, mocker):
+def test_garden_entrypoint_add_with_alias(database_with_connected_entrypoint, mocker):
     def get_names(garden):
         return [
-            garden.pipeline_aliases.get(cached.doi) or cached.short_name
-            for cached in garden._pipeline_cache
+            garden.entrypoint_aliases.get(cached.doi) or cached.short_name
+            for cached in garden._entrypoint_cache
         ]
 
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
 
     garden_doi = "10.23677/fake-doi"
-    pipeline_doi = "10.23677/jx31-gx98"
-    pipeline_old_name = "fixture_pipeline"
-    pipeline_alias = "fixed_ur_pipeline"
+    entrypoint_doi = "10.23677/jx31-gx98"
+    entrypoint_old_name = "fixture_entrypoint"
+    entrypoint_alias = "fixed_ur_entrypoint"
 
     before_addition = local_data.get_local_garden_by_doi(garden_doi)
-    pipeline_names = get_names(before_addition)
+    entrypoint_names = get_names(before_addition)
 
-    assert len(before_addition.pipeline_ids) == 1
-    assert pipeline_old_name in pipeline_names
-    assert pipeline_alias not in pipeline_names
+    assert len(before_addition.entrypoint_ids) == 1
+    assert entrypoint_old_name in entrypoint_names
+    assert entrypoint_alias not in entrypoint_names
 
     command = [
         "garden",
-        "add-pipeline",
+        "add-entrypoint",
         "-g",
         garden_doi,
         "-p",
-        pipeline_doi,
+        entrypoint_doi,
         "-a",
-        pipeline_alias,
+        entrypoint_alias,
     ]
     result = runner.invoke(app, command)
     assert result.exit_code == 0
 
     after_addition = local_data.get_local_garden_by_doi(garden_doi)
-    new_pipeline_names = get_names(after_addition)
+    new_entrypoint_names = get_names(after_addition)
 
-    assert pipeline_old_name not in new_pipeline_names
-    assert pipeline_alias in new_pipeline_names
+    assert entrypoint_old_name not in new_entrypoint_names
+    assert entrypoint_alias in new_entrypoint_names

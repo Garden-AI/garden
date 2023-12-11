@@ -4,7 +4,7 @@ from garden_ai import GardenClient
 
 
 @pytest.mark.integration
-def test_get_pipeline_from_gsearch():
+def test_get_entrypoint_from_gsearch():
     client = GardenClient()
     doi = "10.23677/w2ty-gv07"
     same_garden = client.get_published_garden(doi)

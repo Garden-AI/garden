@@ -23,29 +23,29 @@ class ETEConstants:
 
         self.garden_title = f"ETE-Test-Garden-{str(uuid.uuid4())}"
 
-        self.scaffolded_pipeline_folder_name = "ete_test_pipeline_title"
-        self.pipeline_template_name = "ete_pipeline_cc"
+        self.scaffolded_entrypoint_folder_name = "ete_test_entrypoint_title"
+        self.entrypoint_template_name = "ete_entrypoint_cc"
 
-        self.sklearn_pipeline_path = os.path.join(
-            self.key_store_path, "sklearn_pipeline.py"
+        self.sklearn_entrypoint_path = os.path.join(
+            self.key_store_path, "sklearn_entrypoint.py"
         )
-        self.sklearn_pipeline_name = "ETESklearnPipeline"
+        self.sklearn_entrypoint_name = "ETESklearnEntrypoint"
         self.sklearn_model_name = "ETE-Test-Model-Sklearn"
 
-        self.sklearn_pre_pipeline_path = os.path.join(
-            self.key_store_path, "sklearn_pre_pipeline.py"
+        self.sklearn_pre_entrypoint_path = os.path.join(
+            self.key_store_path, "sklearn_pre_entrypoint.py"
         )
-        self.sklearn_pre_pipeline_name = "ETESklearnPrePipeline"
+        self.sklearn_pre_entrypoint_name = "ETESklearnPreEntrypoint"
         self.sklearn_pre_model_name = "ETE-Test-Model-Sklearn-Pre"
 
-        self.tf_pipeline_path = os.path.join(self.key_store_path, "tf_pipeline.py")
-        self.tf_pipeline_name = "ETETfPipeline"
+        self.tf_entrypoint_path = os.path.join(self.key_store_path, "tf_entrypoint.py")
+        self.tf_entrypoint_name = "ETETfEntrypoint"
         self.tf_model_name = "ETE-Test-Model-Tf"
 
-        self.torch_pipeline_path = os.path.join(
-            self.key_store_path, "torch_pipeline.py"
+        self.torch_entrypoint_path = os.path.join(
+            self.key_store_path, "torch_entrypoint.py"
         )
-        self.torch_pipeline_name = "ETETorchPipeline"
+        self.torch_entrypoint_name = "ETETorchEntrypoint"
         self.torch_model_name = "ETE-Test-Model-Torch"
 
         self.sklearn_model_location = os.path.abspath("./models/sklearn_model.pkl")
@@ -93,7 +93,7 @@ class ETEConstants:
         self.torch_func = "predict"
         self.custom_func = "predict"
 
-        self.pipeline_template_location = os.path.abspath("./templates")
+        self.entrypoint_template_location = os.path.abspath("./templates")
 
         self.example_garden_data = {
             "authors": ["Test Garden Author"],
@@ -103,12 +103,12 @@ class ETEConstants:
             "description": "ETE Test Garden Description",
         }
 
-        self.example_pipeline_data = {
-            "authors": ["Test Pipeline Author"],
-            "title": "ETE Test Pipeline Title",
-            "contributors": ["Test Pipeline Contributor"],
+        self.example_entrypoint_data = {
+            "authors": ["Test Entrypoint Author"],
+            "title": "ETE Test Entrypoint Title",
+            "contributors": ["Test Entrypoint Contributor"],
             "year": "2023",
-            "description": "ETE Test Pipeline Description",
+            "description": "ETE Test Entrypoint Description",
         }
 
         self.custom_model_location = None
@@ -116,19 +116,19 @@ class ETEConstants:
         self.custom_model_reqs = None
 
         self.custom_model_name = "ETE-Test-Model-Custom"
-        self.custom_pipeline_name = "ETECustomPipeline"
-        self.custom_pipeline_path = os.path.join(
-            self.key_store_path, "custom_pipeline.py"
+        self.custom_entrypoint_name = "ETECustomEntrypoint"
+        self.custom_entrypoint_path = os.path.join(
+            self.key_store_path, "custom_entrypoint.py"
         )
-        self.custom_make_new_pipeline = True
+        self.custom_make_new_entrypoint = True
 
         self.local_files_list = [
-            self.sklearn_pipeline_path,
-            self.tf_pipeline_path,
-            self.torch_pipeline_path,
-            self.sklearn_pre_pipeline_path,
-            self.custom_pipeline_path,
-            os.path.join(self.key_store_path, self.scaffolded_pipeline_folder_name),
+            self.sklearn_entrypoint_path,
+            self.tf_entrypoint_path,
+            self.torch_entrypoint_path,
+            self.sklearn_pre_entrypoint_path,
+            self.custom_entrypoint_path,
+            os.path.join(self.key_store_path, self.scaffolded_entrypoint_folder_name),
             os.path.join(self.key_store_path, "data.json"),
             os.path.join(self.key_store_path, "tokens.json"),
         ]

@@ -1,20 +1,20 @@
-from garden_ai.app.completion import complete_pipeline, complete_garden
+from garden_ai.app.completion import complete_entrypoint, complete_garden
 
 
-def test_complete_pipeline(database_with_connected_pipeline, mocker):
+def test_complete_entrypoint(database_with_connected_entrypoint, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
-    pipeline_doi = "10.23677/jx31-gx98"
-    pipeline_title = "Fixture pipeline"
+    entrypoint_doi = "10.23677/jx31-gx98"
+    entrypoint_title = "Fixture entrypoint"
 
-    empty_search = complete_pipeline("")
-    assert [(pipeline_doi, pipeline_title)] == empty_search
+    empty_search = complete_entrypoint("")
+    assert [(entrypoint_doi, entrypoint_title)] == empty_search
 
 
-def test_complete_garden(database_with_connected_pipeline, mocker):
+def test_complete_garden(database_with_connected_entrypoint, mocker):
     mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_pipeline
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
     garden_doi = "10.23677/fake-doi"
     garden_title = "Will Test Garden"

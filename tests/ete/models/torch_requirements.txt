@@ -1,2 +1,2 @@
-## Please specify all pipeline dependencies here
+## Please specify all entrypoint dependencies here
 torch==2.0.1

@@ -15,9 +15,9 @@ from garden_ai.globus_search.garden_search import (
 )
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
-from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.app.console import console, get_local_garden_rich_table
-from garden_ai.app.completion import complete_garden, complete_pipeline
+from garden_ai.app.completion import complete_garden, complete_entrypoint
 
 logger = logging.getLogger()
 
@@ -225,56 +225,56 @@ def search(
 
 
 @garden_app.command(no_args_is_help=True)
-def add_pipeline(
+def add_entrypoint(
     garden_id: str = typer.Option(
         ...,
         "-g",
         "--garden",
         autocompletion=complete_garden,
         prompt="Please enter the DOI of a garden",
-        help="The name of the garden you want to add a pipeline to",
+        help="The name of the garden you want to add a entrypoint to",
         rich_help_panel="Required",
     ),
-    pipeline_id: str = typer.Option(
+    entrypoint_id: str = typer.Option(
         ...,
         "-p",
-        "--pipeline",
-        autocompletion=complete_pipeline,
-        prompt="Please enter the DOI of a pipeline",
-        help="The name of the pipeline you want to add",
+        "--entrypoint",
+        autocompletion=complete_entrypoint,
+        prompt="Please enter the DOI of a entrypoint",
+        help="The name of the entrypoint you want to add",
         rich_help_panel="Required",
     ),
-    pipeline_alias: Optional[str] = typer.Option(
+    entrypoint_alias: Optional[str] = typer.Option(
         None,
         "-a",
         "--alias",
         help=(
-            'Alternate short_name to use when calling this pipeline as a "method" of the'
+            'Alternate short_name to use when calling this entrypoint as a "method" of the'
             "garden, e.g. ``my_garden.alias(args, endpoint=...)``. Defaults to the variable"
-            "name used when the pipeline was first registered."
+            "name used when the entrypoint was first registered."
         ),
     ),
 ):
-    """Add a registered pipeline to a garden"""
+    """Add a registered entrypoint to a garden"""
 
     garden = _get_garden(garden_id)
     if not garden:
         raise typer.Exit(code=1)
-    to_add = _get_pipeline(pipeline_id)
+    to_add = _get_entrypoint(entrypoint_id)
     if not to_add:
         raise typer.Exit(code=1)
 
-    if to_add.doi in garden.pipeline_ids:
-        if pipeline_alias:
-            old_name = garden.pipeline_aliases.get(to_add.doi) or to_add.short_name
+    if to_add.doi in garden.entrypoint_ids:
+        if entrypoint_alias:
+            old_name = garden.entrypoint_aliases.get(to_add.doi) or to_add.short_name
             print(
-                f"Pipeline {pipeline_id} is already in Garden {garden_id} as {old_name}. Renaming to {pipeline_alias}."
+                f"Entrypoint {entrypoint_id} is already in Garden {garden_id} as {old_name}. Renaming to {entrypoint_alias}."
             )
-            garden.rename_pipeline(to_add.doi, pipeline_alias)
+            garden.rename_entrypoint(to_add.doi, entrypoint_alias)
     else:
-        garden.add_pipeline(pipeline_id, pipeline_alias)
+        garden.add_entrypoint(entrypoint_id, entrypoint_alias)
     local_data.put_local_garden(garden)
-    logger.info(f"Added pipeline {pipeline_id} to Garden {garden_id}")
+    logger.info(f"Added entrypoint {entrypoint_id} to Garden {garden_id}")
 
 
 @garden_app.command(no_args_is_help=True)
@@ -320,12 +320,12 @@ def list():
     console.print(table)
 
 
-def _get_pipeline(pipeline_id: str) -> Optional[RegisteredPipeline]:
-    pipeline = local_data.get_local_pipeline_by_doi(pipeline_id)
-    if not pipeline:
-        logger.warning(f"Could not find pipeline with id {pipeline_id}")
+def _get_entrypoint(entrypoint_id: str) -> Optional[RegisteredEntrypoint]:
+    entrypoint = local_data.get_local_entrypoint_by_doi(entrypoint_id)
+    if not entrypoint:
+        logger.warning(f"Could not find entrypoint with id {entrypoint_id}")
         return None
-    return pipeline
+    return entrypoint
 
 
 @garden_app.command(no_args_is_help=True)

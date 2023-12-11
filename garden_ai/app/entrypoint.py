@@ -5,18 +5,18 @@ import typer
 import rich
 from rich.prompt import Prompt
 
-from garden_ai.app.console import console, get_local_pipeline_rich_table
-from garden_ai.app.completion import complete_pipeline
-from garden_ai.pipelines import Repository, Paper
+from garden_ai.app.console import console, get_local_entrypoint_rich_table
+from garden_ai.app.completion import complete_entrypoint
+from garden_ai.entrypoints import Repository, Paper
 from garden_ai.local_data import (
-    put_local_pipeline,
-    get_local_pipeline_by_doi,
+    put_local_entrypoint,
+    get_local_entrypoint_by_doi,
 )
 
 
 logger = logging.getLogger()
 
-pipeline_app = typer.Typer(name="pipeline", no_args_is_help=True)
+entrypoint_app = typer.Typer(name="entrypoint", no_args_is_help=True)
 
 
 def parse_full_name(name: str) -> str:
@@ -24,22 +24,22 @@ def parse_full_name(name: str) -> str:
     return name.strip() if name else ""
 
 
-@pipeline_app.callback()
-def pipeline():
+@entrypoint_app.callback()
+def entrypoint():
     """
-    sub-commands for creating and manipulating Pipelines
+    sub-commands for creating and manipulating Entrypoints
     """
     pass
 
 
-@pipeline_app.command(no_args_is_help=True)
+@entrypoint_app.command(no_args_is_help=True)
 def add_repository(
     doi: str = typer.Option(
         ...,
         "-d",
         "--doi",
-        autocompletion=complete_pipeline,
-        help="The DOI for the pipeline you would like to add a repository to",
+        autocompletion=complete_entrypoint,
+        help="The DOI for the entrypoint you would like to add a repository to",
         rich_help_panel="Required",
     ),
     url: str = typer.Option(
@@ -66,10 +66,10 @@ def add_repository(
         rich_help_panel="Recommended",
     ),
 ):
-    # get registered pipeline
-    pipeline = get_local_pipeline_by_doi(doi)
-    if not pipeline:
-        rich.print(f"Could not find pipeline with id {doi}\n")
+    # get registered entrypoint
+    entrypoint = get_local_entrypoint_by_doi(doi)
+    if not entrypoint:
+        rich.print(f"Could not find entrypoint with id {doi}\n")
     else:
         if not contributors:
             name = parse_full_name(
@@ -88,26 +88,26 @@ def add_repository(
         repository = Repository(
             repo_name=repository_name, url=url, contributors=contributors
         )
-        pipeline.repositories.append(repository)
-        put_local_pipeline(pipeline)
-        rich.print(f"Repository added to pipeline {doi}.")
+        entrypoint.repositories.append(repository)
+        put_local_entrypoint(entrypoint)
+        rich.print(f"Repository added to entrypoint {doi}.")
 
 
-@pipeline_app.command(no_args_is_help=True)
+@entrypoint_app.command(no_args_is_help=True)
 def add_paper(
     doi: str = typer.Option(
         ...,
         "-d",
         "--doi",
-        autocompletion=complete_pipeline,
-        help="The DOI for the pipeline you would like to add a repository to",
+        autocompletion=complete_entrypoint,
+        help="The DOI for the entrypoint you would like to add a repository to",
         rich_help_panel="Required",
     ),
     title: str = typer.Option(
         ...,
         "-t",
         "--title",
-        prompt=("The title of the paper you would like to add to your pipeline"),
+        prompt=("The title of the paper you would like to add to your entrypoint"),
         rich_help_panel="Required",
     ),
     authors: List[str] = typer.Option(
@@ -134,9 +134,9 @@ def add_paper(
         rich_help_panel="Recommended",
     ),
 ):
-    pipeline = get_local_pipeline_by_doi(doi)
-    if not pipeline:
-        rich.print(f"Could not find pipeline with id {doi}\n")
+    entrypoint = get_local_entrypoint_by_doi(doi)
+    if not entrypoint:
+        rich.print(f"Could not find entrypoint with id {doi}\n")
     else:
         if not authors:
             name = parse_full_name(
@@ -161,41 +161,41 @@ def add_paper(
                 "If available, please provite the citation that the paper may be linked to (leave blank to skip)"
             )
         paper = Paper(title=title, authors=authors, doi=paper_doi, citation=citation)
-        pipeline.papers.append(paper)
-        put_local_pipeline(pipeline)
-        rich.print(f"The paper {title} is successfully added to pipeline {doi}.")
+        entrypoint.papers.append(paper)
+        put_local_entrypoint(entrypoint)
+        rich.print(f"The paper {title} is successfully added to entrypoint {doi}.")
 
 
-@pipeline_app.command(no_args_is_help=False)
+@entrypoint_app.command(no_args_is_help=False)
 def list():
-    """Lists all local pipelines."""
+    """Lists all local entrypoints."""
 
     resource_table_cols = ["doi", "title", "description"]
-    table_name = "Local Pipelines"
+    table_name = "Local Entrypoints"
 
-    table = get_local_pipeline_rich_table(
+    table = get_local_entrypoint_rich_table(
         resource_table_cols=resource_table_cols, table_name=table_name
     )
     console.print("\n")
     console.print(table)
 
 
-@pipeline_app.command(no_args_is_help=True)
+@entrypoint_app.command(no_args_is_help=True)
 def show(
-    pipeline_ids: List[str] = typer.Argument(
+    entrypoint_ids: List[str] = typer.Argument(
         ...,
-        help="The DOIs of the pipelines you want to show the local data for. "
-        "e.g. ``pipeline show pipeline1_doi pipeline2_doi`` will show the local data for both pipelines listed.",
-        autocompletion=complete_pipeline,
+        help="The DOIs of the entrypoints you want to show the local data for. "
+        "e.g. ``entrypoint show entrypoint1_doi entrypoint2_doi`` will show the local data for both entrypoints listed.",
+        autocompletion=complete_entrypoint,
     ),
 ):
     """Shows all info for some Gardens"""
 
-    for pipeline_id in pipeline_ids:
-        pipeline = get_local_pipeline_by_doi(pipeline_id)
-        if pipeline:
-            rich.print(f"Pipeline: {pipeline_id} local data:")
-            rich.print_json(json=pipeline.json())
+    for entrypoint_id in entrypoint_ids:
+        entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
+        if entrypoint:
+            rich.print(f"Entrypoint: {entrypoint_id} local data:")
+            rich.print_json(json=entrypoint.json())
             rich.print("\n")
         else:
-            rich.print(f"Could not find pipeline with id {pipeline_id}")
+            rich.print(f"Could not find entrypoint with id {entrypoint_id}")

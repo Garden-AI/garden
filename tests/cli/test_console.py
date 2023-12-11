@@ -3,7 +3,7 @@ from rich.table import Table
 from garden_ai import local_data
 from garden_ai.app.console import (
     get_local_garden_rich_table,
-    get_local_pipeline_rich_table,
+    get_local_entrypoint_rich_table,
 )
 
 
@@ -30,30 +30,30 @@ def test_get_local_garden_table(mocker, garden_client, garden_all_fields, tmp_pa
     assert table.__dict__ == test_table.__dict__
 
 
-def test_get_local_pipeline_table(
-    mocker, garden_client, registered_pipeline_toy_example, tmp_path
+def test_get_local_entrypoint_table(
+    mocker, garden_client, registered_entrypoint_toy_example, tmp_path
 ):
     # mock to replace "~/.garden/db"
     mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
-    local_data.put_local_pipeline(registered_pipeline_toy_example)
+    local_data.put_local_entrypoint(registered_entrypoint_toy_example)
 
-    pipeline_cols = ["doi", "title", "description"]
-    pipeline_table_name = "Local Pipelines"
-    pipeline_rows = [
+    entrypoint_cols = ["doi", "title", "description"]
+    entrypoint_table_name = "Local Entrypoints"
+    entrypoint_rows = [
         (
-            registered_pipeline_toy_example.doi,
-            registered_pipeline_toy_example.title,
-            registered_pipeline_toy_example.description,
+            registered_entrypoint_toy_example.doi,
+            registered_entrypoint_toy_example.title,
+            registered_entrypoint_toy_example.description,
         )
     ]
-    table = Table(title=pipeline_table_name)
+    table = Table(title=entrypoint_table_name)
 
-    for col in pipeline_cols:
+    for col in entrypoint_cols:
         table.add_column(col)
-    for row in pipeline_rows:
+    for row in entrypoint_rows:
         table.add_row(*(row))
 
-    test_table = get_local_pipeline_rich_table(
-        resource_table_cols=pipeline_cols, table_name=pipeline_table_name
+    test_table = get_local_entrypoint_rich_table(
+        resource_table_cols=entrypoint_cols, table_name=entrypoint_table_name
     )
     assert table.__dict__ == test_table.__dict__
