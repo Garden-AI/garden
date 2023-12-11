@@ -138,7 +138,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
     Attributes:
         func_uuid: The ID of the Globus Compute function registered for this entrypoint.
         container_uuid: ID returned from Globus Compute's register_container.
-        base_image_uri: Name and location of the base image used by this entrypoint. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
+        base_image_uri: location of the base image used by this entrypoint. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
         full_image_uri: The name and location of the complete image used by this entrypoint.
         notebook_url: Link to the notebook used to build this entrypoint.
         steps: Ordered list of Python functions that the entrypoint author wants to highlight.

@@ -27,7 +27,7 @@ def parse_full_name(name: str) -> str:
 @entrypoint_app.callback()
 def entrypoint():
     """
-    sub-commands for creating and manipulating Entrypoints
+    sub-commands for creating and manipulating entrypoints
     """
     pass
 
@@ -100,7 +100,7 @@ def add_paper(
         "-d",
         "--doi",
         autocompletion=complete_entrypoint,
-        help="The DOI for the entrypoint you would like to add a repository to",
+        help="The DOI for the entrypoint you would like to link a paper to",
         rich_help_panel="Required",
     ),
     title: str = typer.Option(
@@ -184,12 +184,11 @@ def list():
 def show(
     entrypoint_ids: List[str] = typer.Argument(
         ...,
-        help="The DOIs of the entrypoints you want to show the local data for. "
-        "e.g. ``entrypoint show entrypoint1_doi entrypoint2_doi`` will show the local data for both entrypoints listed.",
+        help="The DOIs of the entrypoints you want to show local data for. ",
         autocompletion=complete_entrypoint,
     ),
 ):
-    """Shows all info for some Gardens"""
+    """Shows all info for some entrypoints"""
 
     for entrypoint_id in entrypoint_ids:
         entrypoint = get_local_entrypoint_by_doi(entrypoint_id)

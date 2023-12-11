@@ -235,7 +235,6 @@ class Garden(BaseModel):
         return json.dumps(data, default=pydantic_encoder)
 
     def _sync_author_metadata(self):
-        """helper: authors and contributors of steps and Entrypoints also appear as contributors in their respective Entrypoint and Garden's metadata."""
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
