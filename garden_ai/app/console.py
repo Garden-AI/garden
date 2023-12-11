@@ -51,28 +51,28 @@ def get_local_garden_rich_table(
     )
 
 
-def get_local_pipeline_rich_table(
+def get_local_entrypoint_rich_table(
     resource_table_cols: List[str], table_name: str
 ) -> Table:
-    """Helper: fetch all pipelines from ~/.garden/data.json and returns a rich table to print.
+    """Helper: fetch all entrypoints from ~/.garden/data.json and returns a rich table to print.
 
     Parameters
     ----------
     resource_table_cols List[str]
-        A list of the pipeline fields you want included as col headers in the table.
+        A list of the entrypoint fields you want included as col headers in the table.
     table_name str
         Name of the rich table
 
     Returns
     -------
     Table
-        Returns a rich table of all local pipelines.
+        Returns a rich table of all local entrypoints.
     """
-    from garden_ai.local_data import get_all_local_pipelines
+    from garden_ai.local_data import get_all_local_entrypoints
 
-    local_pipelines = get_all_local_pipelines()
+    local_entrypoints = get_all_local_entrypoints()
     return _get_rich_resource_table(
-        resource_objs=local_pipelines,
+        resource_objs=local_entrypoints,
         resource_table_cols=resource_table_cols,
         table_name=table_name,
     )

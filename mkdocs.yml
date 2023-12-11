@@ -9,7 +9,7 @@ nav:
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
   - API Reference:
-    - Pipelines: Pipelines.md
+    - Entrypoints: Entrypoints.md
     - Gardens: Gardens.md
 theme: material
 plugins:

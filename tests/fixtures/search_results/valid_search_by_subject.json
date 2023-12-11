@@ -16,19 +16,19 @@
                 ],
                 "title": "Experiments on Plant Hybridization",
                 "doi": "10.26311/fake-doi",
-                "description": "\nThis Garden houses sophisticated ML pipelines for Big Pea Data extraction\nand classification. It consists of a 2-hectare plot behind the monastery,\nand a 30,000-plant dataset.\n",
+                "description": "\nThis Garden houses sophisticated ML entrypoints for Big Pea Data extraction\nand classification. It consists of a 2-hectare plot behind the monastery,\nand a 30,000-plant dataset.\n",
                 "resourceTypeGeneral": "Other",
                 "publisher": "Garden",
                 "year": "1863",
                 "language": "en",
                 "tags": [],
                 "version": "0.0.1",
-                "pipelines": [
+                "entrypoints": [
                     {
                         "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
                         "container_uuid": "4f5688ac-424d-443e-b525-97c72e4e013f",
-                        "title": "Concept: a pipeline for soup",
-                        "short_name": "pea_pipeline",
+                        "title": "Concept: an entrypoint for soup",
+                        "short_name": "pea_entrypoint",
                         "authors": [
                             "Mendel, Gregor"
                         ],
@@ -37,7 +37,7 @@
                             "Abbot Mortimer",
                             "Friar Hugo"
                         ],
-                        "doi": "10.26311/fake-pipeline-doi"
+                        "doi": "10.26311/fake-entrypoint-doi"
                     }
                 ]
             },

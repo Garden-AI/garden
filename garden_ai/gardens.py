@@ -22,7 +22,7 @@ from .datacite import (
     Title,
     Types,
 )
-from .pipelines import RegisteredPipeline
+from .entrypoints import RegisteredEntrypoint
 
 logger = logging.getLogger()
 
@@ -48,8 +48,8 @@ class Garden(BaseModel):
             A brief summary of the Garden and/or its purpose, to aid discovery by \
             other Gardeners.
 
-        pipeline_ids: List[str] = Field(default_factory=list)
-        pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
+        entrypoint_ids: List[str] = Field(default_factory=list)
+        entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
             A garden's DOI usable for citations, generated automatically via \
@@ -77,7 +77,7 @@ class Garden(BaseModel):
             authors=["Mendel, Gregor"], title="Experiments on Plant Hybridization"
         )
         pea_garden.year = '1863'
-        pea_garden.description = '''This Garden houses sophisticated ML pipelines
+        pea_garden.description = '''This Garden houses sophisticated ML entrypoints
                                     for Big Pea Data extraction and classification.
                                     It consists of a 2-hectare plot behind the monastery,
                                     and a 30,000-plant dataset.'''
@@ -99,9 +99,9 @@ class Garden(BaseModel):
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
-    pipeline_ids: List[str] = Field(default_factory=list)
-    pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
-    _pipeline_cache: List[RegisteredPipeline] = PrivateAttr(default_factory=list)
+    entrypoint_ids: List[str] = Field(default_factory=list)
+    entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
+    _entrypoint_cache: List[RegisteredEntrypoint] = PrivateAttr(default_factory=list)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @root_validator(pre=True)
@@ -121,109 +121,109 @@ class Garden(BaseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._pipeline_cache = self._collect_pipelines()
+        self._entrypoint_cache = self._collect_entrypoints()
         return
 
     def _repr_html_(self) -> str:
         return garden_repr_html(self)
 
-    def _collect_pipelines(self) -> List[RegisteredPipeline]:
+    def _collect_entrypoints(self) -> List[RegisteredEntrypoint]:
         """
-        Collects the pipeline objects that have been registered to this garden from the local database.
+        Collects the entrypoint objects that have been registered to this garden from the local database.
 
         Returns:
-            A list of RegisteredPipeline objects.
+            A list of RegisteredEntrypoint objects.
         """
-        from .local_data import PipelineNotFoundException, get_local_pipeline_by_doi
+        from .local_data import EntrypointNotFoundException, get_local_entrypoint_by_doi
 
-        pipelines = []
-        for doi in self.pipeline_ids:
-            pipeline = get_local_pipeline_by_doi(doi)
-            if pipeline is None:
-                raise PipelineNotFoundException(
-                    f"Could not find registered pipeline with id {doi}."
+        entrypoints = []
+        for doi in self.entrypoint_ids:
+            entrypoint = get_local_entrypoint_by_doi(doi)
+            if entrypoint is None:
+                raise EntrypointNotFoundException(
+                    f"Could not find registered entrypoint with id {doi}."
                 )
 
-            pipelines += [pipeline]
+            entrypoints += [entrypoint]
 
-        return pipelines
+        return entrypoints
 
-    def add_pipeline(
-        self, pipeline_id: str, alias: Optional[str] = None, replace=False
+    def add_entrypoint(
+        self, entrypoint_id: str, alias: Optional[str] = None, replace=False
     ):
         """
-        Fetches the pipeline with the given DOI from the local database and adds it to this garden.
+        Fetches the entrypoint with the given DOI from the local database and adds it to this garden.
 
-        If replace=True, any pipeline with the same `short_name` will be
+        If replace=True, any entrypoint with the same `short_name` will be
             replaced, else raise a ValueError (default)
 
         Raises:
             ValueError: If any of the provided arguments would result in an invalid state.
         """
-        if pipeline_id in self.pipeline_ids:
+        if entrypoint_id in self.entrypoint_ids:
             if replace:
-                self.remove_pipeline(pipeline_id)
-                self._pipeline_cache = self._collect_pipelines()
+                self.remove_entrypoint(entrypoint_id)
+                self._entrypoint_cache = self._collect_entrypoints()
             else:
                 raise ValueError(
-                    "Error: this pipeline is already attached to this garden. "
-                    "to rename a pipeline, see `rename_pipeline`"
+                    "Error: this entrypoint is already attached to this garden. "
+                    "to rename an entrypoint, see `rename_entrypoint`"
                 )
 
-        from .local_data import get_local_pipeline_by_doi
+        from .local_data import get_local_entrypoint_by_doi
 
-        pipeline = get_local_pipeline_by_doi(pipeline_id)
-        if pipeline is None:
+        entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
+        if entrypoint is None:
             raise ValueError(
-                f"Error: no pipeline was found in the local database with the given DOI {pipeline_id}."
+                f"Error: no entrypoint was found in the local database with the given DOI {entrypoint_id}."
             )
 
-        pipeline_names = (
-            self.pipeline_aliases.get(cached.doi) or cached.short_name
-            for cached in self._pipeline_cache
+        entrypoint_names = (
+            self.entrypoint_aliases.get(cached.doi) or cached.short_name
+            for cached in self._entrypoint_cache
         )
-        if alias is None and pipeline.short_name in pipeline_names:
+        if alias is None and entrypoint.short_name in entrypoint_names:
             raise ValueError(
-                f"Error: a pipeline with the name {pipeline.short_name} already exists in this garden, "
-                "please provide an alias for the new pipeline."
+                f"Error: an entrypoint with the name {entrypoint.short_name} already exists in this garden, "
+                "please provide an alias for the new entrypoint."
             )
 
-        self.pipeline_ids += [pipeline_id]
-        self._pipeline_cache += [pipeline]
+        self.entrypoint_ids += [entrypoint_id]
+        self._entrypoint_cache += [entrypoint]
 
         if alias:
-            self.rename_pipeline(pipeline_id, alias)
+            self.rename_entrypoint(entrypoint_id, alias)
         return
 
-    def remove_pipeline(self, pipeline_id: str):
-        if pipeline_id not in self.pipeline_ids:
+    def remove_entrypoint(self, entrypoint_id: str):
+        if entrypoint_id not in self.entrypoint_ids:
             raise ValueError(
-                f"Error: no pipeline with DOI {pipeline_id} found in this garden. "
+                f"Error: no entrypoint with DOI {entrypoint_id} found in this garden. "
             )
-        self.pipeline_ids.remove(pipeline_id)
-        if pipeline_id in self.pipeline_aliases:
-            del self.pipeline_aliases[pipeline_id]
+        self.entrypoint_ids.remove(entrypoint_id)
+        if entrypoint_id in self.entrypoint_aliases:
+            del self.entrypoint_aliases[entrypoint_id]
 
         return
 
     def expanded_metadata(self) -> Dict[str, Any]:
         """
-        Helper method: builds the "complete" metadata dictionary with nested `Pipeline` and `step` metadata.
+        Helper method: builds the "complete" metadata dictionary with nested `Entrypoint` and `step` metadata.
 
-        When serializing normally with `garden.{dict(), json()}`, only the DOIs of the pipelines in the garden are included.
+        When serializing normally with `garden.{dict(), json()}`, only the DOIs of the entrypoints in the garden are included.
 
         This method returns a superset of `garden.dict()`, so that the following holds:
             valid_garden == Garden(**valid_garden.expanded_metadata()) == Garden(**valid_garden.dict())
 
         Returns:
-            A dictionary containing the `Garden` metadata augmented with a list of `RegisteredPipeline` metadata.
+            A dictionary containing the `Garden` metadata augmented with a list of `RegisteredEntrypoint` metadata.
 
         Raises:
-            PipelineNotFoundException: If `garden.pipeline_ids` references an unknown pipeline ID.
+            EntrypointNotFoundException: If `garden.entrypoint_ids` references an unknown entrypoint ID.
         """
         self._sync_author_metadata()
         data = self.dict()
-        data["pipelines"] = [p.dict() for p in self._collect_pipelines()]
+        data["entrypoints"] = [p.dict() for p in self._collect_entrypoints()]
         return data
 
     def expanded_json(self) -> JSON:
@@ -235,24 +235,23 @@ class Garden(BaseModel):
         return json.dumps(data, default=pydantic_encoder)
 
     def _sync_author_metadata(self):
-        """helper: authors and contributors of steps and Pipelines also appear as contributors in their respective Pipeline and Garden's metadata."""
         known_contributors = set(self.contributors)
         # garden contributors don't need to duplicate garden authors unless they've been explicitly added
         known_authors = set(self.authors) - known_contributors
 
-        for pipeline in self._pipeline_cache:
-            new_contributors = set(pipeline.authors)
+        for entrypoint in self._entrypoint_cache:
+            new_contributors = set(entrypoint.authors)
             known_contributors |= new_contributors - known_authors
 
         self.contributors = list(known_contributors)
         return
 
-    def rename_pipeline(self, pipeline_id: str, new_name: str):
-        """Rename a pipeline in this garden.
+    def rename_entrypoint(self, entrypoint_id: str, new_name: str):
+        """Rename an entrypoint in this garden.
 
         Parameters:
-            pipeline_id (str): the DOI for the pipeline to be renamed
-            new_name (str): the new short_name of the pipeline
+            entrypoint_id (str): the DOI for the entrypoint to be renamed
+            new_name (str): the new short_name of the entrypoint
         Raises:
             ValueError: if the new_name is already in use, or if the old_name is \
             not found, or if the new_name is not a valid identifier.
@@ -260,21 +259,21 @@ class Garden(BaseModel):
         if not new_name.isidentifier():
             raise ValueError("an alias must be a valid Python identifier.")
 
-        if pipeline_id not in self.pipeline_ids:
+        if entrypoint_id not in self.entrypoint_ids:
             raise ValueError(
-                f"Error: could not find pipeline with DOI {pipeline_id} in this garden."
+                f"Error: could not find entrypoint with DOI {entrypoint_id} in this garden."
             )
 
-        pipeline_names = (
-            self.pipeline_aliases.get(cached.doi) or cached.short_name
-            for cached in self._pipeline_cache
+        entrypoint_names = (
+            self.entrypoint_aliases.get(cached.doi) or cached.short_name
+            for cached in self._entrypoint_cache
         )
-        if new_name in pipeline_names:
+        if new_name in entrypoint_names:
             raise ValueError(
-                f"Error: found existing pipeline with name {new_name} in this garden."
+                f"Error: found existing entrypoint with name {new_name} in this garden."
             )
 
-        self.pipeline_aliases[pipeline_id] = new_name
+        self.entrypoint_aliases[entrypoint_id] = new_name
         return
 
     class Config:
@@ -307,12 +306,12 @@ class PublishedGarden(BaseModel):
             A brief summary of the Garden and/or its purpose, to aid discovery by \
             other Gardeners.
 
-        pipelines (list[RegisteredPipeline]):
-            List of the pipelines associated with this garden \
-            Note that these pipelines can also be accessed directly by their \
+        entrypoints (list[RegisteredEntrypoint]):
+            List of the entrypoints associated with this garden \
+            Note that these entrypoints can also be accessed directly by their \
             `short_name` (or alias).
 
-        pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
+        entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
 
         doi (str):
             A garden's DOI usable for citations.
@@ -349,8 +348,8 @@ class PublishedGarden(BaseModel):
     language: str = "en"
     tags: List[str] = Field(default_factory=list, unique_items=True)
     version: str = "0.0.1"
-    pipelines: List[RegisteredPipeline] = Field(...)
-    pipeline_aliases: Dict[str, str] = Field(default_factory=dict)
+    entrypoints: List[RegisteredEntrypoint] = Field(...)
+    entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
     _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @validator("year")
@@ -405,7 +404,7 @@ class PublishedGarden(BaseModel):
                     relatedIdentifierType="DOI",
                     relationType="HasPart",
                 )
-                for doi in (p.doi for p in self.pipelines)
+                for doi in (p.doi for p in self.entrypoints)
             ],
             version=self.version,
             descriptions=[
@@ -419,11 +418,11 @@ class PublishedGarden(BaseModel):
         #  note: this is only called as a fallback when __getattribute__ raises an exception,
         #  existing attributes are not affected by overriding this
         message_extra = ""
-        for pipeline in self.pipelines:
-            short_name = pipeline.short_name
-            alias = self.pipeline_aliases.get(pipeline.doi) or short_name
+        for entrypoint in self.entrypoints:
+            short_name = entrypoint.short_name
+            alias = self.entrypoint_aliases.get(entrypoint.doi) or short_name
             if name == alias:
-                return pipeline
+                return entrypoint
             elif name == short_name:
                 message_extra = f" Did you mean {alias}?"
 
@@ -433,11 +432,11 @@ class PublishedGarden(BaseModel):
         )
 
     def __dir__(self):
-        # this gets us jupyter/ipython/repl tab-completion of pipeline names
-        pipeline_names = [
-            self.pipeline_aliases.get(p.doi) or p.short_name for p in self.pipelines
+        # this gets us jupyter/ipython/repl tab-completion of entrypoint names
+        entrypoint_names = [
+            self.entrypoint_aliases.get(p.doi) or p.short_name for p in self.entrypoints
         ]
-        return list(super().__dir__()) + pipeline_names
+        return list(super().__dir__()) + entrypoint_names
 
     class Config:
         # Configure pydantic per-model settings.
@@ -459,10 +458,10 @@ def garden_repr_html(garden: Union[Garden, PublishedGarden]) -> str:
     style = "<style>th {text-align: left;}</style>"
     title = f"<h2>{data['title']}</h2>"
     details = f"<p>Authors: {', '.join(data['authors'])}<br>DOI: {data['doi']}</p>"
-    pipelines = "<h3>Pipelines</h3>" + tabulate(
+    entrypoints = "<h3>Entrypoints</h3>" + tabulate(
         [
-            {key.title(): str(pipeline[key]) for key in ("title", "authors", "doi")}
-            for pipeline in data["pipelines"]
+            {key.title(): str(entrypoint[key]) for key in ("title", "authors", "doi")}
+            for entrypoint in data["entrypoints"]
         ],
         headers="keys",
         tablefmt="html",
@@ -472,9 +471,9 @@ def garden_repr_html(garden: Union[Garden, PublishedGarden]) -> str:
             (field, str(val))
             for field, val in data.items()
             if field not in ("title", "authors", "doi")
-            and "pipeline" not in field
+            and "entrypoint" not in field
             and val
         ],
         tablefmt="html",
     )
-    return style + title + details + pipelines + optional
+    return style + title + details + entrypoints + optional

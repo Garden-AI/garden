@@ -7,7 +7,7 @@ from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
 
 from garden_ai import Garden, GardenClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.entrypoints import RegisteredEntrypoint
 from tests.fixtures.helpers import get_fixture_file_path  # type: ignore
 
 
@@ -133,12 +133,12 @@ def garden_no_fields():
 
 
 @pytest.fixture
-def registered_pipeline_toy_example(noop_func_uuid):
-    return RegisteredPipeline(
-        title="Pea Edibility Pipeline",
-        short_name="pipeline_toy_example",
+def registered_entrypoint_toy_example(noop_func_uuid):
+    return RegisteredEntrypoint(
+        title="Pea Edibility Entrypoint",
+        short_name="entrypoint_toy_example",
         authors=["Brian Jacques"],
-        description="A pipeline for perfectly-reproducible soup ratings.",
+        description="An entrypoint for perfectly-reproducible soup ratings.",
         container_uuid="4f5688ac-424d-443e-b525-97c72e4e013f",
         func_uuid=noop_func_uuid,
         doi="10.26311/fake-doi",
@@ -146,10 +146,10 @@ def registered_pipeline_toy_example(noop_func_uuid):
 
 
 @pytest.fixture
-def garden_all_fields(mocker, registered_pipeline_toy_example):
+def garden_all_fields(mocker, registered_entrypoint_toy_example):
     mocker.patch(
-        "garden_ai.Garden._collect_pipelines",
-        return_value=[registered_pipeline_toy_example],
+        "garden_ai.Garden._collect_entrypoints",
+        return_value=[registered_entrypoint_toy_example],
     )
 
     pea_garden = Garden(
@@ -161,15 +161,15 @@ def garden_all_fields(mocker, registered_pipeline_toy_example):
     pea_garden.year = "1863"
     pea_garden.language = "en"
     pea_garden.version = "0.0.1"
-    pea_garden.description = "This Garden houses ML pipelines for Big Pea Data."
-    pea_garden.pipeline_ids += [registered_pipeline_toy_example.doi]
+    pea_garden.description = "This Garden houses ML entrypoints for Big Pea Data."
+    pea_garden.entrypoint_ids += [registered_entrypoint_toy_example.doi]
     return pea_garden
 
 
 @pytest.fixture
-def database_with_unconnected_pipeline(tmp_path):
+def database_with_unconnected_entrypoint(tmp_path):
     source_path = get_fixture_file_path(
-        "database_dumps/one_pipeline_one_garden_unconnected.json"
+        "database_dumps/one_entrypoint_one_garden_unconnected.json"
     )
     with open(source_path, "r") as file:
         contents = file.read()
@@ -180,9 +180,9 @@ def database_with_unconnected_pipeline(tmp_path):
 
 
 @pytest.fixture
-def database_with_connected_pipeline(tmp_path):
+def database_with_connected_entrypoint(tmp_path):
     source_path = get_fixture_file_path(
-        "database_dumps/one_pipeline_one_garden_connected.json"
+        "database_dumps/one_entrypoint_one_garden_connected.json"
     )
     with open(source_path, "r") as file:
         contents = file.read()
@@ -222,5 +222,5 @@ def empty_search_by_doi():
 
 
 @pytest.fixture
-def path_to_pipeline_with_main_block():
-    return get_fixture_file_path("fixture_pipeline/pipeline.py")
+def path_to_entrypoint_with_main_block():
+    return get_fixture_file_path("fixture_entrypoint/entrypoint.py")

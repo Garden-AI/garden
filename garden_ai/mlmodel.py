@@ -38,7 +38,7 @@ class DatasetConnection(BaseModel):
 class ModelMetadata(BaseModel):
     """
     The ``ModelMetadata`` class represents metadata about an ML model published  \
-    on a public model repository used in a Pipeline.
+    on a public model repository used in an Entrypoint.
 
     Attributes:
         model_identifier (str): A short and descriptive name of the model

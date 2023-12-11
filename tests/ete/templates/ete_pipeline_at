@@ -1,5 +1,5 @@
 ## THIS FILE WAS AUTOMATICALLY GENERATED ##
-from garden_ai import GardenClient, Model, Pipeline, step
+from garden_ai import GardenClient, Model, Entrypoint, step
 import typing
 
 client = GardenClient()
@@ -8,12 +8,12 @@ client = GardenClient()
 """
 Brief notes on steps (see docs for more detail):
 
-    - you may define your pipeline using as many or as few @steps as you like.
+    - you may define your entrypoint using as many or as few @steps as you like.
 
     - Any python function or callable can be made into a step by decorating it
         with `@step`, like below.
 
-    - these functions will be composed in the pipeline (i.e. calling the pipeline
+    - these functions will be composed in the entrypoint (i.e. calling the entrypoint
         is equivalent to calling each step in order).
 
     - the steps MUST have valid type-hints for all positional arguments and
@@ -28,9 +28,9 @@ def run_inference(
     input_df: object,
     model=Model("{{ model_full_name }}"),
 ) -> object:
-    return model.{{ pipeline_model_func }}(input_df)
+    return model.{{ entrypoint_model_func }}(input_df)
 
-# the step functions will be composed in order by the pipeline:
+# the step functions will be composed in order by the entrypoint:
 ALL_STEPS = (
     run_inference,
 )
@@ -39,16 +39,16 @@ REQUIREMENTS_FILE = "{{ req_file_path }}"
 # to specify additional dependencies, replace `None`
 # with an "/absolute/path/to/requirements.txt"
 
-################################### PIPELINE ####################################
-{{ short_name }}: Pipeline = client.create_pipeline(
-    title="{{ pipeline.title }}",
+################################### ENTRYPOINT ####################################
+{{ short_name }}: Entrypoint = client.create_entrypoint(
+    title="{{ entrypoint.title }}",
     steps=ALL_STEPS,
     requirements_file=REQUIREMENTS_FILE,
-    authors={{ pipeline.authors }},
-    contributors={{ pipeline.contributors }},
-    description="{{ pipeline.description }}",
-    version="{{ pipeline.version }}",
-    year={{ pipeline.year }},
-    tags={{ pipeline.tags }},
-    doi="{{ pipeline.doi }}",  # WARNING: DO NOT EDIT DOI
+    authors={{ entrypoint.authors }},
+    contributors={{ entrypoint.contributors }},
+    description="{{ entrypoint.description }}",
+    version="{{ entrypoint.version }}",
+    year={{ entrypoint.year }},
+    tags={{ entrypoint.tags }},
+    doi="{{ entrypoint.doi }}",  # WARNING: DO NOT EDIT DOI
 )

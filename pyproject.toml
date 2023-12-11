@@ -91,4 +91,4 @@ markers = [
 
 [tool.coverage.run]
 source = ["garden_ai/"]
-omit = ["garden_ai/templates/pipeline", "tests/"]
+omit = ["garden_ai/notebook_templates/", "tests/"]

@@ -2,10 +2,10 @@ from ._version import __version__  # noqa  # type: ignore
 from .constants import GardenConstants
 from .client import GardenClient
 from .gardens import Garden, PublishedGarden
-from .pipelines import (
-    PipelineMetadata,
-    RegisteredPipeline,
-    garden_pipeline,
+from .entrypoints import (
+    EntrypointMetadata,
+    RegisteredEntrypoint,
+    garden_entrypoint,
     garden_step,
 )
 
@@ -14,8 +14,8 @@ __all__ = [
     "GardenClient",
     "Garden",
     "PublishedGarden",
-    "PipelineMetadata",
-    "RegisteredPipeline",
-    "garden_pipeline",
+    "EntrypointMetadata",
+    "RegisteredEntrypoint",
+    "garden_entrypoint",
     "garden_step",
 ]

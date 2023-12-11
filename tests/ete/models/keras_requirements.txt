@@ -1,2 +1,2 @@
-## Please specify all pipeline dependencies here
+## Please specify all entrypoint dependencies here
 tensorflow==2.13.0

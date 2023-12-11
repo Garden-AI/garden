@@ -50,14 +50,14 @@ We use [mkdocs](https://www.mkdocs.org/user-guide/configuration/) to build this 
 We use the mkdocs extension `mkdocstrings` to parse google-style python docstrings and build some API docs automatically. The actual contents of the generated docs page is configured in the corresponding `.md` file, e.g.:
 
 ```
-<!--- docs/Pipelines.md --->
-::: garden_ai.pipelines
+<!--- docs/Entrypoints.md --->
+::: garden_ai.entrypoints
     options:
         show_root_heading: True
         show_object_full_path: True
         members:
-            - Pipeline
-            - RegisteredPipeline
+            - Entrypoint
+            - RegisteredEntrypoint
 ```
 The mkdocstrings options are documented [here](https://mkdocstrings.github.io/python/usage/configuration/general/).
 

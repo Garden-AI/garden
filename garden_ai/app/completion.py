@@ -1,15 +1,17 @@
 from garden_ai import local_data
 
 
-def complete_pipeline(incomplete: str):
+def complete_entrypoint(incomplete: str):
     completion = []
-    pipelines = local_data.get_all_local_pipelines()
-    all_pipelines = (
-        [(pipeline.doi, pipeline.title) for pipeline in pipelines] if pipelines else []
+    entrypoints = local_data.get_all_local_entrypoints()
+    all_entrypoints = (
+        [(entrypoint.doi, entrypoint.title) for entrypoint in entrypoints]
+        if entrypoints
+        else []
     )
     if not incomplete:
-        return all_pipelines
-    for name, help_text in all_pipelines:
+        return all_entrypoints
+    for name, help_text in all_entrypoints:
         if name.startswith(incomplete):
             completion.append((name, help_text))
     return completion

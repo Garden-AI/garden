@@ -33,8 +33,8 @@ from garden_ai.containers import extract_metadata_from_image
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_search import garden_search
-from garden_ai.local_data import GardenNotFoundException, PipelineNotFoundException
-from garden_ai.pipelines import Paper, RegisteredPipeline, Repository
+from garden_ai.local_data import GardenNotFoundException, EntrypointNotFoundException
+from garden_ai.entrypoints import Paper, RegisteredEntrypoint, Repository
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -289,7 +289,9 @@ class GardenClient:
         }  # required data is filled in on the backend
         return self.backend_client.mint_doi_on_datacite(payload)
 
-    def _update_datacite(self, obj: Union[PublishedGarden, RegisteredPipeline]) -> None:
+    def _update_datacite(
+        self, obj: Union[PublishedGarden, RegisteredEntrypoint]
+    ) -> None:
         logger.info("Requesting update to DOI")
         metadata = json.loads(obj.datacite_json())
         metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
@@ -299,12 +301,12 @@ class GardenClient:
         logger.info("Update request succeeded")
 
     def add_paper(self, title: str, doi: str, **kwargs) -> None:
-        """Adds a ``Paper`` to a ``RegisteredPipeline`` corresponding to the given DOI.
+        """Adds a ``Paper`` to a ``RegisteredEntrypoint`` corresponding to the given DOI.
 
         Parameters
         ----------
         doi : str
-            The previously registered pipeline's DOI. Raises an
+            The previously registered entrypoint's DOI. Raises an
             exception if not found.
 
         title : str
@@ -317,28 +319,28 @@ class GardenClient:
 
         Raises
         ------
-        PipelineNotFoundException
-            Raised when no known pipeline exists with the given identifier.
+        EntrypointNotFoundException
+            Raised when no known entrypoint exists with the given identifier.
         """
-        pipeline = local_data.get_local_pipeline_by_doi(doi)
-        if not pipeline:
-            raise PipelineNotFoundException(
-                f"Could not find any pipelines with DOI {doi}."
+        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
+        if not entrypoint:
+            raise EntrypointNotFoundException(
+                f"Could not find any entrypoints with DOI {doi}."
             )
         data = dict(kwargs)
         if title:
             data["title"] = title
         paper = Paper(**data)
-        pipeline.papers.append(paper)
-        local_data.put_local_pipeline(pipeline)
+        entrypoint.papers.append(paper)
+        local_data.put_local_entrypoint(entrypoint)
 
     def add_repository(self, doi: str, url: str, repo_name: str, **kwargs) -> None:
-        """Adds a ``Repository`` to a ``RegisteredPipeline`` corresponding to the given DOI.
+        """Adds a ``Repository`` to a ``RegisteredEntrypoint`` corresponding to the given DOI.
 
         Parameters
         ----------
         doi : str
-            The previously registered pipeline's DOI. Raises an
+            The previously registered entrypoint's DOI. Raises an
             exception if not found.
 
         title : str
@@ -354,8 +356,8 @@ class GardenClient:
 
         Raises
         ------
-        PipelineNotFoundException
-            Raised when no known pipeline exists with the given identifier.
+        EntrypointNotFoundException
+            Raised when no known entrypoint exists with the given identifier.
         """
         data = dict(kwargs)
         if doi:
@@ -364,43 +366,43 @@ class GardenClient:
             data["url"] = url
         if repo_name:
             data["repo_name"] = repo_name
-        pipeline = local_data.get_local_pipeline_by_doi(doi)
-        if not pipeline:
-            raise PipelineNotFoundException(
-                f"Could not find any pipelines with DOI {doi}."
+        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
+        if not entrypoint:
+            raise EntrypointNotFoundException(
+                f"Could not find any entrypoints with DOI {doi}."
             )
 
         repository = Repository(**data)
-        pipeline.repositories.append(repository)
-        local_data.put_local_pipeline(pipeline)
+        entrypoint.repositories.append(repository)
+        local_data.put_local_entrypoint(entrypoint)
 
-    def get_registered_pipeline(self, doi: str) -> RegisteredPipeline:
-        """Return a callable ``RegisteredPipeline`` corresponding to the given DOI.
+    def get_registered_entrypoint(self, doi: str) -> RegisteredEntrypoint:
+        """Return a callable ``RegisteredEntrypoint`` corresponding to the given DOI.
 
         Parameters
         ----------
         doi : str
-            The previously registered pipeline's DOI. Raises an
+            The previously registered entrypoint's DOI. Raises an
             exception if not found.
 
         Returns
         -------
-        RegisteredPipeline
-            Instance of ``RegisteredPipeline``, which can be run on
+        RegisteredEntrypoint
+            Instance of ``RegisteredEntrypoint``, which can be run on
             a specified remote Globus Compute endpoint.
 
         Raises
         ------
-        PipelineNotFoundException
-            Raised when no known pipeline exists with the given identifier.
+        EntrypointNotFoundException
+            Raised when no known entrypoint exists with the given identifier.
         """
-        pipeline = local_data.get_local_pipeline_by_doi(doi)
+        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
 
-        if pipeline is None:
-            raise PipelineNotFoundException(
-                f"Could not find any pipelines with DOI {doi}."
+        if entrypoint is None:
+            raise EntrypointNotFoundException(
+                f"Could not find any entrypoints with DOI {doi}."
             )
-        return pipeline
+        return entrypoint
 
     def get_email(self) -> str:
         return local_data._get_user_email()
@@ -408,15 +410,15 @@ class GardenClient:
     def get_local_garden(self, doi: str) -> Garden:
         """Return a registered ``Garden`` corresponding to the given DOI.
 
-        Any ``RegisteredPipelines`` registered to the Garden will be callable
+        Any ``RegisteredEntrypoints`` registered to the Garden will be callable
         as attributes on the garden by their (registered) short_name, e.g.
             ```python
                 my_garden = client.get_local_garden('garden-doi')
-                #  pipeline would have been registered with short_name='my_pipeline'
-                my_garden.my_pipeline(*args, endpoint='where-to-execute')
+                #  entrypoint would have been registered with short_name='my_entrypoint'
+                my_garden.my_entrypoint(*args, endpoint='where-to-execute')
             ```
-        Tip: To access the pipeline by a different name, use ``my_garden.rename_pipeline(pipeline_id, new_name)``.
-        To persist a new name for a pipeline, re-register it to the garden and specify an alias.
+        Tip: To access the entrypoint by a different name, use ``my_garden.rename_entrypoint(entrypoint_id, new_name)``.
+        To persist a new name for an entrypoint, re-register it to the garden and specify an alias.
 
         Parameters
         ----------
@@ -451,7 +453,7 @@ class GardenClient:
     def upload_notebook(self, notebook_contents: dict, notebook_name: str) -> str:
         """
         POSTs a notebook's contents to the backend /notebook route
-        so that we can store a link to the full notebook contents in the pipeline metadata.
+        so that we can store a link to the full notebook contents in the entrypoint metadata.
         """
         username = self.get_email()
         try:
@@ -487,8 +489,8 @@ class GardenClient:
         """
         published = self.get_published_garden(doi)
 
-        for pipeline in published.pipelines:
-            local_data.put_local_pipeline(pipeline)
+        for entrypoint in published.entrypoints:
+            local_data.put_local_entrypoint(entrypoint)
 
         data = published.dict()
         del data["doi"]  # the clone should not retain the DOI
@@ -526,7 +528,7 @@ class GardenClient:
         full_image_uri: str,
         notebook_url: str,
     ):
-        """Register pipelines and (re-)publish affected gardens from a user's finished notebook session image.
+        """Register entrypoints and (re-)publish affected gardens from a user's finished notebook session image.
 
         Parameters:
         - docker_client : docker.DockerClient
@@ -544,7 +546,7 @@ class GardenClient:
 
         Raises:
         - ValueError
-            When attempting to add a pipeline to a garden which does not exist
+            When attempting to add an entrypoint to a garden which does not exist
             in local data.
         """
         dirty_gardens = set()  # it's good for gardens to get dirty, actually
@@ -558,18 +560,18 @@ class GardenClient:
 
         for key, record in metadata.items():
             if "." in key:
-                # skip "{key}.garden_doi" and "{key}.pipeline_step" for now
+                # skip "{key}.garden_doi" and "{key}.entrypoint_step" for now
                 continue
 
-            # register function & populate RegisteredPipeline fields
+            # register function & populate RegisteredEntrypoint fields
             to_register = make_function_to_register(key)
             record["container_uuid"] = container_uuid
             record["func_uuid"] = self.compute_client.register_function(
                 to_register, container_uuid=str(container_uuid), public=True
             )
-            pipeline_step = metadata.get(f"{key}.pipeline_step")
+            entrypoint_step = metadata.get(f"{key}.entrypoint_step")
             all_steps = common_steps[:]
-            all_steps.append(pipeline_step)
+            all_steps.append(entrypoint_step)
             record["steps"] = all_steps
             record["doi"] = record.get("doi") or self._mint_draft_doi()
             record["short_name"] = record.get("short_name") or key
@@ -577,25 +579,25 @@ class GardenClient:
             record["base_image_uri"] = base_image_uri
             record["full_image_uri"] = full_image_uri
 
-            registered = RegisteredPipeline(**record)
+            registered = RegisteredEntrypoint(**record)
             self._update_datacite(registered)
-            local_data.put_local_pipeline(registered)
+            local_data.put_local_entrypoint(registered)
 
-            # fetch garden we're attaching this pipeline to (if one was specified)
+            # fetch garden we're attaching this entrypoint to (if one was specified)
             garden_doi = metadata.get(f"{key}.garden_doi")
             if garden_doi:
                 garden = local_data.get_local_garden_by_doi(garden_doi)
                 if garden is None:
                     msg = (
-                        f"Could not add pipeline {key} to garden "
+                        f"Could not add entrypoint {key} to garden "
                         f"{garden_doi}: could not find local garden with that DOI"
                     )
                     raise ValueError(msg)
-                garden.add_pipeline(registered.doi, replace=True)
+                garden.add_entrypoint(registered.doi, replace=True)
                 local_data.put_local_garden(garden)
                 dirty_gardens |= {garden.doi}
                 print(
-                    f"Added pipeline {registered.doi} ({registered.short_name}) to garden {garden.doi} ({garden.title})!"
+                    f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden.doi} ({garden.title})!"
                 )
 
         for doi in dirty_gardens:

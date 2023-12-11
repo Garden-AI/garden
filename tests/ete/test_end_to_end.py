@@ -68,7 +68,7 @@ QUICK USE:
 
             --model-type all
                 The model flavors to test. Can be 'sklearn', 'sklearn-preprocessor' 'tensorflow', 'pytorch', 'custom' or 'all'.
-                Will make pipeline for model type, add to new Garden, publish and test remote execution.
+                Will make entrypoint for model type, add to new Garden, publish and test remote execution.
                 If you want to test only a subset of the flavors, say tensorflow and pytorch, just use --model-type
                 twice (--model-type tensorflow --model-type pytorch).
                 NOTE: 'all' does not include 'custom', just 'sklearn', 'sklearn-preprocessor' 'tensorflow' and 'pytorch'
@@ -83,8 +83,8 @@ QUICK USE:
                 Client credential runs cannot access endpoints that other users have created.
 
             --use-cached-containers
-                Use  previously cached containers for applicable pipelines.
-                If not included, will build a new container for a pipeline every time.
+                Use  previously cached containers for applicable entrypoints.
+                If not included, will build a new container for an entrypoint every time.
 
             --live-print-stdout
                 Print all Garden logs to stdout, in addition to the test logs.
@@ -104,8 +104,8 @@ QUICK USE:
             --custom-model-flavor sklearn
             --custom-model-reqs path/to/reqs/requirments.txt
 
-        The test will load the model and requirements and then make a pipeline with a run_inference predict step.
-        If you already have a pipeline for the model, you could instead run:
+        The test will load the model and requirements and then make an entrypoint with a run_inference predict step.
+        If you already have an entrypoint for the model, you could instead run:
 
         poetry run python3 test_end_to_end.py run-garden-end-to-end
             --garden-grant cc
@@ -116,7 +116,7 @@ QUICK USE:
             --live-print-stdout
             --custom-model-path path/to/model/model.pkl
             --custom-model-flavor sklearn
-            --custom-model-pipeline path/to/pipeline/pipeline.py
+            --custom-model-entrypoint path/to/entrypoint/entrypoint.py
 
         In general, the following arguments are used for testing custom model files:
             --custom-model-path xxx
@@ -125,13 +125,13 @@ QUICK USE:
             --custom-model-flavor xxx
                 The flavor of a model to run with the end-to-end test. Must be included for --model-type custom runs.
 
-            --custom-model-pipeline xxx
-                The path to a pipeline file for a custom model to run with the end-to-end test.
-                Include if you already have a pipeline file for your model and don't want the test to autogenerate.
+            --custom-model-entrypoint xxx
+                The path to an entrypoint file for a custom model to run with the end-to-end test.
+                Include if you already have an entrypoint file for your model and don't want the test to autogenerate.
 
             --custom-model-reqs
                 The path to the requirements file for a custom model to run with the end-to-end test.
-                Include if you DON'T already have a pipeline file for your model and want the test to autogenerate.
+                Include if you DON'T already have an entrypoint file for your model and want the test to autogenerate.
 
 
     Github actions runs:
@@ -144,7 +144,7 @@ QUICK USE:
         It uses previously built cached containers to speed up runtime.
 
         The full test runs daily on py3.8.16 and tests all supported model flavors.
-        It builds a new container for the pipeline.
+        It builds a new container for the entrypoint.
 
         Both of these workflows can be run manually.
 
@@ -164,12 +164,12 @@ Overview of what the test is doing:
 
     The test itself is going to:
         - Test creating a new Garden.
-        - Test creating a new scaffolded pipeline.
+        - Test creating a new scaffolded entrypoint.
         - Test registering a new model of the flavor types selected.
-        - Test creating and registering a new pipeline for each model registered in the previous step.
-        - Test adding all newly registered pipelines to the previously created new Garden
+        - Test creating and registering a new entrypoint for each model registered in the previous step.
+        - Test adding all newly registered entrypoints to the previously created new Garden
         - Test publishing the new Garden
-        - Test remote execution for all pipelines created in previous steps.
+        - Test remote execution for all entrypoints created in previous steps.
 
     Result collection:
     When running from github actions, github artifacts is used to store the test output. During the setup on github actions,
@@ -221,7 +221,7 @@ def run_garden_end_to_end(
     ),
     globus_compute_endpoint: Optional[str] = typer.Option(
         default=None,
-        help="The globus compute endpoint to remote run the test pipelines on. If none provided, then will skip "
+        help="The globus compute endpoint to remote run the test entrypoints on. If none provided, then will skip "
         "testing remote execution. If value is 'default', "
         "will test on DlHub test endpoint ('86a47061-f3d9-44f0-90dc-56ddc642c000'). "
         "If value is 'fresh' will create a new endpoint for this run.",
@@ -245,10 +245,10 @@ def run_garden_end_to_end(
         help="The path to a custom model file to run ETE test on. "
         "Used in '--model-type custom' runs only. Must be included for all '--model-type custom' runs.",
     ),
-    custom_pipeline_path: Optional[str] = typer.Option(
+    custom_entrypoint_path: Optional[str] = typer.Option(
         default=None,
-        help="The path to pipeline for custom model to run ETE test on. "
-        "If none provided, test will make make default pipeline instead with predict step. "
+        help="The path to entrypoint for custom model to run ETE test on. "
+        "If none provided, test will make make default entrypoint instead with predict step. "
         "Used in '--model-type custom' runs only.",
     ),
     custom_model_flavor: Optional[str] = typer.Option(
@@ -259,14 +259,14 @@ def run_garden_end_to_end(
     ),
     custom_model_reqs: Optional[str] = typer.Option(
         default=None,
-        help="The path to custom models requirements file. Not needed if '--custom-pipeline-path' is given. "
+        help="The path to custom models requirements file. Not needed if '--custom-entrypoint-path' is given. "
         "Used in '--model-type custom' runs only.",
     ),
 ):
     """See 'QUICK USE' at the top of test_end_to_end.py for more info on how to use."""
     """
-    Tests garden commands: 'garden create', 'garden add-pipeline', 'garden search', 'garden publish',
-    'model register', 'pipeline create', 'pipeline register' and remote execution of gardens.
+    Tests garden commands: 'garden create', 'garden add-entrypoint', 'garden search', 'garden publish',
+    'model register', 'entrypoint create', 'entrypoint register' and remote execution of gardens.
 
     Args:
         garden_grant : Optional[str]
@@ -281,7 +281,7 @@ def run_garden_end_to_end(
             If set to true, checks cache for all needed containers and skips building where possible.
             If no cache found, will still build containers.
         globus_compute_endpoint : Optional[str]
-            The globus compute endpoint to remote run the test pipelines on.
+            The globus compute endpoint to remote run the test entrypoints on.
             If none provided, then will skip testing remote execution.
             If value is 'default', will test on DlHub test endpoint ('86a47061-f3d9-44f0-90dc-56ddc642c000').
             If value is 'fresh' will create a new endpoint for this run.
@@ -302,14 +302,14 @@ def run_garden_end_to_end(
             Used for '--model-type custom' runs only.
             The flavor of a model to run with the end to end test.
             Must be included for --model-type custom runs.
-        custom_model_pipeline
+        custom_model_entrypoint
             Used for '--model-type custom' runs only.
-            The path to a pipeline file for a custom model to run with the end to end test.
-            Include if you already have a pipeline file for your model and dont want the test to autogenerate.
+            The path to an entrypoint file for a custom model to run with the end to end test.
+            Include if you already have an entrypoint file for your model and dont want the test to autogenerate.
         custom_model_reqs
             Used for '--model-type custom' runs only.
             The path to the requirments file for a custom model to run with the end to end test.
-            Include if you don't already have a pipeline file for your model and want the test to autogenerate.
+            Include if you don't already have an entrypoint file for your model and want the test to autogenerate.
 
     Returns:
         None
@@ -366,9 +366,9 @@ def run_garden_end_to_end(
             constants.custom_model_location = custom_model_path
             constants.custom_model_flavor = custom_model_flavor
 
-            if custom_pipeline_path is not None:
-                constants.custom_pipeline_path = custom_pipeline_path
-                constants.custom_make_new_pipeline = True
+            if custom_entrypoint_path is not None:
+                constants.custom_entrypoint_path = custom_entrypoint_path
+                constants.custom_make_new_entrypoint = True
             else:
                 assert custom_model_reqs is not None
                 constants.custom_model_reqs = custom_model_reqs
@@ -456,7 +456,7 @@ def run_garden_end_to_end(
         # Create GardenClient normally with access token grant
         GARDEN_API_CLIENT_ID = "none"
         GARDEN_API_CLIENT_SECRET = "none"
-        constants.pipeline_template_name = "ete_pipeline_at"
+        constants.entrypoint_template_name = "ete_entrypoint_at"
         client = _make_garden_client_with_at()
     else:
         raise Exception(
@@ -473,15 +473,15 @@ def run_garden_end_to_end(
         ) as mock_garden_gc, mocker.patch(
             "garden_ai.app.model.GardenClient"
         ) as mock_model_gc, mocker.patch(
-            "garden_ai.app.pipeline.GardenClient"
-        ) as mock_pipeline_gc, mocker.patch(
+            "garden_ai.app.entrypoint.GardenClient"
+        ) as mock_entrypoint_gc, mocker.patch(
             "garden_ai.client._read_local_cache"
         ) as mock_read_cache:
             mock_garden_gc.return_value = client
             mock_model_gc.return_value = client
-            mock_pipeline_gc.return_value = client
+            mock_entrypoint_gc.return_value = client
 
-            # add pipeline container cache entries to local cache and mocks new cache to _read_local_cache
+            # add entrypoint container cache entries to local cache and mocks new cache to _read_local_cache
             for key, value in old_cache.items():
                 if key not in constants.mock_container_cache:
                     constants.mock_container_cache[key] = value
@@ -506,11 +506,11 @@ def run_garden_end_to_end(
         ) as mock_garden_gc, mocker.patch(
             "garden_ai.app.model.GardenClient"
         ) as mock_model_gc, mocker.patch(
-            "garden_ai.app.pipeline.GardenClient"
-        ) as mock_pipeline_gc:
+            "garden_ai.app.entrypoint.GardenClient"
+        ) as mock_entrypoint_gc:
             mock_garden_gc.return_value = client
             mock_model_gc.return_value = client
-            mock_pipeline_gc.return_value = client
+            mock_entrypoint_gc.return_value = client
 
             _run_test_cmds(
                 client,
@@ -654,11 +654,11 @@ def _run_test_cmds(
         constants.example_garden_data, constants.garden_title, runner
     )
 
-    # Pipeline create
-    _test_pipeline_create(
-        constants.example_pipeline_data,
+    # Entrypoint create
+    _test_entrypoint_create(
+        constants.example_entrypoint_data,
         constants.key_store_path,
-        constants.scaffolded_pipeline_folder_name,
+        constants.scaffolded_entrypoint_folder_name,
         runner,
     )
 
@@ -671,29 +671,29 @@ def _run_test_cmds(
             constants.sklearn_serialize,
             runner,
         )
-        # Pipeline make sklearn
-        sklearn_pipeline_local = _make_pipeline_file(
-            constants.sklearn_pipeline_name,
+        # Entrypoint make sklearn
+        sklearn_entrypoint_local = _make_entrypoint_file(
+            constants.sklearn_entrypoint_name,
             sklearn_model_full_name,
             constants.sklearn_model_reqs_location,
-            constants.sklearn_pipeline_path,
-            constants.pipeline_template_name,
-            constants.pipeline_template_location,
+            constants.sklearn_entrypoint_path,
+            constants.entrypoint_template_name,
+            constants.entrypoint_template_location,
             constants.sklearn_func,
             GARDEN_API_CLIENT_ID,
             GARDEN_API_CLIENT_SECRET,
             client,
         )
-        # Pipeline register sklearn
-        sklearn_pipeline = _test_pipeline_register(
-            constants.sklearn_pipeline_path,
-            sklearn_pipeline_local,
+        # Entrypoint register sklearn
+        sklearn_entrypoint = _test_entrypoint_register(
+            constants.sklearn_entrypoint_path,
+            sklearn_entrypoint_local,
             sklearn_model_full_name,
             "sklearn",
             runner,
         )
-        # Add sklearn pipeline to garden
-        _test_garden_add_pipeline(new_garden, sklearn_pipeline, runner)
+        # Add sklearn entrypoint to garden
+        _test_garden_add_entrypoint(new_garden, sklearn_entrypoint, runner)
 
     if run_sklearn_pre:
         # Model register sklearn preprocessor
@@ -704,29 +704,29 @@ def _run_test_cmds(
             constants.sklearn_serialize,
             runner,
         )
-        # Pipeline make sklearn preprocessor
-        sklearn_pre_pipeline_local = _make_pipeline_file(
-            constants.sklearn_pre_pipeline_name,
+        # Entrypoint make sklearn preprocessor
+        sklearn_pre_entrypoint_local = _make_entrypoint_file(
+            constants.sklearn_pre_entrypoint_name,
             sklearn_pre_model_full_name,
             constants.sklearn_model_reqs_location,
-            constants.sklearn_pre_pipeline_path,
-            constants.pipeline_template_name,
-            constants.pipeline_template_location,
+            constants.sklearn_pre_entrypoint_path,
+            constants.entrypoint_template_name,
+            constants.entrypoint_template_location,
             constants.sklearn_pre_func,
             GARDEN_API_CLIENT_ID,
             GARDEN_API_CLIENT_SECRET,
             client,
         )
-        # Pipeline register sklearn preprocessor
-        sklearn_pre_pipeline = _test_pipeline_register(
-            constants.sklearn_pre_pipeline_path,
-            sklearn_pre_pipeline_local,
+        # Entrypoint register sklearn preprocessor
+        sklearn_pre_entrypoint = _test_entrypoint_register(
+            constants.sklearn_pre_entrypoint_path,
+            sklearn_pre_entrypoint_local,
             sklearn_pre_model_full_name,
             "sklearn",
             runner,
         )
-        # Add sklearn preprocessor pipeline to garden
-        _test_garden_add_pipeline(new_garden, sklearn_pre_pipeline, runner)
+        # Add sklearn preprocessor entrypoint to garden
+        _test_garden_add_entrypoint(new_garden, sklearn_pre_entrypoint, runner)
 
     if run_tf:
         # Model register tensorflow
@@ -737,36 +737,36 @@ def _run_test_cmds(
             constants.keras_serialize,
             runner,
         )
-        # Pipeline make tensorflow
-        tf_pipeline_local = _make_pipeline_file(
-            constants.tf_pipeline_name,
+        # Entrypoint make tensorflow
+        tf_entrypoint_local = _make_entrypoint_file(
+            constants.tf_entrypoint_name,
             tf_model_full_name,
             constants.tf_model_reqs_location,
-            constants.tf_pipeline_path,
-            constants.pipeline_template_name,
-            constants.pipeline_template_location,
+            constants.tf_entrypoint_path,
+            constants.entrypoint_template_name,
+            constants.entrypoint_template_location,
             constants.tf_func,
             GARDEN_API_CLIENT_ID,
             GARDEN_API_CLIENT_SECRET,
             client,
         )
-        # Pipeline register tensorflow
-        tf_pipeline = _test_pipeline_register(
-            constants.tf_pipeline_path,
-            tf_pipeline_local,
+        # Entrypoint register tensorflow
+        tf_entrypoint = _test_entrypoint_register(
+            constants.tf_entrypoint_path,
+            tf_entrypoint_local,
             tf_model_full_name,
             "tensorflow",
             runner,
         )
-        # Add tensorflow pipeline to garden
-        _test_garden_add_pipeline(new_garden, tf_pipeline, runner)
+        # Add tensorflow entrypoint to garden
+        _test_garden_add_entrypoint(new_garden, tf_entrypoint, runner)
 
     if run_torch:
-        # Use torch specific pipeline to call model.eval() and torch.no_grad()
-        if constants.pipeline_template_name == "ete_pipeline_at":
-            constants.pipeline_template_name = "ete_pipeline_torch_at"
-        if constants.pipeline_template_name == "ete_pipeline_cc":
-            constants.pipeline_template_name = "ete_pipeline_torch_cc"
+        # Use torch specific entrypoint to call model.eval() and torch.no_grad()
+        if constants.entrypoint_template_name == "ete_entrypoint_at":
+            constants.entrypoint_template_name = "ete_entrypoint_torch_at"
+        if constants.entrypoint_template_name == "ete_entrypoint_cc":
+            constants.entrypoint_template_name = "ete_entrypoint_torch_cc"
 
         # Model register pytorch
         torch_model_full_name = _test_model_register(
@@ -776,30 +776,30 @@ def _run_test_cmds(
             constants.torch_serialize,
             runner,
         )
-        # Pipeline make pytorch
-        torch_pipeline_local = _make_pipeline_file(
-            constants.torch_pipeline_name,
+        # Entrypoint make pytorch
+        torch_entrypoint_local = _make_entrypoint_file(
+            constants.torch_entrypoint_name,
             torch_model_full_name,
             constants.torch_model_reqs_location,
-            constants.torch_pipeline_path,
-            constants.pipeline_template_name,
-            constants.pipeline_template_location,
+            constants.torch_entrypoint_path,
+            constants.entrypoint_template_name,
+            constants.entrypoint_template_location,
             constants.torch_func,
             GARDEN_API_CLIENT_ID,
             GARDEN_API_CLIENT_SECRET,
             client,
         )
 
-        # Pipeline register pytorch
-        torch_pipeline = _test_pipeline_register(
-            constants.torch_pipeline_path,
-            torch_pipeline_local,
+        # Entrypoint register pytorch
+        torch_entrypoint = _test_entrypoint_register(
+            constants.torch_entrypoint_path,
+            torch_entrypoint_local,
             torch_model_full_name,
             "pytorch",
             runner,
         )
-        # Add pytorch pipeline to garden
-        _test_garden_add_pipeline(new_garden, torch_pipeline, runner)
+        # Add pytorch entrypoint to garden
+        _test_garden_add_entrypoint(new_garden, torch_entrypoint, runner)
 
     if run_custom:
         # Model register custom
@@ -811,49 +811,49 @@ def _run_test_cmds(
             runner,
         )
 
-        if constants.custom_make_new_pipeline:
-            # Pipeline make custom
-            custom_pipeline_local = _make_pipeline_file(
-                constants.custom_pipeline_name,
+        if constants.custom_make_new_entrypoint:
+            # Entrypoint make custom
+            custom_entrypoint_local = _make_entrypoint_file(
+                constants.custom_entrypoint_name,
                 custom_model_full_name,
                 constants.custom_model_reqs,
-                constants.custom_pipeline_path,
-                constants.pipeline_template_name,
-                constants.pipeline_template_location,
+                constants.custom_entrypoint_path,
+                constants.entrypoint_template_name,
+                constants.entrypoint_template_location,
                 constants.custom_func,
                 GARDEN_API_CLIENT_ID,
                 GARDEN_API_CLIENT_SECRET,
                 client,
             )
         else:
-            # User provided a pipeline file, dont need to make, but still need dummy pipeline object for _test_pipeline_register.
+            # User provided an entrypoint file, dont need to make, but still need dummy entrypoint object for _test_entrypoint_register.
             @garden_ai.step
             def run_inference(arg: object) -> object:
                 """placeholder"""
                 return arg
 
-            custom_pipeline_local = client.create_pipeline(
-                title=constants.custom_pipeline_name,
+            custom_entrypoint_local = client.create_entrypoint(
+                title=constants.custom_entrypoint_name,
                 authors=["ETE Test Author"],
                 contributors=[],
                 steps=[run_inference],  # type: ignore
                 tags=[],
-                description="ETE Test Pipeline",
+                description="ETE Test Entrypoint",
                 year=str(datetime.now().year),
                 python_version=f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
             )
 
-        # Pipeline register custom
-        custom_pipeline = _test_pipeline_register(
-            constants.custom_pipeline_path,
-            custom_pipeline_local,
+        # Entrypoint register custom
+        custom_entrypoint = _test_entrypoint_register(
+            constants.custom_entrypoint_path,
+            custom_entrypoint_local,
             custom_model_full_name,
             constants.custom_model_flavor,
             runner,
         )
 
-        # Add custom pipeline to garden
-        _test_garden_add_pipeline(new_garden, custom_pipeline, runner)
+        # Add custom entrypoint to garden
+        _test_garden_add_entrypoint(new_garden, custom_entrypoint, runner)
 
     # Publish the garden
     published_garden = _test_garden_publish(new_garden, runner)
@@ -861,14 +861,14 @@ def _run_test_cmds(
     # Search for our garden
     _test_garden_search(published_garden, runner)
 
-    # Test run all selected pipelines on globus compute endpoint
+    # Test run all selected entrypoints on globus compute endpoint
     if globus_compute_endpoint is not None:
         # remove typer optional type
         assert globus_compute_endpoint is not None
         if run_sklearn:
             _test_run_garden_on_endpoint(
                 published_garden,
-                constants.sklearn_pipeline_name,
+                constants.sklearn_entrypoint_name,
                 constants.sklearn_input_data_location,
                 constants.sklearn_expected_data_location,
                 globus_compute_endpoint,
@@ -879,7 +879,7 @@ def _run_test_cmds(
         if run_sklearn_pre:
             _test_run_garden_on_endpoint(
                 published_garden,
-                constants.sklearn_pre_pipeline_name,
+                constants.sklearn_pre_entrypoint_name,
                 constants.sklearn_pre_input_data_location,
                 constants.sklearn_pre_expected_data_location,
                 globus_compute_endpoint,
@@ -890,7 +890,7 @@ def _run_test_cmds(
         if run_tf:
             _test_run_garden_on_endpoint(
                 published_garden,
-                constants.tf_pipeline_name,
+                constants.tf_entrypoint_name,
                 constants.tf_input_data_location,
                 constants.tf_expected_data_location,
                 globus_compute_endpoint,
@@ -900,7 +900,7 @@ def _run_test_cmds(
         if run_torch:
             _test_run_garden_on_endpoint(
                 published_garden,
-                constants.torch_pipeline_name,
+                constants.torch_entrypoint_name,
                 constants.torch_input_data_location,
                 constants.torch_expected_data_location,
                 globus_compute_endpoint,
@@ -1050,19 +1050,19 @@ def _test_garden_create(
         raise error
 
 
-def _test_garden_add_pipeline(
+def _test_garden_add_entrypoint(
     original_garden: garden_ai.gardens.Garden,
-    pipeline: garden_ai.pipelines.RegisteredPipeline,
+    entrypoint: garden_ai.entrypoints.RegisteredEntrypoint,
     runner: CliRunner,
 ):
     """
-    Runs cmd 'garden add-pipeline' and checks for errors.
+    Runs cmd 'garden add-entrypoint' and checks for errors.
 
     Args:
         original_garden : garden_ai.gardens.Garden
-            Garden created in step _test_garden_create to add new pipeline too.
-        pipeline : garden_ai.pipelines.RegisteredPipeline
-            New registered pipeline to add to garden.
+            Garden created in step _test_garden_create to add new entrypoint too.
+        entrypoint : garden_ai.entrypoints.RegisteredEntrypoint
+            New registered entrypoint to add to garden.
         runner : CliRunner
             The CliRunner to run the garden commands with.
 
@@ -1072,16 +1072,16 @@ def _test_garden_add_pipeline(
 
     try:
         rich_print(
-            f"\n{_get_timestamp()} Starting test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden add-entrypoint[/italic red] using entrypoint: [blue]{entrypoint.title}[/blue]"
         )
 
         command = [
             "garden",
-            "add-pipeline",
+            "add-entrypoint",
             "--garden",
             original_garden.doi,
-            "--pipeline",
-            pipeline.doi,
+            "--entrypoint",
+            entrypoint.doi,
         ]
 
         result = runner.invoke(app, command)
@@ -1094,26 +1094,26 @@ def _test_garden_add_pipeline(
             original_garden.doi
         )
         assert garden_after_addition is not None
-        local_pipelines = garden_ai.local_data.get_all_local_pipelines()
-        assert local_pipelines is not None
-        local_pipeline_ids = []
-        for pl in local_pipelines:
-            local_pipeline_ids.append(pl.doi)
+        local_entrypoints = garden_ai.local_data.get_all_local_entrypoints()
+        assert local_entrypoints is not None
+        local_entrypoint_ids = []
+        for pl in local_entrypoints:
+            local_entrypoint_ids.append(pl.doi)
 
-        for pl_id in garden_after_addition.pipeline_ids:
-            assert pl_id not in original_garden.pipeline_ids
-            assert pl_id in garden_after_addition.pipeline_ids
-            assert pl_id in local_pipeline_ids
+        for pl_id in garden_after_addition.entrypoint_ids:
+            assert pl_id not in original_garden.entrypoint_ids
+            assert pl_id in garden_after_addition.entrypoint_ids
+            assert pl_id in local_entrypoint_ids
 
         rich_print(
-            f"{_get_timestamp()} Finished test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}"
+            f"{_get_timestamp()} Finished test: [italic red]garden add-entrypoint[/italic red] using entrypoint: [blue]{entrypoint.title}"
             "[/blue] with no errors"
         )
     except Exception as error:
         global failed_on
-        failed_on = "garden add-pipeline"
+        failed_on = "garden add-entrypoint"
         rich_print(
-            f"{_get_timestamp()} Failed test: [italic red]garden add-pipeline[/italic red] using pipeline: [blue]{pipeline.title}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]garden add-entrypoint[/italic red] using entrypoint: [blue]{entrypoint.title}[/blue]"
         )
         raise error
 
@@ -1295,48 +1295,48 @@ def _test_model_register(
         raise error
 
 
-def _test_pipeline_create(
-    example_pipeline_data: Dict[Any, Any],
+def _test_entrypoint_create(
+    example_entrypoint_data: Dict[Any, Any],
     location: Path,
-    scaffolded_pipeline_folder_name: str,
+    scaffolded_entrypoint_folder_name: str,
     runner: CliRunner,
 ):
     """
-    Runs cmd 'pipeline create' and checks for errors.
+    Runs cmd 'entrypoint create' and checks for errors.
 
     Args:
-        example_pipeline_data : Dict[Any, Any]
-            The pipeline data to create the new pipeline with.
+        example_entrypoint_data : Dict[Any, Any]
+            The entrypoint data to create the new entrypoint with.
         location : Path
-            The location to save the new pipeline too.
-        scaffolded_pipeline_folder_name : str
-            The folder name to save the new pipeline too.
+            The location to save the new entrypoint too.
+        scaffolded_entrypoint_folder_name : str
+            The folder name to save the new entrypoint too.
         runner : CliRunner
-            The CliRunner to run the pipeline commands with.
+            The CliRunner to run the entrypoint commands with.
 
     Returns:
         None
     """
     try:
         rich_print(
-            f"\n{_get_timestamp()} Starting test: [italic red]pipeline create[/italic red]"
+            f"\n{_get_timestamp()} Starting test: [italic red]entrypoint create[/italic red]"
         )
 
         command = [
-            "pipeline",
+            "entrypoint",
             "create",
             "--directory",
             str(location),
             "--title",
-            example_pipeline_data["title"],
+            example_entrypoint_data["title"],
             "--description",
-            example_pipeline_data["description"],
+            example_entrypoint_data["description"],
             "--year",
-            example_pipeline_data["year"],
+            example_entrypoint_data["year"],
         ]
-        for name in example_pipeline_data["authors"]:
+        for name in example_entrypoint_data["authors"]:
             command += ["--author", name]
-        for name in example_pipeline_data["contributors"]:
+        for name in example_entrypoint_data["contributors"]:
             command += ["--contributor", name]
 
         result = runner.invoke(app, command)
@@ -1345,61 +1345,63 @@ def _test_pipeline_create(
         except AssertionError:
             raise result.exception  # type: ignore
 
-        assert os.path.exists(os.path.join(location, scaffolded_pipeline_folder_name))
+        assert os.path.exists(os.path.join(location, scaffolded_entrypoint_folder_name))
         assert os.path.isfile(
-            os.path.join(location, scaffolded_pipeline_folder_name, "pipeline.py")
+            os.path.join(location, scaffolded_entrypoint_folder_name, "entrypoint.py")
         )
         assert os.path.isfile(
-            os.path.join(location, scaffolded_pipeline_folder_name, "requirements.txt")
+            os.path.join(
+                location, scaffolded_entrypoint_folder_name, "requirements.txt"
+            )
         )
 
         rich_print(
-            f"{_get_timestamp()} Finished test: [italic red]pipeline create[/italic red] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]entrypoint create[/italic red] with no errors"
         )
     except Exception as error:
         global failed_on
-        failed_on = "pipeline create"
+        failed_on = "entrypoint create"
         rich_print(
-            f"{_get_timestamp()} Failed test: [italic red]pipeline create[/italic red]"
+            f"{_get_timestamp()} Failed test: [italic red]entrypoint create[/italic red]"
         )
         raise error
 
 
-def _test_pipeline_register(
-    pipeline_path: str,
-    pipeline: garden_ai.pipelines.Pipeline,
+def _test_entrypoint_register(
+    entrypoint_path: str,
+    entrypoint: garden_ai.entrypoints.Entrypoint,
     model_full_name: str,
     flavor: str,
     runner: CliRunner,
 ):
     """
-    Runs cmd 'pipeline register' and checks for errors.
+    Runs cmd 'entrypoint register' and checks for errors.
 
     Args:
-        pipeline_path : str
-            The pipeline data to create the new pipeline with.
-        pipeline : garden_ai.pipelines.Pipeline
-            The unregisted pipeline created in _make_pipeline_file to register
+        entrypoint_path : str
+            The entrypoint data to create the new entrypoint with.
+        entrypoint : garden_ai.entrypoints.Entrypoint
+            The unregisted entrypoint created in _make_entrypoint_file to register
         model_full_name : str
-            The full name of the model in this pipeline.
+            The full name of the model in this entrypoint.
         flavor : str
-            The flavor the model in this pipeline.
+            The flavor the model in this entrypoint.
         runner : CliRunner
-            The CliRunner to run the pipeline commands with.
+            The CliRunner to run the entrypoint commands with.
 
-    Returns: garden_ai.pipelines.RegisteredPipeline
-        The registered pipeline.
+    Returns: garden_ai.entrypoints.RegisteredEntrypoint
+        The registered entrypoint.
     """
 
     try:
         rich_print(
-            f"\n{_get_timestamp()} Starting test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]entrypoint register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
 
         command = [
-            "pipeline",
+            "entrypoint",
             "register",
-            pipeline_path,
+            entrypoint_path,
         ]
 
         result = runner.invoke(app, command)
@@ -1408,41 +1410,41 @@ def _test_pipeline_register(
         except AssertionError:
             raise result.exception  # type: ignore
 
-        local_pipelines = garden_ai.local_data.get_all_local_pipelines()
-        assert local_pipelines is not None
+        local_entrypoints = garden_ai.local_data.get_all_local_entrypoints()
+        assert local_entrypoints is not None
 
-        registered_pipeline = None
-        for local_pipeline in local_pipelines:
-            if str(pipeline.doi) == str(local_pipeline.doi):
-                registered_pipeline = local_pipeline
+        registered_entrypoint = None
+        for local_entrypoint in local_entrypoints:
+            if str(entrypoint.doi) == str(local_entrypoint.doi):
+                registered_entrypoint = local_entrypoint
                 break
 
-        assert registered_pipeline is not None
-        assert pipeline.title == registered_pipeline.title
-        assert registered_pipeline.doi is not None
-        assert registered_pipeline.steps is not None
+        assert registered_entrypoint is not None
+        assert entrypoint.title == registered_entrypoint.title
+        assert registered_entrypoint.doi is not None
+        assert registered_entrypoint.steps is not None
 
-        assert len(registered_pipeline.steps) == 1
-        assert registered_pipeline.steps[0]["model_full_names"] is not None
-        assert model_full_name in registered_pipeline.steps[0]["model_full_names"]
+        assert len(registered_entrypoint.steps) == 1
+        assert registered_entrypoint.steps[0]["model_full_names"] is not None
+        assert model_full_name in registered_entrypoint.steps[0]["model_full_names"]
 
         rich_print(
-            f"{_get_timestamp()} Finished test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
+            f"{_get_timestamp()} Finished test: [italic red]entrypoint register[/italic red] using model flavor: [blue]{flavor}[/blue] with no errors"
         )
 
-        return registered_pipeline
+        return registered_entrypoint
     except Exception as error:
         global failed_on
-        failed_on = "pipeline register"
+        failed_on = "entrypoint register"
         rich_print(
-            f"{_get_timestamp()} Failed test: [italic red]pipeline register[/italic red] using model flavor: [blue]{flavor}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]entrypoint register[/italic red] using model flavor: [blue]{flavor}[/blue]"
         )
         raise error
 
 
 def _test_run_garden_on_endpoint(
     garden: garden_ai.gardens.Garden,
-    pipeline_name: str,
+    entrypoint_name: str,
     input_data_file: str,
     expected_data_file: str,
     globus_compute_endpoint: str,
@@ -1455,8 +1457,8 @@ def _test_run_garden_on_endpoint(
     Args:
         garden: garden_ai.gardens.Garden
             The garden to remote execute.
-        pipeline_name : str
-            The name of the pipeline to execute.
+        entrypoint_name : str
+            The name of the entrypoint to execute.
         input_data_file : str
             The path to the input data for this remote execution.
         expected_data_file : str
@@ -1475,7 +1477,7 @@ def _test_run_garden_on_endpoint(
 
     try:
         rich_print(
-            f"\n{_get_timestamp()} Starting test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+            f"\n{_get_timestamp()} Starting test: [italic red]garden remote execution[/italic red] using entrypoint: [blue]{entrypoint_name}[/blue]"
         )
 
         # This needs to run after setting FUNCX_SDK env vars so fresh endpoint is registered to cc login user
@@ -1492,8 +1494,8 @@ def _test_run_garden_on_endpoint(
 
         test_garden = client.get_published_garden(garden.doi)
 
-        run_pipeline = getattr(test_garden, pipeline_name)
-        result = run_pipeline(Xtest, endpoint=globus_compute_endpoint)
+        run_entrypoint = getattr(test_garden, entrypoint_name)
+        result = run_entrypoint(Xtest, endpoint=globus_compute_endpoint)
 
         assert result is not None
 
@@ -1518,14 +1520,14 @@ def _test_run_garden_on_endpoint(
             _delete_compute_endpoint(constants.fresh_endpoint_name)
 
         rich_print(
-            f"{_get_timestamp()} Finished test: [italic red]garden remote execution[/italic red] using pipeline: [blue]{pipeline_name}"
+            f"{_get_timestamp()} Finished test: [italic red]garden remote execution[/italic red] using entrypoint: [blue]{entrypoint_name}"
             "[/blue] with no errors"
         )
     except Exception as error:
         global failed_on
         failed_on = "run garden on remote endpoint"
         rich_print(
-            f"{_get_timestamp()} Failed test: [italic red]run garden remote[/italic red] using pipeline: [blue]{pipeline_name}[/blue]"
+            f"{_get_timestamp()} Failed test: [italic red]run garden remote[/italic red] using entrypoint: [blue]{entrypoint_name}[/blue]"
         )
 
         if is_fresh_endpoint:
@@ -1534,48 +1536,48 @@ def _test_run_garden_on_endpoint(
         raise error
 
 
-def _make_pipeline_file(
+def _make_entrypoint_file(
     short_name: str,
     model_full_name: str,
     req_file_path: str,
     save_path: str,
     template_name: str,
-    pipeline_template_location: str,
-    pipeline_model_func: str,
+    entrypoint_template_location: str,
+    entrypoint_model_func: str,
     GARDEN_API_CLIENT_ID: str,
     GARDEN_API_CLIENT_SECRET: str,
     client: garden_ai.GardenClient,
 ):
     """
-    Makes the pipeline file to reigster.
+    Makes the entrypoint file to reigster.
 
     Args:
         short_name : str
-            Short name to create pipeline with.
+            Short name to create entrypoint with.
         model_full_name : str
-            Full name of the model in the pipeline.
+            Full name of the model in the entrypoint.
         req_file_path : str
             Path to requirements.txt
         save_path : str
-            Path to where to save new pipeline file.
+            Path to where to save new entrypoint file.
         template_name : str
-            Name of the jinja2 pipeline template.
-        pipeline_template_location : str
-            Location of the jinja2 pipeline template.
-        pipeline_model_func: str
+            Name of the jinja2 entrypoint template.
+        entrypoint_template_location : str
+            Location of the jinja2 entrypoint template.
+        entrypoint_model_func: str
             The model function to call in run interface.
         GARDEN_API_CLIENT_ID: str
         GARDEN_API_CLIENT_SECRET: str
         client : garden_ai.GardenClient,
-            The GardenClient to run the pipeline commands with.
+            The GardenClient to run the entrypoint commands with.
 
-    Returns: garden_ai.pipelines.Pipeline
-        The new pipeline created.
+    Returns: garden_ai.entrypoints.Entrypoint
+        The new entrypoint created.
     """
 
     try:
         rich_print(
-            f"\n{_get_timestamp()} Making pipeline file: [blue]{short_name}[/blue]"
+            f"\n{_get_timestamp()} Making entrypoint file: [blue]{short_name}[/blue]"
         )
 
         @garden_ai.step
@@ -1583,27 +1585,27 @@ def _make_pipeline_file(
             """placeholder"""
             return arg
 
-        pipeline = client.create_pipeline(
+        entrypoint = client.create_entrypoint(
             title=short_name,
             authors=["ETE Test Author"],
             contributors=[],
             steps=[run_inference],  # type: ignore
             tags=[],
-            description="ETE Test Pipeline",
+            description="ETE Test Entrypoint",
             year=str(datetime.now().year),
             python_version=f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
         )
 
         env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader(pipeline_template_location)
+            loader=jinja2.FileSystemLoader(entrypoint_template_location)
         )
         template = env.get_template(template_name)
         contents = template.render(
             short_name=short_name,
-            pipeline=pipeline,
+            entrypoint=entrypoint,
             model_full_name=model_full_name,
             req_file_path=req_file_path,
-            pipeline_model_func=pipeline_model_func,
+            entrypoint_model_func=entrypoint_model_func,
             GARDEN_API_CLIENT_ID=GARDEN_API_CLIENT_ID,
             GARDEN_API_CLIENT_SECRET=GARDEN_API_CLIENT_SECRET,
         )
@@ -1612,14 +1614,14 @@ def _make_pipeline_file(
             f.write(contents)
 
         rich_print(
-            f"{_get_timestamp()} Finished pipeline file: [blue]{short_name}[/blue]"
+            f"{_get_timestamp()} Finished entrypoint file: [blue]{short_name}[/blue]"
         )
-        return pipeline
+        return entrypoint
     except Exception as error:
         global failed_on
-        failed_on = "make pipeline file"
+        failed_on = "make entrypoint file"
         rich_print(
-            f"{_get_timestamp()} Failed to make pipeline file: [blue]{short_name}[/blue]"
+            f"{_get_timestamp()} Failed to make entrypoint file: [blue]{short_name}[/blue]"
         )
         raise error
 

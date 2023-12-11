@@ -11,31 +11,31 @@ if __name__ == "__main__":
 
     from pydantic.json import pydantic_encoder
 
-    pipeline_fns, step_fns, steps = [], [], []
+    entrypoint_fns, step_fns, steps = [], [], []
     global_vars = list(globals().values())
 
     for obj in global_vars:
-        if hasattr(obj, "_garden_pipeline"):
-            pipeline_fns.append(obj)
+        if hasattr(obj, "_garden_entrypoint"):
+            entrypoint_fns.append(obj)
 
         if hasattr(obj, "_garden_step"):
             step_fns.append(obj)
 
-    if len(pipeline_fns) == 0:
-        raise ValueError("No functions marked with garden_pipeline decorator.")
+    if len(entrypoint_fns) == 0:
+        raise ValueError("No functions marked with garden_entrypoint decorator.")
 
     total_meta = {}
 
-    for pipeline_fn in pipeline_fns:
-        key_name = pipeline_fn.__name__
+    for entrypoint_fn in entrypoint_fns:
+        key_name = entrypoint_fn.__name__
         doi_key = f"{key_name}.garden_doi"
-        step_key = f"{key_name}.pipeline_step"
-        pipeline_meta = pipeline_fn._garden_pipeline
+        step_key = f"{key_name}.entrypoint_step"
+        entrypoint_meta = entrypoint_fn._garden_entrypoint
 
-        total_meta[key_name] = pipeline_meta.dict()
-        if pipeline_meta._target_garden_doi:
-            total_meta[doi_key] = pipeline_meta._target_garden_doi
-        total_meta[step_key] = pipeline_meta._as_step
+        total_meta[key_name] = entrypoint_meta.dict()
+        if entrypoint_meta._target_garden_doi:
+            total_meta[doi_key] = entrypoint_meta._target_garden_doi
+        total_meta[step_key] = entrypoint_meta._as_step
 
     for step_fn in step_fns:
         # Relying on insertion order being maintained in dicts in Python 3.8 forward 🤠

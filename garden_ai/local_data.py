@@ -8,7 +8,7 @@ from pydantic.json import pydantic_encoder
 
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
-from garden_ai.pipelines import RegisteredPipeline
+from garden_ai.entrypoints import RegisteredEntrypoint
 
 LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
@@ -22,8 +22,8 @@ class LocalDataException(Exception):
     pass
 
 
-class PipelineNotFoundException(KeyError):
-    """Exception raised when a Garden references an unknown pipeline DOI"""
+class EntrypointNotFoundException(KeyError):
+    """Exception raised when a Garden references an unknown entrypoint DOI"""
 
 
 class GardenNotFoundException(KeyError):
@@ -32,12 +32,12 @@ class GardenNotFoundException(KeyError):
 
 class ResourceType(Enum):
     GARDEN = "gardens"
-    PIPELINE = "pipelines"
+    ENTRYPOINT = "entrypoints"
 
 
 resource_type_to_id_key = {
     ResourceType.GARDEN: "doi",
-    ResourceType.PIPELINE: "doi",
+    ResourceType.ENTRYPOINT: "doi",
 }
 
 
@@ -116,7 +116,7 @@ def _put_resource_from_metadata(
 
 
 def _put_resource_from_obj(
-    resource: Union[Garden, RegisteredPipeline],
+    resource: Union[Garden, RegisteredEntrypoint],
     resource_type: ResourceType,
 ) -> None:
     resource_metadata = resource.dict()
@@ -125,16 +125,16 @@ def _put_resource_from_obj(
 
 def _make_obj_from_record(
     record: Dict, resource_type: ResourceType
-) -> Union[Garden, RegisteredPipeline]:
+) -> Union[Garden, RegisteredEntrypoint]:
     if resource_type is ResourceType.GARDEN:
         return Garden(**record)
     else:
-        return RegisteredPipeline(**record)
+        return RegisteredEntrypoint(**record)
 
 
 def _get_resource_by_id(
     id_: str, resource_type: ResourceType
-) -> Optional[Union[Garden, RegisteredPipeline]]:
+) -> Optional[Union[Garden, RegisteredEntrypoint]]:
     data = _read_local_db()
     resources = data.get(resource_type.value, {})
     if resources and id_ in resources:
@@ -145,7 +145,7 @@ def _get_resource_by_id(
 
 def _get_resource_by_type(
     resource_type: ResourceType,
-) -> Optional[List[Union[Garden, RegisteredPipeline]]]:
+) -> Optional[List[Union[Garden, RegisteredEntrypoint]]]:
     data = _read_local_db()
     resource_data = data.get(resource_type.value, {})
     resource_objs = []
@@ -170,17 +170,17 @@ def put_local_garden(garden: Garden):
     _put_resource_from_obj(garden, resource_type=ResourceType.GARDEN)
 
 
-def put_local_pipeline(pipeline: RegisteredPipeline):
-    """Helper: write a record to 'local database' for a given Pipeline
+def put_local_entrypoint(entrypoint: RegisteredEntrypoint):
+    """Helper: write a record to 'local database' for a given Entrypoint
     Overwrites any existing entry with the same doi in ~/.garden/data.json.
 
     Parameters
     ----------
-    pipeline Pipeline
+    entrypoint Entrypoint
         The object to json-serialize and write/update in the local database.
-        a TypeError will be raised if not a Pipeline.
+        a TypeError will be raised if not an Entrypoint.
     """
-    _put_resource_from_obj(pipeline, resource_type=ResourceType.PIPELINE)
+    _put_resource_from_obj(entrypoint, resource_type=ResourceType.ENTRYPOINT)
 
 
 def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
@@ -198,19 +198,19 @@ def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
     return _get_resource_by_id(doi, ResourceType.GARDEN)  # type: ignore
 
 
-def get_local_pipeline_by_doi(doi: str) -> Optional[RegisteredPipeline]:
-    """Helper: fetch a Pipeline record from ~/.garden/data.json.
+def get_local_entrypoint_by_doi(doi: str) -> Optional[RegisteredEntrypoint]:
+    """Helper: fetch an Entrypoint record from ~/.garden/data.json.
 
     Parameters
     ----------
     doi str
-        The DOI of the Pipeline you are fetching.
+        The DOI of the Entrypoint you are fetching.
 
     Returns
     -------
-    Optional[RegisteredPipeline]
+    Optional[RegisteredEntrypoint]
     """
-    return _get_resource_by_id(doi, ResourceType.PIPELINE)  # type: ignore
+    return _get_resource_by_id(doi, ResourceType.ENTRYPOINT)  # type: ignore
 
 
 def get_all_local_gardens() -> Optional[List[Garden]]:
@@ -227,15 +227,15 @@ def get_all_local_gardens() -> Optional[List[Garden]]:
     return _get_resource_by_type(ResourceType.GARDEN)  # type: ignore
 
 
-def get_all_local_pipelines() -> Optional[List[RegisteredPipeline]]:
-    """Helper: fetch all pipeline records from ~/.garden/data.json.
+def get_all_local_entrypoints() -> Optional[List[RegisteredEntrypoint]]:
+    """Helper: fetch all entrypoint records from ~/.garden/data.json.
 
     Parameters
     ----------
 
     Returns
     -------
-    Optional[RegisteredPipeline]
-        If successful, a list of all the RegisteredPipeline objects in data.json.
+    Optional[RegisteredEntrypoint]
+        If successful, a list of all the RegisteredEntrypoint objects in data.json.
     """
-    return _get_resource_by_type(ResourceType.PIPELINE)  # type: ignore
+    return _get_resource_by_type(ResourceType.ENTRYPOINT)  # type: ignore
