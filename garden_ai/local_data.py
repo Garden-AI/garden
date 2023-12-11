@@ -178,7 +178,7 @@ def put_local_entrypoint(entrypoint: RegisteredEntrypoint):
     ----------
     entrypoint Entrypoint
         The object to json-serialize and write/update in the local database.
-        a TypeError will be raised if not a Entrypoint.
+        a TypeError will be raised if not an Entrypoint.
     """
     _put_resource_from_obj(entrypoint, resource_type=ResourceType.ENTRYPOINT)
 
@@ -199,7 +199,7 @@ def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
 
 
 def get_local_entrypoint_by_doi(doi: str) -> Optional[RegisteredEntrypoint]:
-    """Helper: fetch a Entrypoint record from ~/.garden/data.json.
+    """Helper: fetch an Entrypoint record from ~/.garden/data.json.
 
     Parameters
     ----------

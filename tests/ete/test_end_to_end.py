@@ -84,7 +84,7 @@ QUICK USE:
 
             --use-cached-containers
                 Use  previously cached containers for applicable entrypoints.
-                If not included, will build a new container for a entrypoint every time.
+                If not included, will build a new container for an entrypoint every time.
 
             --live-print-stdout
                 Print all Garden logs to stdout, in addition to the test logs.
@@ -104,8 +104,8 @@ QUICK USE:
             --custom-model-flavor sklearn
             --custom-model-reqs path/to/reqs/requirments.txt
 
-        The test will load the model and requirements and then make a entrypoint with a run_inference predict step.
-        If you already have a entrypoint for the model, you could instead run:
+        The test will load the model and requirements and then make an entrypoint with a run_inference predict step.
+        If you already have an entrypoint for the model, you could instead run:
 
         poetry run python3 test_end_to_end.py run-garden-end-to-end
             --garden-grant cc
@@ -126,12 +126,12 @@ QUICK USE:
                 The flavor of a model to run with the end-to-end test. Must be included for --model-type custom runs.
 
             --custom-model-entrypoint xxx
-                The path to a entrypoint file for a custom model to run with the end-to-end test.
-                Include if you already have a entrypoint file for your model and don't want the test to autogenerate.
+                The path to an entrypoint file for a custom model to run with the end-to-end test.
+                Include if you already have an entrypoint file for your model and don't want the test to autogenerate.
 
             --custom-model-reqs
                 The path to the requirements file for a custom model to run with the end-to-end test.
-                Include if you DON'T already have a entrypoint file for your model and want the test to autogenerate.
+                Include if you DON'T already have an entrypoint file for your model and want the test to autogenerate.
 
 
     Github actions runs:
@@ -304,12 +304,12 @@ def run_garden_end_to_end(
             Must be included for --model-type custom runs.
         custom_model_entrypoint
             Used for '--model-type custom' runs only.
-            The path to a entrypoint file for a custom model to run with the end to end test.
-            Include if you already have a entrypoint file for your model and dont want the test to autogenerate.
+            The path to an entrypoint file for a custom model to run with the end to end test.
+            Include if you already have an entrypoint file for your model and dont want the test to autogenerate.
         custom_model_reqs
             Used for '--model-type custom' runs only.
             The path to the requirments file for a custom model to run with the end to end test.
-            Include if you don't already have a entrypoint file for your model and want the test to autogenerate.
+            Include if you don't already have an entrypoint file for your model and want the test to autogenerate.
 
     Returns:
         None
@@ -826,7 +826,7 @@ def _run_test_cmds(
                 client,
             )
         else:
-            # User provided a entrypoint file, dont need to make, but still need dummy entrypoint object for _test_entrypoint_register.
+            # User provided an entrypoint file, dont need to make, but still need dummy entrypoint object for _test_entrypoint_register.
             @garden_ai.step
             def run_inference(arg: object) -> object:
                 """placeholder"""

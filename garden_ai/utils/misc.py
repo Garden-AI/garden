@@ -50,7 +50,7 @@ def extract_email_from_globus_jwt(jwt: str) -> str:
 
 
 def clean_identifier(name: str) -> str:
-    """Clean the name provided for use as a entrypoint's python identifier."""
+    """Clean the name provided for use as an entrypoint's python identifier."""
     orig = name
     # Remove invalid characters, replacing with _
     name = re.sub("[^0-9a-zA-Z_]", "_", name)

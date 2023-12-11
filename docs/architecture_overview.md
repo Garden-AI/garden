@@ -11,7 +11,7 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 
     - A `Garden` is a user-curated collection or portfolio of related `Entrypoint`s, aimed at promoting discoverability.
     - `Garden`s are the primary way to discover and run published `Entrypoint`s.
-    - A `Entrypoint` from a different `Garden` can be added to your `Garden` simply by adding the other `Entrypoint`'s DOI to your `Garden` and publishing.
+    - An `Entrypoint` from a different `Garden` can be added to your `Garden` simply by adding the other `Entrypoint`'s DOI to your `Garden` and publishing.
     - A `Garden` is typically created and published from the CLI, e.g.:
     ```bash
 	garden-ai garden create \
@@ -21,10 +21,10 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 
 2. **Entrypoints:**
 
-    - A `Entrypoint` is a plain Python function, enriched with citation metadata and registered with our service for reproducibility and remote execution (via Globus Compute).
-    - Users can execute a `Entrypoint` remotely via any `Garden` it has been published to.
-    - A `Entrypoint` is typically defined in a regular Jupyter/ipynb notebook, and functions like an "entrypoint" to a saved notebook session when registered and published to a `Garden`.
-    - A `Entrypoint` is registered when its notebook is published.
+    - An `Entrypoint` is a plain Python function, enriched with citation metadata and registered with our service for reproducibility and remote execution (via Globus Compute).
+    - Users can execute an `Entrypoint` remotely via any `Garden` it has been published to.
+    - An `Entrypoint` is typically defined in a regular Jupyter/ipynb notebook, and functions like an "entrypoint" to a saved notebook session when registered and published to a `Garden`.
+    - An `Entrypoint` is registered when its notebook is published.
     - When a notebook is published, all the `Entrypoint`s in the notebook are published to their respective gardens -- `Entrypoint`s defined in the same notebook need not be published to the same `Garden`.
 
 > [!NOTE]
@@ -35,7 +35,7 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 
 - This decorator is used to designate which functions in the notebook should be registered as public/published `Entrypoint`s.
 - It distinguishes between functions meant for public use and those that are simply part of the execution context.
-- This is also how users attach citation metadata to a `Entrypoint`, such as authors or other related published work like papers or datasets
+- This is also how users attach citation metadata to an `Entrypoint`, such as authors or other related published work like papers or datasets
 
 ### Notebook Workflow - Defining and Developing Entrypoints
 
@@ -61,4 +61,4 @@ See the [tutorial](user_guide/tutorial.md) for a more detailed walkthrough of th
 1. **Garden Publishing:**
     - A `Garden` is created, manipulated, and published using the CLI, making it accessible to other users.
 2. **Entrypoint Publishing:**
-    - A `Entrypoint` is published by attaching it to a published `Garden`. This can be done either manually from the CLI, or automatically by specifying a particular `Garden` DOI in the `@garden_entrypoint` decorator.
+    - An `Entrypoint` is published by attaching it to a published `Garden`. This can be done either manually from the CLI, or automatically by specifying a particular `Garden` DOI in the `@garden_entrypoint` decorator.

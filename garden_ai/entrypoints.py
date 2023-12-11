@@ -75,7 +75,7 @@ class Paper(BaseModel):
 
 class Step(BaseModel):
     """
-    The `Step` class represents a key function in a entrypoint that a publisher wants to highlight.
+    The `Step` class represents a key function in an entrypoint that a publisher wants to highlight.
 
     Attributes:
         function_name (str):
@@ -92,7 +92,7 @@ class Step(BaseModel):
 
 
 class EntrypointMetadata(BaseModel):
-    """Metadata for a entrypoint prior to its registration. \
+    """Metadata for an entrypoint prior to its registration. \
     Passed to the `garden_entrypoint` decorator during the registration process.
 
     Use the optional doi field if you have already registered this entrypoint \
@@ -100,7 +100,7 @@ class EntrypointMetadata(BaseModel):
 
     Attributes:
         doi: Optional. If you have a DOI you want to use for this entrypoint, specify it here. \
-        (Especially if you have already registered a entrypoint and are updating it.) \
+        (Especially if you have already registered an entrypoint and are updating it.) \
         Otherwise we will generate a DOI for you.
         title: A short title that describes the entrypoint.
         description: A longer free text description of this entrypoint.

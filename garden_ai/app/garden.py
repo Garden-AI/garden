@@ -232,7 +232,7 @@ def add_entrypoint(
         "--garden",
         autocompletion=complete_garden,
         prompt="Please enter the DOI of a garden",
-        help="The name of the garden you want to add a entrypoint to",
+        help="The name of the garden you want to add an entrypoint to",
         rich_help_panel="Required",
     ),
     entrypoint_id: str = typer.Option(
@@ -240,7 +240,7 @@ def add_entrypoint(
         "-p",
         "--entrypoint",
         autocompletion=complete_entrypoint,
-        prompt="Please enter the DOI of a entrypoint",
+        prompt="Please enter the DOI of an entrypoint",
         help="The name of the entrypoint you want to add",
         rich_help_panel="Required",
     ),

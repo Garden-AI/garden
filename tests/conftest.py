@@ -138,7 +138,7 @@ def registered_entrypoint_toy_example(noop_func_uuid):
         title="Pea Edibility Entrypoint",
         short_name="entrypoint_toy_example",
         authors=["Brian Jacques"],
-        description="A entrypoint for perfectly-reproducible soup ratings.",
+        description="An entrypoint for perfectly-reproducible soup ratings.",
         container_uuid="4f5688ac-424d-443e-b525-97c72e4e013f",
         func_uuid=noop_func_uuid,
         doi="10.26311/fake-doi",

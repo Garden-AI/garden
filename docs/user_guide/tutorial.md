@@ -6,7 +6,7 @@ This tutorial will walk you through a simple end-to-end example of developing a 
 This means doing the following:
 - Create a new Garden using the CLI (`garden-ai garden create`)
 - Open a notebook using the CLI (`garden-ai notebook start`)
-- Define and decorate a function in the notebook to make it a `Entrypoint`
+- Define and decorate a function in the notebook to make it an `Entrypoint`
 	- Optional: debug the completed notebook (`garden-ai notebook debug`)
 - Publish the notebook using the CLI, attaching the `Entrypoint` to the `Garden` in the process (`garden-ai notebook publish`)
 - Test remote execution on our tutorial endpoint
@@ -20,7 +20,7 @@ Garden is geared towards publishing and sharing models which have already been t
 The code to train the toy model used in this tutorial is available [here](https://huggingface.co/Garden-AI/sklearn-seedling/blob/main/Train_Model.ipynb).
 
 ### Step 1: Creating a New Garden
-First, we're going to make a new `Garden` using the CLI so that we can eventually share our `Entrypoint` with others. Before we've added a `Entrypoint`, a brand new `Garden` is going to be nothing more than some citation metadata, which is at least a title, one or more authors, and a year (the minimum needed mint a DOI).
+First, we're going to make a new `Garden` using the CLI so that we can eventually share our `Entrypoint` with others. Before we've added an `Entrypoint`, a brand new `Garden` is going to be nothing more than some citation metadata, which is at least a title, one or more authors, and a year (the minimum needed mint a DOI).
 
 Here's what this might look like:
 ```bash
@@ -134,7 +134,7 @@ def run_tutorial_model(input_df: pd.DataFrame) -> pd.DataFrame:
     return model.predict(cleaned_df)
 ```
 
-But our `run_tutorial_model` function isn't a proper `Entrypoint` yet -- we still need to mark it as a `Entrypoint` and link the `EntrypointMetadata` to the function. We do this with the `@garden_entrypoint` decorator:
+But our `run_tutorial_model` function isn't a proper `Entrypoint` yet -- we still need to mark it as an `Entrypoint` and link the `EntrypointMetadata` to the function. We do this with the `@garden_entrypoint` decorator:
 
 ```ipython
 from garden_ai import garden_entrypoint
@@ -166,7 +166,7 @@ Now that we've finished developing our `Entrypoint`, it's a good idea to restart
 
 ### Step 4: (Optional) Debugging Entrypoint Execution
 
-If you're finding that a entrypoint function works correctly following a "restart kernel and run all cells" when run from within a `garden-ai notebook start` session but fails on remote execution, the `garden-ai notebook debug` command is the best place to start troubleshooting.
+If you're finding that an entrypoint function works correctly following a "restart kernel and run all cells" when run from within a `garden-ai notebook start` session but fails on remote execution, the `garden-ai notebook debug` command is the best place to start troubleshooting.
 
 Unfortunately, the notebook session you had active when manually running your notebook won't always be *exactly* equivalent to the session ultimately saved for remote inference. This could be for a couple reasons:
 	- The remote execution context is a session which has been saved and reloaded, which may not be a perfect re-creation of the session before it was saved.
@@ -216,7 +216,7 @@ Added entrypoint 10.23677/stg7-cr32 (looking_glass_entrypoint) to garden 10.2367
 > [!NOTE] Adding to other Gardens
 > Because we specified a `Garden` we wanted to publish to in the notebook itself (via an argument to the decorator), this automatically adds the `Entrypoint` to and re-publishes that `Garden` so others can discover and invoke it.
 >
-> If you want to add a `Entrypoint` to a `Garden` that wasn't specified when its notebook was first published, you can do so from the CLI with `garden-ai garden add-entrypoint`, then `garden-ai garden publish` to re-publish the `Garden`.
+> If you want to add an `Entrypoint` to a `Garden` that wasn't specified when its notebook was first published, you can do so from the CLI with `garden-ai garden add-entrypoint`, then `garden-ai garden publish` to re-publish the `Garden`.
 
 ### Step 6: Remote Execution
 
@@ -237,7 +237,7 @@ Once we have the `Garden` DOI, we have everything we need to remotely execute an
 >>> live_flower_garden = gc.get_garden_by_doi('10.23677/z2b3-3p02')
 ```
 
-#### Remotely Execute a Entrypoint
+#### Remotely Execute an Entrypoint
 
 Once you have the `Garden` object, you can execute any of its `Entrypoints` remotely. Make sure to specify a valid Globus Compute endpoint (or use the tutorial endpoint below):
 

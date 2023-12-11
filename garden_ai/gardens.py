@@ -167,7 +167,7 @@ class Garden(BaseModel):
             else:
                 raise ValueError(
                     "Error: this entrypoint is already attached to this garden. "
-                    "to rename a entrypoint, see `rename_entrypoint`"
+                    "to rename an entrypoint, see `rename_entrypoint`"
                 )
 
         from .local_data import get_local_entrypoint_by_doi
@@ -184,7 +184,7 @@ class Garden(BaseModel):
         )
         if alias is None and entrypoint.short_name in entrypoint_names:
             raise ValueError(
-                f"Error: a entrypoint with the name {entrypoint.short_name} already exists in this garden, "
+                f"Error: an entrypoint with the name {entrypoint.short_name} already exists in this garden, "
                 "please provide an alias for the new entrypoint."
             )
 
@@ -248,7 +248,7 @@ class Garden(BaseModel):
         return
 
     def rename_entrypoint(self, entrypoint_id: str, new_name: str):
-        """Rename a entrypoint in this garden.
+        """Rename an entrypoint in this garden.
 
         Parameters:
             entrypoint_id (str): the DOI for the entrypoint to be renamed

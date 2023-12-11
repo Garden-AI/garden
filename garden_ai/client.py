@@ -418,7 +418,7 @@ class GardenClient:
                 my_garden.my_entrypoint(*args, endpoint='where-to-execute')
             ```
         Tip: To access the entrypoint by a different name, use ``my_garden.rename_entrypoint(entrypoint_id, new_name)``.
-        To persist a new name for a entrypoint, re-register it to the garden and specify an alias.
+        To persist a new name for an entrypoint, re-register it to the garden and specify an alias.
 
         Parameters
         ----------
@@ -546,7 +546,7 @@ class GardenClient:
 
         Raises:
         - ValueError
-            When attempting to add a entrypoint to a garden which does not exist
+            When attempting to add an entrypoint to a garden which does not exist
             in local data.
         """
         dirty_gardens = set()  # it's good for gardens to get dirty, actually

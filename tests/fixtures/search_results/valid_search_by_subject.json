@@ -27,7 +27,7 @@
                     {
                         "func_uuid": "9f5688ac-424d-443e-b525-97c72e4e083f",
                         "container_uuid": "4f5688ac-424d-443e-b525-97c72e4e013f",
-                        "title": "Concept: a entrypoint for soup",
+                        "title": "Concept: an entrypoint for soup",
                         "short_name": "pea_entrypoint",
                         "authors": [
                             "Mendel, Gregor"
