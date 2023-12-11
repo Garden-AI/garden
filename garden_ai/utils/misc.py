@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import re
+import functools
 from keyword import iskeyword
 
 import requests
@@ -78,3 +79,13 @@ def clean_identifier(name: str) -> str:
         logger.info(f'Generated valid short_name "{name}" from "{orig}".')
 
     return name.lower()
+
+
+def trackcalls(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        wrapper.has_been_called = True
+        return func(*args, **kwargs)
+
+    wrapper.has_been_called = False
+    return wrapper
