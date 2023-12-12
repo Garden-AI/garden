@@ -122,10 +122,10 @@ class EntrypointMetadata(BaseModel):
     models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
-    _target_garden_doi: Optional[str] = PrivateAttr(
-        None
-    )  # Used internally for publishing.
-    _as_step: Optional[Step] = PrivateAttr(None)  # Used internally for publishing.
+    # The PrivateAttrs below are used internally for publishing.
+    _test_functions: List[str] = PrivateAttr(default_factory=list)
+    _target_garden_doi: Optional[str] = PrivateAttr(None)
+    _as_step: Optional[Step] = PrivateAttr(None)
 
 
 class RegisteredEntrypoint(EntrypointMetadata):
@@ -237,6 +237,19 @@ def garden_entrypoint(
         metadata._target_garden_doi = garden_doi
         # let func carry its own metadata
         func._garden_entrypoint = metadata
+        return func
+
+    return decorate
+
+
+def entrypoint_test(entrypoint_func: callable):
+    def decorate(func):
+        if not entrypoint_func or not entrypoint_func._garden_entrypoint:
+            raise ValueError("Please pass in a valid entrypoint function")
+
+        test_function_text = inspect.getsource(entrypoint_func)
+        entrypoint_func._garden_entrypoint._test_functions.append(test_function_text)
+
         return func
 
     return decorate
