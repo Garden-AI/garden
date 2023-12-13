@@ -250,9 +250,7 @@ def entrypoint_test(entrypoint_func: callable):
             raise ValueError("Please pass in a valid entrypoint function")
 
         test_function_text = inspect.getsource(test_func)
-        print(test_function_text)
         entrypoint_func._garden_entrypoint._test_functions.append(test_function_text)
-        print(entrypoint_func._garden_entrypoint._test_functions)
 
         return test_func
 

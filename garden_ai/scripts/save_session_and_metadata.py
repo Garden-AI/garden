@@ -41,14 +41,13 @@ if __name__ == "__main__":
         key_name = entrypoint_fn.__name__
         doi_key = f"{key_name}.garden_doi"
         step_key = f"{key_name}.entrypoint_step"
-        test_functions_key = f"{key_name}.test_functions"
         entrypoint_meta = entrypoint_fn._garden_entrypoint
 
         total_meta[key_name] = entrypoint_meta.dict()
+        total_meta[key_name]["test_functions"] = entrypoint_meta._test_functions
         if entrypoint_meta._target_garden_doi:
             total_meta[doi_key] = entrypoint_meta._target_garden_doi
         total_meta[step_key] = entrypoint_meta._as_step
-        total_meta[test_functions_key] = entrypoint_meta._test_functions
 
     for step_fn in step_fns:
         # Relying on insertion order being maintained in dicts in Python 3.8 forward 🤠
