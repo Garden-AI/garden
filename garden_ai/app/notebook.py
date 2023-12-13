@@ -288,7 +288,24 @@ def publish(
         writable=True,
         readable=True,
     ),
-    base_image: Optional[str] = typer.Option(None),
+    base_image_name: Optional[str] = typer.Option(
+        None,
+        "--base-image",
+        help=(
+            "A Garden base image to run your notebook inside of. This will be the foundation for the image that runs your entrypoints."
+            "For example, to run on top of the default Garden python 3.8 image, use --base-image 3.8-base. "
+            "To see all the available Garden base images, use 'garden-ai notebook list-premade-images'"
+        ),
+    ),
+    custom_image_uri: Optional[str] = typer.Option(
+        None,
+        "--custom-image",
+        help=(
+            "Power users only! Provide a uri of a publicly available docker image to boot the notebook in."
+        ),
+        hidden=True,
+    ),
+    # base_image: Optional[str] = typer.Option(None),
     image_repo: Optional[str] = typer.Option(
         None,
         "--repo",
@@ -313,14 +330,11 @@ def publish(
     if not notebook_path.exists():
         raise ValueError(f"Could not find file at {notebook_path}")
 
-    # check for preferred base image
-    base_image_location = (
-        base_image
-        or _get_notebook_base_image(notebook_path)
-        or "gardenai/base:python-3.10-jupyter"
+    base_image_uri = _get_base_image_uri(
+        base_image_name, custom_image_uri, notebook_path
     )
-    _put_notebook_base_image(notebook_path, base_image_location)
-    print(f"Using base image: {base_image_location}")
+    _put_notebook_base_image(notebook_path, base_image_uri)
+    print(f"Using base image: {base_image_uri}")
 
     # check for preferred image repository
     image_repo = image_repo or local_data._get_user_image_repo()
@@ -353,7 +367,7 @@ def publish(
     # Build the image
     docker_client = docker.from_env()
     image = build_notebook_session_image(
-        docker_client, notebook_path, base_image_location, print_logs=verbose
+        docker_client, notebook_path, base_image_uri, print_logs=verbose
     )
     if image is None:
         typer.echo("Failed to build image.")
@@ -372,7 +386,7 @@ def publish(
     client._register_and_publish_from_user_image(
         docker_client,
         image,
-        base_image_location,
+        base_image_uri,
         full_image_location,
         notebook_url,
     )
