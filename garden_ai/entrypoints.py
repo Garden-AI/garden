@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 from datetime import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Callable
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
@@ -244,7 +244,7 @@ def garden_entrypoint(
     return decorate
 
 
-def entrypoint_test(entrypoint_func: callable):
+def entrypoint_test(entrypoint_func: Callable):
     def decorate(test_func):
         if not entrypoint_func or not entrypoint_func._garden_entrypoint:
             raise ValueError("Please pass in a valid entrypoint function")
