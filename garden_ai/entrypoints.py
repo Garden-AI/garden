@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 from datetime import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Callable
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
@@ -122,10 +122,10 @@ class EntrypointMetadata(BaseModel):
     models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
-    _target_garden_doi: Optional[str] = PrivateAttr(
-        None
-    )  # Used internally for publishing.
-    _as_step: Optional[Step] = PrivateAttr(None)  # Used internally for publishing.
+    # The PrivateAttrs below are used internally for publishing.
+    _test_functions: List[str] = PrivateAttr(default_factory=list)
+    _target_garden_doi: Optional[str] = PrivateAttr(None)
+    _as_step: Optional[Step] = PrivateAttr(None)
 
 
 class RegisteredEntrypoint(EntrypointMetadata):
@@ -142,6 +142,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
         full_image_uri: The name and location of the complete image used by this entrypoint.
         notebook_url: Link to the notebook used to build this entrypoint.
         steps: Ordered list of Python functions that the entrypoint author wants to highlight.
+        test_functions: List of test functions that exercise the entrypoint.
     """
 
     doi: str = Field(
@@ -153,6 +154,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
     full_image_uri: Optional[str] = Field(None)
     notebook_url: Optional[str] = Field(None)
     steps: List[Step] = Field(default_factory=list)
+    test_functions: List[str] = Field(default_factory=list)
 
     def __call__(
         self,
@@ -238,6 +240,19 @@ def garden_entrypoint(
         # let func carry its own metadata
         func._garden_entrypoint = metadata
         return func
+
+    return decorate
+
+
+def entrypoint_test(entrypoint_func: Callable):
+    def decorate(test_func):
+        if not entrypoint_func or not entrypoint_func._garden_entrypoint:
+            raise ValueError("Please pass in a valid entrypoint function")
+
+        test_function_text = inspect.getsource(test_func)
+        entrypoint_func._garden_entrypoint._test_functions.append(test_function_text)
+
+        return test_func
 
     return decorate
 

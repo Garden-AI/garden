@@ -7,6 +7,7 @@ from .entrypoints import (
     RegisteredEntrypoint,
     garden_entrypoint,
     garden_step,
+    entrypoint_test,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "RegisteredEntrypoint",
     "garden_entrypoint",
     "garden_step",
+    "entrypoint_test",
 ]

@@ -44,6 +44,7 @@ if __name__ == "__main__":
         entrypoint_meta = entrypoint_fn._garden_entrypoint
 
         total_meta[key_name] = entrypoint_meta.dict()
+        total_meta[key_name]["test_functions"] = entrypoint_meta._test_functions
         if entrypoint_meta._target_garden_doi:
             total_meta[doi_key] = entrypoint_meta._target_garden_doi
         total_meta[step_key] = entrypoint_meta._as_step
