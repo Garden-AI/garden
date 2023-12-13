@@ -305,7 +305,6 @@ def publish(
         ),
         hidden=True,
     ),
-    # base_image: Optional[str] = typer.Option(None),
     image_repo: Optional[str] = typer.Option(
         None,
         "--repo",
