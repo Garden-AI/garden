@@ -36,7 +36,9 @@ if __name__ == "__main__":
         if isinstance(obj, HFConnector):
             if obj.stage.has_been_called:
                 raise RuntimeWarning(
-                    f"{obj}'s `.stage()` method was called unexpectedly during the build process. "
+                    f"{obj}'s `.stage()` method was called unexpectedly during "
+                    "the build process. Double check that no top-level code "
+                    "calls your entrypoint in the final version of your notebook. "
                 )
 
     if len(entrypoint_fns) == 0:
