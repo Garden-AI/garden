@@ -35,12 +35,8 @@ if __name__ == "__main__":
 
         if isinstance(obj, HFConnector):
             if obj.stage.has_been_called:
-                import logging
-
-                logger = logging.getLogger()
-                logger.warning(
-                    f"WARNING: {obj}'s `.stage()` method was called unexpectedly during the build process, which is probably not intentional. "
-                    "Anything downloaded (such as model weights) by this method will be 'baked in' to the final image, increasing its size. "
+                raise RuntimeWarning(
+                    f"{obj}'s `.stage()` method was called unexpectedly during the build process. "
                 )
 
     if len(entrypoint_fns) == 0:
