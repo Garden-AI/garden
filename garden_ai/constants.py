@@ -6,6 +6,9 @@ _DEV_ENDPOINT = "https://y0ipq1bueb.execute-api.us-east-1.amazonaws.com/garden_d
 _DEV_SEARCH_INDEX = "58e4df29-4492-4e7d-9317-b27eba62a911"
 _PROD_SEARCH_INDEX = "813d4556-cbd4-4ba9-97f2-a7155f70682f"
 
+_PROD_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-prod"
+_DEV_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-dev"
+
 
 class GardenConstants:
     GARDEN_TEST_EMAIL = "garden-test-runner@email.com"
@@ -19,6 +22,10 @@ class GardenConstants:
         if os.environ.get("GARDEN_ENV") == "prod"
         else _DEV_SEARCH_INDEX
     )
+    GARDEN_ECR_REPO = (
+        _PROD_ECR_REPO if os.environ.get("GARDEN_ENV") == "prod" else _DEV_ECR_REPO
+    )
+
     DLHUB_ENDPOINT = "86a47061-f3d9-44f0-90dc-56ddc642c000"
 
     PREMADE_IMAGES = {
