@@ -38,8 +38,8 @@ class BackendClient:
     def _put(self, resource: str, payload: dict) -> dict:
         return self._call(requests.put, resource, payload)
 
-    def _get(self, resource: str, payload: dict) -> dict:
-        return self._call(requests.put, resource, payload)
+    def _get(self, resource: str) -> dict:
+        return self._call(requests.get, resource, None)
 
     def mint_doi_on_datacite(self, payload: dict) -> str:
         response_dict = self._post("/doi", payload)

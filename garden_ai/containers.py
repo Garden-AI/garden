@@ -212,8 +212,8 @@ def extract_metadata_from_image(
 def push_image_to_public_repo(
     client: docker.DockerClient,
     image: docker.models.images.Image,
-    auth_config: dict,
     tag: str,
+    auth_config: dict,
     print_logs: bool = True,
 ) -> str:
     """
