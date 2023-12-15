@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Optional
 
 import rich
@@ -7,9 +8,10 @@ import typer
 from garden_ai.app.garden import garden_app
 from garden_ai.app.entrypoint import entrypoint_app
 from garden_ai.app.notebook import notebook_app
-from garden_ai import GardenClient
+
+from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
-from garden_ai.local_data import _get_user_email
+from garden_ai.local_data import _get_user_email, _clear_user_email
 
 logger = logging.getLogger()
 
@@ -31,25 +33,31 @@ def show_version(show: bool):
 
 @app.command()
 def whoami():
+    """Print the email of the currently logged in user. If logged out, attempt a login."""
     user = _get_user_email()
     if user != "unknown":
         rich.print(user)
     else:
-        # undefined behavior if the user is not actually logged out
+        # attempt login, if necessary
         GardenClient()
 
 
 @app.command()
 def login():
-    if GardenClient().auth_key_store.file_exists():
+    """Attempts to login if the user is currently logged out."""
+    if Path(GardenConstants.GARDEN_KEY_STORE).exists():
         rich.print("Already logged in.")
+    else:
+        # attempt login
+        GardenClient()
 
 
 @app.command()
 def logout():
-    # assumes user is logged in, seems like a safe assumption
-    # otherwise: undefined behavior
-    GardenClient().auth_key_store.clear_garden_data()
+    """Logs out the current user."""
+    _clear_user_email()
+    # silently ignores the case where the file is already gone
+    Path.unlink(Path(GardenConstants.GARDEN_KEY_STORE), missing_ok=True)
 
 
 @app.callback()
