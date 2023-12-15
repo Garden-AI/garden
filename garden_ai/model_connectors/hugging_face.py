@@ -1,5 +1,6 @@
 import huggingface_hub as hfh  # type: ignore
 from garden_ai.mlmodel import ModelMetadata
+from garden_ai.utils.misc import trackcalls
 import os
 import sys
 
@@ -19,6 +20,7 @@ class HFConnector:
             model_version=self.revision,
         )
 
+    @trackcalls
     def stage(self) -> str:
         if not os.path.exists(self.local_dir):
             os.mkdir(self.local_dir)
