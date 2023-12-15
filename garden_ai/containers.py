@@ -9,6 +9,8 @@ from typing import Optional
 import docker  # type: ignore
 import nbconvert  # type: ignore
 
+from garden_ai.constants import GardenConstants
+
 JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary valid token, safe b/c port is only exposed to localhost
 
 
@@ -210,8 +212,8 @@ def extract_metadata_from_image(
 def push_image_to_public_repo(
     client: docker.DockerClient,
     image: docker.models.images.Image,
-    repo_name: str,
     tag: str,
+    auth_config: dict,
     print_logs: bool = True,
 ) -> str:
     """
@@ -227,11 +229,15 @@ def push_image_to_public_repo(
     Returns:
         The full Docker Hub location of the pushed image (e.g. "docker.io/username/myrepo:tag" )
     """
+    repo_name = GardenConstants.GARDEN_ECR_REPO
+
     # Tag the image with the new repository name
     image.tag(repo_name, tag=tag)
 
     # push the image to the new repository and stream logs
-    push_logs = client.images.push(repo_name, tag=tag, stream=True, decode=True)
+    push_logs = client.images.push(
+        repo_name, auth_config=auth_config, tag=tag, stream=True, decode=True
+    )
     for log in push_logs:
         if "error" in log:
             # docker sdk doesn't throw its own exception if the repo doesn't

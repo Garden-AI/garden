@@ -2,6 +2,7 @@
 import json
 import pathlib
 from unittest.mock import MagicMock, Mock, patch
+from garden_ai.constants import GardenConstants
 
 import docker  # type: ignore
 import pytest
@@ -145,7 +146,7 @@ def test_extract_metadata_from_image(mock_docker_client):
 
 
 def test_push_image_to_public_repo(mock_docker_client, capsys):
-    repo_name = "username/myrepo"
+    repo_name = GardenConstants.GARDEN_ECR_REPO
     tag = "latest"
     image_id = "some_image_id"
 
@@ -155,6 +156,9 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
 
     # Mock tag method
     mock_image.tag = MagicMock(return_value=True)
+
+    # Mock ECR auth
+    mock_credentials = {"username": "username", "password": "password"}
 
     # Mock push logs
     mock_push_logs = [
@@ -176,14 +180,14 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
     full_repo_tag = garden_ai.containers.push_image_to_public_repo(
         client=mock_docker_client,
         image=mock_image,
-        repo_name=repo_name,
         tag=tag,
+        auth_config=mock_credentials,
     )
 
     # Assertions
     mock_image.tag.assert_called_once_with(repo_name, tag=tag)
     mock_docker_client.images.push.assert_called_once_with(
-        repo_name, tag=tag, stream=True, decode=True
+        repo_name, auth_config=mock_credentials, tag=tag, stream=True, decode=True
     )
     assert full_repo_tag == f"docker.io/{repo_name}:{tag}"
     # Capture the output

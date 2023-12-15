@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Callable
+from typing import Callable, Optional
+import boto3
 
 import requests
 
@@ -15,7 +16,9 @@ class BackendClient:
     def __init__(self, garden_authorizer):
         self.garden_authorizer = garden_authorizer
 
-    def _call(self, http_verb: Callable, resource: str, payload: dict) -> dict:
+    def _call(
+        self, http_verb: Callable, resource: str, payload: Optional[dict]
+    ) -> dict:
         headers = {"Authorization": self.garden_authorizer.get_authorization_header()}
         url = GardenConstants.GARDEN_ENDPOINT + resource
         resp = http_verb(url, headers=headers, json=payload)
@@ -37,11 +40,14 @@ class BackendClient:
     def _put(self, resource: str, payload: dict) -> dict:
         return self._call(requests.put, resource, payload)
 
+    def _get(self, resource: str) -> dict:
+        return self._call(requests.get, resource, None)
+
     def mint_doi_on_datacite(self, payload: dict) -> str:
         response_dict = self._post("/doi", payload)
         doi = response_dict.get("doi", None)
         if not doi:
-            raise Exception("Failed to mint DOI. Response was missing doi field.")
+            raise ValueError("Failed to mint DOI. Response was missing doi field.")
         return doi
 
     def update_doi_on_datacite(self, payload: dict):
@@ -61,3 +67,20 @@ class BackendClient:
         }
         resp = self._post("/notebook", payload)
         return resp["notebook_url"]
+
+    def get_docker_push_session(self) -> boto3.Session:
+        resp = self._get("/docker-push-token")
+
+        # Make sure the response has the expected fields
+        for field in ["AccessKeyId", "SecretAccessKey", "SessionToken", "ECRRepo"]:
+            if field not in resp or not resp[field]:
+                raise ValueError(
+                    f"/docker-push-token response missing field {field}. Full response: {resp}"
+                )
+
+        return boto3.Session(
+            aws_access_key_id=resp["AccessKeyId"],
+            aws_secret_access_key=resp["SecretAccessKey"],
+            aws_session_token=resp["SessionToken"],
+            region_name="us-east-1",
+        )

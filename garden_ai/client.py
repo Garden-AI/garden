@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import time
+import base64
 from pathlib import Path
 from typing import List, Union
 from uuid import UUID
@@ -519,6 +520,24 @@ class GardenClient:
         """
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         return garden
+
+    def _get_auth_config_for_ecr_push(self) -> dict:
+        """
+        Calls the Garden backend to get a short-lived boto3 session with ECR permissions.
+        Uses that session to get an authorization token from AWS for ECR Public.
+        Uses the authorization token to construct an auth_config dict we can pass to the Docker client.
+        """
+        session = self.backend_client.get_docker_push_session()
+        ecr_client = session.client("ecr-public")
+        response = ecr_client.get_authorization_token()
+        auth_data = response["authorizationData"]
+        if isinstance(auth_data, list):
+            auth_data = auth_data[0]
+        password = (
+            base64.b64decode(auth_data["authorizationToken"]).decode().split(":")[1]
+        )
+        auth_config = {"username": "AWS", "password": password}
+        return auth_config
 
     def _register_and_publish_from_user_image(
         self,

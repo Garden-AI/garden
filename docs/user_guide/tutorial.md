@@ -11,7 +11,6 @@ This means doing the following:
 - Publish the notebook using the CLI, attaching the `Entrypoint` to the `Garden` in the process (`garden-ai notebook publish`)
 - Test remote execution on our tutorial endpoint
 #### Prerequisites
-- You'll need the `garden-ai` CLI as well as a local install of `docker` logged in to a Dockerhub account with a public image repository. See [installation](installation.md) for more details.
 - We've used huggingface to host the [sample model weights](https://huggingface.co/Garden-AI/sklearn-seedling/tree/main) for this tutorial. If you're following along with your own pretrained model weights, you will likely also want a huggingface account to do the same.
 
 ### Step 0: Train Your Model
@@ -185,20 +184,11 @@ If calling your entrypoint function in the `garden-ai notebook debug` session be
 Finally, we're ready to finalize and publish our `Entrypoint`, making it reproducible and discoverable as part of a `Garden`.
 
 
-> [!NOTE] Prerequisites
-> Make sure you're logged in to your Dockerhub account and have a public image repository ready to publish the final image to. See [installation](installation.md) for more detail
-
-
 The only thing we need to do now is call `garden-ai notebook publish` with our notebook path and our image repository, like so:
 
 ```bash
-$ garden-ai notebook publish tutorial_notebook.ipynb \
-	--repo=johntenniel/garden-images # just user/repo, not full url
+$ garden-ai notebook publish tutorial_notebook.ipynb
 ```
-
-
-> [!NOTE] Note
-> The `--repo` argument defaults to the most recently used repository, so it can be omitted when publishing other notebooks. It is fine to publish unrelated notebook images to the same image repository.
 
 Your output should look something like this:
 ```bash

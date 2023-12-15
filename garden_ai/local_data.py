@@ -80,18 +80,6 @@ def _get_notebook_base_image(notebook_path: Path) -> Optional[str]:
     return data["notebooks"].get(nb_key)
 
 
-def _store_user_image_repo(repo: str) -> None:
-    data = _read_local_db()
-    data["user_image_repo"] = repo
-    _write_local_db(data)
-
-
-def _get_user_image_repo() -> Optional[str]:
-    data = _read_local_db()
-    maybe_repo = data.get("user_image_repo")
-    return maybe_repo
-
-
 def _store_user_email(email: str) -> None:
     data = _read_local_db()
     data["user_email"] = email

@@ -10,7 +10,7 @@ import time
 import docker  # type: ignore
 import typer
 
-from garden_ai import GardenClient, GardenConstants, local_data
+from garden_ai import GardenClient, GardenConstants
 from garden_ai.containers import (
     JUPYTER_TOKEN,
     build_notebook_session_image,
@@ -305,15 +305,6 @@ def publish(
         ),
         hidden=True,
     ),
-    image_repo: Optional[str] = typer.Option(
-        None,
-        "--repo",
-        help=(
-            "Name of a public Dockerhub repository to publish garden-generated "
-            "images, e.g. `user/garden-images`. The repository must already "
-            "exist and you must have push access to the repository. "
-        ),
-    ),
     verbose: bool = typer.Option(False, "-v", "--verbose"),
     keep_outputs: bool = typer.Option(
         False,
@@ -334,16 +325,6 @@ def publish(
     )
     _put_notebook_base_image(notebook_path, base_image_uri)
     print(f"Using base image: {base_image_uri}")
-
-    # check for preferred image repository
-    image_repo = image_repo or local_data._get_user_image_repo()
-
-    if image_repo is None:
-        raise ValueError("No image repository specified.")
-    else:
-        # remember for next time
-        local_data._store_user_image_repo(image_repo)
-    print(f"Using image repository: {image_repo}")
 
     # Pre-process the notebook and make sure it's not too big
     raw_notebook_contents = notebook_path.read_text()
@@ -373,13 +354,15 @@ def publish(
         raise typer.Exit(1)
     typer.echo(f"Built image: {image}")
 
-    # generate tag and push image to dockerhub
+    # generate tag and push image to ECR
+    auth_config = client._get_auth_config_for_ecr_push()
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     image_tag = f"{notebook_path.stem}-{timestamp}"
 
-    typer.echo(f"Pushing image to repository: {image_repo}")
+    typer.echo(f"Pushing image to repository: {GardenConstants.GARDEN_ECR_REPO}")
     full_image_location = push_image_to_public_repo(
-        docker_client, image, image_repo, image_tag, print_logs=verbose
+        docker_client, image, image_tag, auth_config, print_logs=verbose
     )
     typer.echo(f"Successfully pushed image to: {full_image_location}")
     client._register_and_publish_from_user_image(
