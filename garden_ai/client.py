@@ -75,9 +75,7 @@ class GardenClient:
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
-        self.garden_key_store = SimpleJSONFileAdapter(
-            os.path.join(key_store_path, "tokens.json")
-        )
+        self.garden_key_store = SimpleJSONFileAdapter(GardenConstants.GARDEN_KEY_STORE)
         self.compute_key_store = get_token_storage_adapter()
         self.auth_key_store = GardenFileAdapter(
             self.garden_key_store, self.compute_key_store
