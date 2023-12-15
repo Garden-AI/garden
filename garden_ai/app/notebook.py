@@ -10,7 +10,7 @@ import time
 import docker  # type: ignore
 import typer
 
-from garden_ai import GardenClient, GardenConstants, local_data
+from garden_ai import GardenClient, GardenConstants
 from garden_ai.containers import (
     JUPYTER_TOKEN,
     build_notebook_session_image,
