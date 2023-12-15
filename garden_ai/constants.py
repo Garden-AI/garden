@@ -10,6 +10,7 @@ _PROD_SEARCH_INDEX = "813d4556-cbd4-4ba9-97f2-a7155f70682f"
 class GardenConstants:
     GARDEN_TEST_EMAIL = "garden-test-runner@email.com"
     GARDEN_DIR = os.path.expanduser("~/.garden")
+    GARDEN_KEY_STORE = os.path.join(GARDEN_DIR, "tokens.json")
     URL_ENV_VAR_NAME = "GARDEN_MODELS"
     GARDEN_ENDPOINT = (
         _PROD_ENDPOINT if os.environ.get("GARDEN_ENV") == "prod" else _DEV_ENDPOINT
