@@ -354,7 +354,7 @@ def publish(
         raise typer.Exit(1)
     typer.echo(f"Built image: {image}")
 
-    # generate tag and push image to dockerhub
+    # generate tag and push image to ECR
     auth_config = client._get_auth_config_for_ecr_push()
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
