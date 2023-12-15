@@ -2,7 +2,6 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter, SQLiteAdapter, FileAd
 from globus_sdk.services.auth import OAuthTokenResponse
 
 from typing import Any, Dict, Optional
-from pathlib import Path
 
 
 class GardenFileAdapter(FileAdapter):
