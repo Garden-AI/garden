@@ -2,6 +2,7 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter, SQLiteAdapter, FileAd
 from globus_sdk.services.auth import OAuthTokenResponse
 
 from typing import Any, Dict, Optional
+from pathlib import Path
 
 
 class GardenFileAdapter(FileAdapter):
@@ -23,6 +24,10 @@ class GardenFileAdapter(FileAdapter):
 
     def on_refresh(self, token_response: OAuthTokenResponse) -> None:
         self.store(token_response)
+
+    def clear_garden_data(self) -> None:
+        # silently ignores the case where the file is already gone
+        Path.unlink(Path(self.garden_key_store.filename), missing_ok=True)
 
     def file_exists(self) -> bool:
         return self.garden_key_store.file_exists()
