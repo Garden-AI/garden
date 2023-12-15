@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Callable
+from typing import Callable, Optional
 import boto3
 
 import requests
@@ -16,7 +16,9 @@ class BackendClient:
     def __init__(self, garden_authorizer):
         self.garden_authorizer = garden_authorizer
 
-    def _call(self, http_verb: Callable, resource: str, payload: dict) -> dict:
+    def _call(
+        self, http_verb: Callable, resource: str, payload: Optional[dict]
+    ) -> dict:
         headers = {"Authorization": self.garden_authorizer.get_authorization_header()}
         url = GardenConstants.GARDEN_ENDPOINT + resource
         resp = http_verb(url, headers=headers, json=payload)
