@@ -13,6 +13,7 @@ _DEV_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-dev"
 class GardenConstants:
     GARDEN_TEST_EMAIL = "garden-test-runner@email.com"
     GARDEN_DIR = os.path.expanduser("~/.garden")
+    GARDEN_KEY_STORE = os.path.join(GARDEN_DIR, "tokens.json")
     URL_ENV_VAR_NAME = "GARDEN_MODELS"
     GARDEN_ENDPOINT = (
         _PROD_ENDPOINT if os.environ.get("GARDEN_ENV") == "prod" else _DEV_ENDPOINT

@@ -86,6 +86,13 @@ def _store_user_email(email: str) -> None:
     _write_local_db(data)
 
 
+def _clear_user_email() -> None:
+    data = _read_local_db()
+    if "user_email" in data:
+        del data["user_email"]
+        _write_local_db(data)
+
+
 def _get_user_email() -> str:
     data = _read_local_db()
     maybe_email = data.get("user_email")
