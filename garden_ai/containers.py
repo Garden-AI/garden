@@ -1,5 +1,6 @@
 import inspect
 import json
+import datetime
 import os
 import pathlib
 import tarfile
@@ -255,3 +256,95 @@ def push_image_to_public_repo(
                     print(log["status"])
 
     return f"docker.io/{repo_name}:{tag}"
+
+
+def build_image_with_dependencies(
+    client: docker.DockerClient,
+    base_image: str,
+    dependencies_path: Optional[pathlib.Path] = None,
+    platform: str = "linux/x86_64",
+    print_logs: bool = True,
+) -> str:
+    """
+    Build a "pre-baked" image from the base image with optional additional dependencies installed.
+
+    This always installs at least the latest version of garden-ai.
+
+    The dependencies can be either a pip requirements.txt or a conda environment.yml file.
+
+    Args:
+        client: A Docker client instance to manage Docker resources.
+        base_image: The name of the base Docker image to use.
+        dependencies_path: Optional; A Path object to the requirements.txt or environment.yml file.
+        platform: The target platform for the Docker build (default is "linux/x86_64").
+        print_logs: Enable streaming build logs to the console (default is True).
+
+    Returns:
+        The tag of the freshly-built Docker image
+
+    Raises:
+        docker.errors.BuildError: If the build fails.
+    """
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    new_image_tag = f"{base_image.replace(':', '_')}-local-{timestamp}"
+
+    # always install garden
+    dockerfile_content = f"""
+    FROM {base_image}
+    RUN pip install garden-ai
+    """
+    with TemporaryDirectory() as temp_dir:
+        temp_dir_path = pathlib.Path(temp_dir)
+
+        client.images.pull(base_image, platform=platform)
+
+        # Create Dockerfile based on whether dependencies are provided
+        if dependencies_path is not None:
+            dockerfile_content += (
+                f"\nCOPY {dependencies_path.name} /garden/{dependencies_path.name}"
+            )
+
+            temp_dependencies_path = temp_dir_path / dependencies_path.name
+            with temp_dependencies_path.open("w+") as f:
+                f.write(dependencies_path.read_text())
+
+            if dependencies_path.suffix == ".txt":  # pip
+                dockerfile_content += f"""
+                COPY {dependencies_path.name} /garden/{dependencies_path.name}
+                RUN pip install -r /garden/{dependencies_path.name}
+                """
+            else:  # conda
+                # nb: installs directly into base environment instead of isolating from image's already-installed packages
+                dockerfile_content += f"""
+                COPY {dependencies_path.name} /garden/{dependencies_path.name}
+                RUN conda env update --name base --file /garden/{dependencies_path.name} && conda clean -afy
+                """
+
+        dockerfile_path = temp_dir_path / "Dockerfile"
+        with dockerfile_path.open("w") as f:
+            f.write(dockerfile_content)
+
+        # Build the image
+        print("Preparing image ...")
+        stream = client.api.build(
+            path=str(temp_dir_path), tag=new_image_tag, platform=platform, decode=True
+        )
+        image = None
+        for chunk in stream:
+            if "stream" in chunk:
+                if print_logs:
+                    print(chunk["stream"].strip())
+            if "aux" in chunk and "ID" in chunk["aux"]:
+                image_id = chunk["aux"]["ID"]
+                image = client.images.get(image_id)
+            if "error" in chunk or "errorDetail" in chunk:
+                error_message = chunk.get(
+                    "error", chunk.get("errorDetail", {}).get("message", "")
+                )
+                print("Build failed:", error_message)
+                raise docker.errors.BuildError(reason=error_message, build_log=stream)
+
+        if image is None:
+            raise docker.errors.BuildError("Failed to build image")
+        else:
+            return new_image_tag
