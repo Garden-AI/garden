@@ -107,6 +107,7 @@ def build_notebook_session_image(
     base_image: str,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
+    pull: bool = True,
 ) -> Optional[docker.models.images.Image]:
     """
     Build the docker image to register with Globus Compute locally.
@@ -124,6 +125,7 @@ def build_notebook_session_image(
         base_image: The name of the base Docker image to use.
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Flag to enable streaming build logs to the console (default is True).
+        pull: Whether to pull the base image before building the notebook session image over it (default True).
 
     Returns:
         The docker `Image` object if the build succeeds, otherwise None.
@@ -153,7 +155,8 @@ def build_notebook_session_image(
         script_path = temp_notebook_path.with_suffix(".py")
         script_path.write_text(script_contents)
 
-        client.images.pull(base_image, platform=platform)
+        if pull:
+            client.images.pull(base_image, platform=platform)
 
         # easier to grok than pure docker sdk equivalent (if one exists)
         dockerfile_content = f"""
@@ -264,13 +267,14 @@ def build_image_with_dependencies(
     dependencies_path: Optional[pathlib.Path] = None,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
+    pull: bool = True,
 ) -> str:
     """
     Build a "pre-baked" image from the base image with optional additional dependencies installed.
 
     This always installs at least the latest version of garden-ai.
 
-    The dependencies can be either a pip requirements.txt or a conda environment.yml file.
+    If included, the dependencies can be either a pip requirements.txt or a conda environment.yml file.
 
     Args:
         client: A Docker client instance to manage Docker resources.
@@ -278,17 +282,16 @@ def build_image_with_dependencies(
         dependencies_path: Optional; A Path object to the requirements.txt or environment.yml file.
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Enable streaming build logs to the console (default is True).
+        pull: Whether to pull the base image before building on top of it (default is True).
 
     Returns:
-        The tag of the freshly-built Docker image
+        The ID of the freshly-built Docker image
 
     Raises:
         docker.errors.BuildError: If the build fails.
     """
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    new_image_tag = f"{base_image.replace(':', '_')}-local-{timestamp}"
 
-    # always install garden
+    # always install garden first
     dockerfile_content = f"""
     FROM {base_image}
     RUN pip install garden-ai
@@ -296,9 +299,10 @@ def build_image_with_dependencies(
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
 
-        client.images.pull(base_image, platform=platform)
+        if pull:
+            client.images.pull(base_image, platform=platform)
 
-        # Create Dockerfile based on whether dependencies are provided
+        # append to Dockerfile based on whether dependencies are provided
         if dependencies_path is not None:
             dockerfile_content += (
                 f"\nCOPY {dependencies_path.name} /garden/{dependencies_path.name}"
@@ -327,7 +331,7 @@ def build_image_with_dependencies(
         # Build the image
         print("Preparing image ...")
         stream = client.api.build(
-            path=str(temp_dir_path), tag=new_image_tag, platform=platform, decode=True
+            path=str(temp_dir_path), platform=platform, decode=True
         )
         image = None
         for chunk in stream:
@@ -345,6 +349,6 @@ def build_image_with_dependencies(
                 raise docker.errors.BuildError(reason=error_message, build_log=stream)
 
         if image is None:
-            raise docker.errors.BuildError("Failed to build image")
+            raise docker.errors.BuildError
         else:
-            return new_image_tag
+            return image_id

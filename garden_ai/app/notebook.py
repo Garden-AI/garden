@@ -110,19 +110,7 @@ def start(
         custom_image_uri,
         None if need_to_create_notebook else notebook_path,
     )
-
-    # validate requirements file
-    if requirements_path:
-        requirements_path.resolve()
-        if not requirements_path.exists():
-            typer.echo(f"Could not find file: {requirements_path}")
-            raise typer.Exit(1)
-        if requirements_path.suffix not in {".txt", ".yml", ".yaml"}:
-            typer.echo(
-                "Requirements file in unexpected format. "
-                f"Expected one of: .txt, .yml, .yaml; got {requirements_path.name}."
-            )
-            raise typer.Exit(1)
+    _put_notebook_base_image(notebook_path, base_image_uri)
 
     # Now we have all we need to prompt the user to proceed
     if need_to_create_notebook:
@@ -132,9 +120,10 @@ def start(
 
     if requirements_path:
         message += f"Additional dependencies specified in {requirements_path.name} will also be installed in {base_image_uri}. "
-    message += "Do you want to proceed?"
+        # sanity check requirements
+        _validate_requirements_path(requirements_path)
 
-    typer.confirm(message, abort=True)
+    typer.confirm(message + "Do you want to proceed?", abort=True)
 
     if need_to_create_notebook:
         if base_image_name:
@@ -148,20 +137,19 @@ def start(
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
 
-    docker_client = docker.from_env()
-    # pre-bake image with garden-ai and additional user requirements
-    base_image_uri = build_image_with_dependencies(
-        docker_client, base_image_uri, requirements_path
-    )
-    _put_notebook_base_image(notebook_path, base_image_uri)
     print(
         f"Starting notebook inside base image with full name {base_image_uri}. "
         f"If you start this notebook again from the same folder, it will use this image by default."
     )
 
+    docker_client = docker.from_env()
+    # pre-bake local image with garden-ai and additional user requirements
+    local_base_image_id = build_image_with_dependencies(
+        docker_client, base_image_uri, requirements_path
+    )
     # start container and listen for Ctrl-C
     container = start_container_with_notebook(
-        docker_client, notebook_path, base_image_uri, pull=False
+        docker_client, notebook_path, local_base_image_id, pull=False
     )
     _register_container_sigint_handler(container)
 
@@ -267,7 +255,15 @@ def debug(
         help=(
             "Path to a .ipynb notebook whose remote environment will be approximated for debugging."
         ),
-    )
+    ),
+    requirements_path: Optional[Path] = typer.Option(
+        None,
+        "--requirements",
+        help=(
+            "Path to a requirements.txt or a conda environment.yml containing "
+            "additional dependencies to install in the base image."
+        ),
+    ),
 ):
     """Open the debugging notebook in a pre-prepared container.
 
@@ -276,9 +272,15 @@ def debug(
     """
     docker_client = docker.from_env()
     base_image = _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
-    image = build_notebook_session_image(
-        docker_client, path, base_image, print_logs=True
+
+    if requirements_path is not None:
+        _validate_requirements_path(requirements_path)
+
+    local_base_image_id = build_image_with_dependencies(
+        docker_client, base_image, requirements_path
     )
+
+    image = build_notebook_session_image(docker_client, path, local_base_image_id)
     if image is None:
         typer.echo("Failed to build image.")
         raise typer.Exit(1)
@@ -318,6 +320,14 @@ def publish(
         dir_okay=False,
         writable=True,
         readable=True,
+    ),
+    requirements_path: Optional[Path] = typer.Option(
+        None,
+        "--requirements",
+        help=(
+            "Path to a requirements.txt or a conda environment.yml containing "
+            "additional dependencies to install in the base image."
+        ),
     ),
     base_image_name: Optional[str] = typer.Option(
         None,
@@ -377,8 +387,18 @@ def publish(
 
     # Build the image
     docker_client = docker.from_env()
+    if requirements_path:
+        _validate_requirements_path(requirements_path)
+
+    local_base_image_id = build_image_with_dependencies(
+        docker_client, base_image_uri, requirements_path, print_logs=verbose, pull=True
+    )
     image = build_notebook_session_image(
-        docker_client, notebook_path, base_image_uri, print_logs=verbose
+        docker_client,
+        notebook_path,
+        local_base_image_id,
+        print_logs=verbose,
+        pull=False,
     )
     if image is None:
         typer.echo("Failed to build image.")
@@ -403,3 +423,17 @@ def publish(
         full_image_location,
         notebook_url,
     )
+
+
+def _validate_requirements_path(requirements_path: Path):
+    requirements_path.resolve()
+    if not requirements_path.exists():
+        typer.echo(f"Could not find file: {requirements_path}")
+        raise typer.Exit(1)
+    if requirements_path.suffix not in {".txt", ".yml", ".yaml"}:
+        typer.echo(
+            "Requirements file in unexpected format. "
+            f"Expected one of: .txt, .yml, .yaml; got {requirements_path.name}. "
+        )
+        raise typer.Exit(1)
+    return
