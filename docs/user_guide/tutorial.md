@@ -7,7 +7,6 @@ This means doing the following:
 - Create a new Garden using the CLI (`garden-ai garden create`)
 - Open a notebook using the CLI (`garden-ai notebook start`)
 - Define and decorate a function in the notebook to make it an `Entrypoint`
-	- Optional: debug the completed notebook (`garden-ai notebook debug`)
 - Publish the notebook using the CLI, attaching the `Entrypoint` to the `Garden` in the process (`garden-ai notebook publish`)
 - Test remote execution on our tutorial endpoint
 #### Prerequisites
