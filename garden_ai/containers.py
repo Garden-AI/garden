@@ -1,6 +1,5 @@
 import inspect
 import json
-import datetime
 import os
 import pathlib
 import tarfile
@@ -264,7 +263,7 @@ def push_image_to_public_repo(
 def build_image_with_dependencies(
     client: docker.DockerClient,
     base_image: str,
-    dependencies_path: Optional[pathlib.Path] = None,
+    requirements_path: Optional[pathlib.Path] = None,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
     pull: bool = True,
@@ -279,7 +278,7 @@ def build_image_with_dependencies(
     Args:
         client: A Docker client instance to manage Docker resources.
         base_image: The name of the base Docker image to use.
-        dependencies_path: Optional; A Path object to the requirements.txt or environment.yml file.
+        requirements_path: Optional; A Path object to the requirements.txt or environment.yml file.
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Enable streaming build logs to the console (default is True).
         pull: Whether to pull the base image before building on top of it (default is True).
@@ -303,25 +302,21 @@ def build_image_with_dependencies(
             client.images.pull(base_image, platform=platform)
 
         # append to Dockerfile based on whether dependencies are provided
-        if dependencies_path is not None:
-            dockerfile_content += (
-                f"\nCOPY {dependencies_path.name} /garden/{dependencies_path.name}"
-            )
-
-            temp_dependencies_path = temp_dir_path / dependencies_path.name
+        if requirements_path is not None:
+            temp_dependencies_path = temp_dir_path / requirements_path.name
             with temp_dependencies_path.open("w+") as f:
-                f.write(dependencies_path.read_text())
+                f.write(requirements_path.read_text())
 
-            if dependencies_path.suffix == ".txt":  # pip
+            if requirements_path.suffix == ".txt":  # pip
                 dockerfile_content += f"""
-                COPY {dependencies_path.name} /garden/{dependencies_path.name}
-                RUN pip install -r /garden/{dependencies_path.name}
+                COPY {requirements_path.name} /garden/{requirements_path.name}
+                RUN pip install -r /garden/{requirements_path.name}
                 """
             else:  # conda
                 # nb: installs directly into base environment instead of isolating from image's already-installed packages
                 dockerfile_content += f"""
-                COPY {dependencies_path.name} /garden/{dependencies_path.name}
-                RUN conda env update --name base --file /garden/{dependencies_path.name} && conda clean -afy
+                COPY {requirements_path.name} /garden/{requirements_path.name}
+                RUN conda env update --name base --file /garden/{requirements_path.name} && conda clean -afy
                 """
 
         dockerfile_path = temp_dir_path / "Dockerfile"
