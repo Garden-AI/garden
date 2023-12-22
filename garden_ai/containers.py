@@ -106,6 +106,7 @@ def build_notebook_session_image(
     base_image: str,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
+    pull: bool = True,
 ) -> Optional[docker.models.images.Image]:
     """
     Build the docker image to register with Globus Compute locally.
@@ -123,6 +124,7 @@ def build_notebook_session_image(
         base_image: The name of the base Docker image to use.
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Flag to enable streaming build logs to the console (default is True).
+        pull: Whether to pull the base image before building the notebook session image over it (default True).
 
     Returns:
         The docker `Image` object if the build succeeds, otherwise None.
@@ -152,7 +154,8 @@ def build_notebook_session_image(
         script_path = temp_notebook_path.with_suffix(".py")
         script_path.write_text(script_contents)
 
-        client.images.pull(base_image, platform=platform)
+        if pull:
+            client.images.pull(base_image, platform=platform)
 
         # easier to grok than pure docker sdk equivalent (if one exists)
         dockerfile_content = f"""
@@ -255,3 +258,92 @@ def push_image_to_public_repo(
                     print(log["status"])
 
     return f"docker.io/{repo_name}:{tag}"
+
+
+def build_image_with_dependencies(
+    client: docker.DockerClient,
+    base_image: str,
+    requirements_path: Optional[pathlib.Path] = None,
+    platform: str = "linux/x86_64",
+    print_logs: bool = True,
+    pull: bool = True,
+) -> str:
+    """
+    Build a "pre-baked" image from the base image with optional additional dependencies installed.
+
+    This always installs at least the latest version of garden-ai.
+
+    If included, the dependencies can be either a pip requirements.txt or a conda environment.yml file.
+
+    Args:
+        client: A Docker client instance to manage Docker resources.
+        base_image: The name of the base Docker image to use.
+        requirements_path: Optional; A Path object to the requirements.txt or environment.yml file.
+        platform: The target platform for the Docker build (default is "linux/x86_64").
+        print_logs: Enable streaming build logs to the console (default is True).
+        pull: Whether to pull the base image before building on top of it (default is True).
+
+    Returns:
+        The ID of the freshly-built Docker image
+
+    Raises:
+        docker.errors.BuildError: If the build fails.
+    """
+
+    # always install garden first
+    dockerfile_content = f"""
+    FROM {base_image}
+    RUN pip install garden-ai
+    """
+    with TemporaryDirectory() as temp_dir:
+        temp_dir_path = pathlib.Path(temp_dir)
+
+        if pull:
+            client.images.pull(base_image, platform=platform)
+
+        # append to Dockerfile based on whether dependencies are provided
+        if requirements_path is not None:
+            temp_dependencies_path = temp_dir_path / requirements_path.name
+            with temp_dependencies_path.open("w+") as f:
+                f.write(requirements_path.read_text())
+
+            if requirements_path.suffix == ".txt":  # pip
+                dockerfile_content += f"""
+                COPY {requirements_path.name} /garden/{requirements_path.name}
+                RUN pip install -r /garden/{requirements_path.name}
+                """
+            else:  # conda
+                # nb: installs directly into base environment instead of isolating from image's already-installed packages
+                dockerfile_content += f"""
+                COPY {requirements_path.name} /garden/{requirements_path.name}
+                RUN conda env update --name base --file /garden/{requirements_path.name} && conda clean -afy
+                """
+
+        dockerfile_path = temp_dir_path / "Dockerfile"
+        with dockerfile_path.open("w") as f:
+            f.write(dockerfile_content)
+
+        # Build the image
+        print("Preparing image ...")
+        stream = client.api.build(
+            path=str(temp_dir_path), platform=platform, decode=True
+        )
+        image = None
+        for chunk in stream:
+            if "stream" in chunk:
+                if print_logs:
+                    print(chunk["stream"].strip())
+            if "aux" in chunk and "ID" in chunk["aux"]:
+                image_id = chunk["aux"]["ID"]
+                image = client.images.get(image_id)
+            if "error" in chunk or "errorDetail" in chunk:
+                error_message = chunk.get(
+                    "error", chunk.get("errorDetail", {}).get("message", "")
+                )
+                print("Build failed:", error_message)
+                raise docker.errors.BuildError(reason=error_message, build_log=stream)
+
+        if image is None:
+            raise docker.errors.BuildError
+        else:
+            return image_id

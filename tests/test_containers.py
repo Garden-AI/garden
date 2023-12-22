@@ -6,7 +6,7 @@ from garden_ai.constants import GardenConstants
 
 import docker  # type: ignore
 import pytest
-
+import io
 import garden_ai.containers
 
 JUPYTER_TOKEN = "bunchanumbers"
@@ -21,7 +21,7 @@ def mock_docker_client():
     # Mock the APIClient and set it as the `api` attribute on the DockerClient mock
     api_client = MagicMock()
     api_client.build.return_value = [
-        {"stream": "Step 1/3 : FROM python:3.8-slim"},
+        {"stream": "Step 1/3 : FROM gardenai/base:python-3.10-jupyter"},
         {"stream": " ---> Using cache"},
         {"stream": " ---> 2d6e000f4f63"},
         {
@@ -200,3 +200,67 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
         else:
             expected_log = log["status"]
         assert expected_log in captured.out
+
+
+@pytest.mark.parametrize(
+    "requirements_file", ["requirements.txt", "environment.yml", None]
+)
+def test_build_image_with_dependencies(mock_docker_client, mocker, requirements_file):
+    base_image = "gardenai/base:python-3.10-jupyter"
+    requirements_path = pathlib.Path(requirements_file) if requirements_file else None
+
+    # Mock the file read for requirements.txt
+    file_content = (
+        "some-package==1.0.0"
+        if requirements_file == "requirements.txt"
+        else "dependencies:\n  - numpy"
+    )
+    mocker.patch("pathlib.Path.read_text", return_value=file_content)
+
+    # Prepare to capture the Dockerfile content
+    dockerfile_content_capture = io.StringIO()
+
+    # Mock the 'open' method on the specific Path object
+    mock_path_open = mocker.patch.object(pathlib.Path, "open")
+    mock_path_open.return_value.__enter__.return_value = dockerfile_content_capture
+
+    image_id = garden_ai.containers.build_image_with_dependencies(
+        client=mock_docker_client,
+        base_image=base_image,
+        requirements_path=requirements_path,
+        pull=True,
+    )
+
+    # Test that the base image was pulled
+    mock_docker_client.images.pull.assert_called_with(
+        base_image, platform="linux/x86_64"
+    )
+    contents = dockerfile_content_capture.getvalue()
+    # Test that the Dockerfile was created correctly per requirements type
+    assert f"FROM {base_image}" in contents
+    assert "RUN pip install garden-ai" in contents
+    if requirements_file == "requirements.txt":
+        assert f"COPY {requirements_file} /garden/{requirements_file}" in contents
+        assert "RUN pip install -r /garden/requirements.txt" in contents
+        assert "conda" not in contents
+    elif requirements_file == "environment.yml":
+        assert f"COPY {requirements_file} /garden/{requirements_file}" in contents
+        assert (
+            "RUN conda env update --name base --file /garden/environment.yml "
+            in contents
+        )
+        assert "pip install -r" not in contents
+    else:  # None
+        assert "COPY" not in contents
+        assert "pip install -r" not in contents
+        assert "conda" not in contents
+
+    # Test that the build was called
+    mock_docker_client.api.build.assert_called()
+
+    # Test that the function returned the correct image ID
+    # (this is set in the mock_docker_client fixture)
+    expected_image_id = (
+        "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
+    )
+    assert image_id == expected_image_id
