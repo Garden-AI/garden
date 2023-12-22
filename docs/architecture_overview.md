@@ -23,7 +23,7 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 
     - An `Entrypoint` is a plain Python function, enriched with citation metadata and registered with our service for reproducibility and remote execution (via Globus Compute).
     - Users can execute an `Entrypoint` remotely via any `Garden` it has been published to.
-    - An `Entrypoint` is typically defined in a regular Jupyter/ipynb notebook, and functions like an "entrypoint" to a saved notebook session when registered and published to a `Garden`.
+    - An `Entrypoint` is typically defined in a regular Jupyter notebook, and functions like an "entrypoint" to a saved notebook session when registered and published to a `Garden`.
     - An `Entrypoint` is registered when its notebook is published.
     - When a notebook is published, all the `Entrypoint`s in the notebook are published to their respective gardens -- `Entrypoint`s defined in the same notebook need not be published to the same `Garden`.
 
@@ -39,9 +39,9 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 
 ### Notebook Workflow - Defining and Developing Entrypoints
 
-1. **Development in IPython Notebooks:**
+1. **Development in Jupyter Notebooks:**
 
-    - The process begins by writing an IPython notebook containing functions marked as entrypoints using the `@garden_entrypoint` decorator.
+    - The process begins by writing a Jupyter notebook containing functions marked as entrypoints using the `@garden_entrypoint` decorator.
     - The `garden-ai` CLI provides a `garden-ai notebook start path/to/my.ipynb` command to open a notebook in an isolated local Docker container (conceptually similar to a Google Colab notebook, but running locally and with a choice of prebuilt base images).
 	- See [installation](user_guide/installation.md) for Docker-specific prerequisites
 

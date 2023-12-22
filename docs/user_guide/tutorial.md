@@ -65,7 +65,17 @@ Because `tutorial_notebook.ipynb` didn't already exist, this command created and
 >[!NOTE] `garden-ai notebook start` vs `jupyter notebook`
 > Editing a notebook opened with `garden-ai notebook start` should feel very similar to opening that same notebook with `jupyter notebook`. However, Garden opens the notebook in a **fully isolated** Docker container (instead of whichever local environment happens to have Jupyter installed).
 >
-> This is a similar execution model to Google Colab, but with the container running locally instead of on Google servers. Like Colab, you'll need to `%pip install` any dependencies not already found in your selected base image at the top of your notebook.
+> This is a similar execution model to Google Colab, but with the container running locally instead of on Google servers. Like Colab, you can `%pip install` any dependencies not already found in your selected base image at the top of your notebook.
+
+For managing dependencies that aren't included in the Garden base images, we recommend passing a `requirements` file. You can provide a pip-style (requirements.txt) or conda-style (conda.yml) requirements file with the `requirements` option, and Garden will install the requirements into the container before starting your notebook session.
+
+```bash
+$ garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn --requirements=conda.yml
+
+```
+
+>[!NOTE] Note
+> Garden does not remember your `requirements` file across commands, so if you have one be sure to specify it every time.
 
 
 ### Step 3: Developing the Entrypoint
@@ -86,6 +96,9 @@ The first cell of our notebook is often just a few `pip install`s:
 ```
 
 Best practice is to pin exact versions of your dependencies wherever possible, but this is especially important for the library used to train the model and/or originally save the model weights (`scikit-learn==1.3.0` and `joblib==1.3.2` in this case).
+
+> [!NOTE] Note
+> Doing `%pip install`s in the notebook is often very helpful for interactively experimenting with packages while coding. But once you've figured out all the packages and versions you need, we recommend pulling them out into a `requirements` file that you can pass to Garden with the `--requirements` flag.
 
 Next, we fill out the citation metadata for our `Entrypoint`:
 ```ipython
@@ -163,23 +176,8 @@ def run_tutorial_model(input_df: pd.DataFrame) -> pd.DataFrame:
 
 Now that we've finished developing our `Entrypoint`, it's a good idea to restart the kernel and run all cells to sanity-check that your entrypoint function is working as expected before moving on to the publication step.
 
-### Step 4: (Optional) Debugging Entrypoint Execution
 
-If you're finding that an entrypoint function works correctly following a "restart kernel and run all cells" when run from within a `garden-ai notebook start` session but fails on remote execution, the `garden-ai notebook debug` command is the best place to start troubleshooting.
-
-Unfortunately, the notebook session you had active when manually running your notebook won't always be *exactly* equivalent to the session ultimately saved for remote inference. This could be for a couple reasons:
-	- The remote execution context is a session which has been saved and reloaded, which may not be a perfect re-creation of the session before it was saved.
-	- Your notebook is converted to a plain python script before being executed, and there may be unexpected discrepancies between the notebook and the notebook-as-script causing problems.
-
-The `garden-ai notebook debug` command accepts the same arguments as `garden-ai notebook start`, but instead of opening the notebook in a base image, it opens a debugging notebook in an image with your notebook session saved (i.e. the one that remote inference will use).
-
-The debugging notebook only has a snippet of code to reload your saved session -- this is as close to the remote execution context as possible without actually executing remotely.
-
-If calling your entrypoint function in the `garden-ai notebook debug` session behaves the same as calling your entrypoint function in a `garden-ai notebook start` session, that likely indicates a problem with the remote endpoint.
-
-If calling your entrypoint function in the `garden-ai notebook debug` session behaves differently than in a `garden-ai notebook start` session, that indicates a problem with serializing or deserializing your notebook state. If this is the case, please open an issue on our [Github](https://github.com/Garden-AI/garden/issues), including the notebook and any additional context that might be useful so we can reproduce the bug.
-
-### Step 5: Publishing the Notebook
+### Step 4: Publishing the Notebook
 
 Finally, we're ready to finalize and publish our `Entrypoint`, making it reproducible and discoverable as part of a `Garden`.
 
@@ -187,7 +185,7 @@ Finally, we're ready to finalize and publish our `Entrypoint`, making it reprodu
 The only thing we need to do now is call `garden-ai notebook publish` with our notebook path and our image repository, like so:
 
 ```bash
-$ garden-ai notebook publish tutorial_notebook.ipynb
+$ garden-ai notebook publish tutorial_notebook.ipynb --requirements=conda.yml
 ```
 
 Your output should look something like this:
