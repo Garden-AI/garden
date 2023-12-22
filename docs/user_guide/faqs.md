@@ -18,6 +18,6 @@ If calling your entrypoint function in the `garden-ai notebook debug` session be
 
 ### I have an M1/M2 Mac and I want to publish an entrypoint that uses tensorflow. I can't get it to work locally. How can I?
 
-Alas, you can't. Garden aways spins up Linux container, so you can't install the `tensorflow-macos` variant. And the normal `tensorflow` doesn't run on Apple silicon. (Yes, even if you have Rosetta )
+Alas, you can't. Garden aways spins up Linux containers, so you can't install the `tensorflow-macos` variant. And the normal `tensorflow` doesn't run on Apple silicon.
 
 To work around this, we recommend using a VPS. Spin up a temporary EC2 instance (or equivalent on different cloud providers) running Linux where you can work on your notebook. When you ssh into your remote workstation, forward the port the notebook runs on so that you can still work on the notebook in your local browser. Like `ssh -L 8888:localhost:8888 my-remote-user@my-remote-workstation`.
