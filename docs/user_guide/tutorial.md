@@ -221,7 +221,7 @@ Once we have the `Garden` DOI, we have everything we need to remotely execute an
 
 ```python
 >>> gc = GardenClient()
->>> live_flower_garden = gc.get_garden_by_doi('10.23677/z2b3-3p02')
+>>> live_flower_garden = gc.get_published_garden('10.23677/z2b3-3p02')
 ```
 
 #### Remotely Execute an Entrypoint
