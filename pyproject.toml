@@ -28,10 +28,10 @@ documentation = "https://garden-ai.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-cryptography = "^41.0.3"
+cryptography = "^41.0.6"
 requests = "^2.20.0"
 gitpython = "^3.1.35"
-globus-sdk = "^3.12.0"
+globus-sdk = ">=3.12.0,<=3.27.0"
 pydantic = "^1.10.13"
 typer = { extras = ["all"], version = "^0.7.0" }
 jinja2 = "^3.1.2"

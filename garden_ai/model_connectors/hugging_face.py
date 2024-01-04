@@ -1,6 +1,7 @@
 import huggingface_hub as hfh  # type: ignore
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import trackcalls
+from requests.exceptions import HTTPError
 import os
 import sys
 
@@ -12,13 +13,17 @@ class HFConnector:
         self.repo_id = repo_id
         self.revision = revision
         self.local_dir = local_dir or "hf_model"
-        self.model_card = hfh.ModelCard.load(repo_id)
         self.enable_imports = enable_imports
         self.metadata = ModelMetadata(
             model_identifier=self.repo_id,
             model_repository="Hugging Face",
             model_version=self.revision,
         )
+        try:
+            # This fetches README.md from the repo and will raise an error if it doesn't exist
+            self.model_card = hfh.ModelCard.load(repo_id)
+        except HTTPError:
+            self.model_card = None
 
     @trackcalls
     def stage(self) -> str:
@@ -30,6 +35,8 @@ class HFConnector:
         return self.local_dir
 
     def _repr_html_(self):
+        if not self.model_card:
+            return ""
         try:
             __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
             from IPython.display import display, Markdown  # type: ignore
