@@ -15,7 +15,7 @@ from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_ad
 from globus_compute_sdk.serialize.concretes import DillCodeTextInspect
 from globus_sdk import (
     AuthAPIError,
-    AuthClient,
+    AuthLoginClient,
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
     GroupsClient,
@@ -71,7 +71,7 @@ class GardenClient:
 
     def __init__(
         self,
-        auth_client: Union[AuthClient, ConfidentialAppAuthClient] = None,
+        auth_client: Union[AuthLoginClient, ConfidentialAppAuthClient] = None,
         search_client: SearchClient = None,
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
@@ -86,19 +86,19 @@ class GardenClient:
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
-        # If auth_client is type AuthClient or None, do an
+        # If auth_client is type AuthLoginClient or None, do an
         # Authorization Code Grant and make RefreshTokenAuthorizers.
         # If auth_client is type ConfidentialAppAuthClient, do a
         # Client Credentials Grant and make ClientCredentialsAuthorizers
         if (
-            isinstance(auth_client, AuthClient)
+            isinstance(auth_client, AuthLoginClient)
             and not isinstance(auth_client, ConfidentialAppAuthClient)
         ) or not auth_client:
             self.auth_client = (
                 NativeAppAuthClient(self.client_id) if not auth_client else auth_client
             )
             self.openid_authorizer = self._create_authorizer(
-                AuthClient.scopes.resource_server
+                AuthLoginClient.scopes.resource_server
             )
             self.groups_authorizer = self._create_authorizer(
                 GroupsClient.scopes.resource_server
@@ -121,7 +121,7 @@ class GardenClient:
             self.auth_client = auth_client
             self.openid_authorizer = ClientCredentialsAuthorizer(
                 self.auth_client,
-                f"{AuthClient.scopes.openid} {AuthClient.scopes.email}",
+                f"{AuthLoginClient.scopes.openid} {AuthLoginClient.scopes.email}",
             )
             self.groups_authorizer = ClientCredentialsAuthorizer(
                 self.auth_client, GroupsClient.scopes.view_my_groups_and_memberships
@@ -164,8 +164,8 @@ class GardenClient:
     def _do_login_flow(self):
         self.auth_client.oauth2_start_flow(
             requested_scopes=[
-                AuthClient.scopes.openid,
-                AuthClient.scopes.email,
+                AuthLoginClient.scopes.openid,
+                AuthLoginClient.scopes.email,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.all,
                 GardenClient.scopes.test_scope,

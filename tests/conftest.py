@@ -3,7 +3,7 @@ import os
 import pytest
 from globus_compute_sdk import Client  # type: ignore
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
-from globus_sdk import AuthClient, OAuthTokenResponse, SearchClient
+from globus_sdk import AuthLoginClient, OAuthTokenResponse, SearchClient
 
 from garden_ai import Garden, GardenClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
@@ -69,7 +69,7 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     mock_keystore.file_exists.return_value = False
 
     # Mocks for Login Flow
-    mock_auth_client = mocker.MagicMock(AuthClient)
+    mock_auth_client = mocker.MagicMock(AuthLoginClient)
     mock_auth_client.oauth2_get_authorize_url = mocker.Mock(
         return_value="https://globus.auth.garden"
     )
