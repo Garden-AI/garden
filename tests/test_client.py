@@ -5,7 +5,7 @@ from globus_compute_sdk import Client  # type: ignore
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import (
     AuthAPIError,
-    AuthClient,
+    AuthLoginClient,
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
     OAuthTokenResponse,
@@ -26,7 +26,7 @@ def test_client_no_previous_tokens(
     mock_keystore.file_exists.return_value = False
 
     # Mocks for Login Flow
-    mock_auth_client = mocker.MagicMock(AuthClient)
+    mock_auth_client = mocker.MagicMock(AuthLoginClient)
     mock_auth_client.oauth2_get_authorize_url = mocker.Mock(
         return_value="https://globus.auth.garden"
     )
@@ -90,7 +90,7 @@ def test_client_previous_tokens_stored(
     mocker, mock_authorizer_tuple, token, mock_keystore
 ):
     mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
-    mock_auth_client = mocker.MagicMock(AuthClient)
+    mock_auth_client = mocker.MagicMock(AuthLoginClient)
 
     mock_keystore.file_exists.return_value = True
     mock_keystore.get_token_data.return_value = token
@@ -127,7 +127,7 @@ def test_client_invalid_auth_token(
     mock_keystore.file_exists.return_value = False
 
     # Mocks for Login Flow
-    mock_auth_client = mocker.MagicMock(AuthClient)
+    mock_auth_client = mocker.MagicMock(AuthLoginClient)
     mock_auth_client.oauth2_get_authorize_url = mocker.Mock(
         return_value="https://globus.auth.garden"
     )
