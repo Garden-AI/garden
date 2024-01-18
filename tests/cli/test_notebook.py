@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock
 from typer import Exit
 from docker.errors import DockerException
 
-from garden_ai.app.notebook import DockerClientSession, DockerStartFailure
+from garden_ai.app.notebook import DockerClientSession
 from garden_ai.containers import DockerStartFailure
 
 
@@ -18,7 +18,7 @@ def test_docker_client_session():
         with patch(
             "garden_ai.app.notebook.get_docker_client", side_effect=docker_start_failure
         ):
-            with DockerClientSession() as docker_client:
+            with DockerClientSession():
                 # Just needed to trigger __enter__
                 pass
     assert exc_info.value.exit_code == 1, "Exit code is not 1."

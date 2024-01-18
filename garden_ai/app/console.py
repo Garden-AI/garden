@@ -1,6 +1,5 @@
 from rich.console import Console
 from rich.table import Table
-import typer
 
 from typing import List, Optional, Any
 
@@ -77,9 +76,6 @@ def get_local_entrypoint_rich_table(
         resource_table_cols=resource_table_cols,
         table_name=table_name,
     )
-
-
-# console.print(message, fg=typer.colors.RED, bold=True)
 
 
 def print_err(message: str):
