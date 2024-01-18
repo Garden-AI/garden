@@ -8,6 +8,7 @@ import typer
 from garden_ai.app.garden import garden_app
 from garden_ai.app.entrypoint import entrypoint_app
 from garden_ai.app.notebook import notebook_app
+from garden_ai.app.docker import docker_app
 
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
@@ -22,6 +23,7 @@ app = typer.Typer(no_args_is_help=True)
 app.add_typer(garden_app)
 app.add_typer(entrypoint_app)
 app.add_typer(notebook_app)
+app.add_typer(docker_app)
 
 
 def show_version(show: bool):

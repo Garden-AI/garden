@@ -11,6 +11,7 @@ import docker  # type: ignore
 import typer
 
 from garden_ai import GardenClient, GardenConstants
+from garden_ai.app.console import print_err
 from garden_ai.containers import (
     JUPYTER_TOKEN,
     build_image_with_dependencies,
@@ -34,10 +35,6 @@ notebook_app = typer.Typer(name="notebook")
 BASE_IMAGE_NAMES = ", ".join(
     ["'" + image_name + "'" for image_name in GardenConstants.PREMADE_IMAGES.keys()]
 )
-
-
-def print_err(message: str):
-    typer.secho(message, fg=typer.colors.RED, bold=True)
 
 
 class DockerClientSession:
