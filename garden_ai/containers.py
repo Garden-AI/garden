@@ -52,11 +52,10 @@ def handle_docker_errors(func):
             # If the daemon is running but you don't have permissions, Linux says "Permission denied".
             # This is less common on MacOS.
             elif "PermissionError" in error_message:
-                unix_username = os.getlogin()
                 explanation = (
                     "It looks like your current user does not have permissions to use Docker. "
                     "Try adding your user to your OS's Docker group with the following command: "
-                    f"sudo usermod -aG docker {unix_username}"
+                    "sudo usermod -aG docker ${whoami}"
                 )
 
             raise DockerStartFailure(e, explanation)
