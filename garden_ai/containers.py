@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import tarfile
+import functools
 from tempfile import TemporaryDirectory
 from typing import Optional
 
@@ -14,6 +15,54 @@ from garden_ai.constants import GardenConstants
 JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary valid token, safe b/c port is only exposed to localhost
 
 
+class DockerStartFailure(Exception):
+    def __init__(self, original_exception, explanation=None):
+        self.original_exception = original_exception
+        self.helpful_explanation = explanation
+        super().__init__(f"Docker failed to start: {original_exception}")
+
+
+def handle_docker_errors(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except docker.errors.DockerException as e:
+            error_message = str(e)
+            # Catch the case when you can't run any Docker commands
+
+            # They all have "Error while fetching server API version" if you can't even run `docker version`
+            if "Error while fetching server API version" in error_message:
+                explanation = None
+
+                # If the daemon isn't running, Linux says "Connection refused". MacOS says "No such file or directory"
+                if (
+                    "ConnectionRefusedError" in error_message
+                    or "FileNotFoundError" in error_message
+                ):
+                    explanation = "Could not connect to your local Docker daemon. Double check that Docker is running."
+
+                # If the daemon is running but you don't have permissions, Linux says "Permission denied".
+                # This is less common on MacOS.
+                elif "PermissionError" in error_message:
+                    unix_username = os.getlogin()
+                    explanation = (
+                        "It looks like your current user does not have permissions to use Docker. "
+                        "Try adding your user to your OS's Docker group with the following command: "
+                        f"sudo usermod -aG docker {unix_username}"
+                    )
+
+                raise DockerStartFailure(e, explanation)
+
+    return wrapper
+
+
+@handle_docker_errors
+def get_docker_client() -> docker.DockerClient:
+    return docker.from_env()
+
+
+@handle_docker_errors
 def start_container_with_notebook(
     client: docker.DockerClient,
     path: pathlib.Path,
@@ -100,6 +149,7 @@ def start_container_with_notebook(
     return container
 
 
+@handle_docker_errors
 def build_notebook_session_image(
     client: docker.DockerClient,
     notebook_path: pathlib.Path,
@@ -192,6 +242,7 @@ def build_notebook_session_image(
         return image
 
 
+@handle_docker_errors
 def extract_metadata_from_image(
     client: docker.DockerClient, image: docker.models.images.Image
 ) -> dict:
@@ -212,6 +263,7 @@ def extract_metadata_from_image(
     return json.loads(raw_metadata)
 
 
+@handle_docker_errors
 def push_image_to_public_repo(
     client: docker.DockerClient,
     image: docker.models.images.Image,
@@ -260,6 +312,7 @@ def push_image_to_public_repo(
     return f"docker.io/{repo_name}:{tag}"
 
 
+@handle_docker_errors
 def build_image_with_dependencies(
     client: docker.DockerClient,
     base_image: str,
