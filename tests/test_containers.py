@@ -285,7 +285,6 @@ def test_handle_docker_errors():
             "Error while fetching server API version: PermissionError",
             "It looks like your current user does not have permissions to use Docker.",
         ),
-        ("Error while fetching server API version: SomeOtherError", "SomeOtherError"),
     ]
 
     for error_message, expected_output in error_message_output_pairs:
@@ -298,10 +297,24 @@ def test_handle_docker_errors():
                 test_func_error
             )
             wrapped_test_func_error()
-        assert expected_output in str(excinfo.value)
+        assert expected_output in str(excinfo.value.helpful_explanation)
+
+    # Test the case where it's a startup error, but not one of the common cases
+    with pytest.raises(garden_ai.containers.DockerStartFailure) as excinfo:
+
+        def test_func_error():
+            raise docker.errors.DockerException(
+                "Error while fetching server API version: SomeOtherError"
+            )
+
+        wrapped_test_func_error = garden_ai.containers.handle_docker_errors(
+            test_func_error
+        )
+        wrapped_test_func_error()
+    assert "SomeOtherError" in str(excinfo.value.original_exception)
 
     # Test a Docker error unrelated to startup. The docker.errors.DockerException should be raised as-is.
-    with pytest.raises(docker.errors.DockerException) as excinfo:
+    with pytest.raises(docker.errors.DockerException):
 
         def test_func_error():
             raise docker.errors.DockerException("Some Docker error")
@@ -310,4 +323,3 @@ def test_handle_docker_errors():
             test_func_error
         )
         wrapped_test_func_error()
-    assert "Some Docker error" in str(excinfo.value)

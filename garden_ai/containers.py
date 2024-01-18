@@ -23,36 +23,43 @@ class DockerStartFailure(Exception):
 
 
 def handle_docker_errors(func):
+    """
+    This decorator catches common classes of Docker errors and sends recommendations for how to fix them up the callstack.
+    Right now it just catches exceptions that are thrown when the user can't run Docker at all.
+    If it's in this class of error, it raises a DockerStartFailure.
+    Otherwise the normal Docker exception is still raised.
+    """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except docker.errors.DockerException as e:
             error_message = str(e)
-            # Catch the case when you can't run any Docker commands
+            # We only handle cases that happen when we can't even connect to Docker
+            if "Error while fetching server API version" not in error_message:
+                # So if it's not that kind, just raise the original exception
+                raise e
 
-            # They all have "Error while fetching server API version" if you can't even run `docker version`
-            if "Error while fetching server API version" in error_message:
-                explanation = None
+            explanation = None
+            # If the daemon isn't running, Linux says "Connection refused". MacOS says "No such file or directory"
+            if (
+                "ConnectionRefusedError" in error_message
+                or "FileNotFoundError" in error_message
+            ):
+                explanation = "Could not connect to your local Docker daemon. Double check that Docker is running."
 
-                # If the daemon isn't running, Linux says "Connection refused". MacOS says "No such file or directory"
-                if (
-                    "ConnectionRefusedError" in error_message
-                    or "FileNotFoundError" in error_message
-                ):
-                    explanation = "Could not connect to your local Docker daemon. Double check that Docker is running."
+            # If the daemon is running but you don't have permissions, Linux says "Permission denied".
+            # This is less common on MacOS.
+            elif "PermissionError" in error_message:
+                unix_username = os.getlogin()
+                explanation = (
+                    "It looks like your current user does not have permissions to use Docker. "
+                    "Try adding your user to your OS's Docker group with the following command: "
+                    f"sudo usermod -aG docker {unix_username}"
+                )
 
-                # If the daemon is running but you don't have permissions, Linux says "Permission denied".
-                # This is less common on MacOS.
-                elif "PermissionError" in error_message:
-                    unix_username = os.getlogin()
-                    explanation = (
-                        "It looks like your current user does not have permissions to use Docker. "
-                        "Try adding your user to your OS's Docker group with the following command: "
-                        f"sudo usermod -aG docker {unix_username}"
-                    )
-
-                raise DockerStartFailure(e, explanation)
+            raise DockerStartFailure(e, explanation)
 
     return wrapper
 
