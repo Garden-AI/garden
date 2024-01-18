@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, Mock
 from typer import Exit
-from docker.errors import DockerException
+from docker.errors import DockerException  # type: ignore
 
 from garden_ai.app.notebook import DockerClientSession
 from garden_ai.containers import DockerStartFailure
