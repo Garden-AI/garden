@@ -11,7 +11,7 @@ if __name__ == "__main__":
         message = (
             f"The environment you have created has dill version {dill_version} installed. "
             "Garden needs the environment to have version 0.3.5.1 installed. "
-            "This ensures that the Globus Compute endpoints can deserialize your enviornment. "
+            "This ensures that the Globus Compute endpoints can deserialize your environment. "
             "Please install dill==0.3.5.1 and try again."
         )
         raise RuntimeError(message)
@@ -21,10 +21,12 @@ if __name__ == "__main__":
     import json
 
     from pydantic.json import pydantic_encoder
-    from garden_ai.model_connectors import HFConnector
+    from garden_ai.model_connectors import HFConnector, GitHubConnector
 
     entrypoint_fns, step_fns, steps = [], [], []
     global_vars = list(globals().values())
+
+    connector_types = [HFConnector, GitHubConnector]
 
     for obj in global_vars:
         if hasattr(obj, "_garden_entrypoint"):
@@ -33,13 +35,14 @@ if __name__ == "__main__":
         if hasattr(obj, "_garden_step"):
             step_fns.append(obj)
 
-        if isinstance(obj, HFConnector):
-            if obj.stage.has_been_called:
-                raise RuntimeWarning(
-                    f"{obj}'s `.stage()` method was called unexpectedly during "
-                    "the build process. Double check that no top-level code "
-                    "calls your entrypoint in the final version of your notebook. "
-                )
+        for connector_type in connector_types:
+            if isinstance(obj, connector_type):
+                if obj.stage.has_been_called:
+                    raise RuntimeWarning(
+                        f"{obj}'s `.stage()` method was called unexpectedly during "
+                        "the build process. Double check that no top-level code "
+                        "calls your entrypoint in the final version of your notebook. "
+                    )
 
     if len(entrypoint_fns) == 0:
         raise ValueError("No functions marked with garden_entrypoint decorator.")
