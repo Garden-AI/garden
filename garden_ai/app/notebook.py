@@ -11,12 +11,15 @@ import docker  # type: ignore
 import typer
 
 from garden_ai import GardenClient, GardenConstants
+from garden_ai.app.console import print_err
 from garden_ai.containers import (
     JUPYTER_TOKEN,
     build_image_with_dependencies,
     build_notebook_session_image,
     push_image_to_public_repo,
     start_container_with_notebook,
+    get_docker_client,
+    DockerStartFailure,
 )
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils.notebooks import (
@@ -32,6 +35,35 @@ notebook_app = typer.Typer(name="notebook")
 BASE_IMAGE_NAMES = ", ".join(
     ["'" + image_name + "'" for image_name in GardenConstants.PREMADE_IMAGES.keys()]
 )
+
+
+class DockerClientSession:
+    def handle_docker_start_failure(self, e: DockerStartFailure):
+        print_err("Garden can't access Docker on your computer.")
+        if e.helpful_explanation:
+            print_err(e.helpful_explanation)
+            print_err(
+                "If that doesn't work, use `garden-ai docker check` to troubleshoot."
+            )
+        else:
+            print_err(
+                "This doesn't look like one of the typical error cases. Printing error from Docker:"
+            )
+            typer.echo(e.original_exception)
+        raise typer.Exit(1)
+
+    # We're most likely to see this error raised from get_docker_client,
+    def __enter__(self):
+        try:
+            return get_docker_client()
+        except DockerStartFailure as e:
+            self.handle_docker_start_failure(e)
+
+    # but if the user's Docker daemon shuts down partway through the session
+    # we'll catch that here.
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is DockerStartFailure:
+            self.handle_docker_start_failure(exc_val)
 
 
 @notebook_app.callback(no_args_is_help=True)
@@ -142,16 +174,16 @@ def start(
         f"If you start this notebook again from the same folder, it will use this image by default."
     )
 
-    docker_client = docker.from_env()
-    # pre-bake local image with garden-ai and additional user requirements
-    local_base_image_id = build_image_with_dependencies(
-        docker_client, base_image_uri, requirements_path
-    )
-    # start container and listen for Ctrl-C
-    container = start_container_with_notebook(
-        docker_client, notebook_path, local_base_image_id, pull=False
-    )
-    _register_container_sigint_handler(container)
+    with DockerClientSession() as docker_client:
+        # pre-bake local image with garden-ai and additional user requirements
+        local_base_image_id = build_image_with_dependencies(
+            docker_client, base_image_uri, requirements_path
+        )
+        # start container and listen for Ctrl-C
+        container = start_container_with_notebook(
+            docker_client, notebook_path, local_base_image_id, pull=False
+        )
+        _register_container_sigint_handler(container)
 
     typer.echo(
         f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN} "
@@ -270,29 +302,32 @@ def debug(
     Changes to the notebook file will NOT persist after the container shuts down.
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
     """
-    docker_client = docker.from_env()
-    base_image = _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
 
-    if requirements_path is not None:
-        _validate_requirements_path(requirements_path)
+    with DockerClientSession() as docker_client:
+        base_image = (
+            _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
+        )
 
-    local_base_image_id = build_image_with_dependencies(
-        docker_client, base_image, requirements_path
-    )
+        if requirements_path is not None:
+            _validate_requirements_path(requirements_path)
 
-    image = build_notebook_session_image(docker_client, path, local_base_image_id)
-    if image is None:
-        typer.echo("Failed to build image.")
-        raise typer.Exit(1)
-    image_name = str(image.id)  # str used to guarantee type-check
+        local_base_image_id = build_image_with_dependencies(
+            docker_client, base_image, requirements_path
+        )
 
-    top_level_dir = Path(__file__).parent.parent
-    debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
+        image = build_notebook_session_image(docker_client, path, local_base_image_id)
+        if image is None:
+            typer.echo("Failed to build image.")
+            raise typer.Exit(1)
+        image_name = str(image.id)  # str used to guarantee type-check
 
-    container = start_container_with_notebook(
-        docker_client, debug_path, image_name, mount=False, pull=False
-    )
-    _register_container_sigint_handler(container)
+        top_level_dir = Path(__file__).parent.parent
+        debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
+
+        container = start_container_with_notebook(
+            docker_client, debug_path, image_name, mount=False, pull=False
+        )
+        _register_container_sigint_handler(container)
 
     typer.echo(
         f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{debug_path.name}?token={JUPYTER_TOKEN} "
@@ -385,44 +420,48 @@ def publish(
     # Push the notebook to the Garden API
     notebook_url = client.upload_notebook(notebook_contents, notebook_path.name)
 
-    # Build the image
-    docker_client = docker.from_env()
-    if requirements_path:
-        _validate_requirements_path(requirements_path)
+    with DockerClientSession() as docker_client:
+        # Build the image
+        if requirements_path:
+            _validate_requirements_path(requirements_path)
 
-    local_base_image_id = build_image_with_dependencies(
-        docker_client, base_image_uri, requirements_path, print_logs=verbose, pull=True
-    )
-    image = build_notebook_session_image(
-        docker_client,
-        notebook_path,
-        local_base_image_id,
-        print_logs=verbose,
-        pull=False,
-    )
-    if image is None:
-        typer.echo("Failed to build image.")
-        raise typer.Exit(1)
-    typer.echo(f"Built image: {image}")
+        local_base_image_id = build_image_with_dependencies(
+            docker_client,
+            base_image_uri,
+            requirements_path,
+            print_logs=verbose,
+            pull=True,
+        )
+        image = build_notebook_session_image(
+            docker_client,
+            notebook_path,
+            local_base_image_id,
+            print_logs=verbose,
+            pull=False,
+        )
+        if image is None:
+            typer.echo("Failed to build image.")
+            raise typer.Exit(1)
+        typer.echo(f"Built image: {image}")
 
-    # generate tag and push image to ECR
-    auth_config = client._get_auth_config_for_ecr_push()
+        # generate tag and push image to ECR
+        auth_config = client._get_auth_config_for_ecr_push()
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    image_tag = f"{notebook_path.stem}-{timestamp}"
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        image_tag = f"{notebook_path.stem}-{timestamp}"
 
-    typer.echo(f"Pushing image to repository: {GardenConstants.GARDEN_ECR_REPO}")
-    full_image_location = push_image_to_public_repo(
-        docker_client, image, image_tag, auth_config, print_logs=verbose
-    )
-    typer.echo(f"Successfully pushed image to: {full_image_location}")
-    client._register_and_publish_from_user_image(
-        docker_client,
-        image,
-        base_image_uri,
-        full_image_location,
-        notebook_url,
-    )
+        typer.echo(f"Pushing image to repository: {GardenConstants.GARDEN_ECR_REPO}")
+        full_image_location = push_image_to_public_repo(
+            docker_client, image, image_tag, auth_config, print_logs=verbose
+        )
+        typer.echo(f"Successfully pushed image to: {full_image_location}")
+        client._register_and_publish_from_user_image(
+            docker_client,
+            image,
+            base_image_uri,
+            full_image_location,
+            notebook_url,
+        )
 
 
 def _validate_requirements_path(requirements_path: Path):

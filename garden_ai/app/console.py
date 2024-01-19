@@ -76,3 +76,7 @@ def get_local_entrypoint_rich_table(
         resource_table_cols=resource_table_cols,
         table_name=table_name,
     )
+
+
+def print_err(message: str):
+    console.print(message, style="bold red")

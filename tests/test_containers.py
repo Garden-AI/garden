@@ -264,3 +264,62 @@ def test_build_image_with_dependencies(mock_docker_client, mocker, requirements_
         "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
     )
     assert image_id == expected_image_id
+
+
+def test_handle_docker_errors():
+    def test_func():
+        return "Hello, World!"
+
+    wrapped_test_func = garden_ai.containers.handle_docker_errors(test_func)
+
+    # Test when no exception is raised
+    assert wrapped_test_func() == "Hello, World!"
+
+    # Test variations on DockerExceptions that are thrown when Garden can't access Docker
+    error_message_output_pairs = [
+        (
+            "Error while fetching server API version: ConnectionRefusedError",
+            "Could not connect to your local Docker daemon. Double check that Docker is running.",
+        ),
+        (
+            "Error while fetching server API version: PermissionError",
+            "It looks like your current user does not have permissions to use Docker.",
+        ),
+    ]
+
+    for error_message, expected_output in error_message_output_pairs:
+        with pytest.raises(garden_ai.containers.DockerStartFailure) as excinfo:
+
+            def test_func_error():
+                raise docker.errors.DockerException(error_message)
+
+            wrapped_test_func_error = garden_ai.containers.handle_docker_errors(
+                test_func_error
+            )
+            wrapped_test_func_error()
+        assert expected_output in str(excinfo.value.helpful_explanation)
+
+    # Test the case where it's a startup error, but not one of the common cases
+    with pytest.raises(garden_ai.containers.DockerStartFailure) as excinfo:
+
+        def test_func_error():
+            raise docker.errors.DockerException(
+                "Error while fetching server API version: SomeOtherError"
+            )
+
+        wrapped_test_func_error = garden_ai.containers.handle_docker_errors(
+            test_func_error
+        )
+        wrapped_test_func_error()
+    assert "SomeOtherError" in str(excinfo.value.original_exception)
+
+    # Test a Docker error unrelated to startup. The docker.errors.DockerException should be raised as-is.
+    with pytest.raises(docker.errors.DockerException):
+
+        def test_func_error():
+            raise docker.errors.DockerException("Some Docker error")
+
+        wrapped_test_func_error = garden_ai.containers.handle_docker_errors(
+            test_func_error
+        )
+        wrapped_test_func_error()

@@ -4,3 +4,5 @@ extend-ignore = E203
 exclude =
     fixtures
     demos
+per-file-ignores =
+    garden_ai/app/docker.py: W605
