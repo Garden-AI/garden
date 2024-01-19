@@ -8,7 +8,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import docker  # type: ignore
-import nbconvert  # type: ignore
 
 from garden_ai.constants import GardenConstants
 
@@ -195,6 +194,8 @@ def build_notebook_session_image(
         temp_notebook_path = temp_dir_path / notebook_path.name
         with temp_notebook_path.open("w+") as f:
             f.write(notebook_path.read_text())
+
+        import nbconvert  # lazy import to speed up garden cold start
 
         # convert notebook to sister script in temp dir
         exporter = nbconvert.PythonExporter()
