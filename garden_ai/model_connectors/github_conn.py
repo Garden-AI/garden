@@ -23,11 +23,11 @@ class GitHubConnector:
         try:
             repo_url_split = repo_url.split("/")
             readme_url = f"https://raw.githubusercontent.com/{repo_url_split[-2]}/{repo_url_split[-1]}/main/README.md"
-            self.read_me = requests.get(readme_url)
+            self.read_me = requests.get(readme_url).text
         except HTTPError:
-            self.read_me = None
+            self.read_me = ""
         except requests.RequestException:
-            self.read_me = None
+            self.read_me = ""
 
     @trackcalls
     def stage(self) -> str:  # TODO Review this
@@ -47,9 +47,9 @@ class GitHubConnector:
             __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
             from IPython.display import display, Markdown  # type: ignore
 
-            display(Markdown(self.read_me.text), display_id=True)
+            display(Markdown(self.read_me), display_id=True)
             return (
                 ""  # we need to return a string do it doesn't go try other repr methods
             )
         except NameError:
-            return self.read_me.text
+            return self.read_me
