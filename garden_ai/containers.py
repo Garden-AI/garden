@@ -191,7 +191,8 @@ def build_notebook_session_image(
     """
     # build lines of 'ENV VAR=value\n' commands for dockerfile below
     env_vars = env_vars or {}
-    env_vars["GARDEN_SKIP_TESTS"] = True
+    if "GARDEN_SKIP_TESTS" not in env_vars:
+        env_vars["GARDEN_SKIP_TESTS"] = True
     env_commands = "\n".join(f"ENV {k}={v}" for (k, v) in env_vars.items())
 
     with TemporaryDirectory() as temp_dir:

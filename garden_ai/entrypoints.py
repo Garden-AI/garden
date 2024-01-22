@@ -280,7 +280,7 @@ def entrypoint_test(entrypoint_func: Callable):
 
             # this flag is set during publication time in
             # containers.build_notebook_session_image
-            if "GARDEN_SKIP_TESTS" in os.environ:
+            if os.environ.get("GARDEN_SKIP_TESTS") == str(True):
                 return None
             else:
                 return test_func(*args, **kwargs)
