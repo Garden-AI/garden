@@ -21,7 +21,7 @@ if __name__ == "__main__":
     import json
 
     from pydantic.json import pydantic_encoder
-    from garden_ai.model_connectors import HFConnector
+    from garden_ai.model_connectors import HFConnector, GitHubConnector
 
     entrypoint_fns, step_fns, steps = [], [], []
     global_vars = list(globals().values())
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         if hasattr(obj, "_garden_step"):
             step_fns.append(obj)
 
-        if isinstance(obj, HFConnector):
+        if isinstance(obj, (HFConnector, GitHubConnector)):
             if obj.stage.has_been_called:
                 raise RuntimeWarning(
                     f"{obj}'s `.stage()` method was called unexpectedly during "

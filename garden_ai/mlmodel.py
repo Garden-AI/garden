@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, validator
 
 class ModelRepository(Enum):
     HUGGING_FACE = "Hugging Face"
+    GITHUB = "GitHub"
 
 
 class DatasetConnection(BaseModel):

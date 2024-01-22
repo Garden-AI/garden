@@ -8,7 +8,7 @@ from garden_ai import (
     garden_step,
     EntrypointMetadata,
 )
-from garden_ai.model_connectors import HFConnector
+from garden_ai.model_connectors import HFConnector, GitHubConnector
 
 
 def test_create_empty_garden(garden_client):
@@ -74,6 +74,31 @@ def test_garden_entrypoint_decorator():
     assert len(models) == 1
     assert models[0].model_identifier == "willengler-uc/iris-classifier"
     assert my_entrypoint._garden_entrypoint._target_garden_doi == "10.23677/fake-doi"
+
+
+def test_garden_entrypoint_decorator_github():
+    entrypoint_meta = EntrypointMetadata(
+        title="My Entrypoint",
+        authors=["Test", "Jef"],
+        description="A garden entrypoint",
+        tags=["garden_ai"],
+    )
+
+    model_connector = GitHubConnector("https://github.com/uw-cmg/ASR_model")
+
+    @garden_entrypoint(
+        metadata=entrypoint_meta,
+        model_connectors=[model_connector],
+        garden_doi="10.23671/fake-doi",
+    )
+    def my_entrypoint():
+        pass
+
+    assert my_entrypoint._garden_entrypoint.title == "My Entrypoint"
+    models = my_entrypoint._garden_entrypoint.models
+    assert len(models) == 1
+    assert models[0].model_identifier == "https://github.com/uw-cmg/ASR_model"
+    assert my_entrypoint._garden_entrypoint._target_garden_doi == "10.23671/fake-doi"
 
 
 def test_garden_step_decorator():
