@@ -162,6 +162,7 @@ def build_notebook_session_image(
     platform: str = "linux/x86_64",
     print_logs: bool = True,
     pull: bool = True,
+    env_vars: dict = None,
 ) -> Optional[docker.models.images.Image]:
     """
     Build the docker image to register with Globus Compute locally.
@@ -180,6 +181,7 @@ def build_notebook_session_image(
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Flag to enable streaming build logs to the console (default is True).
         pull: Whether to pull the base image before building the notebook session image over it (default True).
+        env_vars: dict of env variables to set in the built image (default {"GARDEN_SKIP_TESTS": True})
 
     Returns:
         The docker `Image` object if the build succeeds, otherwise None.
@@ -187,6 +189,11 @@ def build_notebook_session_image(
     Raises:
         docker.errors.BuildError: If the Docker image build fails.
     """
+    # build lines of 'ENV VAR=value\n' commands for dockerfile below
+    env_vars = env_vars or {}
+    env_vars["GARDEN_SKIP_TESTS"] = True
+    env_commands = "\n".join(f"ENV {k}={v}" for (k, v) in env_vars.items())
+
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
 
@@ -220,6 +227,7 @@ def build_notebook_session_image(
         COPY {notebook_path.name} /garden/{notebook_path.name}
         COPY {script_path.name} /garden/{script_path.name}
         WORKDIR /garden
+        {env_commands}
         RUN ipython {script_path.name}
         """
         dockerfile_path = temp_dir_path / "Dockerfile"
