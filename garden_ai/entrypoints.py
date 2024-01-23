@@ -23,8 +23,6 @@ from garden_ai.datacite import (
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import JSON
 
-# from tabulate import tabulate
-
 
 logger = logging.getLogger()
 
@@ -177,28 +175,37 @@ class RegisteredEntrypoint(EntrypointMetadata):
         Returns:
             Results from the entrypoint's composed steps called with the given input data.
         """
+        # delayed import so dill doesn't try to serialize console ref
+        from garden_ai.app.console import console
+
         if not endpoint:
             endpoint = GardenConstants.DLHUB_ENDPOINT
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
-            future = gce.submit_to_registered_function(
-                function_id=str(self.func_uuid), args=args, kwargs=kwargs
-            )
-            return future.result()
+            with console.status(
+                f"[bold green] executing remotely on endpoint {endpoint}"
+            ):
+                future = gce.submit_to_registered_function(
+                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
+                )
+                return future.result()
 
-    # def _repr_html_(self) -> str:
-    #     style = "<style>th {text-align: left;}</style>"
-    #     title = f"<h2>{self.title}</h2>"
-    #     details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
-    #     optional = "<h3>Additional data</h3>" + tabulate(
-    #         [
-    #             (field, val)
-    #             for field, val in self.dict().items()
-    #             if field not in ("title", "authors", "doi", "steps") and val
-    #         ],
-    #         tablefmt="html",
-    #     )
-    #     return style + title + details + optional
+    def _repr_html_(self) -> str:
+        # delayed import so dill doesn't try to serialize tabulate ref
+        from tabulate import tabulate
+
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{self.title}</h2>"
+        details = f"<p>Authors: {', '.join(self.authors)}<br>DOI: {self.doi}</p>"
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, val)
+                for field, val in self.dict().items()
+                if field not in ("title", "authors", "doi", "steps") and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + optional
 
     def datacite_json(self) -> JSON:
         """Parse this `Entrypoint`'s metadata into a DataCite-schema-compliant JSON string."""
