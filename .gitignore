@@ -132,3 +132,8 @@ dmypy.json
 /.DS_Store
 /.github/.DS_Store
 .vscode/settings.json
+
+# MacOS cruft
+.DS_Store
+.AppleDouble
+.LSOverride
