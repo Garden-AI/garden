@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 from datetime import datetime
+from functools import wraps
 from typing import Any, List, Optional, Union, Callable
 from uuid import UUID
 
@@ -245,14 +246,46 @@ def garden_entrypoint(
 
 
 def entrypoint_test(entrypoint_func: Callable):
-    def decorate(test_func):
-        if not entrypoint_func or not entrypoint_func._garden_entrypoint:
-            raise ValueError("Please pass in a valid entrypoint function")
+    """Mark a function as a 'test function' of an entrypoint.
 
+    Marked test functions won't run at publication time, so they can be safely
+    called at the top-level of a notebook without causing unintended side-effects.
+
+    Example:
+
+        ```python
+        @garden_entrypoint(...)
+        def my_entrypoint(*args, **kwargs):
+            ...
+
+        @entrypoint_test(my_entrypoint)
+        def test_my_entrypoint():
+            ...
+            results = my_entrypoint(...)
+            ...
+            return results
+
+        ```
+    """
+    if not entrypoint_func or not entrypoint_func._garden_entrypoint:  # type: ignore
+        raise ValueError("Please pass in a valid entrypoint function")
+
+    def decorate(test_func):
         test_function_text = inspect.getsource(test_func)
         entrypoint_func._garden_entrypoint._test_functions.append(test_function_text)
 
-        return test_func
+        @wraps(test_func)
+        def inner(*args, **kwargs):
+            import os
+
+            # this flag is set during publication time in
+            # containers.build_notebook_session_image
+            if os.environ.get("GARDEN_SKIP_TESTS") == str(True):
+                return None
+            else:
+                return test_func(*args, **kwargs)
+
+        return inner
 
     return decorate
 
