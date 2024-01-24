@@ -1,41 +1,75 @@
 
-## Tutorial: Develop a Garden and Entrypoint from Scratch
+## Publish Your First Model in a Garden in 15 Minutes
 
-This tutorial will walk you through a simple end-to-end example of developing a single `Entrypoint` from scratch in a notebook; publishing it to a new `Garden`; and finally running the `Entrypoint` remotely via that `Garden`.
+In this tutorial you will publish a trained ML model with Garden. Then you can invoke the model remotely on a Garden demo server.
 
-This means doing the following:
-- Create a new Garden using the CLI (`garden-ai garden create`)
-- Open a notebook using the CLI (`garden-ai notebook start`)
-- Define and decorate a function in the notebook to make it an `Entrypoint`
-- Publish the notebook using the CLI, attaching the `Entrypoint` to the `Garden` in the process (`garden-ai notebook publish`)
-- Test remote execution on our tutorial endpoint
-#### Prerequisites
-- We've used huggingface to host the [sample model weights](https://huggingface.co/Garden-AI/sklearn-seedling/tree/main) for this tutorial. If you're following along with your own pretrained model weights, you will likely also want a huggingface account to do the same.
+![Box and arrow diagram showing the steps to publish a Garden entrypoint.](./images/Clean-Garden-Diagram.jpg)
 
-### Step 0: Train Your Model
-Garden is geared towards publishing and sharing models which have already been trained. If you don't have one handy, we'd recommend training a small model using one of the scikit-learn [toy datasets](https://scikit-learn.org/stable/datasets/toy_dataset.html) and uploading the weights to a public huggingface repo in order to follow along.
+### Prerequisites
 
-The code to train the toy model used in this tutorial is available [here](https://huggingface.co/Garden-AI/sklearn-seedling/blob/main/Train_Model.ipynb).
+- You need the Garden CLI (`garden-ai`) installed on your computer.
+    - We recommend installing with [pipx](https://github.com/pypa/pipx?tab=readme-ov-file#pipx--install-and-run-python-applications-in-isolated-environments) like `pipx install garden-ai`.
+    - [See here for more instructions on installing garden-ai.](user_guide/installation.md)
+- You need Docker installed on your computer.
+    - [See here for instructions on installing Docker.](user_guide/docker.md)
 
-### Step 1: Creating a New Garden
-First, we're going to make a new `Garden` using the CLI so that we can eventually share our `Entrypoint` with others. Before we've added an `Entrypoint`, a brand new `Garden` is going to be nothing more than some citation metadata, which is at least a title, one or more authors, and a year (the minimum needed mint a DOI).
+To confirm you have Garden and Docker installed, run
 
-Here's what this might look like:
 ```bash
-garden-ai garden create \
-	--title "Garden of Live Flowers" \
-	--author "The Red Queen" --year 1871
+garden-ai docker check
 ```
 
-To see the full list of metadata fields you can specify from the CLI, try `garden-ai garden create --help`.
+If you see a flower you're good to go.
+
+```bash
+Docker is running and accessible. Happy Gardening!
+
+     /\^/`\
+    | \/   |
+    | |    |
+    \ \    /
+     '\\//'
+       ||
+       ||
+       ||
+       ||  ,
+   |\  ||  |\
+   | | ||  | |
+   | | || / /
+    \ \||/ /
+jgs  `\//`
+    ^^^^^^^^
+```
+
+If garden-ai is running but it is reporting issues with Docker, [look at our Docker troubleshooting guide.](docker.md#troubleshooting-your-installation)
+
+### Step 1: Create a Garden
+
+Gardens are collections of related machine learning models that you can curate. A chemist might create a garden of interatomic potential predictiors that use different frameworks and architectures.
+
+We will just make a simple garden that we'll add our model to later.
+
+```
+garden-ai garden create \
+    --title "Tutorial Garden" \
+	--author "Your Name"
+```
 
 In the output of that command, you should see something like:
 ```bash
 ...
-Garden 'Garden of Live Flowers' created with DOI: 10.23677/z2b3-3p02
+Garden 'Tutorial Garden' created with DOI: 10.23677/z2b3-3p02
 ```
 
-Make a note of this DOI for later, so we can publish our `Entrypoint` to this specific `Garden` (see also: `garden-ai garden list` to list all local `Gardens`).
+Make note of this DOI for later. You can also use `garden-ai garden list` to list all of your gardens.
+
+### Step 2: Make a Notebook Where You Can Run Your Model
+
+
+
+Garden is geared towards publishing and sharing models which have already been trained. If you don't have one handy, we'd recommend training a small model using one of the scikit-learn [toy datasets](https://scikit-learn.org/stable/datasets/toy_dataset.html) and uploading the weights to a public huggingface repo in order to follow along.
+
+The code to train the toy model used in this tutorial is available [here](https://huggingface.co/Garden-AI/sklearn-seedling/blob/main/Train_Model.ipynb).
 
 ### Step 2: Starting the Notebook
 
