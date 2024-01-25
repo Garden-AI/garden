@@ -112,6 +112,14 @@ def start(
         ),
         hidden=True,
     ),
+    tutorial: Optional[bool] = typer.Option(
+        False,
+        "--tutorial",
+        help=(
+            "First time using Garden? Open this notebook that walks you through publishing your first model."
+        ),
+        hidden=True,
+    ),
 ):
     """Open a notebook file in a sandboxed environment. Optionally, specify a different base docker image.
 
@@ -157,7 +165,9 @@ def start(
     typer.confirm(message + "Do you want to proceed?", abort=True)
 
     if need_to_create_notebook:
-        if base_image_name:
+        if tutorial:
+            template_file_name = "tutorial.ipynb"
+        elif base_image_name:
             template_file_name = GardenConstants.IMAGES_TO_FLAVOR.get(
                 base_image_name, "empty.ipynb"
             )

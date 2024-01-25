@@ -80,7 +80,7 @@ Garden creates an isolated Docker environment for you to write and test code tha
 Start your notebook in an isolated environment.
 
 ```bash
-garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn
+garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn --tutorial
 ```
 
 !!! info
@@ -112,27 +112,16 @@ You'll notice that your notebook already has some code. When Garden creates a no
 !!! warning
     Be sure to save your notebook manually as you go! The local Jupyter server doesn't auto-save as frequently as Colab.
 
-### Step 3: Developing the Entrypoint
+### Step 3: Write a Function That Invokes Your Model
 
-The notebook is where we define the entrypoint function, but it is also how we set up the context in which our `Entrypoint` will run, including side-effects like installing `pip` (or `conda`) dependencies.
+Now it's time to actually write the code that executes your model. The notebook you've opened will serve two big roles in publishing your model.
 
+1. **Defining the "entrypoint" function that runs your model.** The notebook will contain a function called an entrypoint. This is the function that will run on a remote server when someone wants to invoke your model.
+2. **Defining the context that your entrypoint function will run in.** Other code in your notebook - helper functions, import statements, etc - will be available to your entrypoint function when it is called. You can also include code that installs extra packages or edits files on the container.
 
-> [!NOTE] Note
-> Any side-effects like installing packages or downloading files will be "baked in" to the image we build when publishing the notebook. This means that the container used for remote inference will already have these installed, even if they weren't part of the base image.
->
+Because you passed the `--tutorial` flag to `garden-ai notebook start`, you should be looking at a notebook that's already populated with code and instructions on how to run the iris model. From here, just work through the notebook. Come back when you're done.
 
-The first cell of our notebook is often just a few `pip install`s:
-```ipython
-%pip install garden-ai==0.6.1
-%pip install scikit-learn==1.3.0
-%pip install joblib==1.3.2
-# %pip install some-other-library etc
-```
-
-Best practice is to pin exact versions of your dependencies wherever possible, but this is especially important for the library used to train the model and/or originally save the model weights (`scikit-learn==1.3.0` and `joblib==1.3.2` in this case).
-
-> [!NOTE] Note
-> Doing `%pip install`s in the notebook is often very helpful for interactively experimenting with packages while coding. But once you've figured out all the packages and versions you need, we recommend pulling them out into a `requirements` file that you can pass to Garden with the `--requirements` flag.
+...
 
 Next, we fill out the citation metadata for our `Entrypoint`:
 ```ipython
@@ -272,3 +261,18 @@ Once you have the `Garden` object, you can execute any of its `Entrypoints` remo
 ```
 
 That's all there is to it! Happy Gardening 🌱
+
+### Graveyard
+
+The first cell of our notebook is often just a few `pip install`s:
+```ipython
+%pip install garden-ai==0.6.1
+%pip install scikit-learn==1.3.0
+%pip install joblib==1.3.2
+# %pip install some-other-library etc
+```
+
+Best practice is to pin exact versions of your dependencies wherever possible, but this is especially important for the library used to train the model and/or originally save the model weights (`scikit-learn==1.3.0` and `joblib==1.3.2` in this case).
+
+> [!NOTE] Note
+> Doing `%pip install`s in the notebook is often very helpful for interactively experimenting with packages while coding. But once you've figured out all the packages and versions you need, we recommend pulling them out into a `requirements` file that you can pass to Garden with the `--requirements` flag.
