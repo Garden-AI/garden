@@ -1,9 +1,11 @@
 
-## Publish Your First Model in a Garden in 15 Minutes
+## Publish Your First Model in 15 Minutes
 
 In this tutorial you will publish a trained ML model with Garden. Then you can invoke the model remotely on a Garden demo server.
 
 ![Box and arrow diagram showing the steps to publish a Garden entrypoint.](./images/Clean-Garden-Diagram.jpg)
+
+For this walkthrough, we will deploy a simple Scikit-Learn model that classifies irises. We already have the trained model [here in a public Hugging Face repository](https://huggingface.co/Garden-AI/sklearn-seedling/tree/main). You do not need to train a model yourself for this tutorial.
 
 ### Prerequisites
 
@@ -12,8 +14,9 @@ In this tutorial you will publish a trained ML model with Garden. Then you can i
     - [See here for more instructions on installing garden-ai.](user_guide/installation.md)
 - You need Docker installed on your computer.
     - [See here for instructions on installing Docker.](user_guide/docker.md)
+- You need a Globus account. (TODO: explain and link)
 
-To confirm you have Garden and Docker installed, run
+Confirm you have Garden and Docker installed.
 
 ```bash
 garden-ai docker check
@@ -41,13 +44,15 @@ jgs  `\//`
     ^^^^^^^^
 ```
 
-If garden-ai is running but it is reporting issues with Docker, [look at our Docker troubleshooting guide.](docker.md#troubleshooting-your-installation)
+!!! info
+
+    If `garden-ai docker check` reports issues with Docker, [look at our Docker troubleshooting guide.](docker.md#troubleshooting-your-installation)
 
 ### Step 1: Create a Garden
 
-Gardens are collections of related machine learning models that you can curate. A chemist might create a garden of interatomic potential predictiors that use different frameworks and architectures.
+Gardens are collections of related machine learning models that you can curate. A chemist might create a garden of interatomic potential predictiors to compare different frameworks and architectures.
 
-We will just make a simple garden that we'll add our model to later.
+Create a simple garden so you can add your model to it later.
 
 ```
 garden-ai garden create \
@@ -61,55 +66,51 @@ In the output of that command, you should see something like:
 Garden 'Tutorial Garden' created with DOI: 10.23677/z2b3-3p02
 ```
 
-Make note of this DOI for later. You can also use `garden-ai garden list` to list all of your gardens.
+Make note of this DOI for later.
 
-### Step 2: Make a Notebook Where You Can Run Your Model
+!!! info
+
+    You can also use `garden-ai garden list` to list all of your gardens and see their DOIs.
 
 
+### Step 2: Start a Notebook in an Isolated Environment
 
-Garden is geared towards publishing and sharing models which have already been trained. If you don't have one handy, we'd recommend training a small model using one of the scikit-learn [toy datasets](https://scikit-learn.org/stable/datasets/toy_dataset.html) and uploading the weights to a public huggingface repo in order to follow along.
+Garden creates an isolated Docker environment for you to write and test code that executes your model. This helps Garden save and recreate the exact environment you need to run your model on remote servers. Garden opens a Jupyter notebook from within the isolated Docker environment that you can edit from your web browser.
 
-The code to train the toy model used in this tutorial is available [here](https://huggingface.co/Garden-AI/sklearn-seedling/blob/main/Train_Model.ipynb).
+Start your notebook in an isolated environment.
 
-### Step 2: Starting the Notebook
-
-We're going to define our `Entrypoint` in a regular Jupyter notebook file (`.ipynb`) on our local filesystem, which we can open and edit with the `garden-ai notebook start [path/to/my.ipynb]` command. We're using a scikit-learn model and python 3.10 for this tutorial, so we'll choose the `3.10-sklearn` base image from the CLI, like so:
 ```bash
 garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn
 ```
 
+!!! info
+    The `base-image` option lets you pick a premade environment, or "image" in Docker-speak. This lets you start off with the Python version and ML framework that you need. You can still install more packages within this base environment.
 
-> [!NOTE] Note
-> If you open the same notebook again later, you can omit the `--base-image` argument to default to the most recently used base image.
+    We will be serving a Scikit-Learn model trained and serialized with Python 3.10, so we will use the `3.10-sklearn` base image. Use `garden-ai notebook list-premade-images` to see other base images you can choose from.
 
-This might take a little while to download the base image (if necessary) but should automatically open the notebook in your default browser, where you can edit the notebook. You should eventually see output like this:
+Garden will ask you to confirm if you want to do this. Type `y` and hit enter.
 
 ```bash
-$ garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn
+This will create a new notebook foo.ipynb and open it in Docker image gardenai/base:python-3.10-jupyter-sklearn.
+Do you want to proceed? [y/N]: y
+```
+
+You should see output like this:
+
+```bash
 Using base image: gardenai/base:python-3.10-jupyter-sklearn
-Notebook started! Opening http://127.0.0.1:8888/notebooks/tutorial_notebook.ipynb?token=791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd in your default browser (you may need to refresh the page)
+Notebook started! Opening http://127.0.0.1:8888/notebooks/tutorial_notebook.ipynb in your default browser (you may need to refresh the page)
 
 [stream of jupyter logs]
 ```
 
-Because `tutorial_notebook.ipynb` didn't already exist, this command created and opened a [template notebook](https://github.com/Garden-AI/garden/blob/main/garden_ai/notebook_templates/sklearn.ipynb) for us. Any changes we make from here will still persist in `tutorial_notebook.ipynb` after the container has stopped.
+You'll notice that your notebook already has some code. When Garden creates a notebook from scratch, it includes instructions and sample code to help get you started. You won't need the sample code for this tutorial so feel free to delete these premade cells.
 
+!!! note
+    The Jupyter notebook file (tutorial_notebook.ipynb) is shared across your computer's filesystem and the container filesystem. So when you stop the containerized Jupyter server you will still have your notebook.
 
->[!NOTE] `garden-ai notebook start` vs `jupyter notebook`
-> Editing a notebook opened with `garden-ai notebook start` should feel very similar to opening that same notebook with `jupyter notebook`. However, Garden opens the notebook in a **fully isolated** Docker container (instead of whichever local environment happens to have Jupyter installed).
->
-> This is a similar execution model to Google Colab, but with the container running locally instead of on Google servers. Like Colab, you can `%pip install` any dependencies not already found in your selected base image at the top of your notebook.
-
-For managing dependencies that aren't included in the Garden base images, we recommend passing a `requirements` file. You can provide a pip-style (requirements.txt) or conda-style (conda.yml) requirements file with the `requirements` option, and Garden will install the requirements into the container before starting your notebook session.
-
-```bash
-$ garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn --requirements=conda.yml
-
-```
-
->[!NOTE] Note
-> Garden does not remember your `requirements` file across commands, so if you have one be sure to specify it every time.
-
+!!! warning
+    Be sure to save your notebook manually as you go! The local Jupyter server doesn't auto-save as frequently as Colab.
 
 ### Step 3: Developing the Entrypoint
 

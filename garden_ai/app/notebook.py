@@ -13,7 +13,6 @@ import typer
 from garden_ai import GardenClient, GardenConstants
 from garden_ai.app.console import print_err
 from garden_ai.containers import (
-    JUPYTER_TOKEN,
     build_image_with_dependencies,
     build_notebook_session_image,
     push_image_to_public_repo,
@@ -186,15 +185,13 @@ def start(
         _register_container_sigint_handler(container)
 
     typer.echo(
-        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN} "
+        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{notebook_path.name} "
         "in your default browser (you may need to refresh the page)"
     )
 
     # Give the notebook server a few seconds to start up so that the user doesn't have to refresh manually
     time.sleep(3)
-    webbrowser.open_new_tab(
-        f"http://127.0.0.1:8888/notebooks/{notebook_path.name}?token={JUPYTER_TOKEN}"
-    )
+    webbrowser.open_new_tab(f"http://127.0.0.1:8888/notebooks/{notebook_path.name}")
 
     # stream logs from the container
     for line in container.logs(stream=True):
@@ -332,12 +329,10 @@ def debug(
         _register_container_sigint_handler(container)
 
     typer.echo(
-        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{debug_path.name}?token={JUPYTER_TOKEN} "
+        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{debug_path.name} "
         "in your default browser (you may need to refresh the page)"
     )
-    webbrowser.open_new_tab(
-        f"http://127.0.0.1:8888/notebooks/{debug_path.name}?token={JUPYTER_TOKEN}"
-    )
+    webbrowser.open_new_tab(f"http://127.0.0.1:8888/notebooks/{debug_path.name}")
 
     # stream logs from the container
     for line in container.logs(stream=True):
