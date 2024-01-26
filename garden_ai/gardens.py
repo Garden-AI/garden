@@ -407,11 +407,11 @@ class PublishedGarden(BaseModel):
                 for doi in (p.doi for p in self.entrypoints)
             ],
             version=self.version,
-            descriptions=[
-                Description(description=self.description, descriptionType="Other")
-            ]
-            if self.description
-            else None,
+            descriptions=(
+                [Description(description=self.description, descriptionType="Other")]
+                if self.description
+                else None
+            ),
         ).json()
 
     def __getattr__(self, name):

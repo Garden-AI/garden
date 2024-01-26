@@ -223,11 +223,13 @@ class RegisteredEntrypoint(EntrypointMetadata):
             publisher="thegardens.ai",
             publicationYear=self.year,
             subjects=[Subject(subject=tag) for tag in self.tags],
-            descriptions=[
-                Description(description=self.description, descriptionType="Other")  # type: ignore
-            ]
-            if self.description
-            else None,
+            descriptions=(
+                [
+                    Description(description=self.description, descriptionType="Other")  # type: ignore
+                ]
+                if self.description
+                else None
+            ),
         ).json()
 
 
