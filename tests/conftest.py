@@ -95,9 +95,9 @@ def garden_client(mocker, mock_authorizer_tuple, mock_keystore, token, identity_
     # Mocks compute client login
     mock_login_manager = mocker.MagicMock(LoginManager)
     mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
-    mocker.patch(
-        "globus_compute_sdk.sdk.client.LoginManager"
-    ).return_value = mock_login_manager
+    mocker.patch("globus_compute_sdk.sdk.client.LoginManager").return_value = (
+        mock_login_manager
+    )
 
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
