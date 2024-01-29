@@ -106,8 +106,6 @@ Notebook started! Opening http://127.0.0.1:8888/notebooks/tutorial_notebook.ipyn
 [stream of jupyter logs]
 ```
 
-You'll notice that your notebook already has some code. When Garden creates a notebook from scratch, it includes instructions and sample code to help get you started. You won't need the sample code for this tutorial so feel free to delete these premade cells.
-
 !!! note
     The Jupyter notebook file (tutorial_notebook.ipynb) is shared across your computer's filesystem and the container filesystem. So when you stop the containerized Jupyter server you will still have your notebook.
 
