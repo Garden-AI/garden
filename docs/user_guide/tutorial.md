@@ -14,7 +14,9 @@ For this walkthrough, we will deploy a simple Scikit-Learn model that classifies
     - [See here for more instructions on installing garden-ai.](user_guide/installation.md)
 - You need Docker installed on your computer.
     - [See here for instructions on installing Docker.](user_guide/docker.md)
-- You need a Globus account. (TODO: explain and link)
+- You need a free Globus account.
+    - [Globus](https://www.globus.org/what-we-do) is a research computing platform that Garden builds on top of. Garden uses Globus to link you to academic computing clusters that you have access to.
+    - [Go here to create a free Globus account.](https://app.globus.org/) If you are a researcher at a university, we recommend logging in with your institution's SSO. You can also log in with a Google or GitHub account.
 
 Confirm you have Garden and Docker installed.
 
@@ -133,51 +135,33 @@ $ garden-ai notebook publish tutorial_notebook.ipynb --base-image="3.10-sklearn"
 
 Your output should look something like this:
 ```bash
-$ garden-ai notebook publish tutorial_notebook.ipynb --base-image="3.10-sklearn"
 Using base image: gardenai/base:python-3.10-jupyter-sklearn
-Using image repository: johntenniel/garden-images
+Preparing image ...
 Building image ...
 Built image: <Image: ''>
-Pushing image to repository: johntenniel/garden-images
-Successfully pushed image to: docker.io/johntenniel/garden-images:tutorial_notebook-20231130-135145
-Added entrypoint 10.23677/stg7-cr32 (looking_glass_entrypoint) to garden 10.23677/z2b3-3p02 (Garden of Live Flowers)!
-(Re-)publishing garden 10.23677/z2b3-3p02 (Garden of Live Flowers) ...
+Pushing image to repository: public.ecr.aws/x2v7f8j4/garden-containers-dev
+Successfully pushed image to: docker.io/public.ecr.aws/x2v7f8j4/garden-containers-dev:tutorial-20240129-101040
+Added entrypoint 10.23677/58gx-0515 (classify_irises) to garden 10.23677/g5fd-3d33 (Tutorial Garden)!
+(Re-)publishing garden 10.23677/g5fd-3d33 (Tutorial Garden) ...
 ```
 
-> [!NOTE] Adding to other Gardens
-> Because we specified a `Garden` we wanted to publish to in the notebook itself (via an argument to the decorator), this automatically adds the `Entrypoint` to and re-publishes that `Garden` so others can discover and invoke it.
->
-> If you want to add an `Entrypoint` to a `Garden` that wasn't specified when its notebook was first published, you can do so from the CLI with `garden-ai garden add-entrypoint`, then `garden-ai garden publish` to re-publish the `Garden`.
+Notice how Garden published your entrypoint to your tutorial garden. Now anyone can discover your garden, find your entrypoint function inside of the garden, and run the function to use your model.
 
-### Step 6: Remote Execution
+### Step 5: Test Your Published Model
 
-Now that your Garden is published, let's see how you (or others) can find and use published Gardens.
+Now that you've published your first garden and first entrypoint function, you should invoke it remotely like a user would.
 
-#### Discover a Garden
+**The tutorial will continue in a separate notebook.** [Click here to continue in a Google Colab notebook that walks you through running your model like an end user would](https://colab.research.google.com/drive/1VM_SjYFnY1pxxac9ILQuqBT0fl3JADu0?usp=sharing). If you don't want to use Colab, you can also start a new notebook locally with `garden-ai notebook start` and follow the steps from the Colab notebook.
 
-If you don't already have the `Garden` DOI, you can find a published `Garden` by searching for it using the CLI. For example, this would list all published `Gardens` with "The Red Queen" listed as an author:
+### Epilogue
 
-```bash
-garden-ai garden search --author "The Red Queen"
-```
+If you've been following along, you should now have ...
 
-Once we have the `Garden` DOI, we have everything we need to remotely execute any of its `Entrypoints` on a choice Globus Compute endpoint:
+1. Created your first garden
+2. Written an entrypoint function that downloads and executes a simple ML model
+3. Published the entrypoint function to a garden
+4. Executed the model remotely via your published garden and entrypoint
 
-```python
->>> gc = GardenClient()
->>> live_flower_garden = gc.get_published_garden('10.23677/z2b3-3p02')
-```
+Congrats! Now you know the basics of gardening. 🪴
 
-#### Remotely Execute an Entrypoint
-
-Once you have the `Garden` object, you can execute any of its `Entrypoints` remotely. Make sure to specify a valid Globus Compute endpoint (or use the tutorial endpoint below):
-
-```python
->>> my_data = pd.DataFrame(...)
->>> tutorial_endpoint = "86a47061-f3d9-44f0-90dc-56ddc642c000"
->>> results = live_flower_garden.looking_glass_entrypoint(my_data, endpoint=tutorial_endpoint)
-# ... executing remotely on endpoint 86a47061-f3d9-44f0-90dc-56ddc642c000
->>> print(results)  # neat!
-```
-
-That's all there is to it! Happy Gardening 🌱
+This tutorial walked you through the bare minimum to get a model working on Garden. There are many important topics we didn't cover to keep the introductory tutorial simple. To learn how to provide custom requirements to a container, run your entrypoints on different computing endpoints, and much more, please consult [the rest of the documentation](https://garden-ai.readthedocs.io/en/latest/).
