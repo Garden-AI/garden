@@ -504,7 +504,6 @@ def publish(
         typer.echo(f"Successfully pushed image to: {full_image_location}")
         client._register_and_publish_from_user_image(
             docker_client,
-            image,
             base_image_uri,
             full_image_location,
             notebook_url,
