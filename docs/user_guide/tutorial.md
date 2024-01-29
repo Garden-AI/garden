@@ -62,7 +62,9 @@ garden-ai garden create \
 	--author "Your Name"
 ```
 
-In the output of that command, you should see something like:
+This will prompt Garden to log you in with Globus if you haven't logged in from your terminal yet. You need to be logged in to create gardens. Follow the instructions and paste the authorization code in your terminal.
+
+Then in the output of the `create` command, you should see something like:
 ```bash
 ...
 Garden 'Tutorial Garden' created with DOI: 10.23677/z2b3-3p02
