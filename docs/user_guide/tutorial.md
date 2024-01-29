@@ -11,9 +11,9 @@ For this walkthrough, we will deploy a simple Scikit-Learn model that classifies
 
 - You need the Garden CLI (`garden-ai`) installed on your computer.
     - We recommend installing with [pipx](https://github.com/pypa/pipx?tab=readme-ov-file#pipx--install-and-run-python-applications-in-isolated-environments) like `pipx install garden-ai`.
-    - [See here for more instructions on installing garden-ai.](user_guide/installation.md)
+    - [See here for more instructions on installing garden-ai.](installation.md)
 - You need Docker installed on your computer.
-    - [See here for instructions on installing Docker.](user_guide/docker.md)
+    - [See here for instructions on installing Docker.](docker.md)
 - You need a free Globus account.
     - [Globus](https://www.globus.org/what-we-do) is a research computing platform that Garden builds on top of. Garden uses Globus to link you to academic computing clusters that you have access to.
     - [Go here to create a free Globus account.](https://app.globus.org/) If you are a researcher at a university, we recommend logging in with your institution's SSO. You can also log in with a Google or GitHub account.
@@ -121,13 +121,15 @@ Now it's time to actually write the code that executes your model. The notebook 
 1. **Defining the "entrypoint" function that runs your model.** The notebook will contain a function called an entrypoint. This is the function that will run on a remote server when someone wants to invoke your model.
 2. **Defining the context that your entrypoint function will run in.** Other code in your notebook - helper functions, import statements, etc - will be available to your entrypoint function when it is called. You can also include code that installs extra packages or edits files on the container.
 
-Because you passed the `--tutorial` flag to `garden-ai notebook start`, you should be looking at a notebook that's already populated with code and instructions on how to run the iris model. From here, just work through the notebook. Come back when you're done.
+Because you passed the `--tutorial` flag to `garden-ai notebook start`, you should be looking at a notebook that's already populated with code and instructions on how to run the iris model. If you don't see **Garden Tutorial Notebook** near the top of the notebook, double check your shell command and try again.
+
+From here, just work through the tutorial notebook. Come back when you're done.
 
 ### Step 4: Publish the Function That Invokes Your Model
 
 Now you will publish your model execution function on Garden. This will make it discoverable and usable by other researchers.
 
-To do this, you just need to use `garden-ai notebook publish` like so.
+To do this, use `garden-ai notebook publish`.
 
 ```bash
 $ garden-ai notebook publish tutorial_notebook.ipynb --base-image="3.10-sklearn"
