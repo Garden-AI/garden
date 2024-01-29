@@ -55,7 +55,7 @@ def test_start_container_with_notebook(mock_docker_client):
         "jupyter",
         "notebook",
         "--notebook-dir=/garden",
-        f"--NotebookApp.token=''",
+        "--NotebookApp.token=''",
         "--ip",
         "0.0.0.0",
         "--no-browser",
