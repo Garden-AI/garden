@@ -1,22 +1,26 @@
-# Prerequisites
+# Installing `garden-ai`
 
-Garden makes your AI/ML work reproducible by using [Docker](https://www.docker.com/) containers to fully encapsulate your code and its dependencies. This helps ensure consistency across different machines, making it easier for anyone to reproduce your results.
+The Garden CLI (`garden-ai`) is a Python package that's published on PyPI. You can install it however you normally install Python packages.
 
-### Docker
+## Recommended Method: pipx
 
-1. **Install Docker:** To publish with Garden, you need to have Docker installed and running on your system. An easy way to install and manage Docker is through [Docker desktop](https://www.docker.com/products/docker-desktop). Follow the installation instructions specific to your operating system (Windows, macOS, or Linux).
+pipx is the easiest and best way to install Garden. pipx is a tool for easily installing and running Python command line applications in an isolated environment. You can think of it like `venv` or `conda` for the special case of managing CLI apps. [You can learn how to install pipx on its GitHub page.](https://github.com/pypa/pipx?tab=readme-ov-file#pipx--install-and-run-python-applications-in-isolated-environments)
 
-2. **Verify Docker Installation:** Once installed, you can verify that Docker Desktop is running correctly by opening a terminal or command prompt and typing:
-```bash
-docker --version
+Once you have pipx installed, install Garden.
+
 ```
-This command should return the version of Docker installed on your system.
+pipx install garden-ai
+```
 
-# Installation
+You can keep up with new releases too.
 
-Installing the `garden-ai` python package contains both our SDK and our CLI. We _highly_ recommend installing the CLI with a virtual environment, using venv or conda. [pipx](https://pipx.pypa.io/stable/) works well too.
+```
+pipx upgrade garden-ai
+```
 
-Below are instructions for installing with venv.
+## Alternate Method: Set Up a Virtual Environment
+
+To install with venv:
 
 ```bash
 mkdir my_garden_project
@@ -26,6 +30,8 @@ source myenv/bin/activate
 pip install garden-ai
 ```
 
+## Verify Your Installation
+
 To verify your installation, you can check the version of Garden:
 
 ```bash
@@ -33,6 +39,8 @@ garden-ai --version
 ```
 
 You should see the version of your installed Garden package printed to the console.
+
+## Optional: Tab Completion
 
 The Garden CLI also supports tab completion to show options of local entrypoints and gardens.
 

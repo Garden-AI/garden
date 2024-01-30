@@ -12,7 +12,10 @@ nav:
   - API Reference:
     - Entrypoints: Entrypoints.md
     - Gardens: Gardens.md
-theme: material
+theme:
+  name: material
+  features:
+    - content.code.copy
 plugins:
   - search
   - callouts
@@ -24,8 +27,16 @@ plugins:
             show_category_heading: true
             show_bases: false
 markdown_extensions:
+  - toc:
+        permalink: 
   - nl2br
   - admonition
   - pymdownx.details
   - pymdownx.superfences
   - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
