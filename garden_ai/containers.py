@@ -310,7 +310,10 @@ def push_image_to_public_repo(
         print_logs: Whether to stream logs from docker push to stdout (default: True)
 
     Returns:
-        The full Docker Hub location of the pushed image (e.g. "docker.io/username/myrepo:tag" )
+        The public location of the successfully pushed image, like "{GARDEN_ECR_REPO}:{tag}"
+
+    Raises:
+        docker.errors.InvalidRepository
     """
     repo_name = GardenConstants.GARDEN_ECR_REPO
 
@@ -337,7 +340,7 @@ def push_image_to_public_repo(
                 else:
                     print(log["status"])
 
-    return f"docker.io/{repo_name}:{tag}"
+    return f"{repo_name}:{tag}"
 
 
 @handle_docker_errors
