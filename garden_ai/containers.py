@@ -4,6 +4,7 @@ import os
 import pathlib
 import tarfile
 import functools
+import datetime
 from tempfile import TemporaryDirectory
 from typing import Optional, Iterator, Union, Type
 
@@ -368,9 +369,6 @@ def build_image_with_dependencies(
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
 
-        if pull:
-            client.images.pull(base_image, platform=platform)
-
         # append to Dockerfile based on whether dependencies are provided
         if requirements_path is not None:
             temp_dependencies_path = temp_dir_path / requirements_path.name
@@ -393,10 +391,17 @@ def build_image_with_dependencies(
         with dockerfile_path.open("w") as f:
             f.write(dockerfile_content)
 
-        # Build the image
         print("Preparing image ...")
+        # tag locally with official base image repo for easier cleanup
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        full_tag = f"gardenai/base:local-{timestamp}"
+        # Build and tag the image
         stream = client.api.build(
-            path=str(temp_dir_path), platform=platform, decode=True
+            path=str(temp_dir_path),
+            platform=platform,
+            decode=True,
+            pull=pull,
+            tag=full_tag,
         )
         image = process_docker_build_stream(
             stream, client, DockerPreBuildFailure, print_logs
