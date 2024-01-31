@@ -176,7 +176,6 @@ def build_notebook_session_image(
     base_image: str,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
-    pull: bool = True,
     env_vars: dict = None,
 ) -> Optional[docker.models.images.Image]:
     """
@@ -195,7 +194,6 @@ def build_notebook_session_image(
         base_image: The name of the base Docker image to use.
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Flag to enable streaming build logs to the console (default is True).
-        pull: Whether to pull the base image before building the notebook session image over it (default True).
         env_vars: dict of env variables to set in the built image (default {"GARDEN_SKIP_TESTS": True})
 
     Returns:
@@ -233,9 +231,6 @@ def build_notebook_session_image(
 
         script_path = temp_notebook_path.with_suffix(".py")
         script_path.write_text(script_contents)
-
-        if pull:
-            client.images.pull(base_image, platform=platform)
 
         # easier to grok than pure docker sdk equivalent (if one exists)
         dockerfile_content = f"""

@@ -363,9 +363,7 @@ def debug(
             docker_client, base_image, requirements_path
         )
 
-        image = build_notebook_session_image(
-            docker_client, path, local_base_image_id, pull=False
-        )
+        image = build_notebook_session_image(docker_client, path, local_base_image_id)
         if image is None:
             typer.echo("Failed to build image.")
             raise typer.Exit(1)
@@ -485,7 +483,6 @@ def publish(
             notebook_path,
             local_base_image_id,
             print_logs=verbose,
-            pull=False,
         )
         if image is None:
             typer.echo("Failed to build image.")
@@ -505,7 +502,6 @@ def publish(
         typer.echo(f"Successfully pushed image to: {full_image_uri}")
 
         metadata = extract_metadata_from_image(docker_client, image)
-        image.remove()  # no longer needed locally
         client._register_and_publish_from_user_image(
             base_image_uri, full_image_uri, notebook_url, metadata
         )
