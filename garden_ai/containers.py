@@ -263,31 +263,22 @@ def build_notebook_session_image(
 
 @handle_docker_errors
 def extract_metadata_from_image(
-    client: docker.DockerClient,
-    image_uri: str,
-    remove=True,
+    client: docker.DockerClient, image: docker.models.images.Image
 ) -> dict:
     """Load dict of metadata stored as `metadata.json` in the image.
 
     keys are the original function names, values are respective metadata dicts.
 
-    if remove=True (default), this deletes the image locally (since it's now publically available)
-
     see also: `garden_ai.scripts.save_session_and_metadata`
     """
     container_stdout = client.containers.run(
-        image=image_uri,
+        image=image.id,
         entrypoint="/bin/sh",
         command=["-c", "cat /garden/metadata.json"],
         remove=True,
         detach=False,
     )
     raw_metadata = container_stdout.decode("utf-8")
-    if remove:
-        # noprune=True to keep intermediate untagged images
-        # (ie from build_image_with_dependencies) in cache
-        client.images.remove(image_uri, noprune=True)
-
     return json.loads(raw_metadata)
 
 

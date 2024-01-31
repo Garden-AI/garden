@@ -18,6 +18,7 @@ from garden_ai.containers import (
     push_image_to_public_repo,
     start_container_with_notebook,
     get_docker_client,
+    extract_metadata_from_image,
     DockerStartFailure,
     DockerBuildFailure,
     DockerPreBuildFailure,
@@ -498,15 +499,15 @@ def publish(
         image_tag = f"{notebook_path.stem}-{timestamp}"
 
         typer.echo(f"Pushing image to repository: {GardenConstants.GARDEN_ECR_REPO}")
-        full_image_location = push_image_to_public_repo(
+        full_image_uri = push_image_to_public_repo(
             docker_client, image, image_tag, auth_config, print_logs=verbose
         )
-        typer.echo(f"Successfully pushed image to: {full_image_location}")
+        typer.echo(f"Successfully pushed image to: {full_image_uri}")
+
+        metadata = extract_metadata_from_image(docker_client, image)
+        image.remove()  # no longer needed locally
         client._register_and_publish_from_user_image(
-            docker_client,
-            base_image_uri,
-            full_image_location,
-            notebook_url,
+            base_image_uri, full_image_uri, notebook_url, metadata
         )
 
 
