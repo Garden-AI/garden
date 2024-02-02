@@ -489,15 +489,12 @@ def publish(
             raise typer.Exit(1)
         typer.echo(f"Built image: {image}")
 
-        # generate tag and push image to ECR
+        # push image to ECR
         auth_config = client._get_auth_config_for_ecr_push()
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        image_tag = f"{notebook_path.stem}-{timestamp}"
 
         typer.echo(f"Pushing image to repository: {GardenConstants.GARDEN_ECR_REPO}")
         full_image_uri = push_image_to_public_repo(
-            docker_client, image, image_tag, auth_config, print_logs=verbose
+            docker_client, image, auth_config, print_logs=verbose
         )
         typer.echo(f"Successfully pushed image to: {full_image_uri}")
 

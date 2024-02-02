@@ -187,7 +187,7 @@ def build_notebook_session_image(
     - copies both to the container
     - RUNs the script for side effects, including writing the session.pkl and metadata.json
 
-    This does not tag or push the image.
+    This tags but does not push the image.
 
     Args:
         client: A Docker client instance to manage Docker resources.
@@ -246,10 +246,13 @@ def build_notebook_session_image(
         with dockerfile_path.open("w") as f:
             f.write(dockerfile_content)
 
-        # build the image and propagate logs
+        # tag into local gardenai/custom repo for simpler cleanup later
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        full_tag = f"gardenai/custom:final-{timestamp}"
+        # build/tag the image and propagate logs
         print("Building image ...")
         stream = client.api.build(
-            path=str(temp_dir_path), platform=platform, decode=True
+            path=str(temp_dir_path), platform=platform, decode=True, tag=full_tag
         )
         image = process_docker_build_stream(
             stream, client, DockerBuildFailure, print_logs
@@ -282,34 +285,33 @@ def extract_metadata_from_image(
 def push_image_to_public_repo(
     client: docker.DockerClient,
     image: docker.models.images.Image,
-    tag: str,
     auth_config: dict,
     print_logs: bool = True,
 ) -> str:
     """
-    Tags and pushes a Docker image to a new public repository.
+    Push and tag a Docker image to Garden ECR
 
     Args:
         client: The Docker client instance.
         image: The Docker image to be pushed.
-        repo_name: The name of the public repository to push the image (e.g., "username/myrepo").
-        tag: The tag for the image.
+        tag: The tag for the image (not including the repo).
+        auth_config: auth dict for push to ECR
         print_logs: Whether to stream logs from docker push to stdout (default: True)
 
     Returns:
-        The public location of the successfully pushed image, like "{GARDEN_ECR_REPO}:{tag}"
+        The public location of the successfully pushed image (i.e. "{GARDEN_ECR_REPO}:{tag}")
 
     Raises:
-        docker.errors.InvalidRepository
+        docker.errors.InvalidRepository: if the push fails
     """
     repo_name = GardenConstants.GARDEN_ECR_REPO
-
-    # Tag the image with the new repository name
-    image.tag(repo_name, tag=tag)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S%f")
+    full_tag = f"{repo_name}:{timestamp}"
+    image.tag(full_tag)
 
     # push the image to the new repository and stream logs
     push_logs = client.images.push(
-        repo_name, auth_config=auth_config, tag=tag, stream=True, decode=True
+        full_tag, auth_config=auth_config, stream=True, decode=True
     )
     for log in push_logs:
         if "error" in log:
@@ -317,7 +319,7 @@ def push_image_to_public_repo(
             # exist or the push fails, just records the error in logs
             error_message = log["error"]
             raise docker.errors.InvalidRepository(
-                f"Error pushing image to {repo_name}:{tag} - {error_message}"
+                f"Error pushing image to {full_tag} - {error_message}"
             )
 
         if print_logs:
@@ -327,7 +329,7 @@ def push_image_to_public_repo(
                 else:
                     print(log["status"])
 
-    return f"{repo_name}:{tag}"
+    return full_tag
 
 
 @handle_docker_errors
@@ -392,9 +394,9 @@ def build_image_with_dependencies(
             f.write(dockerfile_content)
 
         print("Preparing image ...")
-        # tag locally with official base image repo for easier cleanup
+        # tag into local-only repo
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        full_tag = f"gardenai/base:local-{timestamp}"
+        full_tag = f"gardenai/custom:base-{timestamp}"
         # Build and tag the image
         stream = client.api.build(
             path=str(temp_dir_path),
