@@ -5,7 +5,7 @@ import pathlib
 import tarfile
 import functools
 from tempfile import TemporaryDirectory
-from typing import Optional, Iterator, Union
+from typing import Optional, Iterator, Union, Type
 
 import docker  # type: ignore
 
@@ -409,7 +409,7 @@ def build_image_with_dependencies(
 def process_docker_build_stream(
     stream: Iterator[dict],
     client: docker.client,
-    exception_class: Union[DockerBuildFailure, DockerPreBuildFailure],
+    exception_class: Union[Type[DockerBuildFailure], Type[DockerPreBuildFailure]],
     print_logs: bool,
 ) -> docker.models.images.Image:
     """
