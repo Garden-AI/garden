@@ -408,7 +408,7 @@ def build_image_with_dependencies(
 
 def process_docker_build_stream(
     stream: Iterator[dict],
-    client: docker.client,
+    client: docker.DockerClient,
     exception_class: Union[Type[DockerBuildFailure], Type[DockerPreBuildFailure]],
     print_logs: bool,
 ) -> docker.models.images.Image:

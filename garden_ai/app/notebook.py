@@ -68,13 +68,13 @@ class DockerClientSession:
 
         print_err(f"Fatal Docker build error: {e}\n" "Above is the full build log.\n")
 
-        if type(e) is DockerPreBuildFailure:
+        if isinstance(e, DockerPreBuildFailure):
             print_err(
                 "Garden could not set up your base Docker image. "
                 "If you supplied a requirements file, check that it's formatted correctly.\n"
             )
-        elif type(e) is DockerBuildFailure:
-            last_line = e.build_log[-1] if len(e.build_log) > 0 else None
+        elif isinstance(e, DockerBuildFailure):
+            last_line = e.build_log[-1] if len(e.build_log) > 0 else ""
             if "Traceback" in last_line:
                 print_err(
                     "Garden could not build a Docker image from your notebook. "
