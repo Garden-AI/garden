@@ -5,7 +5,7 @@ import pathlib
 import tarfile
 import functools
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Optional, Iterator, Union, Type
 
 import docker  # type: ignore
 
@@ -13,10 +13,28 @@ from garden_ai.constants import GardenConstants
 
 
 class DockerStartFailure(Exception):
+    """
+    Raised when Garden can't access Docker.
+    """
+
     def __init__(self, original_exception, explanation=None):
         self.original_exception = original_exception
         self.helpful_explanation = explanation
         super().__init__(f"Docker failed to start: {original_exception}")
+
+
+class DockerPreBuildFailure(docker.errors.BuildError):
+    """
+    Raised when Docker fails at the pre-build stage.
+    That's when we are building the base container with the user's custom requirements.
+    """
+
+
+class DockerBuildFailure(docker.errors.BuildError):
+    """
+    Raised when Docker fails during a container build.
+    That's when we are building the publishable container with the user's custom code.
+    """
 
 
 def handle_docker_errors(func):
@@ -184,7 +202,7 @@ def build_notebook_session_image(
         The docker `Image` object if the build succeeds, otherwise None.
 
     Raises:
-        docker.errors.BuildError: If the Docker image build fails.
+        DockerBuildFailure: If the Docker image build fails.
     """
     # build lines of 'ENV VAR=value\n' commands for dockerfile below
     env_vars = env_vars or {}
@@ -237,21 +255,9 @@ def build_notebook_session_image(
         stream = client.api.build(
             path=str(temp_dir_path), platform=platform, decode=True
         )
-        image = None
-        for chunk in stream:
-            if "stream" in chunk:
-                if print_logs:
-                    print(chunk["stream"].strip())
-            if "aux" in chunk and "ID" in chunk["aux"]:
-                image_id = chunk["aux"]["ID"]
-                image = client.images.get(image_id)
-            if "error" in chunk or "errorDetail" in chunk:
-                error_message = chunk.get(
-                    "error", chunk.get("errorDetail", {}).get("message", "")
-                )
-                print("Build failed:", error_message)
-                raise docker.errors.BuildError(reason=error_message, build_log=stream)
-
+        image = process_docker_build_stream(
+            stream, client, DockerBuildFailure, print_logs
+        )
         return image
 
 
@@ -353,7 +359,7 @@ def build_image_with_dependencies(
         The ID of the freshly-built Docker image
 
     Raises:
-        docker.errors.BuildError: If the build fails.
+        DockerPreBuildFailure: If the build fails.
     """
 
     # always install garden first
@@ -394,22 +400,53 @@ def build_image_with_dependencies(
         stream = client.api.build(
             path=str(temp_dir_path), platform=platform, decode=True
         )
-        image = None
-        for chunk in stream:
-            if "stream" in chunk:
-                if print_logs:
-                    print(chunk["stream"].strip())
-            if "aux" in chunk and "ID" in chunk["aux"]:
-                image_id = chunk["aux"]["ID"]
-                image = client.images.get(image_id)
-            if "error" in chunk or "errorDetail" in chunk:
-                error_message = chunk.get(
-                    "error", chunk.get("errorDetail", {}).get("message", "")
-                )
-                print("Build failed:", error_message)
-                raise docker.errors.BuildError(reason=error_message, build_log=stream)
+        image = process_docker_build_stream(
+            stream, client, DockerPreBuildFailure, print_logs
+        )
+        return image.id
 
-        if image is None:
-            raise docker.errors.BuildError
-        else:
-            return image_id
+
+def process_docker_build_stream(
+    stream: Iterator[dict],
+    client: docker.DockerClient,
+    exception_class: Union[Type[DockerBuildFailure], Type[DockerPreBuildFailure]],
+    print_logs: bool,
+) -> docker.models.images.Image:
+    """
+    Process the stream from a Docker build, handle errors, and return the image.
+
+    Args:
+        stream: The stream from the Docker API build call.
+        client: The Docker client instance.
+        exception_class: The exception class to raise if the build fails.
+        print_logs: Whether to print the build logs to stdout.
+
+    Returns:
+        The image ID of the successfully built Docker image.
+
+    Raises:
+        exception of type `exception_class`: If the build fails.
+    """
+    image_id = None
+    build_log = []
+    for chunk in stream:
+        if "stream" in chunk:
+            stripped_line = chunk["stream"].strip()
+            build_log.append(stripped_line)
+            if print_logs:
+                print(stripped_line)
+        if "aux" in chunk and "ID" in chunk["aux"]:
+            image_id = chunk["aux"]["ID"]
+            image = client.images.get(image_id)
+        if "error" in chunk or "errorDetail" in chunk:
+            error_message = chunk.get(
+                "error", chunk.get("errorDetail", {}).get("message", "")
+            )
+            raise exception_class(reason=error_message, build_log=build_log)
+
+    if image is None:
+        raise exception_class(
+            reason="Could not find image ID in build logs", build_log=build_log
+        )
+
+    return image

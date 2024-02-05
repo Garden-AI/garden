@@ -19,6 +19,8 @@ from garden_ai.containers import (
     start_container_with_notebook,
     get_docker_client,
     DockerStartFailure,
+    DockerBuildFailure,
+    DockerPreBuildFailure,
 )
 from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
 from garden_ai.utils.notebooks import (
@@ -37,6 +39,57 @@ BASE_IMAGE_NAMES = ", ".join(
 
 
 class DockerClientSession:
+    def __init__(self, verbose=False) -> None:
+        self.verbose = verbose
+
+    def __enter__(self) -> docker.DockerClient:
+        try:
+            return get_docker_client()
+        except DockerStartFailure as e:
+            # We're most likely to see this error raised from get_docker_client.
+            self.handle_docker_start_failure(e)
+        except docker.errors.BuildError as e:
+            self.handle_docker_build_failure(e)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is DockerStartFailure:
+            # If the user's Docker daemon shuts down partway through the session
+            # and another docker command is issued, we'll catch that here.
+            self.handle_docker_start_failure(exc_val)
+        # Use isinstance to catch subclasses of docker.errors.BuildError
+        elif isinstance(exc_val, docker.errors.BuildError):
+            self.handle_docker_build_failure(exc_val)
+
+    def handle_docker_build_failure(self, e: docker.errors.BuildError):
+        # If the user is in verbose mode, the build log has already been printed.
+        if not self.verbose:
+            for line in e.build_log:
+                typer.echo(line)
+
+        print_err(f"Fatal Docker build error: {e}\n" "Above is the full build log.\n")
+
+        if isinstance(e, DockerPreBuildFailure):
+            print_err(
+                "Garden could not set up your base Docker image. "
+                "If you supplied a requirements file, check that it's formatted correctly.\n"
+            )
+        elif isinstance(e, DockerBuildFailure):
+            last_line = e.build_log[-1] if len(e.build_log) > 0 else ""
+            if "Traceback" in last_line:
+                print_err(
+                    "Garden could not build a Docker image from your notebook. "
+                    "This is likely because of a bug in your notebook code.\n"
+                    "This is where the error occurred: "
+                )
+                typer.echo(last_line)
+            else:
+                print_err(
+                    "Garden could not build a Docker image from your notebook. "
+                    "It looks like it is not an error in your notebook code.\n"
+                )
+
+        raise typer.Exit(1)
+
     def handle_docker_start_failure(self, e: DockerStartFailure):
         print_err("Garden can't access Docker on your computer.")
         if e.helpful_explanation:
@@ -50,19 +103,6 @@ class DockerClientSession:
             )
             typer.echo(e.original_exception)
         raise typer.Exit(1)
-
-    # We're most likely to see this error raised from get_docker_client,
-    def __enter__(self):
-        try:
-            return get_docker_client()
-        except DockerStartFailure as e:
-            self.handle_docker_start_failure(e)
-
-    # but if the user's Docker daemon shuts down partway through the session
-    # we'll catch that here.
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is DockerStartFailure:
-            self.handle_docker_start_failure(exc_val)
 
 
 @notebook_app.callback(no_args_is_help=True)
@@ -183,7 +223,7 @@ def start(
         f"If you start this notebook again from the same folder, it will use this image by default."
     )
 
-    with DockerClientSession() as docker_client:
+    with DockerClientSession(verbose=True) as docker_client:
         # pre-bake local image with garden-ai and additional user requirements
         local_base_image_id = build_image_with_dependencies(
             docker_client, base_image_uri, requirements_path
@@ -310,7 +350,7 @@ def debug(
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
     """
 
-    with DockerClientSession() as docker_client:
+    with DockerClientSession(verbose=True) as docker_client:
         base_image = (
             _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
         )
@@ -427,7 +467,7 @@ def publish(
     # Push the notebook to the Garden API
     notebook_url = client.upload_notebook(notebook_contents, notebook_path.name)
 
-    with DockerClientSession() as docker_client:
+    with DockerClientSession(verbose=verbose) as docker_client:
         # Build the image
         if requirements_path:
             _validate_requirements_path(requirements_path)
