@@ -363,7 +363,12 @@ def debug(
             docker_client, base_image, requirements_path
         )
 
-        image = build_notebook_session_image(docker_client, path, local_base_image_id)
+        image = build_notebook_session_image(
+            docker_client,
+            path,
+            local_base_image_id,
+            env_vars={"GARDEN_SKIP_TESTS": False},
+        )
         if image is None:
             typer.echo("Failed to build image.")
             raise typer.Exit(1)
