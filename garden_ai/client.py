@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import List, Union
 from uuid import UUID
 
-import docker
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
@@ -30,7 +29,6 @@ from rich.prompt import Prompt
 
 from garden_ai import GardenConstants, local_data
 from garden_ai.backend_client import BackendClient
-from garden_ai.containers import extract_metadata_from_image
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_search import garden_search
