@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import datetime
 import pathlib
 from unittest.mock import MagicMock, Mock, patch
 from garden_ai.constants import GardenConstants
@@ -99,13 +100,11 @@ def test_build_notebook_session_image_success(
         )
     # fmt: on
 
-    # Test that the Docker image was pulled
-    mock_docker_client.images.pull.assert_called_with(
-        base_image, platform="linux/x86_64"
-    )
-
     # Test that the build was called
     mock_docker_client.api.build.assert_called()
+    build_kwargs = mock_docker_client.api.build.call_args.kwargs
+    # assert that build was instructed to cleanup intermediate containers
+    assert build_kwargs["rm"] and build_kwargs["forcerm"]
 
     # Test that the function returned something successfully
     assert image is not None
@@ -143,27 +142,15 @@ def test_extract_metadata_from_image(mock_docker_client):
 
 def test_push_image_to_public_repo(mock_docker_client, capsys):
     repo_name = GardenConstants.GARDEN_ECR_REPO
-    tag = "latest"
     image_id = "some_image_id"
-
-    # Mock image object
     mock_image = MagicMock(spec=docker.models.images.Image)
     mock_image.id = image_id
-
-    # Mock tag method
     mock_image.tag = MagicMock(return_value=True)
-
-    # Mock ECR auth
     mock_credentials = {"username": "username", "password": "password"}
-
-    # Mock push logs
     mock_push_logs = [
-        {"status": "The push refers to repository [docker.io/username/myrepo]"},
+        {"status": f"The push refers to repository [{repo_name}]"},
         {"status": "Preparing", "progress": "Preparing..."},
-        {
-            "status": "Pushing",
-            "progress": "[===>                                               ]",
-        },
+        {"status": "Pushing", "progress": "[===> ]"},
         {
             "status": "Pushed",
             "progress": "[==================================================>]",
@@ -172,30 +159,35 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
     ]
     mock_docker_client.images.push.return_value = iter(mock_push_logs)
 
-    # Call the function without printing logs to test the return value
-    full_repo_tag = garden_ai.containers.push_image_to_public_repo(
-        client=mock_docker_client,
-        image=mock_image,
-        tag=tag,
-        auth_config=mock_credentials,
-    )
+    fixed_timestamp = "20240101-120000000000"
+    fixed_datetime = datetime.datetime.strptime(fixed_timestamp, "%Y%m%d-%H%M%S%f")
 
-    # Assertions
-    mock_image.tag.assert_called_once_with(repo_name, tag=tag)
-    mock_docker_client.images.push.assert_called_once_with(
-        repo_name, auth_config=mock_credentials, tag=tag, stream=True, decode=True
-    )
-    assert full_repo_tag == f"docker.io/{repo_name}:{tag}"
-    # Capture the output
-    captured = capsys.readouterr()
+    with patch("datetime.datetime") as mock_datetime:
+        mock_datetime.now.return_value = fixed_datetime
+        full_repo_tag = garden_ai.containers.push_image_to_public_repo(
+            client=mock_docker_client,
+            image=mock_image,
+            auth_config=mock_credentials,
+            # print_logs=False,
+        )
 
-    # Assertions to ensure that the logs are in the captured stdout
-    for log in mock_push_logs:
-        if "progress" in log:
-            expected_log = f"{log['status']} - {log['progress']}"
-        else:
-            expected_log = log["status"]
-        assert expected_log in captured.out
+        full_tag_expected = f"{repo_name}:pushed-{fixed_timestamp}"
+        mock_image.tag.assert_called_once_with(full_tag_expected)
+        mock_docker_client.images.push.assert_called_once_with(
+            full_tag_expected,
+            auth_config=mock_credentials,
+            stream=True,
+            decode=True,
+        )
+        assert full_repo_tag == full_tag_expected
+
+        captured = capsys.readouterr()
+        for log in mock_push_logs:
+            if "progress" in log:
+                expected_log = f"{log['status']} - {log['progress']}"
+            else:
+                expected_log = log["status"]
+            assert expected_log in captured.out
 
 
 @pytest.mark.parametrize(
@@ -224,13 +216,8 @@ def test_build_image_with_dependencies(mock_docker_client, mocker, requirements_
         client=mock_docker_client,
         base_image=base_image,
         requirements_path=requirements_path,
-        pull=True,
     )
 
-    # Test that the base image was pulled
-    mock_docker_client.images.pull.assert_called_with(
-        base_image, platform="linux/x86_64"
-    )
     contents = dockerfile_content_capture.getvalue()
     # Test that the Dockerfile was created correctly per requirements type
     assert f"FROM {base_image}" in contents
