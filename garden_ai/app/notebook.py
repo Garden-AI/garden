@@ -214,7 +214,7 @@ def start(
         f"If you start this notebook again from the same folder, it will use this image by default."
     )
 
-    with DockerClientSession(verbose=False) as docker_client:
+    with DockerClientSession(verbose=True) as docker_client:
         # pre-bake local image with garden-ai and additional user requirements
         local_base_image_id = build_image_with_dependencies(
             docker_client, base_image_uri, requirements_path
@@ -343,7 +343,7 @@ def debug(
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
     """
 
-    with DockerClientSession() as docker_client:
+    with DockerClientSession(verbose=True) as docker_client:
         base_image = (
             _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
         )
