@@ -366,7 +366,7 @@ def debug(
             docker_client,
             path,
             local_base_image_id,
-            env_vars={"GARDEN_SKIP_TESTS": False},
+            # env_vars={"GARDEN_SKIP_TESTS": False},  # TODO: what's better UX for debugging?
         )
         if image is None:
             typer.echo("Failed to build image.")

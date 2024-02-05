@@ -37,6 +37,16 @@ def mock_docker_client():
     return client
 
 
+@pytest.fixture
+def mock_datetime():
+    """Fixture to mock datetime.datetime.now to return a fixed datetime object."""
+    fixed_timestamp = "20240101-120000000"
+    fixed_datetime = datetime.datetime.strptime(fixed_timestamp, "%Y%m%d-%H%M%S%f")
+    with patch("datetime.datetime") as mock_datetime_class:
+        mock_datetime_class.now.return_value = fixed_datetime
+        yield fixed_datetime
+
+
 def test_start_container_with_notebook(mock_docker_client):
     path = pathlib.Path("/path/to/notebook.ipynb")
     base_image = "gardenai/fake-image:soonest"
@@ -85,7 +95,7 @@ def mock_notebook_path(tmp_path):
 
 
 def test_build_notebook_session_image_success(
-    mock_docker_client, mock_notebook_path, mocker
+    mock_docker_client, mock_notebook_path, mock_datetime, mocker
 ):
     base_image = "gardenai/fake-image:soonest"
 
@@ -105,6 +115,9 @@ def test_build_notebook_session_image_success(
     build_kwargs = mock_docker_client.api.build.call_args.kwargs
     # assert that build was instructed to cleanup intermediate containers
     assert build_kwargs["rm"] and build_kwargs["forcerm"]
+
+    # assert tagging/timestamp behavior
+    assert "gardenai/custom:final-20240101-120000" == build_kwargs["tag"]
 
     # Test that the function returned something successfully
     assert image is not None
@@ -193,7 +206,9 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
 @pytest.mark.parametrize(
     "requirements_file", ["requirements.txt", "environment.yml", None]
 )
-def test_build_image_with_dependencies(mock_docker_client, mocker, requirements_file):
+def test_build_image_with_dependencies(
+    mock_docker_client, mocker, requirements_file, mock_datetime
+):
     base_image = "gardenai/base:python-3.10-jupyter"
     requirements_path = pathlib.Path(requirements_file) if requirements_file else None
 
@@ -240,6 +255,13 @@ def test_build_image_with_dependencies(mock_docker_client, mocker, requirements_
 
     # Test that the build was called
     mock_docker_client.api.build.assert_called()
+
+    build_kwargs = mock_docker_client.api.build.call_args.kwargs
+    # assert that build was instructed to cleanup intermediate containers
+    assert build_kwargs["rm"] and build_kwargs["forcerm"]
+
+    # assert tagging/timestamp behavior
+    assert "gardenai/custom:base-20240101-120000" == build_kwargs["tag"]
 
     # Test that the function returned the correct image ID
     # (this is set in the mock_docker_client fixture)
