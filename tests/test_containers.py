@@ -10,6 +10,7 @@ import io
 import garden_ai.containers
 
 JUPYTER_TOKEN = "bunchanumbers"
+IMAGE_ID = "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
 
 
 @pytest.fixture
@@ -24,16 +25,13 @@ def mock_docker_client():
         {"stream": "Step 1/3 : FROM gardenai/base:python-3.10-jupyter"},
         {"stream": " ---> Using cache"},
         {"stream": " ---> 2d6e000f4f63"},
-        {
-            "aux": {
-                "ID": "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
-            }
-        },
+        {"aux": {"ID": IMAGE_ID}},
         {"stream": "Successfully built 2d6e000f4f63"},
     ]
-    api_client.images.get.return_value = (
-        MagicMock()
-    )  # Mock the Image object returned by get()
+
+    image_mock = MagicMock()
+    image_mock.id = IMAGE_ID
+    client.images.get.return_value = image_mock
 
     client.api = api_client
     return client
@@ -260,9 +258,7 @@ def test_build_image_with_dependencies(mock_docker_client, mocker, requirements_
 
     # Test that the function returned the correct image ID
     # (this is set in the mock_docker_client fixture)
-    expected_image_id = (
-        "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
-    )
+    expected_image_id = IMAGE_ID
     assert image_id == expected_image_id
 
 
