@@ -9,7 +9,6 @@ import pytest
 import io
 import garden_ai.containers
 
-JUPYTER_TOKEN = "bunchanumbers"
 IMAGE_ID = "sha256:2d6e000f4f63e1234567a1234567890123456789a1234567890b1234567890c1"
 
 
@@ -41,10 +40,9 @@ def test_start_container_with_notebook(mock_docker_client):
     path = pathlib.Path("/path/to/notebook.ipynb")
     base_image = "gardenai/fake-image:soonest"
 
-    with patch("garden_ai.containers.JUPYTER_TOKEN", JUPYTER_TOKEN):
-        container = garden_ai.containers.start_container_with_notebook(
-            mock_docker_client, path, base_image
-        )
+    container = garden_ai.containers.start_container_with_notebook(
+        mock_docker_client, path, base_image
+    )
 
     mock_docker_client.images.pull.assert_called_once_with(
         base_image, platform="linux/x86_64"
@@ -56,7 +54,7 @@ def test_start_container_with_notebook(mock_docker_client):
         "jupyter",
         "notebook",
         "--notebook-dir=/garden",
-        f"--NotebookApp.token={JUPYTER_TOKEN}",
+        "--NotebookApp.token=''",
         "--ip",
         "0.0.0.0",
         "--no-browser",

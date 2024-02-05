@@ -11,8 +11,6 @@ import docker  # type: ignore
 
 from garden_ai.constants import GardenConstants
 
-JUPYTER_TOKEN = "791fb91ea2175a1bbf15e1c9606930ebdf6c5fe6a0c3d5bd"  # arbitrary valid token, safe b/c port is only exposed to localhost
-
 
 class DockerStartFailure(Exception):
     """
@@ -118,7 +116,6 @@ def start_container_with_notebook(
     Note:
     - The Jupyter Notebook server inside the container runs on port 8888
       and is exposed to the host on the same port.
-    - The token for accessing the notebook is still the JUPYTER_TOKEN variable.
     """
     if pull:
         client.images.pull(base_image, platform=platform)
@@ -138,7 +135,7 @@ def start_container_with_notebook(
             "jupyter",
             "notebook",
             "--notebook-dir=/garden",
-            f"--NotebookApp.token={JUPYTER_TOKEN}",
+            "--NotebookApp.token=''",
             "--ip",
             "0.0.0.0",
             "--no-browser",
