@@ -41,8 +41,8 @@ class DockerBuildFailure(docker.errors.BuildError):
 def handle_docker_errors(func):
     """
     This decorator catches common classes of Docker errors and sends recommendations for how to fix them up the callstack.
-    Right now it just catches exceptions that are thrown when the user can't run Docker at all.
-    If it's in this class of error, it raises a DockerStartFailure.
+    If the user can't run Docker at all, it raises a DockerStartFailure.
+    If the user runs into a BuildError, it tries to remove any dangling intermediate images before re-raising the exception.
     Otherwise the normal Docker exception is still raised.
     """
 
@@ -50,6 +50,10 @@ def handle_docker_errors(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except docker.errors.BuildError:
+            client = get_docker_client()
+            cleanup_dangling_images(client)
+            raise
         except docker.errors.DockerException as e:
             error_message = str(e)
             # We only handle cases that happen when we can't even connect to Docker
@@ -77,6 +81,19 @@ def handle_docker_errors(func):
             raise DockerStartFailure(e, explanation)
 
     return wrapper
+
+
+def cleanup_dangling_images(client: docker.DockerClient):
+    """Naively remove any local images without a name or tag.
+
+    This can fail if e.g. the dangling image is still referenced by a container.
+    """
+    for image in client.images.list(filters={"dangling": True}):
+        try:
+            client.images.remove(image.id)
+        except docker.errors.APIError as e:
+            print(f"Failed to remove dangling image {image.id}: {e}")
+    return
 
 
 @handle_docker_errors
@@ -252,7 +269,12 @@ def build_notebook_session_image(
         # build/tag the image and propagate logs
         print("Building image ...")
         stream = client.api.build(
-            path=str(temp_dir_path), platform=platform, decode=True, tag=full_tag
+            path=str(temp_dir_path),
+            platform=platform,
+            decode=True,
+            tag=full_tag,
+            rm=True,
+            forcerm=True,  # clean up unsuccessful builds too
         )
         image = process_docker_build_stream(
             stream, client, DockerBuildFailure, print_logs
@@ -306,7 +328,7 @@ def push_image_to_public_repo(
     """
     repo_name = GardenConstants.GARDEN_ECR_REPO
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S%f")
-    full_tag = f"{repo_name}:{timestamp}"
+    full_tag = f"{repo_name}:pushed-{timestamp}"
     image.tag(full_tag)
 
     # push the image to the new repository and stream logs
@@ -404,6 +426,8 @@ def build_image_with_dependencies(
             decode=True,
             pull=pull,
             tag=full_tag,
+            rm=True,
+            forcerm=True,  # clean up unsuccessful builds too
         )
         image = process_docker_build_stream(
             stream, client, DockerPreBuildFailure, print_logs
