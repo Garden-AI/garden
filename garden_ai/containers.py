@@ -4,6 +4,7 @@ import os
 import pathlib
 import tarfile
 import functools
+import datetime
 from tempfile import TemporaryDirectory
 from typing import Optional, Iterator, Union, Type
 
@@ -40,8 +41,8 @@ class DockerBuildFailure(docker.errors.BuildError):
 def handle_docker_errors(func):
     """
     This decorator catches common classes of Docker errors and sends recommendations for how to fix them up the callstack.
-    Right now it just catches exceptions that are thrown when the user can't run Docker at all.
-    If it's in this class of error, it raises a DockerStartFailure.
+    If the user can't run Docker at all, it raises a DockerStartFailure.
+    If the user runs into a BuildError, it tries to remove any dangling intermediate images before re-raising the exception.
     Otherwise the normal Docker exception is still raised.
     """
 
@@ -76,6 +77,19 @@ def handle_docker_errors(func):
             raise DockerStartFailure(e, explanation)
 
     return wrapper
+
+
+def cleanup_dangling_images(client: docker.DockerClient):
+    """Naively remove any local images without a name or tag.
+
+    This can fail if e.g. the dangling image is still referenced by a container.
+    """
+    for image in client.images.list(filters={"dangling": True}):
+        try:
+            client.images.remove(image.id)
+        except docker.errors.APIError as e:
+            print(f"Failed to remove dangling image {image.id}: {e}")
+    return
 
 
 @handle_docker_errors
@@ -176,7 +190,6 @@ def build_notebook_session_image(
     base_image: str,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
-    pull: bool = True,
     env_vars: dict = None,
 ) -> Optional[docker.models.images.Image]:
     """
@@ -187,7 +200,7 @@ def build_notebook_session_image(
     - copies both to the container
     - RUNs the script for side effects, including writing the session.pkl and metadata.json
 
-    This does not tag or push the image.
+    This tags but does not push the image.
 
     Args:
         client: A Docker client instance to manage Docker resources.
@@ -195,7 +208,6 @@ def build_notebook_session_image(
         base_image: The name of the base Docker image to use.
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Flag to enable streaming build logs to the console (default is True).
-        pull: Whether to pull the base image before building the notebook session image over it (default True).
         env_vars: dict of env variables to set in the built image (default {"GARDEN_SKIP_TESTS": True})
 
     Returns:
@@ -234,9 +246,6 @@ def build_notebook_session_image(
         script_path = temp_notebook_path.with_suffix(".py")
         script_path.write_text(script_contents)
 
-        if pull:
-            client.images.pull(base_image, platform=platform)
-
         # easier to grok than pure docker sdk equivalent (if one exists)
         dockerfile_content = f"""
         FROM {base_image}
@@ -250,10 +259,18 @@ def build_notebook_session_image(
         with dockerfile_path.open("w") as f:
             f.write(dockerfile_content)
 
-        # build the image and propagate logs
+        # tag into local gardenai/custom repo for simpler cleanup later
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        full_tag = f"gardenai/custom:final-{timestamp}"
+        # build/tag the image and propagate logs
         print("Building image ...")
         stream = client.api.build(
-            path=str(temp_dir_path), platform=platform, decode=True
+            path=str(temp_dir_path),
+            platform=platform,
+            decode=True,
+            tag=full_tag,
+            rm=True,
+            forcerm=True,  # clean up unsuccessful builds too
         )
         image = process_docker_build_stream(
             stream, client, DockerBuildFailure, print_logs
@@ -286,31 +303,33 @@ def extract_metadata_from_image(
 def push_image_to_public_repo(
     client: docker.DockerClient,
     image: docker.models.images.Image,
-    tag: str,
     auth_config: dict,
     print_logs: bool = True,
 ) -> str:
     """
-    Tags and pushes a Docker image to a new public repository.
+    Push and tag a Docker image to Garden ECR
 
     Args:
         client: The Docker client instance.
         image: The Docker image to be pushed.
-        repo_name: The name of the public repository to push the image (e.g., "username/myrepo").
-        tag: The tag for the image.
+        tag: The tag for the image (not including the repo).
+        auth_config: auth dict for push to ECR
         print_logs: Whether to stream logs from docker push to stdout (default: True)
 
     Returns:
-        The full Docker Hub location of the pushed image (e.g. "docker.io/username/myrepo:tag" )
+        The public location of the successfully pushed image (i.e. "{GARDEN_ECR_REPO}:{tag}")
+
+    Raises:
+        docker.errors.InvalidRepository: if the push fails
     """
     repo_name = GardenConstants.GARDEN_ECR_REPO
-
-    # Tag the image with the new repository name
-    image.tag(repo_name, tag=tag)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S%f")
+    full_tag = f"{repo_name}:pushed-{timestamp}"
+    image.tag(full_tag)
 
     # push the image to the new repository and stream logs
     push_logs = client.images.push(
-        repo_name, auth_config=auth_config, tag=tag, stream=True, decode=True
+        full_tag, auth_config=auth_config, stream=True, decode=True
     )
     for log in push_logs:
         if "error" in log:
@@ -318,7 +337,7 @@ def push_image_to_public_repo(
             # exist or the push fails, just records the error in logs
             error_message = log["error"]
             raise docker.errors.InvalidRepository(
-                f"Error pushing image to {repo_name}:{tag} - {error_message}"
+                f"Error pushing image to {full_tag} - {error_message}"
             )
 
         if print_logs:
@@ -328,7 +347,7 @@ def push_image_to_public_repo(
                 else:
                     print(log["status"])
 
-    return f"docker.io/{repo_name}:{tag}"
+    return full_tag
 
 
 @handle_docker_errors
@@ -370,9 +389,6 @@ def build_image_with_dependencies(
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
 
-        if pull:
-            client.images.pull(base_image, platform=platform)
-
         # append to Dockerfile based on whether dependencies are provided
         if requirements_path is not None:
             temp_dependencies_path = temp_dir_path / requirements_path.name
@@ -395,10 +411,19 @@ def build_image_with_dependencies(
         with dockerfile_path.open("w") as f:
             f.write(dockerfile_content)
 
-        # Build the image
         print("Preparing image ...")
+        # tag into local-only repo
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        full_tag = f"gardenai/custom:base-{timestamp}"
+        # Build and tag the image
         stream = client.api.build(
-            path=str(temp_dir_path), platform=platform, decode=True
+            path=str(temp_dir_path),
+            platform=platform,
+            decode=True,
+            pull=pull,
+            tag=full_tag,
+            rm=True,
+            forcerm=True,  # clean up unsuccessful builds too
         )
         image = process_docker_build_stream(
             stream, client, DockerPreBuildFailure, print_logs

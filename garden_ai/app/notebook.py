@@ -1,4 +1,3 @@
-import datetime
 import logging
 import shutil
 import webbrowser
@@ -18,6 +17,7 @@ from garden_ai.containers import (
     push_image_to_public_repo,
     start_container_with_notebook,
     get_docker_client,
+    extract_metadata_from_image,
     DockerStartFailure,
     DockerBuildFailure,
     DockerPreBuildFailure,
@@ -363,7 +363,9 @@ def debug(
         )
 
         image = build_notebook_session_image(
-            docker_client, path, local_base_image_id, pull=False
+            docker_client,
+            path,
+            local_base_image_id,
         )
         if image is None:
             typer.echo("Failed to build image.")
@@ -484,30 +486,24 @@ def publish(
             notebook_path,
             local_base_image_id,
             print_logs=verbose,
-            pull=False,
         )
         if image is None:
             typer.echo("Failed to build image.")
             raise typer.Exit(1)
         typer.echo(f"Built image: {image}")
 
-        # generate tag and push image to ECR
+        # push image to ECR
         auth_config = client._get_auth_config_for_ecr_push()
 
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        image_tag = f"{notebook_path.stem}-{timestamp}"
-
         typer.echo(f"Pushing image to repository: {GardenConstants.GARDEN_ECR_REPO}")
-        full_image_location = push_image_to_public_repo(
-            docker_client, image, image_tag, auth_config, print_logs=verbose
+        full_image_uri = push_image_to_public_repo(
+            docker_client, image, auth_config, print_logs=verbose
         )
-        typer.echo(f"Successfully pushed image to: {full_image_location}")
+        typer.echo(f"Successfully pushed image to: {full_image_uri}")
+
+        metadata = extract_metadata_from_image(docker_client, image)
         client._register_and_publish_from_user_image(
-            docker_client,
-            image,
-            base_image_uri,
-            full_image_location,
-            notebook_url,
+            base_image_uri, full_image_uri, notebook_url, metadata
         )
 
 
