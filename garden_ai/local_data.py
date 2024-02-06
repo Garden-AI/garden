@@ -62,24 +62,6 @@ def _write_local_db(data: Dict) -> None:
         f.write(contents)
 
 
-def _put_notebook_base_image(notebook_path: Path, base_image: str) -> None:
-    data = _read_local_db()
-    nb_key = str(notebook_path.resolve())
-    if "notebooks" not in data:
-        data["notebooks"] = {}
-    data["notebooks"][nb_key] = base_image
-    _write_local_db(data)
-    return
-
-
-def _get_notebook_base_image(notebook_path: Path) -> Optional[str]:
-    data = _read_local_db()
-    nb_key = str(notebook_path.resolve())
-    if "notebooks" not in data:
-        return None
-    return data["notebooks"].get(nb_key)
-
-
 def _store_user_email(email: str) -> None:
     data = _read_local_db()
     data["user_email"] = email
