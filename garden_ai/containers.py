@@ -50,10 +50,6 @@ def handle_docker_errors(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except docker.errors.BuildError:
-            client = get_docker_client()
-            cleanup_dangling_images(client)
-            raise
         except docker.errors.DockerException as e:
             error_message = str(e)
             # We only handle cases that happen when we can't even connect to Docker

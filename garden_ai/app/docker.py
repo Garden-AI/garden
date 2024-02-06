@@ -63,12 +63,24 @@ def prune(
         help="If enabled, keep official gardenai/base images and only remove custom user images (e.g. those created by publishing)",
     ),
     dry_run: bool = typer.Option(
-        False, help="If enabled, just print the tags of images that would be pruned."
+        False,
+        "--dry-run",
+        help="If enabled, just print the tags of images that would be pruned.",
+    ),
+    remove_dangling: bool = typer.Option(
+        False,
+        "--remove-dangling",
+        help="Remove any dangling images. This includes dangling images that may not be Garden-related.",
     ),
 ):
     """Remove Garden-related Docker images, freeing up disk space."""
     client = get_docker_client()
-    cleanup_dangling_images(client)  # just in case
+    if remove_dangling:
+        if dry_run:
+            for image in client.images.list(filters={"dangling": True}):
+                print(f"Would remove dangling image {image.short_id}")
+        else:
+            cleanup_dangling_images(client)
 
     prefixes = ["gardenai/custom", GardenConstants.GARDEN_ECR_REPO]
     if not keep_base:
