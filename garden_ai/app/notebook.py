@@ -369,7 +369,7 @@ def _set_notebook_metadata(
 
 
 def _get_notebook_metadata(notebook_path: Path) -> dict:
-    notebook_metadata = {}
+    notebook_metadata: dict = {}
     notebook_metadata["notebook_image_uri"] = None
     notebook_metadata["notebook_requirements"] = None
     notebook_metadata_cell_source = None
@@ -412,12 +412,12 @@ def _get_notebook_metadata(notebook_path: Path) -> dict:
 def _read_requirements_data(
     requirements_path: Optional[Path],
     notebook_path: Path,
-) -> Optional[Path]:
+) -> Optional[dict]:
     # Notebook still needs to be created, return None
     if not notebook_path.is_file():
         return None
 
-    requirements_data = {}
+    requirements_data: dict = {}
 
     # Always use requirements from user provided requirements_path over any previously saved notebook requirements.
     if requirements_path:
