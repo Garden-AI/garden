@@ -136,6 +136,9 @@ class RegisteredEntrypoint(EntrypointMetadata):
 
     Attributes:
         func_uuid: The ID of the Globus Compute function registered for this entrypoint.
+        doi_is_draft: (bool): \
+            Used to track the status of this garden's DOI. All DOIs start out as drafts. \
+            You can promote a DOI to a registered state with `garden-ai entrypoint register-doi`.
         container_uuid: ID returned from Globus Compute's register_container.
         base_image_uri: location of the base image used by this entrypoint. eg docker://index.docker.io/maxtuecke/garden-ai:python-3.9-jupyter
         full_image_uri: The name and location of the complete image used by this entrypoint.
@@ -147,6 +150,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
     doi: str = Field(
         ...
     )  # Repeating this field from base class because DOI is mandatory for RegisteredEntrypoint
+    doi_is_draft: bool = Field(True)
     func_uuid: UUID = Field(...)
     container_uuid: UUID = Field(...)
     base_image_uri: Optional[str] = Field(None)

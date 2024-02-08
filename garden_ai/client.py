@@ -277,6 +277,14 @@ class GardenClient:
 
         return Garden(**data)
 
+    def register_entrypoint_doi(self, entrypoint: RegisteredEntrypoint) -> None:
+        """
+        Makes an entrypoint's DOI registered and findable with DataCite via the Garden backend.
+        """
+        self._update_datacite(entrypoint, register_doi=True)
+        entrypoint.doi_is_draft = False
+        local_data.put_local_entrypoint(entrypoint)
+
     def _mint_draft_doi(self) -> str:
         """Register a new draft DOI with DataCite via Garden backend."""
 
@@ -287,11 +295,17 @@ class GardenClient:
         return self.backend_client.mint_doi_on_datacite(payload)
 
     def _update_datacite(
-        self, obj: Union[PublishedGarden, RegisteredEntrypoint]
+        self,
+        obj: Union[PublishedGarden, RegisteredEntrypoint],
+        register_doi: bool = False,
     ) -> None:
         logger.info("Requesting update to DOI")
         metadata = json.loads(obj.datacite_json())
-        metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
+
+        # "publish" in the event field moves the DOI from draft state to findable state
+        # https://support.datacite.org/docs/how-do-i-make-a-findable-doi-with-the-rest-api
+        if register_doi:
+            metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
 
         payload = {"data": {"type": "dois", "attributes": metadata}}
         self.backend_client.update_doi_on_datacite(payload)
@@ -432,14 +446,14 @@ class GardenClient:
             )
         return garden
 
-    def publish_garden_metadata(self, garden: Garden) -> None:
+    def publish_garden_metadata(self, garden: Garden, register_doi=False) -> None:
         """
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
         published = PublishedGarden.from_garden(garden)
 
-        self._update_datacite(published)
+        self._update_datacite(published, register_doi=register_doi)
         try:
             self.backend_client.publish_garden_metadata(published)
         except Exception as e:

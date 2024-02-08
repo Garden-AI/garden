@@ -5,6 +5,7 @@ import typer
 import rich
 from rich.prompt import Prompt
 
+from garden_ai import GardenClient
 from garden_ai.app.console import console, get_local_entrypoint_rich_table
 from garden_ai.app.completion import complete_entrypoint
 from garden_ai.entrypoints import Repository, Paper
@@ -166,11 +167,37 @@ def add_paper(
         rich.print(f"The paper {title} is successfully added to entrypoint {doi}.")
 
 
+@entrypoint_app.command(no_args_is_help=True)
+def register_doi(
+    doi: str = typer.Argument(
+        ...,
+        autocompletion=complete_entrypoint,
+        help="The draft entrypoint DOI you want to register",
+        rich_help_panel="Required",
+    ),
+):
+    """
+    Moves an Entrypoint's DOI out of draft state.
+
+    Parameters
+    ----------
+    doi : str
+        The DOI of the entrypoint to be registered.
+    """
+    client = GardenClient()
+    entrypoint = get_local_entrypoint_by_doi(doi)
+    if not entrypoint:
+        typer.error(f"Could not find entrypoint with doi {doi}")
+        raise typer.Exit(code=1)
+    client.register_doi(entrypoint)
+    rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
+
+
 @entrypoint_app.command(no_args_is_help=False)
 def list():
     """Lists all local entrypoints."""
 
-    resource_table_cols = ["doi", "title", "description"]
+    resource_table_cols = ["doi", "title", "description", "doi_is_draft"]
     table_name = "Local Entrypoints"
 
     table = get_local_entrypoint_rich_table(
