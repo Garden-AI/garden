@@ -55,6 +55,10 @@ class Garden(BaseModel):
             A garden's DOI usable for citations, generated automatically via \
             DataCite using the required fields.
 
+        doi_is_draft: (bool):
+            Used to track the status of this garden's DOI. All DOIs start out as drafts. \
+            You can promote a DOI to a registered state with `garden-ai garden register-doi`.
+
         version (str):
             optional, defaults to "0.0.1".
 
@@ -93,6 +97,7 @@ class Garden(BaseModel):
     authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
     contributors: List[str] = Field(default_factory=list, unique_items=True)
     doi: str = Field(...)
+    doi_is_draft: bool = Field(True)
     description: Optional[str] = Field(None)
     publisher: str = "Garden-AI"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
@@ -102,7 +107,6 @@ class Garden(BaseModel):
     entrypoint_ids: List[str] = Field(default_factory=list)
     entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
     _entrypoint_cache: List[RegisteredEntrypoint] = PrivateAttr(default_factory=list)
-    _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @root_validator(pre=True)
     def doi_omitted(cls, values):
@@ -350,7 +354,6 @@ class PublishedGarden(BaseModel):
     version: str = "0.0.1"
     entrypoints: List[RegisteredEntrypoint] = Field(...)
     entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
-    _env_vars: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @validator("year")
     def valid_year(cls, year):

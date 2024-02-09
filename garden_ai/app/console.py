@@ -5,6 +5,8 @@ from typing import List, Optional, Any
 
 console = Console()
 
+DOI_STATUS_COLUMN = "doi_is_draft"
+
 
 def _get_rich_resource_table(
     resource_objs: Optional[List[Any]], resource_table_cols: List[str], table_name: str
@@ -12,13 +14,19 @@ def _get_rich_resource_table(
     table = Table(title=table_name)
 
     for col in resource_table_cols:
-        table.add_column(col)
+        if col == DOI_STATUS_COLUMN:
+            table.add_column("doi status")
+        else:
+            table.add_column(col)
 
     if resource_objs:
         for resource_obj in resource_objs:
             row = []
             for field in resource_table_cols:
-                row.append(str(getattr(resource_obj, field)))
+                cell_value = getattr(resource_obj, field)
+                if field == DOI_STATUS_COLUMN:
+                    cell_value = "draft" if cell_value else "registered"
+                row.append(str(cell_value))
             table.add_row(*row)
 
     return table
