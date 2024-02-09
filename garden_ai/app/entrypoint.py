@@ -6,7 +6,11 @@ import rich
 from rich.prompt import Prompt
 
 from garden_ai import GardenClient
-from garden_ai.app.console import console, get_local_entrypoint_rich_table
+from garden_ai.app.console import (
+    console,
+    get_local_entrypoint_rich_table,
+    DOI_STATUS_COLUMN,
+)
 from garden_ai.app.completion import complete_entrypoint
 from garden_ai.entrypoints import Repository, Paper
 from garden_ai.local_data import (
@@ -197,7 +201,7 @@ def register_doi(
 def list():
     """Lists all local entrypoints."""
 
-    resource_table_cols = ["doi", "title", "description", "doi_is_draft"]
+    resource_table_cols = ["doi", "title", "description", DOI_STATUS_COLUMN]
     table_name = "Local Entrypoints"
 
     table = get_local_entrypoint_rich_table(

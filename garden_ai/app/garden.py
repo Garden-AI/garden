@@ -16,7 +16,11 @@ from garden_ai.globus_search.garden_search import (
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.entrypoints import RegisteredEntrypoint
-from garden_ai.app.console import console, get_local_garden_rich_table
+from garden_ai.app.console import (
+    console,
+    get_local_garden_rich_table,
+    DOI_STATUS_COLUMN,
+)
 from garden_ai.app.completion import complete_garden, complete_entrypoint
 
 logger = logging.getLogger()
@@ -337,7 +341,7 @@ def register_doi(
 def list():
     """Lists all local Gardens."""
 
-    resource_table_cols = ["doi", "title", "description", "doi_is_draft"]
+    resource_table_cols = ["doi", "title", "description", DOI_STATUS_COLUMN]
     table_name = "Local Gardens"
 
     table = get_local_garden_rich_table(
