@@ -74,7 +74,7 @@ class DockerClientSession:
                 "If you supplied a requirements file, check that it's formatted correctly.\n"
             )
         elif isinstance(e, DockerBuildFailure):
-            last_line = e.build_log[-1] if len(e.build_log) > 0 else ""
+            last_line = e.build_log[-2] if len(e.build_log) > 1 else ""
             if "Traceback" in last_line:
                 print_err(
                     "Garden could not build a Docker image from your notebook. "
