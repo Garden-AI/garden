@@ -8,10 +8,6 @@ console = Console()
 DOI_STATUS_COLUMN = "doi_is_draft"
 
 
-def format_doi_status(doi_status: bool) -> str:
-    return "draft" if doi_status else "registered"
-
-
 def _get_rich_resource_table(
     resource_objs: Optional[List[Any]], resource_table_cols: List[str], table_name: str
 ) -> Table:
