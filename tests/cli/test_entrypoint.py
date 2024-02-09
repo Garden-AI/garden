@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from garden_ai.app.main import app
+from garden_ai import GardenClient
 from garden_ai.utils.misc import clean_identifier
 
 runner = CliRunner()
@@ -84,6 +85,34 @@ def test_entrypoint_add_repository(database_with_connected_entrypoint, mocker):
     assert first_repo.url == "https://fakerepository-link.org"
     assert first_repo.repo_name == "Fake repository"
     assert first_repo.contributors == ["Person1", "Person2", "Person3"]
+
+
+@pytest.mark.cli
+def test_register_doi(database_with_connected_entrypoint, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
+    )
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.entrypoint.GardenClient").return_value = mock_client
+
+    # garden_doi = "10.23677/fake-doi"
+    entrypoint_doi = "10.23677/jx31-gx98"
+    # mock_client._mint_draft_doi.return_value = entrypoint_doi
+
+    command = [
+        "entrypoint",
+        "register-doi",
+        entrypoint_doi,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    mock_client.register_entrypoint_doi.assert_called_once()
+
+    args = mock_client.register_entrypoint_doi.call_args.args
+    entrypoint = args[0]
+    # Confirm that expanded gardens include entrypoints
+    assert entrypoint.doi == entrypoint_doi
 
 
 @pytest.mark.cli

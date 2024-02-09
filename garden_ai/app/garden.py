@@ -154,33 +154,6 @@ def create(
 
 
 @garden_app.command(no_args_is_help=True)
-def register_doi(
-    doi: str = typer.Argument(
-        ...,
-        autocompletion=complete_garden,
-        help="The draft garden DOI you want to register",
-        rich_help_panel="Required",
-    ),
-):
-    """
-    Moves a Garden's DOI out of draft state.
-
-    Parameters
-    ----------
-    doi : str
-        The DOI of the garden to be registered.
-    """
-    client = GardenClient()
-    garden = _get_garden(doi)
-    if not garden:
-        raise typer.Exit(code=1)
-    client.publish_garden_metadata(garden, register_doi=True)
-    garden.doi_is_draft = False
-    local_data.put_local_garden(garden)
-    rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
-
-
-@garden_app.command(no_args_is_help=True)
 def search(
     title: Optional[str] = typer.Option(
         None, "-t", "--title", help="Title of a Garden"
@@ -331,6 +304,33 @@ def publish(
     console.print(
         f"Successfully published garden {garden.title} with DOI {garden.doi}!"
     )
+
+
+@garden_app.command(no_args_is_help=True)
+def register_doi(
+    doi: str = typer.Argument(
+        ...,
+        autocompletion=complete_garden,
+        help="The draft garden DOI you want to register",
+        rich_help_panel="Required",
+    ),
+):
+    """
+    Moves a Garden's DOI out of draft state.
+
+    Parameters
+    ----------
+    doi : str
+        The DOI of the garden to be registered.
+    """
+    client = GardenClient()
+    garden = _get_garden(doi)
+    if not garden:
+        raise typer.Exit(code=1)
+    client.publish_garden_metadata(garden, register_doi=True)
+    garden.doi_is_draft = False
+    local_data.put_local_garden(garden)
+    rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
 
 
 @garden_app.command(no_args_is_help=False)

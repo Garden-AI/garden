@@ -149,6 +149,38 @@ def test_garden_publish(database_with_connected_entrypoint, mocker):
 
 
 @pytest.mark.cli
+def test_register_doi(database_with_connected_entrypoint, mocker):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
+    )
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+
+    garden_doi = "10.23677/fake-doi"
+    entrypoint_doi = "10.23677/jx31-gx98"
+    mock_client._mint_draft_doi.return_value = garden_doi
+
+    command = [
+        "garden",
+        "register-doi",
+        garden_doi,
+    ]
+    result = runner.invoke(app, command)
+    assert result.exit_code == 0
+
+    mock_client.publish_garden_metadata.assert_called_once()
+
+    args = mock_client.publish_garden_metadata.call_args.args
+    kwargs = mock_client.publish_garden_metadata.call_args.kwargs
+    garden = args[0]
+    should_register_doi = kwargs["register_doi"]
+    # Confirm that expanded gardens include entrypoints
+    denormalized_garden_metadata = garden.expanded_metadata()
+    assert should_register_doi
+    assert str(denormalized_garden_metadata["entrypoints"][0]["doi"]) == entrypoint_doi
+
+
+@pytest.mark.cli
 def test_garden_entrypoint_add_with_alias(database_with_connected_entrypoint, mocker):
     def get_names(garden):
         return [
