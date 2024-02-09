@@ -281,7 +281,6 @@ class GardenClient:
         """
         Makes an entrypoint's DOI registered and findable with DataCite via the Garden backend.
         """
-        foo = 0 / 0
         self._update_datacite(entrypoint, register_doi=True)
         entrypoint.doi_is_draft = False
         local_data.put_local_entrypoint(entrypoint)
