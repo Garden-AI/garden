@@ -191,7 +191,7 @@ def register_doi(
     client = GardenClient()
     entrypoint = get_local_entrypoint_by_doi(doi)
     if not entrypoint:
-        typer.error(f"Could not find entrypoint with doi {doi}")
+        rich.print(f"Could not find entrypoint with doi {doi}")
         raise typer.Exit(code=1)
     client.register_entrypoint_doi(entrypoint)
     rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
