@@ -48,6 +48,7 @@ ipython = "<8.13"
 dill = "0.3.5.1"
 boto3 = "^1.29"
 boto3-stubs = "^1.29"
+python-dotenv = "^1.0.1"
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
