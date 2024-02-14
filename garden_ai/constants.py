@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+import pathlib
+
+# get env file from project root
+dotenv_path = pathlib.Path(f"{__file__}/../..").resolve() / ".env.shared"
+load_dotenv(str(dotenv_path), override=False)
 
 _PROD_ENDPOINT = "https://nu3cetwc84.execute-api.us-east-1.amazonaws.com/garden_prod"
 _DEV_ENDPOINT = "https://y0ipq1bueb.execute-api.us-east-1.amazonaws.com/garden_dev"
@@ -16,15 +22,15 @@ class GardenConstants:
     GARDEN_KEY_STORE = os.path.join(GARDEN_DIR, "tokens.json")
     URL_ENV_VAR_NAME = "GARDEN_MODELS"
     GARDEN_ENDPOINT = (
-        _PROD_ENDPOINT if os.environ.get("GARDEN_ENV") == "prod" else _DEV_ENDPOINT
+        _DEV_ENDPOINT if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ENDPOINT
     )
     GARDEN_INDEX_UUID = (
-        _PROD_SEARCH_INDEX
-        if os.environ.get("GARDEN_ENV") == "prod"
-        else _DEV_SEARCH_INDEX
+        _DEV_SEARCH_INDEX
+        if os.environ.get("GARDEN_ENV") == "dev"
+        else _PROD_SEARCH_INDEX
     )
     GARDEN_ECR_REPO = (
-        _PROD_ECR_REPO if os.environ.get("GARDEN_ENV") == "prod" else _DEV_ECR_REPO
+        _DEV_ECR_REPO if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ECR_REPO
     )
 
     DLHUB_ENDPOINT = "86a47061-f3d9-44f0-90dc-56ddc642c000"

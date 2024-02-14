@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -28,8 +29,11 @@ app.add_typer(docker_app)
 
 def show_version(show: bool):
     """Display the installed version and quit."""
+    version_str = f"garden-ai {__version__}"
     if show:
-        rich.print(f"garden-ai {__version__}")
+        if env := os.environ.get("GARDEN_ENV"):
+            version_str += f" ({env})"
+        rich.print(version_str)
         raise typer.Exit()
 
 
