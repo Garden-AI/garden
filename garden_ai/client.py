@@ -37,7 +37,6 @@ from garden_ai.entrypoints import (
     Paper,
     RegisteredEntrypoint,
     Repository,
-    EntrypointMetadata,
 )
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
