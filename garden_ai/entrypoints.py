@@ -186,7 +186,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
             endpoint = GardenConstants.DEMO_ENDPOINT
 
         if self._is_dlhub_entrypoint():
-            args = [{"inputs": args, "parameters": [], "debug": False}]
+            args = ({"inputs": args, "parameters": [], "debug": False},)
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
             with console.status(

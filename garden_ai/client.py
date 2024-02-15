@@ -635,12 +635,3 @@ class GardenClient:
             if garden:
                 print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
                 self.publish_garden_metadata(garden)
-
-    def make_entrypoint_from_function_id(
-        self, fid: str, entrypoint_metadata: EntrypointMetadata
-    ) -> str:
-        kludge_entrypoint = RegisteredEntrypoint(
-            **entrypoint_metadata.dict(), func_uuid=fid, container_uuid=fid
-        )
-        local_data.put_local_entrypoint(kludge_entrypoint)
-        print("Added")
