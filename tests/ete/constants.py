@@ -133,6 +133,6 @@ class ETEConstants:
             os.path.join(self.key_store_path, "tokens.json"),
         ]
 
-        self.default_endpoint = GardenConstants.DLHUB_ENDPOINT
+        self.default_endpoint = GardenConstants.DEMO_ENDPOINT
 
         self.custom_serialize = None

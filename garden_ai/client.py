@@ -33,7 +33,12 @@ from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import GardenNotFoundException, EntrypointNotFoundException
-from garden_ai.entrypoints import Paper, RegisteredEntrypoint, Repository
+from garden_ai.entrypoints import (
+    Paper,
+    RegisteredEntrypoint,
+    Repository,
+    EntrypointMetadata,
+)
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -630,3 +635,12 @@ class GardenClient:
             if garden:
                 print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
                 self.publish_garden_metadata(garden)
+
+    def make_entrypoint_from_function_id(
+        self, fid: str, entrypoint_metadata: EntrypointMetadata
+    ) -> str:
+        kludge_entrypoint = RegisteredEntrypoint(
+            **entrypoint_metadata.dict(), func_uuid=fid, container_uuid=fid
+        )
+        local_data.put_local_entrypoint(kludge_entrypoint)
+        print("Added")
