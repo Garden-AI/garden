@@ -34,13 +34,13 @@ def test_dlhub_entrypoint(mock_executor):
     ), "Should return the direct result for an entrypoint with DOI in list"
     mock_executor_instance.submit_to_registered_function.assert_called_once()
     mock_executor_instance.submit_to_registered_function.assert_called_with(
-        args=[
+        args=(
             {
                 "inputs": ("test arg",),
                 "parameters": [],
                 "debug": False,
-            }
-        ],
+            },
+        ),
         function_id=function_uuid,
         kwargs={},
     )
