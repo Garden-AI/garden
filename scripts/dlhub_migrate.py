@@ -7,6 +7,7 @@ from garden_ai.entrypoints import (
     Step,
 )
 from garden_ai import local_data
+from garden_ai.app.garden import add_entrypoint
 from globus_compute_sdk.sdk.web_client import FunctionRegistrationData
 
 from typing import List, Optional
@@ -38,7 +39,7 @@ the_only_step = Step(
 # Fifth, publish the gardens I guess!
 
 
-def create_endpoint(entrypoint_bundle: EntrypointBundle):
+def create_entrypoint(entrypoint_bundle: EntrypointBundle):
     gc = GardenClient()
     function_code = gc.compute_client.get_function(entrypoint_bundle.dlhub_fid)[
         "function_code"
@@ -74,8 +75,8 @@ def create_endpoint(entrypoint_bundle: EntrypointBundle):
 
 def create_entrypoints(entrypoint_bundles: List[EntrypointBundle]):
     for bundle in entrypoint_bundles:
-        create_endpoint(bundle)
-        print(f"Created endpoint with doi {bundle.entrypoint_meta.doi}")
+        create_entrypoint(bundle)
+        print(f"Created entrypoint with doi {bundle.entrypoint_meta.doi}")
 
 
 def create_gardens(gardens: List[Garden]):
@@ -238,21 +239,6 @@ def segmentation_test_function(fn_name: str):
 """
     return first_part + f"    return {fn_name}(input)\n"
 
-
-# segmentation_test_function = """def test_model():
-#     with requests.get('https://zenodo.org/record/10672182/files/testimage.npy') as r:
-#         r.raise_for_status()  # Ensure the download was successful
-#         with open('testimpage.npy', 'wb') as f:
-#             f.write(r.content)
-#     img = np.load('testimage.npy')
-#     input = {
-#         'image': img,
-#         'modelweights': 'gaussianMask+',
-#         'cuda': False,
-#         'change_size': 2
-#     }
-#     return locate_atomic_columns(input)
-# """
 
 lin_entrypoint_meta = EntrypointMetadata(
     doi="10.26311/8s9h-dz64",
@@ -557,7 +543,7 @@ four_bundle = EntrypointBundle(
 )
 
 five_entrypoint_meta = EntrypointMetadata(
-    doi="10.26311/s8hf-3v65 ",
+    doi="10.26311/s8hf-3v65",
     title="Atomai SegResNet_5 for 5-fold CV",
     authors=["Ziatdinov Maxim", "Jingrui Wei"],
     short_name="locate_atomic_columns_5",
@@ -645,5 +631,24 @@ if __name__ == "__main__":
             semiconductor_properties_garden,
         ]
     )
+
+    # Couldn't get this to work. Just manually add the entrypoints to the gardens.
+    # reg_pacbed_entrypoint = local_data.get_local_entrypoint_by_doi(pacbed_entrypoint_meta.doi)
+    # reg_defect_track_entrypoint = local_data.get_local_entrypoint_by_doi(defect_track_entrypoint.doi)
+    # reg_semiconductor_entrypoint = local_data.get_local_entrypoint_by_doi(semiconductor_impurity_entrypoint.doi)
+    # for (g, e) in zip(
+    #     [pacbed_garden, defect_track_garden, semiconductor_properties_garden],
+    #     [reg_pacbed_entrypoint, reg_defect_track_entrypoint, reg_semiconductor_entrypoint],
+    # ):
+    #     add_entrypoint(g.doi, e.doi, entrypoint_alias=None)
+    #     local_data.put_local_garden(g)
+    # # Add the entrypoints to the right gardens
+    # for bundle in segmentation_entrypoint_bundles:
+    #     entrypoint = local_data.get_local_entrypoint_by_doi(bundle.entrypoint_meta.doi)
+    #     add_entrypoint(seg_res_net_garden.doi, entrypoint.doi, entrypoint_alias=None)
+    # # Out of the loop bc we only need to write once at the end
+    # local_data.put_local_garden(seg_res_net_garden)
+
     print("Done!")
-    print("Next: add the entrypoints to the right gardens and publish the gardens")
+    print("Next, add the entrypoints to the gardens.")
+    print("Then manually run `garden-ai garden publish garden` for all 4 gardens.")
