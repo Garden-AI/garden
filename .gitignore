@@ -138,20 +138,5 @@ dmypy.json
 .AppleDouble
 .LSOverride
 
-# VSCode stuff
-.vscode/*
-
-# VSCode stuff
-.vscode/*
-
-# VSCode stuff
-.vscode/*
-
-# VSCode stuff
-.vscode/*
-
-# VSCode stuff
-.vscode/*
-
-# VSCode stuff
+# VSCode config
 .vscode/*
