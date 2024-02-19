@@ -7,12 +7,18 @@ from garden_ai.entrypoints import (
     Step,
 )
 from garden_ai import local_data
-from garden_ai.app.garden import add_entrypoint
 from globus_compute_sdk.sdk.web_client import FunctionRegistrationData
 
 from typing import List, Optional
 
 from dataclasses import dataclass
+
+# This script does the following.
+# First, it creates hardcoded entrypoints and gardens for the DLHub models.
+# Second, it has a function that takes an EntrypointMetadata, a function ID, and a container location.
+#   The function registers a new Globus Compute function that points at the container.
+#   Then it creates and saves the entrypoint locally.
+# With these ingredients, it creates the entrypoints and gardens and saves them locally.
 
 
 @dataclass
@@ -28,15 +34,6 @@ the_only_step = Step(
     description="No function text available - this model was migrated from DLHub.",
     function_text="N/A",
 )
-
-# First, make EntrypointMetadata and Garden objects for all of the entrypoints and gardens.
-# ^ done
-# Second, make a function that takes an EntrypointMetadata, a function ID, and a container location.
-#   It should register a new globus compute function that points at the container.
-#   It should then create and save the entrypoint locally.
-# Third, create all the entrypoints.
-# Fourth, create and save all the gardens locally. Add the entrypoints.
-# Fifth, publish the gardens I guess!
 
 
 def create_entrypoint(entrypoint_bundle: EntrypointBundle):
@@ -632,23 +629,26 @@ if __name__ == "__main__":
         ]
     )
 
-    # Couldn't get this to work. Just manually add the entrypoints to the gardens.
-    # reg_pacbed_entrypoint = local_data.get_local_entrypoint_by_doi(pacbed_entrypoint_meta.doi)
-    # reg_defect_track_entrypoint = local_data.get_local_entrypoint_by_doi(defect_track_entrypoint.doi)
-    # reg_semiconductor_entrypoint = local_data.get_local_entrypoint_by_doi(semiconductor_impurity_entrypoint.doi)
-    # for (g, e) in zip(
-    #     [pacbed_garden, defect_track_garden, semiconductor_properties_garden],
-    #     [reg_pacbed_entrypoint, reg_defect_track_entrypoint, reg_semiconductor_entrypoint],
-    # ):
-    #     add_entrypoint(g.doi, e.doi, entrypoint_alias=None)
-    #     local_data.put_local_garden(g)
-    # # Add the entrypoints to the right gardens
-    # for bundle in segmentation_entrypoint_bundles:
-    #     entrypoint = local_data.get_local_entrypoint_by_doi(bundle.entrypoint_meta.doi)
-    #     add_entrypoint(seg_res_net_garden.doi, entrypoint.doi, entrypoint_alias=None)
-    # # Out of the loop bc we only need to write once at the end
-    # local_data.put_local_garden(seg_res_net_garden)
-
     print("Done!")
     print("Next, add the entrypoints to the gardens.")
     print("Then manually run `garden-ai garden publish garden` for all 4 gardens.")
+
+# Saving just in case ...
+#
+# I couldn't get this code to automate adding the entrypoints to the gardens to work. I'm just doing it manually.
+#
+# reg_pacbed_entrypoint = local_data.get_local_entrypoint_by_doi(pacbed_entrypoint_meta.doi)
+# reg_defect_track_entrypoint = local_data.get_local_entrypoint_by_doi(defect_track_entrypoint.doi)
+# reg_semiconductor_entrypoint = local_data.get_local_entrypoint_by_doi(semiconductor_impurity_entrypoint.doi)
+# for (g, e) in zip(
+#     [pacbed_garden, defect_track_garden, semiconductor_properties_garden],
+#     [reg_pacbed_entrypoint, reg_defect_track_entrypoint, reg_semiconductor_entrypoint],
+# ):
+#     add_entrypoint(g.doi, e.doi, entrypoint_alias=None)
+#     local_data.put_local_garden(g)
+# # Add the entrypoints to the right gardens
+# for bundle in segmentation_entrypoint_bundles:
+#     entrypoint = local_data.get_local_entrypoint_by_doi(bundle.entrypoint_meta.doi)
+#     add_entrypoint(seg_res_net_garden.doi, entrypoint.doi, entrypoint_alias=None)
+# # Out of the loop bc we only need to write once at the end
+# local_data.put_local_garden(seg_res_net_garden)
