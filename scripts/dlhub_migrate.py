@@ -220,7 +220,10 @@ standalone_entrypoint_bundles = [
 #
 
 
-def segmentation_test_function(fn_name: str):
+def segmentation_test_function(fn_name: Optional[str]):
+    if not fn_name:
+        fn_name = "locate_atomic_columns"
+
     first_part = """def test_model():
     with requests.get('https://zenodo.org/record/10672182/files/testimage.npy') as r:
         r.raise_for_status()  # Ensure the download was successful
