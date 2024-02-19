@@ -7,7 +7,7 @@ from garden_ai.entrypoints import (
     Step,
 )
 from garden_ai import local_data
-from globus_compute_sdk.sdk.web_client import FunctionRegistrationData
+from globus_compute_sdk.sdk.web_client import FunctionRegistrationData  # type: ignore
 
 from typing import List, Optional
 
