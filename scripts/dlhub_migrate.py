@@ -227,7 +227,7 @@ def segmentation_test_function(fn_name: str):
     first_part = """def test_model():
     with requests.get('https://zenodo.org/record/10672182/files/testimage.npy') as r:
         r.raise_for_status()  # Ensure the download was successful
-        with open('testimpage.npy', 'wb') as f:
+        with open('testimage.npy', 'wb') as f:
             f.write(r.content)
     img = np.load('testimage.npy')
     input = {
