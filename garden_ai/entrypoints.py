@@ -183,7 +183,10 @@ class RegisteredEntrypoint(EntrypointMetadata):
         from garden_ai.app.console import console
 
         if not endpoint:
-            endpoint = GardenConstants.DLHUB_ENDPOINT
+            endpoint = GardenConstants.DEMO_ENDPOINT
+
+        if self._is_dlhub_entrypoint():
+            args = ({"inputs": args, "parameters": [], "debug": False},)
 
         with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
             with console.status(
@@ -192,7 +195,15 @@ class RegisteredEntrypoint(EntrypointMetadata):
                 future = gce.submit_to_registered_function(
                     function_id=str(self.func_uuid), args=args, kwargs=kwargs
                 )
-                return future.result()
+                result = future.result()
+                if self._is_dlhub_entrypoint():
+                    inner_result = result[0]
+                    if inner_result[1]["success"]:
+                        return inner_result[0]
+                    else:
+                        return result
+                else:
+                    return result
 
     def _repr_html_(self) -> str:
         # delayed import so dill doesn't try to serialize tabulate ref
@@ -235,6 +246,15 @@ class RegisteredEntrypoint(EntrypointMetadata):
                 else None
             ),
         ).json()
+
+    def _is_dlhub_entrypoint(self) -> bool:
+        """
+        There are 13 DLHub models that we converted to Garden entrypoints.
+        We know their DOIs. We can use this to check if a DOI is a DLHub entrypoint.
+        If so, we convert the user's input into the format that DLHub models expect.
+        We also just pass along the model output to the user and strip the rest.
+        """
+        return self.doi in GardenConstants.DLHUB_DOIS
 
 
 def garden_entrypoint(

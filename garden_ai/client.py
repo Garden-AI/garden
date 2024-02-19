@@ -33,7 +33,11 @@ from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import GardenNotFoundException, EntrypointNotFoundException
-from garden_ai.entrypoints import Paper, RegisteredEntrypoint, Repository
+from garden_ai.entrypoints import (
+    Paper,
+    RegisteredEntrypoint,
+    Repository,
+)
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 

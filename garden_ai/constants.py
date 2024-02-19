@@ -33,7 +33,25 @@ class GardenConstants:
         _DEV_ECR_REPO if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ECR_REPO
     )
 
-    DLHUB_ENDPOINT = "86a47061-f3d9-44f0-90dc-56ddc642c000"
+    DEMO_ENDPOINT = "86a47061-f3d9-44f0-90dc-56ddc642c000"
+
+    DLHUB_DOIS = set(
+        [
+            "10.26311/3hz8-as26",
+            "10.26311/8s9h-dz64",
+            "10.26311/bf7a-7071",
+            "10.26311/e2mw-qf63",
+            "10.26311/b6zb-ns88",
+            "10.26311/q6e2-2p11",
+            "10.26311/bkk2-gc19",
+            "10.26311/k2bk-hw50",
+            "10.26311/bgb7-k519",
+            "10.26311/x13g-7f17",
+            "10.26311/s8hf-3v65",
+            "10.26311/aefd-p769",
+            "10.26311/cd31-az33",
+        ]
+    )
 
     PREMADE_IMAGES = {
         "3.8-base": "gardenai/base:python-3.8-jupyter",
