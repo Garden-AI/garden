@@ -145,7 +145,7 @@ defect_track_entrypoint = EntrypointMetadata(
         "Meimei Li",
         "Yuanyuan Zhu",
     ],
-    short_name="detect_defect_clisters",
+    short_name="detect_defect_clusters",
     description="Input: (Type: dict) 8-bit image array list and OPTIONAL hyperparameters. Output: (Type: pandas dataframe) panda dataframe containing info of detected defects in each frame.",
     year="2023",
     tags=["Materials Science"],
