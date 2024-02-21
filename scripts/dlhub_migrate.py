@@ -129,7 +129,7 @@ pacbed_entrypoint_meta = EntrypointMetadata(
 pacbed_bundle = EntrypointBundle(
     pacbed_entrypoint_meta,
     "35090f12-ec2c-4138-8433-2bbdb54768e1",
-    "gardenai/cbc3e248-8b62-4c74-b0ba-ee837197c3be",
+    "gardenai/cbc3e248-8b62-4c74-b0ba-ee837197c3be:home-run",
     None,
 )
 
@@ -172,7 +172,7 @@ defect_track_entrypoint = EntrypointMetadata(
 defect_track_bundle = EntrypointBundle(
     defect_track_entrypoint,
     "ff684740-98fb-4f6f-afb6-443388ed7d6e",
-    "gardenai/0384c964-4ba3-44b5-9340-f4c63c3d1ec2",
+    "gardenai/0384c964-4ba3-44b5-9340-f4c63c3d1ec2:home-run",
     None,
 )
 
@@ -205,7 +205,7 @@ semiconductor_test_function = """def test_model():
 semiconductor_impurity_bundle = EntrypointBundle(
     semiconductor_impurity_entrypoint,
     "6edf2522-75de-423c-adc9-fd24371550db",
-    "gardenai/8db49340-1963-4ce5-a009-28cd4448bb45",
+    "gardenai/8db49340-1963-4ce5-a009-28cd4448bb45:home-run",
     semiconductor_test_function,
 )
 
@@ -276,7 +276,7 @@ lin_entrypoint_meta = EntrypointMetadata(
 lin_bundle = EntrypointBundle(
     lin_entrypoint_meta,
     "8d8e379f-032b-4435-971e-2a00a1445a10",
-    "gardenai/f80bdddc-4aee-480a-983a-bc5c6c28fb71",
+    "gardenai/f80bdddc-4aee-480a-983a-bc5c6c28fb71:home-run",
     segmentation_test_function(lin_entrypoint_meta.short_name),
 )
 maxim_entrypoint_meta = EntrypointMetadata(
@@ -307,7 +307,7 @@ maxim_entrypoint_meta = EntrypointMetadata(
 maxim_bundle = EntrypointBundle(
     maxim_entrypoint_meta,
     "929b6121-2bc6-40b4-abca-7e8a96d9bd62",
-    "gardenai/eeb4ee9c-1696-4a57-9836-83aaa91b7334",
+    "gardenai/eeb4ee9c-1696-4a57-9836-83aaa91b7334:home-run",
     None,
 )
 
@@ -340,7 +340,7 @@ crystal_lattice_entrypoint_meta = EntrypointMetadata(
 crystal_lattice_bundle = EntrypointBundle(
     crystal_lattice_entrypoint_meta,
     "7c5f467c-76e9-49a5-bb11-9388296a7da0",
-    "gardenai/f8159f91-1661-438e-a580-3b8e45d54886",
+    "gardenai/f8159f91-1661-438e-a580-3b8e45d54886:home-run",
     segmentation_test_function(crystal_lattice_entrypoint_meta.short_name),
 )
 
@@ -373,7 +373,7 @@ silicon_entrypoint_meta = EntrypointMetadata(
 silicon_bundle = EntrypointBundle(
     silicon_entrypoint_meta,
     "c700ada9-8797-4134-8b39-43199dc7ccd4",
-    "gardenai/4b4197ee-ad44-49f4-9981-de81264e8f9d",
+    "gardenai/4b4197ee-ad44-49f4-9981-de81264e8f9d:home-run",
     segmentation_test_function(silicon_entrypoint_meta.short_name),
 )
 
@@ -406,7 +406,7 @@ sto_entrypoint_meta = EntrypointMetadata(
 sto_bundle = EntrypointBundle(
     sto_entrypoint_meta,
     "2bcac507-bc87-4fc9-b1d5-694137290d2e",
-    "gardenai/ca0386bf-c26b-48e0-8ac3-ede8e3edb45b",
+    "gardenai/ca0386bf-c26b-48e0-8ac3-ede8e3edb45b:home-run",
     segmentation_test_function(sto_entrypoint_meta.short_name),
 )
 
@@ -439,7 +439,7 @@ one_entrypoint_meta = EntrypointMetadata(
 one_entrypoint_bundle = EntrypointBundle(
     one_entrypoint_meta,
     "40c49ec0-2182-4ecc-a1fe-af2b306f9bac",
-    "gardenai/b9673f64-19ca-4526-b656-5c1bfbce57c7",
+    "gardenai/b9673f64-19ca-4526-b656-5c1bfbce57c7:home-run",
     segmentation_test_function(one_entrypoint_meta.short_name),
 )
 
@@ -472,7 +472,7 @@ two_entrypoint_meta = EntrypointMetadata(
 two_entrypoint_bundle = EntrypointBundle(
     two_entrypoint_meta,
     "6e19bbce-9dc0-42a7-9fd8-7929f7a28569",
-    "gardenai/bf6c6cbb-0d44-4f60-8569-01972fe98959",
+    "gardenai/bf6c6cbb-0d44-4f60-8569-01972fe98959:home-run",
     segmentation_test_function(two_entrypoint_meta.short_name),
 )
 
@@ -505,7 +505,7 @@ three_entrypoint_meta = EntrypointMetadata(
 three_bundle = EntrypointBundle(
     three_entrypoint_meta,
     "6d2157b9-590d-4df7-a82a-e8db2fca3304",
-    "gardenai/0240f2bb-5394-4452-b1b5-7efc79ebb87b",
+    "gardenai/0240f2bb-5394-4452-b1b5-7efc79ebb87b:home-run",
     segmentation_test_function(three_entrypoint_meta.short_name),
 )
 
@@ -538,7 +538,7 @@ four_entrypoint_meta = EntrypointMetadata(
 four_bundle = EntrypointBundle(
     four_entrypoint_meta,
     "dd7f77ac-d185-4a24-82d7-774e9c185f80",
-    "gardenai/634ec49b-fac2-4625-bcdf-257e4ab287a6",
+    "gardenai/634ec49b-fac2-4625-bcdf-257e4ab287a6:home-run",
     segmentation_test_function(four_entrypoint_meta.short_name),
 )
 
@@ -571,7 +571,7 @@ five_entrypoint_meta = EntrypointMetadata(
 five_bundle = EntrypointBundle(
     five_entrypoint_meta,
     "2b501e11-095a-446c-969b-984b9f7fd4a3",
-    "gardenai/c9c7a366-8153-409a-b89b-22cbc4ca6a92",
+    "gardenai/c9c7a366-8153-409a-b89b-22cbc4ca6a92:home-run",
     segmentation_test_function(five_entrypoint_meta.short_name),
 )
 
