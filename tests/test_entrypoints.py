@@ -36,7 +36,7 @@ def test_dlhub_entrypoint(mock_executor):
     mock_executor_instance.submit_to_registered_function.assert_called_with(
         args=(
             {
-                "inputs": ("test arg",),
+                "inputs": "test arg",
                 "parameters": [],
                 "debug": False,
             },
