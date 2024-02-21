@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+import io
 import pathlib
 import tarfile
 import functools
@@ -288,15 +289,37 @@ def extract_metadata_from_image(
 
     see also: `garden_ai.scripts.save_session_and_metadata`
     """
-    container_stdout = client.containers.run(
-        image=image.id,
-        entrypoint="/bin/sh",
-        command=["-c", "cat /garden/metadata.json"],
-        remove=True,
-        detach=False,
-    )
-    raw_metadata = container_stdout.decode("utf-8")
-    return json.loads(raw_metadata)
+    # Trying to do this without going through stdout
+
+    file_path = "/garden/metadata.json"
+    container = client.containers.create(image.id, command="tail -f /dev/null")
+    container.start()
+
+    stream, _ = container.get_archive(file_path)
+
+    # Open the stream as a tar file
+    file_obj = io.BytesIO()
+    for i in stream:
+        file_obj.write(i)
+    file_obj.seek(0)
+
+    tar = tarfile.open(fileobj=file_obj)
+
+    member = tar.getmembers()[0]  # This is a single file
+    file_contents = tar.extractfile(member).read()
+    print(file_contents)
+    container.stop()
+    container.remove()
+    return json.loads(file_contents)
+
+    # container_stdout = client.containers.run(
+    #     image=image.id,
+    #     entrypoint="/bin/sh",
+    #     command=["-c", "cat /garden/metadata.json"],
+    #     remove=True,
+    #     detach=False,
+    # )
+    # raw_metadata = container_stdout.decode("utf-8")
 
 
 @handle_docker_errors
