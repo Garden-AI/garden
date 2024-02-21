@@ -11,6 +11,7 @@ from typing import Optional, Iterator, Union, Type
 import docker  # type: ignore
 
 from garden_ai.constants import GardenConstants
+from garden_ai.metadata import save_requirements_data
 
 
 class DockerStartFailure(Exception):
@@ -354,7 +355,7 @@ def push_image_to_public_repo(
 def build_image_with_dependencies(
     client: docker.DockerClient,
     base_image: str,
-    requirements_path: Optional[pathlib.Path] = None,
+    requirements_data: Optional[dict] = None,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
     pull: bool = True,
@@ -369,7 +370,7 @@ def build_image_with_dependencies(
     Args:
         client: A Docker client instance to manage Docker resources.
         base_image: The name of the base Docker image to use.
-        requirements_path: Optional; A Path object to the requirements.txt or environment.yml file.
+        requirements_data: Optional; dictionary containing the notebook requirements
         platform: The target platform for the Docker build (default is "linux/x86_64").
         print_logs: Enable streaming build logs to the console (default is True).
         pull: Whether to pull the base image before building on top of it (default is True).
@@ -390,10 +391,8 @@ def build_image_with_dependencies(
         temp_dir_path = pathlib.Path(temp_dir)
 
         # append to Dockerfile based on whether dependencies are provided
-        if requirements_path is not None:
-            temp_dependencies_path = temp_dir_path / requirements_path.name
-            with temp_dependencies_path.open("w+") as f:
-                f.write(requirements_path.read_text())
+        if requirements_data is not None:
+            requirements_path = save_requirements_data(temp_dir_path, requirements_data)
 
             if requirements_path.suffix == ".txt":  # pip
                 dockerfile_content += f"""
