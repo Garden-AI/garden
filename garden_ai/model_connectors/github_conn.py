@@ -35,6 +35,10 @@ class GitHubConnector:
 
     @trackcalls
     def stage(self) -> str:
+        if self.stage.has_been_called:
+            # skip because git-clone isn't idempotent otherwise
+            return self.local_dir
+
         if not os.path.exists(self.local_dir):
             os.mkdir(self.local_dir)
 

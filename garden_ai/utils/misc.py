@@ -84,8 +84,12 @@ def clean_identifier(name: str) -> str:
 def trackcalls(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        wrapper.has_been_called = True
-        return func(*args, **kwargs)
+        # note: attribute set only after func completes execution
+        # so that func itself can determine if it's been called
+        try:
+            return func(*args, **kwargs)
+        finally:
+            wrapper.has_been_called = True
 
     wrapper.has_been_called = False
     return wrapper

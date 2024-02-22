@@ -108,3 +108,27 @@ def test_garden_step_decorator():
 
     assert my_step._garden_step.function_name == "my_step"
     assert my_step._garden_step.description == "My nifty step"
+
+
+def test_GHconnector_idempotent(mocker):
+    mocker.patch("os.path.exists", return_value=True)
+    mocker.patch("os.mkdir")
+    # Mock Repo.clone_from method to track calls without actually cloning
+    mock_clone_from = mocker.patch(
+        "garden_ai.model_connectors.github_conn.Repo.clone_from"
+    )
+
+    # enable_imports=False just bc mocking sys.path.append was hard
+    connector = GitHubConnector(
+        repo_url="https://github.com/fake/repo", enable_imports=False
+    )
+
+    # Call stage() multiple times
+    connector.stage()
+    connector.stage()
+    connector.stage()
+
+    # Assert that Repo.clone_from was called exactly once
+    mock_clone_from.assert_called_once_with(
+        "https://github.com/fake/repo.git", "gh_model", branch="main"
+    )
