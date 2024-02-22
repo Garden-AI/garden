@@ -300,10 +300,10 @@ def extract_metadata_from_image(
 
         # There is only one file in the tarball
         member = tar.getmembers()[0]
-        file_obj = tar.extractfile(member)
-        if not file_obj:
+        member_file_obj = tar.extractfile(member)
+        if not member_file_obj:
             raise FileNotFoundError(f"Could not find {file_path} in image {image.id}")
-        decoded_file_contents = file_obj.read().decode("utf-8")
+        decoded_file_contents = member_file_obj.read().decode("utf-8")
     finally:
         container.stop()
         container.remove()
