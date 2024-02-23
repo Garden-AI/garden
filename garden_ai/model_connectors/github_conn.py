@@ -50,9 +50,6 @@ class GitHubConnector:
                 repo.remotes.origin.pull(self.branch)
                 return self.local_dir
 
-        if not os.path.exists(self.local_dir):
-            os.mkdir(self.local_dir)
-
         Repo.clone_from(f"{self.repo_url}.git", self.local_dir, branch=self.branch)
 
         if self.enable_imports:
