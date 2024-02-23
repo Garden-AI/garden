@@ -39,8 +39,16 @@ class GitHubConnector:
 
         if is_git_dir(f"{self.local_dir}/.git"):
             repo = Repo(self.local_dir)
-            repo.remotes.origin.pull(self.branch)
-            return self.local_dir
+            # double check the repo in local_dir refers to the same repo as this connector
+            remote_url = repo.remotes.origin.url
+            if self.repo_url not in remote_url:
+                raise ValueError(
+                    f"Failed to clone {self.repo_url} to {self.local_dir} "
+                    f"({remote_url} already cloned here)."
+                )
+            else:
+                repo.remotes.origin.pull(self.branch)
+                return self.local_dir
 
         if not os.path.exists(self.local_dir):
             os.mkdir(self.local_dir)
