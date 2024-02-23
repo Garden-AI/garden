@@ -121,6 +121,8 @@ def test_GHconnector_idempotent(mocker):
     mock_repo_instance = MagicMock()
     mock_repo_class.return_value = mock_repo_instance
     mock_repo_instance.remotes.origin.pull = MagicMock()
+    # Set up the mock to return a URL that matches the connector's repo_url
+    mock_repo_instance.remotes.origin.url = "https://github.com/fake/repo.git"
 
     # Mock Repo.clone_from method to track calls without actually cloning
     mock_clone_from = mocker.patch(
