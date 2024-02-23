@@ -1,4 +1,5 @@
 from git import Repo  # type: ignore
+from git.repo.fun import is_git_dir
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import trackcalls
 from requests.exceptions import HTTPError
@@ -35,8 +36,10 @@ class GitHubConnector:
 
     @trackcalls
     def stage(self) -> str:
-        if self.stage.has_been_called:
-            # skip because git-clone isn't idempotent otherwise
+
+        if is_git_dir(f"{self.local_dir}/.git"):
+            repo = Repo(self.local_dir)
+            repo.remotes.origin.pull(self.branch)
             return self.local_dir
 
         if not os.path.exists(self.local_dir):

@@ -9,6 +9,7 @@ from garden_ai import (
     EntrypointMetadata,
 )
 from garden_ai.model_connectors import HFConnector, GitHubConnector
+from unittest.mock import MagicMock
 
 
 def test_create_empty_garden(garden_client):
@@ -111,24 +112,55 @@ def test_garden_step_decorator():
 
 
 def test_GHconnector_idempotent(mocker):
+    # Mock os.path.exists and os.mkdir
     mocker.patch("os.path.exists", return_value=True)
     mocker.patch("os.mkdir")
+
+    # Mock Repo to simulate both clone and pull scenarios
+    mock_repo_class = mocker.patch("garden_ai.model_connectors.github_conn.Repo")
+    mock_repo_instance = MagicMock()
+    mock_repo_class.return_value = mock_repo_instance
+    mock_repo_instance.remotes.origin.pull = MagicMock()
+
     # Mock Repo.clone_from method to track calls without actually cloning
     mock_clone_from = mocker.patch(
         "garden_ai.model_connectors.github_conn.Repo.clone_from"
     )
 
-    # enable_imports=False just bc mocking sys.path.append was hard
-    connector = GitHubConnector(
-        repo_url="https://github.com/fake/repo", enable_imports=False
+    # Mock is_git_dir to control the flow in the stage method
+    mocker.patch(
+        "garden_ai.model_connectors.github_conn.is_git_dir",
+        side_effect=[
+            False,
+            True,
+            True,
+        ],  # First call: not a git dir, then it is a git dir
     )
 
-    # Call stage() multiple times
-    connector.stage()
-    connector.stage()
-    connector.stage()
+    # enable_imports=False just bc mocking sys.path.append was hard
+    connector = GitHubConnector(
+        repo_url="https://github.com/fake/repo",
+        local_dir="gh_model",
+        branch="main",
+        enable_imports=False,
+    )
 
-    # Assert that Repo.clone_from was called exactly once
+    # First call should trigger clone since it's not a git dir yet
+    connector.stage()
     mock_clone_from.assert_called_once_with(
         "https://github.com/fake/repo.git", "gh_model", branch="main"
     )
+
+    # Reset mock to test idempotency on subsequent calls
+    mock_clone_from.reset_mock()
+
+    # Subsequent calls should not trigger clone_from again, but should pull
+    connector.stage()
+    connector.stage()
+
+    # Assert that Repo.clone_from was not called again after the first time
+    mock_clone_from.assert_not_called()
+    # Assert that pull was called on subsequent invocations
+    assert (
+        mock_repo_instance.remotes.origin.pull.call_count == 2
+    ), "Pull should be called on subsequent calls"
