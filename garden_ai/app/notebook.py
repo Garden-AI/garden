@@ -196,6 +196,7 @@ def start(
         add_notebook_metadata_cell(notebook_path)
 
     # Figure out what base image uri we should start the notebook in
+    # base_image_uri will always be set after this point
     base_image_uri = _get_base_image_uri(
         base_image_name,
         custom_image_uri,
@@ -236,6 +237,7 @@ def start(
 
     # Get base image name from notebook if user did not provide
     if base_image_name is None:
+        # If a user is using a custom image uri, base_image_name might be None
         notebook_metadata = get_notebook_metadata(notebook_path)
         base_image_name = notebook_metadata.get("notebook_image_name", None)
 
@@ -332,7 +334,7 @@ def debug(
         # Get requirements data from either notebook or provided requirements path.
         # Could be None if requirements have not been set by the user.
         requirements_data = read_requirements_data(requirements_path, path)
-        base_image_name = get_notebook_metadata(notebook_path).get(
+        base_image_name = get_notebook_metadata(path).get(
             "notebook_image_name", "3.10-base"
         )
 
@@ -357,7 +359,7 @@ def debug(
             debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
 
             # Make tmp copy of debug notebook to add original notebook's metadata too
-            temp_debug_path = temp_dir_path / "debug.ipynb"
+            temp_debug_path = Path(temp_dir) / "debug.ipynb"
             shutil.copy(debug_path, temp_debug_path)
             set_notebook_metadata(
                 temp_debug_path, base_image_name, base_image_uri, requirements_data
@@ -465,10 +467,11 @@ def publish(
 
         # Get base image name from notebook if user did not provide
         if base_image_name is None:
+            # If a user is using a custom image uri, base_image_name might be None
             notebook_metadata = get_notebook_metadata(notebook_path)
             base_image_name = notebook_metadata.get("notebook_image_name", None)
 
-        # Update garden metadata in tmp notebook
+        # Update garden metadata in new tmp notebook
         set_notebook_metadata(
             tmp_notebook_path, base_image_name, base_image_uri, requirements_data
         )

@@ -1,6 +1,6 @@
 from string import Template
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional
 import re
 import typer
 import yaml
@@ -56,7 +56,7 @@ def add_notebook_metadata_cell(
 
 def set_notebook_metadata(
     notebook_path: Path,
-    base_image_name: str,
+    base_image_name: Optional[str],
     base_image_uri: str,
     requirements_data: Optional[dict],
 ):
@@ -66,8 +66,7 @@ def set_notebook_metadata(
     for cell in ntbk.cells:
         cell_tags = cell.get("metadata", {}).get("tags", [])
         if "garden_metadata_cell" in cell_tags:
-            # Execute cell source to get metadata values
-            notebook_metadata_cell_source = cell.get("source", "")
+            # Replace old cell source with new metadata
             metadata_string = json.dumps(
                 {
                     "NOTEBOOK_BASE_IMAGE_NAME": base_image_name,
@@ -76,7 +75,6 @@ def set_notebook_metadata(
                 indent=2,
             )
 
-            # Replace old cell source with new metadata
             cell["source"] = NOTEBOOK_METADATA_CELL_TEMPLATE.substitute(
                 metadata=metadata_string
             )
@@ -103,32 +101,38 @@ def get_notebook_metadata(notebook_path: Path) -> dict:
     for cell in ntbk.cells:
         cell_tags = cell.get("metadata", {}).get("tags", [])
         if "garden_metadata_cell" in cell_tags:
+            # Grab cell source and hidden metadata
             notebook_metadata_cell_source = cell.get("source", None)
+            notebook_hidden_metadata = cell.get("metadata", {}).get(
+                "garden_metadata", {}
+            )
             break
 
+    # Return empty notebook metadata dict if was unable to find cell source
     if not notebook_metadata_cell_source:
         typer.echo("Unable to find garden metadata cell.")
         return notebook_metadata
 
+    # Grab the part of cell source with the metadata dict in it
     clean_source = notebook_metadata_cell_source.replace("\n", "")
-    regex_get_metadata = r"^(.*?)\"\"\"NOTEBOOK_METADATA=(.*?)\"\"\"(.*?)$"
+    regex_get_metadata = r"^(.*?)\"\"\"(.*?)NOTEBOOK_METADATA(.*?)=(.*?)\"\"\"(.*?)$"
 
     metadata_match = re.match(regex_get_metadata, clean_source)
-    if metadata_match and len(metadata_match.groups()) == 3:
-        notebook_metadata_string = metadata_match[2]
+    if metadata_match and len(metadata_match.groups()) == 5:
+        notebook_metadata_string = metadata_match[4]
 
     if notebook_metadata_string:
-        notebook_metadata_dict = json.loads(notebook_metadata_string)
+        notebook_metadata_dict = json.loads(notebook_metadata_string.strip())
         notebook_metadata["notebook_image_name"] = notebook_metadata_dict.get(
             "NOTEBOOK_BASE_IMAGE_NAME", None
         )
         notebook_metadata["notebook_requirements"] = notebook_metadata_dict.get(
             "NOTEBOOK_REQUIREMENTS", None
         )
+        notebook_metadata["notebook_image_uri"] = notebook_hidden_metadata.get(
+            "NOTEBOOK_BASE_IMAGE_URI", None
+        )
 
-    # Either notebook_image_uri or notebook_requirements could be None at this point.
-    # _get_base_image_uri will exit if unable to find a uri from avalible data.
-    # notebook_requirements is fine as None if no requirments were ever set.
     return notebook_metadata
 
 
@@ -160,33 +164,34 @@ def read_requirements_data(
                 requirements_data["contents"] = file_contents
             return requirements_data
 
-    # Notebook still needs to be created and no requirements file given, return None
+    # Notebook still needs to be created and no requirements file was given, return None
     if not notebook_path.is_file():
         return None
 
-    # If no path provided for requirements by user at start, use saved requirements instead.
-    # Could be None if notebook_requirements was never set in notebooks metadata.
-    return _get_notebook_metadata(notebook_path).get("notebook_requirements", None)
+    # No requirements file was given, but notebook exists
+    # So try to get requirements from saved notebook metadata
+    return get_notebook_metadata(notebook_path).get("notebook_requirements", None)
 
 
 def save_requirements_data(
     requirements_dir_path: Path, requirements_data: dict
 ) -> Optional[Path]:
-    # Save requirements_data to requirements file
-    # Inteanded to be run prior to build_image_with_dependencies with a tmpdir for requirements_dir_path
+    # Save requirements_data to requirements file in either pip or conda format
     # Returns path to new requirements file or None if was unable to write.
     file_format = requirements_data.get("format", None)
     contents = requirements_data.get("contents", None)
 
-    # check that requirements_data at least has data for file_format and contents
+    # check that requirements_data has data for file_format and contents
     if contents and file_format:
         if file_format == "pip":
             # requirements file is txt
             requirements_path = requirements_dir_path / "requirements.txt"
             with open(requirements_path, "w") as req_file:
                 # contents is list of requirements
+                file_contents = ""
                 for line in contents:
-                    req_file.write(f"{line}\n")
+                    file_contents += f"{line}\n"
+                req_file.write(file_contents)
                 req_file.close()
             return requirements_path
 

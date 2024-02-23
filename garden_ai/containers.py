@@ -393,18 +393,18 @@ def build_image_with_dependencies(
         # append to Dockerfile based on whether dependencies are provided
         if requirements_data is not None:
             requirements_path = save_requirements_data(temp_dir_path, requirements_data)
-
-            if requirements_path.suffix == ".txt":  # pip
-                dockerfile_content += f"""
-                COPY {requirements_path.name} /garden/{requirements_path.name}
-                RUN pip install -r /garden/{requirements_path.name}
-                """
-            else:  # conda
-                # nb: installs directly into base environment instead of isolating from image's already-installed packages
-                dockerfile_content += f"""
-                COPY {requirements_path.name} /garden/{requirements_path.name}
-                RUN conda env update --name base --file /garden/{requirements_path.name} && conda clean -afy
-                """
+            if requirements_path is not None:
+                if requirements_path.suffix == ".txt":  # pip
+                    dockerfile_content += f"""
+                    COPY {requirements_path.name} /garden/{requirements_path.name}
+                    RUN pip install -r /garden/{requirements_path.name}
+                    """
+                else:  # conda
+                    # nb: installs directly into base environment instead of isolating from image's already-installed packages
+                    dockerfile_content += f"""
+                    COPY {requirements_path.name} /garden/{requirements_path.name}
+                    RUN conda env update --name base --file /garden/{requirements_path.name} && conda clean -afy
+                    """
 
         dockerfile_path = temp_dir_path / "Dockerfile"
         with dockerfile_path.open("w") as f:
