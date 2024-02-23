@@ -3,7 +3,6 @@ from git.repo.fun import is_git_dir
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import trackcalls
 from requests.exceptions import HTTPError
-import os
 import sys
 import requests
 
@@ -38,16 +37,16 @@ class GitHubConnector:
     def stage(self) -> str:
 
         if is_git_dir(f"{self.local_dir}/.git"):
-            repo = Repo(self.local_dir)
-            # double check the repo in local_dir refers to the same repo as this connector
-            remote_url = repo.remotes.origin.url
-            if self.repo_url not in remote_url:
+            # double check the existing repo in local_dir refers to the same
+            # repo as this connector before pulling
+            found_repo = Repo(self.local_dir)
+            if self.repo_url not in found_repo.remotes.origin.url:
                 raise ValueError(
                     f"Failed to clone {self.repo_url} to {self.local_dir} "
-                    f"({remote_url} already cloned here)."
+                    f"({found_repo.remotes.origin.url} already cloned here)."
                 )
             else:
-                repo.remotes.origin.pull(self.branch)
+                found_repo.remotes.origin.pull(self.branch)
                 return self.local_dir
 
         Repo.clone_from(f"{self.repo_url}.git", self.local_dir, branch=self.branch)
