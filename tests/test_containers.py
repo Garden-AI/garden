@@ -2,6 +2,7 @@
 import json
 import datetime
 import pathlib
+import tarfile
 from unittest.mock import MagicMock, Mock, patch
 from garden_ai.constants import GardenConstants
 
@@ -130,8 +131,17 @@ def test_extract_metadata_from_image(mock_docker_client):
         "function_name_2": {"other": "metadata"},
     }
 
-    mock_container_stdout = json.dumps(mock_metadata).encode("utf-8")
-    mock_docker_client.containers.run.return_value = mock_container_stdout
+    file_contents = json.dumps(mock_metadata).encode("utf-8")
+    tar_stream = io.BytesIO()
+    with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+        tarinfo = tarfile.TarInfo(name="metadata.json")
+        tarinfo.size = len(file_contents)
+        file_contents_stream = io.BytesIO(file_contents)
+        tar.addfile(tarinfo, file_contents_stream)
+    tar_stream.seek(0)
+
+    mock_container = mock_docker_client.containers.create.return_value
+    mock_container.get_archive.return_value = (iter([tar_stream.getvalue()]), None)
 
     # Mock image object
     mock_image = MagicMock(spec=docker.models.images.Image)
@@ -142,14 +152,6 @@ def test_extract_metadata_from_image(mock_docker_client):
         client=mock_docker_client, image=mock_image
     )
 
-    # Assertions
-    mock_docker_client.containers.run.assert_called_once_with(
-        image=mock_image.id,
-        entrypoint="/bin/sh",
-        command=["-c", "cat /garden/metadata.json"],
-        remove=True,
-        detach=False,
-    )
     assert result == mock_metadata
 
 
