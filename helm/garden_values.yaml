@@ -19,7 +19,7 @@ workerImage: python:3.10
 # - omits `pip install home_run` as it's since been installed in the bespoke dlhub images
 # - installs post-rebrand globus-compute[-endpoint] libraries
 # - leaves mystery mkdir and PYTHONPATH commands as-is
-workerInit: pip install globus-compute==2.13.0 globus-compute-endpoint==2.13.0; export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/
+workerInit: pip install globus-compute-sdk>=2.13.0 globus-compute-endpoint>=2.13.0; export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/
 # we're restricted to the dlhub namespace on river
 workerNamespace: dlhub
 logDir: /tmp/worker_logs
