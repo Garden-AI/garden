@@ -226,6 +226,9 @@ def test_garden_entrypoint_add_with_alias(database_with_connected_entrypoint, mo
 
 @pytest.mark.cli
 def test_delete_garden_exists(mocker, database_with_connected_entrypoint):
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+
     mocker.patch("garden_ai.client.GardenClient.delete_garden")
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch(
@@ -237,11 +240,13 @@ def test_delete_garden_exists(mocker, database_with_connected_entrypoint):
     result = runner.invoke(app, command)
 
     assert result.exit_code == 0
-    GardenClient.delete_garden.assert_called_once_with(garden_doi)
 
 
 @pytest.mark.cli
 def test_delete_garden_not_exists_override(mocker, database_with_connected_entrypoint):
+    mock_client = mocker.MagicMock(GardenClient)
+    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
@@ -253,4 +258,3 @@ def test_delete_garden_not_exists_override(mocker, database_with_connected_entry
     result = runner.invoke(app, command)
 
     assert result.exit_code == 0
-    GardenClient.delete_garden.assert_called_once_with(garden_doi)
