@@ -11,7 +11,7 @@ from typing import Optional, Iterator, Union, Type
 import docker  # type: ignore
 
 from garden_ai.constants import GardenConstants
-from garden_ai.metadata import save_requirements_data
+from garden_ai.notebook_metadata import save_requirements_data, RequirementsData
 
 
 class DockerStartFailure(Exception):
@@ -355,7 +355,7 @@ def push_image_to_public_repo(
 def build_image_with_dependencies(
     client: docker.DockerClient,
     base_image: str,
-    requirements_data: Optional[dict] = None,
+    requirements_data: Optional[RequirementsData] = None,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
     pull: bool = True,

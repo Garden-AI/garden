@@ -24,7 +24,7 @@ from garden_ai.containers import (
     DockerPreBuildFailure,
 )
 
-from garden_ai.metadata import (
+from garden_ai.notebook_metadata import (
     add_notebook_metadata_cell,
     set_notebook_metadata,
     get_notebook_metadata,
@@ -209,15 +209,21 @@ def start(
     else:
         message = f"This will open existing notebook {notebook_path.name} in Docker image {base_image_uri}.\n"
 
-    # Make sure requirements file is valid format
+    # Validate and read requirements file.
     if requirements_path:
         message += f"Additional dependencies specified in {requirements_path.name} will also be installed in {base_image_uri}.\n"
         message += "Any dependencies previously associated with this notebook will be overwritten by the new requirements.\n"
         _validate_requirements_path(requirements_path)
-
-    # Get requirements data from either notebook or provided requirements path.
-    # Could be None if requirements have not been set by the user.
-    requirements_data = read_requirements_data(requirements_path, notebook_path)
+        requirements_data = read_requirements_data(requirements_path)
+    else:
+        # If no requirements file given, look for requirements data in notebook
+        if notebook_path.is_file():
+            requirements_data = get_notebook_metadata(
+                notebook_path
+            ).notebook_requirements
+        else:
+            # Creating new notebook, no requirements data
+            requirements_data = None
 
     typer.confirm(message + "Do you want to proceed?", abort=True)
 
@@ -239,7 +245,7 @@ def start(
     if base_image_name is None:
         # If a user is using a custom image uri, base_image_name might be None
         notebook_metadata = get_notebook_metadata(notebook_path)
-        base_image_name = notebook_metadata.get("notebook_image_name", None)
+        base_image_name = notebook_metadata.notebook_image_name
 
     # Update garden metadata in notebook
     set_notebook_metadata(
@@ -327,16 +333,17 @@ def debug(
             or "gardenai/base:python-3.10-jupyter"
         )
 
-        # Make sure requirements file is valid format
+        # Validate and read requirements file.
         if requirements_path:
             _validate_requirements_path(requirements_path)
+            requirements_data = read_requirements_data(requirements_path)
+        else:
+            # If no requirements file given, look for requirements data in notebook
+            requirements_data = get_notebook_metadata(path).notebook_requirements
 
-        # Get requirements data from either notebook or provided requirements path.
-        # Could be None if requirements have not been set by the user.
-        requirements_data = read_requirements_data(requirements_path, path)
-        base_image_name = get_notebook_metadata(path).get(
-            "notebook_image_name", "3.10-base"
-        )
+        base_image_name = get_notebook_metadata(path).notebook_image_name
+        if base_image_name is None:
+            base_image_name = "3.10-base"
 
         with TemporaryDirectory() as temp_dir:
             # pre-bake local image with garden-ai and additional user requirements
@@ -457,19 +464,20 @@ def publish(
         )
         print(f"Using base image: {base_image_uri}")
 
-        # Make sure requirements file is valid format
+        # Validate and read requirements file.
         if requirements_path:
             _validate_requirements_path(requirements_path)
-
-        # Get requirements data from either notebook or provided requirements path.
-        # Could be None if requirements have not been set by the user.
-        requirements_data = read_requirements_data(requirements_path, tmp_notebook_path)
+            requirements_data = read_requirements_data(requirements_path)
+        else:
+            # If no requirements file given, look for requirements data in notebook
+            requirements_data = get_notebook_metadata(
+                tmp_notebook_path
+            ).notebook_requirements
 
         # Get base image name from notebook if user did not provide
         if base_image_name is None:
             # If a user is using a custom image uri, base_image_name might be None
-            notebook_metadata = get_notebook_metadata(notebook_path)
-            base_image_name = notebook_metadata.get("notebook_image_name", None)
+            base_image_name = get_notebook_metadata(notebook_path).notebook_image_name
 
         # Update garden metadata in new tmp notebook
         set_notebook_metadata(
@@ -545,9 +553,7 @@ def _get_base_image_uri(
 
     if notebook_path:
         # saved_image_name could also be None here if not set in the notebooks metadata
-        saved_image_name = get_notebook_metadata(notebook_path).get(
-            "notebook_image_name", None
-        )
+        saved_image_name = get_notebook_metadata(notebook_path).notebook_image_name
     else:
         saved_image_name = None
 
@@ -574,10 +580,17 @@ def _get_base_image_uri(
             raise typer.Exit(1)
 
     # saved_image_name is definitely non-None at this point
-    saved_image_name = cast(str, saved_image_name)
+    if saved_image_name in GardenConstants.PREMADE_IMAGES:
+        saved_image_uri = GardenConstants.PREMADE_IMAGES[saved_image_name]
+    else:
+        typer.echo(
+            f"The base image name ({saved_image_name}) saved in this notebook is not one of the Garden base images. "
+            f"The current Garden base images are: \n{BASE_IMAGE_NAMES}"
+        )
+        raise typer.Exit(1)
 
     # 3: If the user didn't specify an image explicitly, use the the image name saved in the notebook.
-    return saved_image_name
+    return saved_image_uri
 
 
 def _register_container_sigint_handler(container: docker.models.containers.Container):
