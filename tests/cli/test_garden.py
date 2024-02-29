@@ -222,3 +222,35 @@ def test_garden_entrypoint_add_with_alias(database_with_connected_entrypoint, mo
 
     assert entrypoint_old_name not in new_entrypoint_names
     assert entrypoint_alias in new_entrypoint_names
+
+
+@pytest.mark.cli
+def test_delete_garden_exists(mocker, database_with_connected_entrypoint):
+    mocker.patch("garden_ai.client.GardenClient.delete_garden")
+    mocker.patch("typer.confirm", return_value=True)
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
+    )
+
+    garden_doi = "10.23677/fake-doi"
+    command = ["garden", "delete", "-g", garden_doi]
+    result = runner.invoke(app, command)
+
+    assert result.exit_code == 0
+    GardenClient.delete_garden.assert_called_once_with(garden_doi)
+
+
+@pytest.mark.cli
+def test_delete_garden_not_exists_override(mocker, database_with_connected_entrypoint):
+    mocker.patch(
+        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
+    )
+    mocker.patch("garden_ai.client.GardenClient.delete_garden")
+    mocker.patch("typer.confirm", return_value=True)
+
+    garden_doi = "10.23677/nonexistent-doi"
+    command = ["garden", "delete", "-g", garden_doi, "--dangerous-override"]
+    result = runner.invoke(app, command)
+
+    assert result.exit_code == 0
+    GardenClient.delete_garden.assert_called_once_with(garden_doi)

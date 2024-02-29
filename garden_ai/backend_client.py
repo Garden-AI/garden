@@ -40,6 +40,9 @@ class BackendClient:
     def _put(self, resource: str, payload: dict) -> dict:
         return self._call(requests.put, resource, payload)
 
+    def _delete(self, resource: str, payload: dict) -> dict:
+        return self._call(requests.delete, resource, payload)
+
     def _get(self, resource: str) -> dict:
         return self._call(requests.get, resource, None)
 
@@ -56,6 +59,9 @@ class BackendClient:
     def publish_garden_metadata(self, garden: PublishedGarden):
         payload = json.loads(garden.json())
         self._post("/garden-search-record", payload)
+
+    def delete_garden_metadata(self, doi: str):
+        self._delete("/garden-search-record", {"doi": doi})
 
     def upload_notebook(
         self, notebook_contents: dict, username: str, notebook_name: str

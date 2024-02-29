@@ -311,6 +311,58 @@ def publish(
 
 
 @garden_app.command(no_args_is_help=True)
+def delete(
+    garden_id: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        autocompletion=complete_garden,
+        prompt="Please enter the DOI of a garden",
+        help="The DOI of the garden you want to publish",
+        rich_help_panel="Required",
+    ),
+    dangerous_override: bool = typer.Option(
+        False,
+        "--dangerous-override",
+        help=(
+            "Power users only! Deletes a garden even if it is not in your local data.json file."
+        ),
+        hidden=True,
+    ),
+):
+    """Delete a Garden from your local storage and the thegardens.ai website"""
+    client = GardenClient()
+
+    # Does the user have this garden locally?
+    garden = _get_garden(garden_id)
+
+    # No, and they're not using the override
+    if not garden and not dangerous_override:
+        raise typer.Exit(code=1)
+
+    # Yes, they have it locally
+    if garden:
+        typer.confirm(
+            f"You are about to delete garden {garden_id} ({garden.title}) "
+            "from your local data and the search index./n"
+            f"Are you sure you want to proceed?",
+            abort=True,
+        )
+
+    # No, but they are using the override
+    if not garden and dangerous_override:
+        typer.confirm(
+            f"You are about to delete garden {garden_id} from the search index. "
+            "Are you sure you want to proceed?",
+            abort=True,
+        )
+
+    # Delete the garden from local data and from the search index
+    client.delete_garden(garden_id)
+    console.print(f"Garden {garden_id} has been deleted.")
+
+
+@garden_app.command(no_args_is_help=True)
 def register_doi(
     doi: str = typer.Argument(
         ...,
@@ -381,7 +433,7 @@ def show(
 def _get_garden(garden_id: str) -> Optional[Garden]:
     garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
-        logger.warning(f"Could not find garden with id {garden_id}")
+        logger.warning(f"Could not find local garden with id {garden_id}")
         return None
     return garden
 
