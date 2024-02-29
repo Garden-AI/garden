@@ -10,7 +10,6 @@ from garden_ai.notebook_metadata import (
     read_requirements_data,
     save_requirements_data,
     RequirementsData,
-    NotebookMetadata,
 )
 
 notebook_empty = {"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}

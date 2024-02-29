@@ -2,7 +2,7 @@ import logging
 import shutil
 import webbrowser
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional
 import json
 import time
 
