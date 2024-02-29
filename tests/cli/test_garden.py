@@ -228,8 +228,10 @@ def test_garden_entrypoint_add_with_alias(database_with_connected_entrypoint, mo
 def test_delete_garden_exists(mocker, database_with_connected_entrypoint):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+    mocker.patch("garden_ai.app.garden.is_doi_registered").return_value = False
 
-    mocker.patch("garden_ai.client.GardenClient.delete_garden")
+    mocker.patch("garden_ai.client.GardenClient.delete_garden_from_search_index")
+    mocker.patch("garden_ai.client.GardenClient.delete_garden_locally")
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
@@ -246,11 +248,12 @@ def test_delete_garden_exists(mocker, database_with_connected_entrypoint):
 def test_delete_garden_not_exists_override(mocker, database_with_connected_entrypoint):
     mock_client = mocker.MagicMock(GardenClient)
     mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
+    mocker.patch("garden_ai.app.garden.is_doi_registered").return_value = False
 
     mocker.patch(
         "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
     )
-    mocker.patch("garden_ai.client.GardenClient.delete_garden")
+    mocker.patch("garden_ai.client.GardenClient.delete_garden_from_search_index")
     mocker.patch("typer.confirm", return_value=True)
 
     garden_doi = "10.23677/nonexistent-doi"

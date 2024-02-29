@@ -535,9 +535,9 @@ class GardenClient:
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         return garden
 
-    def delete_garden(self, doi: str) -> None:
+    def delete_garden_locally(self, doi: str) -> None:
         """
-        Deletes a garden from the local database and the search index.
+        Deletes a garden from the local database.
 
         Parameters
         ----------
@@ -545,6 +545,16 @@ class GardenClient:
 
         """
         local_data.delete_local_garden_by_doi(doi)
+
+    def delete_garden_from_search_index(self, doi: str) -> None:
+        """
+        Deletes a garden from the local search index.
+
+        Parameters
+        ----------
+        doi: The DOI of the garden you want to delete.
+
+        """
         self.backend_client.delete_garden_metadata(doi)
 
     def _get_auth_config_for_ecr_push(self) -> dict:
