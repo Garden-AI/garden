@@ -2,12 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# funcXServiceAddress: curl https://compute.api.globus.org
-# ^ `curl` in the default caused network exceptions
 funcXServiceAddress: https://compute.api.globus.org
 image:
-  # repository: compute/kube-endpoint
-  # ^ default compute/* repo does not exist on dockerhub
   repository: funcx/kube-endpoint
   tag: main-3.10
   pullPolicy: Always
@@ -16,10 +12,14 @@ workerDebug: false
 workerImage: python:3.10
 # workerInit paraphrased for compatibility with legacy dlhub models from
 # https://github.com/funcx-faas/funcX/blob/dlhub_deployment_version_0.3/helm/dlhub_values.yaml.
-# - omits `pip install home_run` as it's since been installed in the bespoke dlhub images
-# - installs post-rebrand globus-compute[-endpoint] libraries
-# - leaves mystery mkdir and PYTHONPATH commands as-is
-workerInit: pip install "globus-compute-endpoint==2.14.0"; export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/
+# - omits `pip install home_run`, as it's since been installed in the bespoke dlhub images
+# - installs post-rebrand globus-compute-endpoint libraries
+# - leaves mystery mkdir and PYTHONPATH commands as-is (no impact on garden images)
+workerInit: pip install "globus-compute-endpoint>=2.0.0"; export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/
+# note: we want to leave this globus-compute-endpoint bound as relaxed as possible so that
+# containers running python 3.7 (i.e. legacy dlhub models) can still resolve dependencies
+# without impacting garden images unnecessarily
+
 # we're restricted to the dlhub namespace on river
 workerNamespace: dlhub
 logDir: /tmp/worker_logs
