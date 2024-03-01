@@ -358,11 +358,10 @@ def delete(
 
         if not garden:
             # It has a registered DOI and they don't have the garden locally - nothing to do
-            typer.confirm(
+            console.print(
                 f"The DOI {garden_id} is registered, so we can't remove it from the search index. "
                 "You also don't have it in your local data. "
                 "There is nothing to delete.",
-                abort=True,
             )
             raise typer.Exit(code=1)
 
@@ -371,7 +370,7 @@ def delete(
         # We can delete from both places.
         typer.confirm(
             f"You are about to delete garden {garden_id} ({garden.title}) "
-            "from your local data and the thegardens.ai search index./n"
+            "from your local data and the thegardens.ai search index.\n"
             f"Are you sure you want to proceed?",
             abort=True,
         )
