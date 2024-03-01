@@ -138,3 +138,13 @@ The deployment is configured via values.yaml file. See `./globus_compute_endpoin
 
 ## Globus Group
 Since the endpoint can't be public, we've set it up behind a "Garden Users" Group that people can join. To associate an endpoint uuid with a group uuid you need to email support@globus.org and someone on the compute team will handle it.
+
+### Changes to the chart
+
+I cross-referenced a few related versions of this chart that I was able to find to put this one together -- the first is the one on github, and the other two are from the funcx helm repo (`helm repo add funcx http://funcx.org/funcx-helm-charts`). The main difference between the `funcx/globus-compute-endpoint` chart pulled via helm and the one pulled from github is that the `templates/endpoint-instance-config.yaml`file templates a `config.py`in the former and a `config.yaml` in the latter. My understanding is that good globus-compute-practices is to prefer the `config.yaml`-style (as seen  [here](https://github.com/funcx-faas/funcX/blob/4fc7047648693fbb688c93f8a09b4aeb830b10bd/helm/funcx_endpoint/templates/endpoint-instance-config.yaml#L11) on the github one), but I wasn't able to get that to work.
+
+So I stuck with a `config.py`-style template from the http://funcx.org/funcx-helm-charts one, with a slight change to use     `HighThroughputEngine` instead of the default `HighThroughputExecutor`, which has apparently been deprecated.
+
+I also tweaked a couple of broken defaults in the chart's `values.yaml`, namely `funcXServiceAddress` from `curl https://compute.api.globus.org` to `https://compute.api.globus.org` (the `curl` was causing some weird network errors) and `image.repository` from `compute/kube-endpoint` back to `funcx/kube-endpoint` (there is no `compute/kube-endpoint` repo on dockerhub).
+
+TLDR: outside of `./globus_compute_endpoint/values.yaml` and `./globus_compute_endpoint/templates/endpoint-instance-config.yaml` the chart should be identical to the one on github.
