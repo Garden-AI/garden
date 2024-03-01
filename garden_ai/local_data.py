@@ -193,6 +193,20 @@ def get_local_garden_by_doi(doi: str) -> Optional[Garden]:
     return _get_resource_by_id(doi, ResourceType.GARDEN)  # type: ignore
 
 
+def delete_local_garden_by_doi(doi: str) -> None:
+    """Helper: delete a Garden record from ~/.garden/data.json.
+
+    Parameters
+    ----------
+    doi str
+        The DOI of the Garden you are deleting.
+    """
+    data = _read_local_db()
+    if "gardens" in data and doi in data["gardens"]:
+        del data["gardens"][doi]
+        _write_local_db(data)
+
+
 def get_local_entrypoint_by_doi(doi: str) -> Optional[RegisteredEntrypoint]:
     """Helper: fetch an Entrypoint record from ~/.garden/data.json.
 

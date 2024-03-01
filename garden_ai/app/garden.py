@@ -13,6 +13,7 @@ from garden_ai.client import GardenClient
 from garden_ai.globus_search.garden_search import (
     RemoteGardenException,
 )
+from garden_ai.utils.dois import is_doi_registered
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.entrypoints import RegisteredEntrypoint
@@ -311,6 +312,89 @@ def publish(
 
 
 @garden_app.command(no_args_is_help=True)
+def delete(
+    garden_id: str = typer.Option(
+        ...,
+        "-g",
+        "--garden",
+        autocompletion=complete_garden,
+        prompt="Please enter the DOI of a garden",
+        help="The DOI of the garden you want to publish",
+        rich_help_panel="Required",
+    ),
+    dangerous_override: bool = typer.Option(
+        False,
+        "--dangerous-override",
+        help=(
+            "Power users only! Deletes a garden even if it is not in your local data.json file."
+        ),
+        hidden=True,
+    ),
+):
+    """Delete a Garden from your local storage and the thegardens.ai website"""
+    client = GardenClient()
+
+    # Does the user have this garden locally?
+    garden = _get_garden(garden_id)
+
+    # No, and they're not using the override
+    if not garden and not dangerous_override:
+        raise typer.Exit(code=1)
+
+    # Is the garden DOI not in a draft state?
+    is_registered = is_doi_registered(garden_id)
+    if is_registered:
+        if garden:
+            # It has a registered DOI and they have the garden locally.
+            typer.confirm(
+                f"The DOI {garden_id} is registered, so we can't remove it from the search index. "
+                "You can still delete it from your local data. "
+                "Would you like to delete it locally?",
+                abort=True,
+            )
+            client.delete_garden_locally(garden_id)
+            console.print(f"Garden {garden_id} has been deleted locally.")
+            return
+
+        if not garden:
+            # It has a registered DOI and they don't have the garden locally - nothing to do
+            console.print(
+                f"The DOI {garden_id} is registered, so we can't remove it from the search index. "
+                "You also don't have it in your local data. "
+                "There is nothing to delete.",
+            )
+            raise typer.Exit(code=1)
+
+    if garden:
+        # They have the garden locally and it was just a draft DOI.
+        # We can delete from both places.
+        typer.confirm(
+            f"You are about to delete garden {garden_id} ({garden.title}) "
+            "from your local data and the thegardens.ai search index.\n"
+            f"Are you sure you want to proceed?",
+            abort=True,
+        )
+        client.delete_garden_locally(garden_id)
+        client.delete_garden_from_search_index(garden_id)
+        console.print(
+            f"Garden {garden_id} has been deleted locally and from thegardens.ai."
+        )
+        return
+
+    if not garden and dangerous_override:
+        # They do not have the garden locally, but they have used the override.
+        # It's a draft DOI so we can remove the record from our search index.
+        typer.confirm(
+            f"You are about to delete garden {garden_id} from the thegardens.ai search index. "
+            "Are you sure you want to proceed?",
+            abort=True,
+        )
+        client.delete_garden_from_search_index(garden_id)
+        console.print(f"Garden {garden_id} has been deleted from thegardens.ai.")
+        return
+
+
+@garden_app.command(no_args_is_help=True)
 def register_doi(
     doi: str = typer.Argument(
         ...,
@@ -381,7 +465,7 @@ def show(
 def _get_garden(garden_id: str) -> Optional[Garden]:
     garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
-        logger.warning(f"Could not find garden with id {garden_id}")
+        logger.warning(f"Could not find local garden with id {garden_id}")
         return None
     return garden
 
