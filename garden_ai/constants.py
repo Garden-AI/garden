@@ -33,7 +33,7 @@ class GardenConstants:
         _DEV_ECR_REPO if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ECR_REPO
     )
 
-    DEMO_ENDPOINT = "86a47061-f3d9-44f0-90dc-56ddc642c000"
+    DEMO_ENDPOINT = "6ed5d749-abc3-4c83-bcad-80837b3d126f"
 
     DLHUB_DOIS = set(
         [
