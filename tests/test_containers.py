@@ -221,6 +221,9 @@ def test_build_image_with_dependencies(
         else "dependencies:\n  - numpy"
     )
     mocker.patch("pathlib.Path.read_text", return_value=file_content)
+    mocker.patch(
+        "garden_ai.containers.save_requirements_data", return_value=requirements_path
+    )
 
     # Prepare to capture the Dockerfile content
     dockerfile_content_capture = io.StringIO()
@@ -232,7 +235,7 @@ def test_build_image_with_dependencies(
     image_id = garden_ai.containers.build_image_with_dependencies(
         client=mock_docker_client,
         base_image=base_image,
-        requirements_path=requirements_path,
+        requirements_data={"contents": "some requirements data"},
     )
 
     contents = dockerfile_content_capture.getvalue()

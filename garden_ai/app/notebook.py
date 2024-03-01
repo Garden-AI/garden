@@ -2,12 +2,13 @@ import logging
 import shutil
 import webbrowser
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional
 import json
 import time
 
 import docker  # type: ignore
 import typer
+from tempfile import TemporaryDirectory
 
 from garden_ai import GardenClient, GardenConstants
 from garden_ai.app.console import print_err
@@ -22,7 +23,14 @@ from garden_ai.containers import (
     DockerBuildFailure,
     DockerPreBuildFailure,
 )
-from garden_ai.local_data import _get_notebook_base_image, _put_notebook_base_image
+
+from garden_ai.notebook_metadata import (
+    add_notebook_metadata_cell,
+    set_notebook_metadata,
+    get_notebook_metadata,
+    read_requirements_data,
+)
+
 from garden_ai.utils.notebooks import (
     clear_cells,
     is_over_size_limit,
@@ -183,24 +191,39 @@ def start(
         if not notebook_path.exists():
             need_to_create_notebook = True
 
+    # Adds notebook metadata if cell is missing
+    if not need_to_create_notebook:
+        add_notebook_metadata_cell(notebook_path)
+
     # Figure out what base image uri we should start the notebook in
+    # base_image_uri will always be set after this point
     base_image_uri = _get_base_image_uri(
         base_image_name,
         custom_image_uri,
         None if need_to_create_notebook else notebook_path,
     )
-    _put_notebook_base_image(notebook_path, base_image_uri)
 
     # Now we have all we need to prompt the user to proceed
     if need_to_create_notebook:
-        message = f"This will create a new notebook {notebook_path.name} and open it in Docker image {base_image_uri}. "
+        message = f"This will create a new notebook {notebook_path.name} and open it in Docker image {base_image_uri}.\n"
     else:
-        message = f"This will open existing notebook {notebook_path.name} in Docker image {base_image_uri}. "
+        message = f"This will open existing notebook {notebook_path.name} in Docker image {base_image_uri}.\n"
 
+    # Validate and read requirements file.
     if requirements_path:
-        message += f"Additional dependencies specified in {requirements_path.name} will also be installed in {base_image_uri}. "
-        # sanity check requirements
+        message += f"Additional dependencies specified in {requirements_path.name} will also be installed in {base_image_uri}.\n"
+        message += "Any dependencies previously associated with this notebook will be overwritten by the new requirements.\n"
         _validate_requirements_path(requirements_path)
+        requirements_data = read_requirements_data(requirements_path)
+    else:
+        # If no requirements file given, look for requirements data in notebook
+        if notebook_path.is_file():
+            requirements_data = get_notebook_metadata(
+                notebook_path
+            ).notebook_requirements
+        else:
+            # Creating new notebook, no requirements data
+            requirements_data = None
 
     typer.confirm(message + "Do you want to proceed?", abort=True)
 
@@ -218,6 +241,17 @@ def start(
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
 
+    # Get base image name from notebook if user did not provide
+    if base_image_name is None:
+        # If a user is using a custom image uri, base_image_name might be None
+        notebook_metadata = get_notebook_metadata(notebook_path)
+        base_image_name = notebook_metadata.notebook_image_name
+
+    # Update garden metadata in notebook
+    set_notebook_metadata(
+        notebook_path, base_image_name, base_image_uri, requirements_data
+    )
+
     print(
         f"Starting notebook inside base image with full name {base_image_uri}. "
         f"If you start this notebook again from the same folder, it will use this image by default."
@@ -226,7 +260,7 @@ def start(
     with DockerClientSession(verbose=True) as docker_client:
         # pre-bake local image with garden-ai and additional user requirements
         local_base_image_id = build_image_with_dependencies(
-            docker_client, base_image_uri, requirements_path
+            docker_client, base_image_uri, requirements_data
         )
         # start container and listen for Ctrl-C
         container = start_container_with_notebook(
@@ -263,65 +297,6 @@ def start(
     return
 
 
-def _get_base_image_uri(
-    base_image_name: Optional[str],
-    custom_image_uri: Optional[str],
-    notebook_path: Optional[Path],
-) -> str:
-    # First make sure that we have enough information to get a base image uri
-    if base_image_name and custom_image_uri:
-        typer.echo(
-            "You specified both a base image and a custom image. Please specify only one."
-        )
-        raise typer.Exit(1)
-
-    if notebook_path:
-        last_used_image_uri = _get_notebook_base_image(notebook_path)
-    else:
-        last_used_image_uri = None
-
-    if not any([base_image_name, custom_image_uri, last_used_image_uri]):
-        typer.echo(
-            f"Please specify a base image. The current Garden base images are: \n{BASE_IMAGE_NAMES}"
-        )
-        raise typer.Exit(1)
-
-    # Now use precedence rules to get the base image uri
-    # 1: --custom-image wins if specified
-    if custom_image_uri:
-        return custom_image_uri
-
-    # 2: then go off of --base-image
-    if base_image_name:
-        if base_image_name in GardenConstants.PREMADE_IMAGES:
-            return GardenConstants.PREMADE_IMAGES[base_image_name]
-        else:
-            typer.echo(
-                f"The image you specified ({base_image_name}) is not one of the Garden base images. "
-                f"The current Garden base images are: \n{BASE_IMAGE_NAMES}"
-            )
-            raise typer.Exit(1)
-
-    # last_used_image_uri is definitely non-None at this point
-    last_used_image_uri = cast(str, last_used_image_uri)
-
-    # 3: If the user didn't specify an image explicitly, use the last image they used for this notebook.
-    return last_used_image_uri
-
-
-def _register_container_sigint_handler(container: docker.models.containers.Container):
-    """helper: ensure SIGINT/ Ctrl-C to our CLI stops a given container"""
-    import signal
-
-    def handler(signal, frame):
-        typer.echo("Stopping notebook...")
-        container.stop()
-        return
-
-    signal.signal(signal.SIGINT, handler)
-    return
-
-
 @notebook_app.command(no_args_is_help=True)
 def debug(
     path: Path = typer.Argument(
@@ -351,34 +326,56 @@ def debug(
     """
 
     with DockerClientSession(verbose=True) as docker_client:
-        base_image = (
-            _get_notebook_base_image(path) or "gardenai/base:python-3.10-jupyter"
+        base_image_uri = (
+            _get_base_image_uri(
+                base_image_name=None, custom_image_uri=None, notebook_path=path
+            )
+            or "gardenai/base:python-3.10-jupyter"
         )
 
-        if requirements_path is not None:
+        # Validate and read requirements file.
+        if requirements_path:
             _validate_requirements_path(requirements_path)
+            requirements_data = read_requirements_data(requirements_path)
+        else:
+            # If no requirements file given, look for requirements data in notebook
+            requirements_data = get_notebook_metadata(path).notebook_requirements
 
-        local_base_image_id = build_image_with_dependencies(
-            docker_client, base_image, requirements_path
-        )
+        base_image_name = get_notebook_metadata(path).notebook_image_name
+        if base_image_name is None:
+            base_image_name = "3.10-base"
 
-        image = build_notebook_session_image(
-            docker_client,
-            path,
-            local_base_image_id,
-        )
-        if image is None:
-            typer.echo("Failed to build image.")
-            raise typer.Exit(1)
-        image_name = str(image.id)  # str used to guarantee type-check
+        with TemporaryDirectory() as temp_dir:
+            # pre-bake local image with garden-ai and additional user requirements
+            local_base_image_id = build_image_with_dependencies(
+                docker_client, base_image_uri, requirements_data
+            )
 
-        top_level_dir = Path(__file__).parent.parent
-        debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
+            image = build_notebook_session_image(
+                docker_client,
+                path,
+                local_base_image_id,
+            )
 
-        container = start_container_with_notebook(
-            docker_client, debug_path, image_name, mount=False, pull=False
-        )
-        _register_container_sigint_handler(container)
+            if image is None:
+                typer.echo("Failed to build image.")
+                raise typer.Exit(1)
+            image_name = str(image.id)  # str used to guarantee type-check
+
+            top_level_dir = Path(__file__).parent.parent
+            debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
+
+            # Make tmp copy of debug notebook to add original notebook's metadata too
+            temp_debug_path = Path(temp_dir) / "debug.ipynb"
+            shutil.copy(debug_path, temp_debug_path)
+            set_notebook_metadata(
+                temp_debug_path, base_image_name, base_image_uri, requirements_data
+            )
+
+            container = start_container_with_notebook(
+                docker_client, temp_debug_path, image_name, mount=False, pull=False
+            )
+            _register_container_sigint_handler(container)
 
     typer.echo(
         f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{debug_path.name} "
@@ -391,7 +388,17 @@ def debug(
         print(line.decode("utf-8"), end="")
 
     # block until the container finishes
-    container.wait()
+    try:
+        container.reload()
+        container.wait()
+    except KeyboardInterrupt:
+        # handle windows Ctrl-C
+        typer.echo("Stopping notebook ...")
+        container.stop()
+    except docker.errors.NotFound:
+        # container already killed, no need to wait
+        pass
+
     typer.echo("Notebook has stopped.")
     return
 
@@ -445,52 +452,77 @@ def publish(
     if not notebook_path.exists():
         raise ValueError(f"Could not find file at {notebook_path}")
 
-    base_image_uri = _get_base_image_uri(
-        base_image_name, custom_image_uri, notebook_path
-    )
-    _put_notebook_base_image(notebook_path, base_image_uri)
-    print(f"Using base image: {base_image_uri}")
+    # Publish should not change the metadata of users local notebook if user provided different requirements / base image.
+    # So we use a tmpdir with a copy of the original notebook for publish.
+    with TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
+        tmp_notebook_path = temp_dir_path / notebook_path.name
+        shutil.copy(notebook_path, tmp_notebook_path)
 
-    # Pre-process the notebook and make sure it's not too big
-    raw_notebook_contents = notebook_path.read_text()
-    try:
-        notebook_contents = json.loads(raw_notebook_contents)
-    except json.JSONDecodeError:
-        typer.echo("Could not parse notebook JSON.")
-        raise typer.Exit(1)
+        base_image_uri = _get_base_image_uri(
+            base_image_name, custom_image_uri, tmp_notebook_path
+        )
+        print(f"Using base image: {base_image_uri}")
 
-    if not keep_outputs:
-        notebook_contents = clear_cells(notebook_contents)
-
-    if is_over_size_limit(notebook_contents):
-        typer.echo("Garden can't publish notebooks bigger than 5MB.")
-        raise typer.Exit(1)
-
-    # Push the notebook to the Garden API
-    notebook_url = client.upload_notebook(notebook_contents, notebook_path.name)
-
-    with DockerClientSession(verbose=verbose) as docker_client:
-        # Build the image
+        # Validate and read requirements file.
         if requirements_path:
             _validate_requirements_path(requirements_path)
+            requirements_data = read_requirements_data(requirements_path)
+        else:
+            # If no requirements file given, look for requirements data in notebook
+            requirements_data = get_notebook_metadata(
+                tmp_notebook_path
+            ).notebook_requirements
 
-        local_base_image_id = build_image_with_dependencies(
-            docker_client,
-            base_image_uri,
-            requirements_path,
-            print_logs=verbose,
-            pull=True,
+        # Get base image name from notebook if user did not provide
+        if base_image_name is None:
+            # If a user is using a custom image uri, base_image_name might be None
+            base_image_name = get_notebook_metadata(notebook_path).notebook_image_name
+
+        # Update garden metadata in new tmp notebook
+        set_notebook_metadata(
+            tmp_notebook_path, base_image_name, base_image_uri, requirements_data
         )
-        image = build_notebook_session_image(
-            docker_client,
-            notebook_path,
-            local_base_image_id,
-            print_logs=verbose,
-        )
-        if image is None:
-            typer.echo("Failed to build image.")
+
+        # Pre-process the notebook and make sure it's not too big
+        raw_notebook_contents = tmp_notebook_path.read_text()
+        try:
+            notebook_contents = json.loads(raw_notebook_contents)
+        except json.JSONDecodeError:
+            typer.echo("Could not parse notebook JSON.")
             raise typer.Exit(1)
-        typer.echo(f"Built image: {image}")
+
+        if not keep_outputs:
+            notebook_contents = clear_cells(notebook_contents)
+
+        if is_over_size_limit(notebook_contents):
+            typer.echo("Garden can't publish notebooks bigger than 5MB.")
+            raise typer.Exit(1)
+
+        # Push the notebook to the Garden API
+        notebook_url = client.upload_notebook(notebook_contents, tmp_notebook_path.name)
+
+        with DockerClientSession(verbose=verbose) as docker_client:
+            # Build the image
+            local_base_image_id = build_image_with_dependencies(
+                docker_client,
+                base_image_uri,
+                requirements_data,
+                print_logs=verbose,
+                pull=True,
+            )
+
+            image = build_notebook_session_image(
+                docker_client,
+                tmp_notebook_path,
+                local_base_image_id,
+                print_logs=verbose,
+            )
+
+            if image is None:
+                typer.echo("Failed to build image.")
+                raise typer.Exit(1)
+            typer.echo(f"Built image: {image}")
 
         # push image to ECR
         auth_config = client._get_auth_config_for_ecr_push()
@@ -505,6 +537,73 @@ def publish(
         client._register_and_publish_from_user_image(
             base_image_uri, full_image_uri, notebook_url, metadata
         )
+
+
+def _get_base_image_uri(
+    base_image_name: Optional[str],
+    custom_image_uri: Optional[str],
+    notebook_path: Optional[Path],
+) -> str:
+    # First make sure that we have enough information to get a base image uri
+    if base_image_name and custom_image_uri:
+        typer.echo(
+            "You specified both a base image and a custom image. Please specify only one."
+        )
+        raise typer.Exit(1)
+
+    if notebook_path:
+        # saved_image_name could also be None here if not set in the notebooks metadata
+        saved_image_name = get_notebook_metadata(notebook_path).notebook_image_name
+    else:
+        saved_image_name = None
+
+    if not any([base_image_name, custom_image_uri, saved_image_name]):
+        typer.echo(
+            f"Please specify a base image. The current Garden base images are: \n{BASE_IMAGE_NAMES}"
+        )
+        raise typer.Exit(1)
+
+    # Now use precedence rules to get the base image uri
+    # 1: --custom-image wins if specified
+    if custom_image_uri:
+        return custom_image_uri
+
+    # 2: then go off of --base-image
+    if base_image_name:
+        if base_image_name in GardenConstants.PREMADE_IMAGES:
+            return GardenConstants.PREMADE_IMAGES[base_image_name]
+        else:
+            typer.echo(
+                f"The image you specified ({base_image_name}) is not one of the Garden base images. "
+                f"The current Garden base images are: \n{BASE_IMAGE_NAMES}"
+            )
+            raise typer.Exit(1)
+
+    # saved_image_name is definitely non-None at this point
+    if saved_image_name in GardenConstants.PREMADE_IMAGES:
+        saved_image_uri = GardenConstants.PREMADE_IMAGES[saved_image_name]
+    else:
+        typer.echo(
+            f"The base image name ({saved_image_name}) saved in this notebook is not one of the Garden base images. "
+            f"The current Garden base images are: \n{BASE_IMAGE_NAMES}"
+        )
+        raise typer.Exit(1)
+
+    # 3: If the user didn't specify an image explicitly, use the the image name saved in the notebook.
+    return saved_image_uri
+
+
+def _register_container_sigint_handler(container: docker.models.containers.Container):
+    """helper: ensure SIGINT/ Ctrl-C to our CLI stops a given container"""
+    import signal
+
+    def handler(signal, frame):
+        typer.echo("Stopping notebook...")
+        container.stop()
+        return
+
+    signal.signal(signal.SIGINT, handler)
+    return
 
 
 def _validate_requirements_path(requirements_path: Path):
