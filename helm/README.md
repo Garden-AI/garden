@@ -90,7 +90,7 @@ useUserCredentials: true
 
 ### assigning the UUID
 
-This is a bit of a hack: the UUID needs to have already been registered with the Globus Compute Service before it can be (re-)deployed here. This process is a little different depending on how you set up credentials, but the gist is:
+Generating the UUID needs a bit of a hack. The endpoint has to have already been registered with the Globus Compute Service before it can be (re-)deployed here. This process is a little different depending on how you set up credentials, but the gist is:
 - make a new endpoint locally
 - write down its uuid for `values.yaml`
 - stop/delete the endpoint locally
@@ -135,3 +135,6 @@ kubectl logs [endpoint pod name]
 
 ## Values
 The deployment is configured via values.yaml file. See `./globus_compute_endpoint/values.yaml` for defaults and `./garden_values.yaml` to see what we override.
+
+## Globus Group
+Since the endpoint can't be public, we've set it up behind a "Garden Users" Group that people can join. To associate an endpoint uuid with a group uuid you need to email support@globus.org and someone on the compute team will handle it.
