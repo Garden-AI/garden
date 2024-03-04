@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 0.7.0
+description: Deploy a Globus Compute endpoint into a cluster
+name: globus_compute_endpoint
+type: application
+version: 0.7.2-garden

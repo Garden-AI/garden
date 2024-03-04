@@ -1,0 +1,54 @@
+# Modified from default values for globus_compute_endpoint.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+funcXServiceAddress: https://compute.api.globus.org
+image:
+  repository: funcx/kube-endpoint
+  tag: main-3.10
+  pullPolicy: Always
+
+workerDebug: false
+workerImage: python:3.10
+# workerInit paraphrased for compatibility with legacy dlhub models from
+# https://github.com/funcx-faas/funcX/blob/dlhub_deployment_version_0.3/helm/dlhub_values.yaml.
+# - omits `pip install home_run`, as it's since been installed in the bespoke dlhub images
+# - installs post-rebrand globus-compute-endpoint libraries
+# - leaves mystery mkdir and PYTHONPATH commands as-is (no impact on garden images)
+workerInit: pip install "globus-compute-endpoint>=2.0.0"; export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/
+# note: we want to leave this globus-compute-endpoint bound as relaxed as possible so that
+# containers running python 3.7 (i.e. legacy dlhub models) can still resolve dependencies
+# without impacting garden images unnecessarily
+
+# we're restricted to the dlhub namespace on river
+workerNamespace: dlhub
+logDir: /tmp/worker_logs
+
+# same as defaults but we may want to tweak in the future
+initMem: 500Mi
+maxMem: 1600Mi
+initCPU: 1
+maxCPU: 2
+initBlocks: 0
+minBlocks: 1
+maxBlocks: 100
+maxWorkersPerPod: 1
+maxIdleTime: 3600
+
+# any additional desired globus-compute-endpoint CLI args
+endpointCLIargs: --log-to-console
+
+useClientCredentials: true
+useUserCredentials: false
+secrets: garden-demo-ep
+# ^sets values for env variables:
+# FUNCX_SDK_CLIENT_ID=0948a6b0-a622-4078-b0a4-bfd6d77d65cf (client uuid for AI Model Garden registered app)
+# FUNCX_SDK_CLIENT_SECRET=...
+# secret created 02/26/2024 through globus auth dev portal for AI Model Garden - Owen
+
+# n.b.: this endpoint needed to be "owned by" AI Model Garden app
+# so when I first created the endpoint (and it was registered with the globus
+# compute service), the FUNCX_SDK_* env vars on my laptop needed to match the
+# values in the `garden-demo-ep` kubernetes secret above
+# then I had to stop the endpoint locally and re-use the uuid here
+endpointUUID: 6ed5d749-abc3-4c83-bcad-80837b3d126f
