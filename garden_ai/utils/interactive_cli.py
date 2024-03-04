@@ -43,3 +43,4 @@ def gui_edit_garden_entity(
         abort=True,
     )
     setattr(entity, selected_field, new_value)
+    return entity
