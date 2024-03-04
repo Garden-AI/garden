@@ -23,13 +23,13 @@ def gui_edit_garden_entity(
     ).run()
 
     if not selected_field:
-        return
+        typer.echo("No field selected. Exiting.")
+        raise typer.Exit(code=1)
 
     if selected_field in string_fields:
         old_value = getattr(entity, selected_field)
         new_value = prompt(f'Edit "{selected_field}"\n\n', default=old_value)
-
-    if selected_field in list_fields:
+    elif selected_field in list_fields:
         old_value = getattr(entity, selected_field)
         as_string = ", ".join(old_value)
         new_value_as_string = prompt(
@@ -37,6 +37,9 @@ def gui_edit_garden_entity(
             default=as_string,
         )
         new_value = [x.strip() for x in new_value_as_string.split(",")]
+    else:
+        typer.echo(f'Did not recognize field "{selected_field}". Exiting.')
+        raise typer.Exit(code=1)
 
     typer.confirm(
         f'You want to update "{selected_field}" to "{new_value}". Does this look right?',
