@@ -18,7 +18,7 @@ def gui_edit_garden_entity(
     ]
     selected_field = radiolist_dialog(
         title="Select Field to Edit",
-        text="Use arrow keys to move, enter to select",
+        text="Use arrow keys to move, enter to select. Once you've selected a field, click Ok.",
         values=choices,
     ).run()
 
@@ -32,12 +32,12 @@ def gui_edit_garden_entity(
         new_value = prompt(f'Edit "{selected_field}"\n\n', default=old_value)
     elif selected_field in list_fields:
         old_value = getattr(entity, selected_field)
-        as_string = ", ".join(old_value)
+        as_string = "; ".join(old_value)
         new_value_as_string = prompt(
-            f'Edit list "{selected_field}". Values are comma-separated.\n\n',
+            f'Edit list "{selected_field}". Values are semicolon-separated.\n\n',
             default=as_string,
         )
-        new_value = [x.strip() for x in new_value_as_string.split(",")]
+        new_value = [x.strip() for x in new_value_as_string.split(";")]
     else:
         typer.echo(f'Did not recognize field "{selected_field}". Exiting.')
         raise typer.Exit(code=1)
