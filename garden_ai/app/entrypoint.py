@@ -5,7 +5,6 @@ import typer
 import rich
 from rich.prompt import Prompt
 
-from garden_ai import local_data
 from garden_ai import GardenClient
 from garden_ai.app.console import (
     console,
@@ -246,6 +245,7 @@ def edit(
 
     entrypoint = get_local_entrypoint_by_doi(doi)
     if not entrypoint:
+        rich.print(f"Could not find entrypoint with doi {doi}")
         raise typer.Exit(code=1)
 
     string_fields = ["title", "description", "year", "short_name"]
@@ -253,7 +253,7 @@ def edit(
 
     edited_entrypoint = gui_edit_garden_entity(entrypoint, string_fields, list_fields)
 
-    local_data.put_local_entrypoint(edited_entrypoint)
+    put_local_entrypoint(edited_entrypoint)
     console.print(
         "Updated entrypoint {doi}. For the changes to be reflected on thegardens.ai, publish a garden that this entrypoint belongs to."
     )

@@ -1,4 +1,4 @@
-from typing import Union, List, TypeVar
+from typing import List, TypeVar
 
 import typer
 from prompt_toolkit.shortcuts import radiolist_dialog
