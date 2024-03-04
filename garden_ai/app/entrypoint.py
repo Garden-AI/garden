@@ -11,6 +11,7 @@ from garden_ai.app.console import (
     get_local_entrypoint_rich_table,
     DOI_STATUS_COLUMN,
 )
+from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 from garden_ai.app.completion import complete_entrypoint
 from garden_ai.entrypoints import Repository, Paper
 from garden_ai.local_data import (
@@ -229,3 +230,30 @@ def show(
             rich.print("\n")
         else:
             rich.print(f"Could not find entrypoint with id {entrypoint_id}")
+
+
+@entrypoint_app.command()
+def edit(
+    doi: str = typer.Argument(
+        ...,
+        autocompletion=complete_entrypoint,
+        help="The DOI of the entrypoint you want to edit",
+        rich_help_panel="Required",
+    )
+):
+    """Edit an Entrypoint's metadata"""
+
+    entrypoint = get_local_entrypoint_by_doi(doi)
+    if not entrypoint:
+        rich.print(f"Could not find entrypoint with doi {doi}")
+        raise typer.Exit(code=1)
+
+    string_fields = ["title", "description", "year", "short_name"]
+    list_fields = ["authors", "tags"]
+
+    edited_entrypoint = gui_edit_garden_entity(entrypoint, string_fields, list_fields)
+
+    put_local_entrypoint(edited_entrypoint)
+    console.print(
+        "Updated entrypoint {doi}. For the changes to be reflected on thegardens.ai, publish a garden that this entrypoint belongs to."
+    )

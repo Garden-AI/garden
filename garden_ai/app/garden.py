@@ -14,6 +14,7 @@ from garden_ai.globus_search.garden_search import (
     RemoteGardenException,
 )
 from garden_ai.utils.dois import is_doi_registered
+from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.entrypoints import RegisteredEntrypoint
@@ -460,6 +461,32 @@ def show(
             rich.print(f"Garden: {garden_id} local data:")
             rich.print_json(json=garden.json())
             rich.print("\n")
+
+
+@garden_app.command()
+def edit(
+    doi: str = typer.Argument(
+        ...,
+        autocompletion=complete_garden,
+        help="The DOI of the garden you want to edit",
+        rich_help_panel="Required",
+    )
+):
+    """Edit a Garden's metadata"""
+
+    garden = _get_garden(doi)
+    if not garden:
+        raise typer.Exit(code=1)
+
+    string_fields = ["title", "description", "year"]
+    list_fields = ["authors", "contributors", "tags"]
+
+    edited_garden = gui_edit_garden_entity(garden, string_fields, list_fields)
+
+    local_data.put_local_garden(edited_garden)
+    console.print(
+        f"Updated garden {doi}. Run `garden-ai garden publish -g {doi}` to push the change to thegardens.ai"
+    )
 
 
 def _get_garden(garden_id: str) -> Optional[Garden]:
