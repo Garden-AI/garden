@@ -243,7 +243,8 @@ def edit(
         rich_help_panel="Required",
     )
 ):
-    """Edit a Garden's metadata"""
+    """Edit an Entrypoint's metadata"""
+
     entrypoint = get_local_entrypoint_by_doi(doi)
     if not entrypoint:
         raise typer.Exit(code=1)
