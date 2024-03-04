@@ -7,6 +7,8 @@ import rich
 import typer
 from globus_sdk import SearchAPIError
 from rich.prompt import Prompt
+from prompt_toolkit import prompt
+from prompt_toolkit.shortcuts import radiolist_dialog
 
 from garden_ai import local_data
 from garden_ai.client import GardenClient
@@ -40,6 +42,60 @@ def garden():
     sub-commands for creating and manipulating Gardens
     """
     pass
+
+
+@garden_app.command()
+def edit(
+    doi: str = typer.Argument(
+        ...,
+        autocompletion=complete_garden,
+        help="The DOI of the garden you want to edit",
+        rich_help_panel="Required",
+    )
+):
+    """Edit a Garden's metadata"""
+    garden = _get_garden(doi)
+    if not garden:
+        raise typer.Exit(code=1)
+
+    string_fields = ["title", "description", "year"]
+    list_fields = ["authors", "contributors", "tags"]
+
+    choices = [
+        (field, f"{field}: {getattr(garden, field)}")
+        for field in string_fields + list_fields
+    ]
+    selected_field = radiolist_dialog(
+        title="Select Field to Edit",
+        text="Use arrow keys to move, enter to select",
+        values=choices,
+    ).run()
+
+    if not selected_field:
+        return
+
+    if selected_field in string_fields:
+        old_value = getattr(garden, selected_field)
+        new_value = prompt(f'Edit "{selected_field}"\n\n', default=old_value)
+
+    if selected_field in list_fields:
+        old_value = getattr(garden, selected_field)
+        as_string = ", ".join(old_value)
+        new_value = prompt(
+            f'Edit list "{selected_field}". Values are comma-separated.\n\n',
+            default=as_string,
+        )
+        new_value = [x.strip() for x in new_value.split(",")]
+
+    typer.confirm(
+        f'You want to update "{selected_field}" to "{new_value}". Does this look right?',
+        abort=True,
+    )
+    setattr(garden, selected_field, new_value)
+    local_data.put_local_garden(garden)
+    console.print(
+        f"Updated garden {doi}. Run `garden-ai garden publish -g {doi}` to push the change to thegardens.ai"
+    )
 
 
 @garden_app.command(no_args_is_help=True)
