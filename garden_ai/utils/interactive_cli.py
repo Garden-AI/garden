@@ -1,4 +1,4 @@
-from typing import List, TypeVar
+from typing import List, TypeVar, Union
 
 import typer
 from prompt_toolkit.shortcuts import radiolist_dialog
@@ -26,6 +26,7 @@ def gui_edit_garden_entity(
         typer.echo("No field selected. Exiting.")
         raise typer.Exit(code=1)
 
+    new_value: Union[str, List[str]]
     if selected_field in string_fields:
         old_value = getattr(entity, selected_field)
         new_value = prompt(f'Edit "{selected_field}"\n\n', default=old_value)
