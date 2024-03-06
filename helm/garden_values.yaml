@@ -14,11 +14,13 @@ workerImage: python:3.10
 # https://github.com/funcx-faas/funcX/blob/dlhub_deployment_version_0.3/helm/dlhub_values.yaml.
 # - omits `pip install home_run`, as it's since been installed in the bespoke dlhub images
 # - installs post-rebrand globus-compute-endpoint libraries
+#   - note: the latest version of globus-compute-endpoint compatible with 3.7 (v2.2.3) is
+#       broken. the long `import sys` command is just to conditionally install
+#       from my fork of the repo which "fixes" it enough for dlhub models to work.
+#   - otherwise, we want the globus-compute-endpoint bound as relaxed as
+#       possible so that different python versions can resolve their deps appropriately
 # - leaves mystery mkdir and PYTHONPATH commands as-is (no impact on garden images)
-workerInit: pip install "globus-compute-endpoint>=2.0.0"; export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/
-# note: we want to leave this globus-compute-endpoint bound as relaxed as possible so that
-# containers running python 3.7 (i.e. legacy dlhub models) can still resolve dependencies
-# without impacting garden images unnecessarily
+workerInit: export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/; python -c "import sys; sys.exit(0 if sys.version_info < (3, 8) else 1)" && pip install "git+https://github.com/OwenPriceSkelly/funcX.git@3.7-compatibility-hack#subdirectory=compute_endpoint" || pip install "globus-compute-endpoint>=2.0"
 
 # we're restricted to the dlhub namespace on river
 workerNamespace: dlhub
