@@ -8,6 +8,7 @@ from typing import Any, List, Optional, Union, Callable
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
+import globus_sdk
 from pydantic import BaseModel, Field, PrivateAttr
 
 from garden_ai.constants import GardenConstants
@@ -188,22 +189,36 @@ class RegisteredEntrypoint(EntrypointMetadata):
         if self._is_dlhub_entrypoint():
             args = ({"inputs": args[0], "parameters": [], "debug": False},)
 
-        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
-            with console.status(
-                f"[bold green] executing remotely on endpoint {endpoint}"
-            ):
-                future = gce.submit_to_registered_function(
-                    function_id=str(self.func_uuid), args=args, kwargs=kwargs
-                )
-                result = future.result()
-                if self._is_dlhub_entrypoint():
-                    inner_result = result[0]
-                    if inner_result[1]["success"]:
-                        return inner_result[0]
+        try:
+            with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
+                with console.status(
+                    f"[bold green] executing remotely on endpoint {endpoint}"
+                ):
+                    future = gce.submit_to_registered_function(
+                        function_id=str(self.func_uuid), args=args, kwargs=kwargs
+                    )
+                    result = future.result()
+                    if self._is_dlhub_entrypoint():
+                        inner_result = result[0]
+                        if inner_result[1]["success"]:
+                            return inner_result[0]
+                        else:
+                            return result
                     else:
                         return result
-                else:
-                    return result
+        except globus_sdk.GlobusAPIError as e:
+            if (
+                endpoint == GardenConstants.DEMO_ENDPOINT
+                and e.http_status == 403
+                and e.code == "ENDPOINT_ACCESS_FORBIDDEN"
+            ):
+                message = "It looks like you don't currently have access to the Garden tutorial endpoint. "
+                message += "To gain access, please join the 'Garden Users' Globus Group and try again. "
+                message += "You can join the group here:\n"
+                message += "https://app.globus.org/groups/53952f8a-d592-11ee-9957-193531752178/about"
+                raise PermissionError(message) from e
+            else:
+                raise
 
     def _repr_html_(self) -> str:
         # delayed import so dill doesn't try to serialize tabulate ref
