@@ -17,6 +17,9 @@ For this walkthrough, we will deploy a simple Scikit-Learn model that classifies
 - You need a free Globus account.
     - [Globus](https://www.globus.org/what-we-do) is a research computing platform that Garden builds on top of. Garden uses Globus to link you to academic computing clusters that you have access to.
     - [Go here to create a free Globus account.](https://app.globus.org/) If you are a researcher at a university, we recommend logging in with your institution's SSO. You can also log in with a Google or GitHub account.
+- You need to join the "Garden Users" Globus Group.
+	- This is necessary in order to run code on our demo Globus Compute endpoint.
+	- Join the group [here](https://app.globus.org/groups/53952f8a-d592-11ee-9957-193531752178/about).
 
 Confirm you have Garden and Docker installed.
 
@@ -152,6 +155,12 @@ Notice how Garden published your entrypoint to your tutorial garden. Now anyone 
 ### Step 5: Test Your Published Model
 
 Now that you've published your first garden and first entrypoint function, you should invoke it remotely like a user would.
+
+> [!NOTE] IMPORTANT
+> You will need to be part of the "Garden Users" Globus Group in order to run your code remotely on our demo endpoint.
+>
+> Join the group [here](https://app.globus.org/groups/53952f8a-d592-11ee-9957-193531752178/about).
+
 
 **The tutorial will continue in a separate notebook.** [Click here to continue in a Google Colab notebook that walks you through running your model like an end user would](https://colab.research.google.com/drive/1VM_SjYFnY1pxxac9ILQuqBT0fl3JADu0?usp=sharing). If you don't want to use Colab, you can also start a new notebook locally with `garden-ai notebook start` and follow the steps from the Colab notebook.
 
