@@ -28,7 +28,7 @@ documentation = "https://garden-ai.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-cryptography = "^42.0.0"
+cryptography = "^41.0.6"
 requests = "^2.20.0"
 gitpython = "^3.1.35"
 globus-sdk = "^3.34.0"
