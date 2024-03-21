@@ -3,18 +3,7 @@
 # session.pkl and a metadata.json in the final image
 if __name__ == "__main__":
     # save session after executing user notebook
-    from importlib.metadata import version
     import dill  # type: ignore
-
-    dill_version = version("dill")
-    if dill_version != "0.3.5.1":
-        message = (
-            f"The environment you have created has dill version {dill_version} installed. "
-            "Garden needs the environment to have version 0.3.5.1 installed. "
-            "This ensures that the Globus Compute endpoints can deserialize your enviornment. "
-            "Please install dill==0.3.5.1 and try again."
-        )
-        raise RuntimeError(message)
 
     dill.dump_session("session.pkl")
 
