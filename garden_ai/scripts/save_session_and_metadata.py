@@ -1,21 +1,42 @@
 # the contents of this script are appended to the user's automatically generated
 # notebook script and run in the container in order to persist both a
 # session.pkl and a metadata.json in the final image
-if __name__ == "__main__":
-    # save session after executing user notebook
+
+
+def assert_compatible_dill_version():
+    """sanity check that dill version is correct w/r/t the python version.
+
+    This is factored out into its own function because `sys.version_info` does
+    something spooky that breaks dill if it picks up the reference.
+    """
     from importlib.metadata import version
+    import sys
+
+    # this should be exactly the same as globus compute requirements
+    python_version = sys.version_info
+    dill_version = version("dill")
+    required_dill_version = "0.3.5.1" if python_version < (3, 11) else "0.3.6"
+
+    if dill_version != required_dill_version:
+        message = (
+            "To ensure compatibility with Globus Compute endpoints, Garden needs "
+            f"dill version {required_dill_version} when running python version "
+            f"{'.'.join(map(str, python_version[:2]))}. However, this environment "
+            f"has dill version {dill_version} installed, possibly due to other "
+            "packages installed from within your notebook. \n\nIf you are installing "
+            "dependencies from a cell of your notebook, try specifying them in a "
+            "requirements file with the `--requirements` flag from the command line "
+            "instead try again. "
+        )
+        raise EnvironmentError(message)
+
+
+if __name__ == "__main__":
     import dill  # type: ignore
 
-    dill_version = version("dill")
-    if dill_version != "0.3.5.1":
-        message = (
-            f"The environment you have created has dill version {dill_version} installed. "
-            "Garden needs the environment to have version 0.3.5.1 installed. "
-            "This ensures that the Globus Compute endpoints can deserialize your enviornment. "
-            "Please install dill==0.3.5.1 and try again."
-        )
-        raise RuntimeError(message)
+    assert_compatible_dill_version()
 
+    # save session after executing user notebook
     dill.dump_session("session.pkl")
 
     import json
