@@ -1,11 +1,16 @@
 # the contents of this script are appended to the user's automatically generated
 # notebook script and run in the container in order to persist both a
 # session.pkl and a metadata.json in the final image
-if __name__ == "__main__":
-    # sanity check dill versions
+
+
+def assert_compatible_dill_version():
+    """sanity check that dill version is correct w/r/t the python version.
+
+    This is factored out into its own function because `sys.version_info` does
+    something spooky that breaks dill if it picks up the reference.
+    """
     from importlib.metadata import version
     import sys
-    import dill  # type: ignore
 
     # this should be exactly the same as globus compute requirements
     python_version = sys.version_info
@@ -24,6 +29,12 @@ if __name__ == "__main__":
             "instead try again. "
         )
         raise EnvironmentError(message)
+
+
+if __name__ == "__main__":
+    import dill  # type: ignore
+
+    assert_compatible_dill_version()
 
     # save session after executing user notebook
     dill.dump_session("session.pkl")
