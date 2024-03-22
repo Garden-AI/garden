@@ -2,9 +2,30 @@
 # notebook script and run in the container in order to persist both a
 # session.pkl and a metadata.json in the final image
 if __name__ == "__main__":
-    # save session after executing user notebook
+    # sanity check dill versions
+    from importlib.metadata import version
+    import sys
     import dill  # type: ignore
 
+    # this should be exactly the same as globus compute requirements
+    python_version = sys.version_info
+    dill_version = version("dill")
+    required_dill_version = "0.3.5.1" if python_version < (3, 11) else "0.3.6"
+
+    if dill_version != required_dill_version:
+        message = (
+            "To ensure compatibility with Globus Compute endpoints, Garden needs "
+            f"dill version {required_dill_version} when running python version "
+            f"{'.'.join(map(str, python_version[:2]))}. However, this environment "
+            f"has dill version {dill_version} installed, possibly due to other "
+            "packages installed from within your notebook. \n\nIf you are installing "
+            "dependencies from a cell of your notebook, try specifying them in a "
+            "requirements file with the `--requirements` flag from the command line "
+            "instead try again. "
+        )
+        raise EnvironmentError(message)
+
+    # save session after executing user notebook
     dill.dump_session("session.pkl")
 
     import json

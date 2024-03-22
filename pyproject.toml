@@ -28,6 +28,11 @@ documentation = "https://garden-ai.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+dill = [ # same constraints as globus compute
+# https://github.com/funcx-faas/funcX/blob/369807addb855e1964d55bada67c0a374ba44896/compute_sdk/setup.py#L17
+     {version = "0.3.5.1", python = "<3.11"},
+     {version = "0.3.6", python= ">=3.11"}
+]
 cryptography = "^41.0.6"
 requests = "^2.20.0"
 gitpython = "^3.1.35"
@@ -45,11 +50,6 @@ nbformat = "^5.9.2"
 docker = "^6.1.3"
 nbconvert = "^7.9.2"
 ipython = "<8.13"
-dill = [ # same constraints as globus compute
-# https://github.com/funcx-faas/funcX/blob/369807addb855e1964d55bada67c0a374ba44896/compute_sdk/setup.py#L17
-     {version = "0.3.5.1", python = "<3.11"},
-     {version = "0.3.6", python= ">=3.11"}
-]
 boto3 = "^1.29"
 boto3-stubs = "^1.29"
 python-dotenv = "^1.0.1"
