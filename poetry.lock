@@ -1030,6 +1030,21 @@ files = [
 graph = ["objgraph (>=1.7.2)"]
 
 [[package]]
+name = "dill"
+version = "0.3.6"
+description = "serialize all of python"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "dill-0.3.6-py3-none-any.whl", hash = "sha256:a07ffd2351b8c678dfc4a856a3005f8067aea51d6ba6c700796a4d9e280f39f0"},
+    {file = "dill-0.3.6.tar.gz", hash = "sha256:e5db55f3687856d8fbdab002ed78544e1c4559a130302693d839dfe8f93f2373"},
+]
+
+[package.extras]
+graph = ["objgraph (>=1.7.2)"]
+
+[[package]]
 name = "distlib"
 version = "0.3.8"
 description = "Distribution utilities"
@@ -1251,27 +1266,6 @@ test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre
 
 [[package]]
 name = "globus-compute-common"
-version = "0.2.0"
-description = "Common tools for Globus Compute projects"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "globus-compute-common-0.2.0.tar.gz", hash = "sha256:c8feec0235a323c3713840f6ef29632c301b32b0c86cc2bacc0b7b55a2859a3e"},
-    {file = "globus_compute_common-0.2.0-py3-none-any.whl", hash = "sha256:1526b00fc1e97132d19427c6edf0c59db2a2642fce07769d2ac4118a33e2653d"},
-]
-
-[package.dependencies]
-pydantic = ">=1,<2"
-
-[package.extras]
-boto3 = ["boto3 (>=1.19.0)"]
-dev = ["pytest (<8)", "pytest-cov (<5)", "pytest-xdist (<4)", "types-redis"]
-moto = ["moto[s3] (<5)"]
-redis = ["redis (>=3.5.3,<5)"]
-
-[[package]]
-name = "globus-compute-common"
 version = "0.3.0"
 description = "Common tools for Globus Compute projects"
 category = "main"
@@ -1293,34 +1287,6 @@ redis = ["redis (>=3.5.3,<6)"]
 
 [[package]]
 name = "globus-compute-sdk"
-version = "2.2.3"
-description = "Globus Compute: High Performance Function Serving for Science"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "globus-compute-sdk-2.2.3.tar.gz", hash = "sha256:d332bff727afa5e021608e5e7fac6d1cf9c8343e2358df9fc56cddd90d258dc0"},
-    {file = "globus_compute_sdk-2.2.3-py3-none-any.whl", hash = "sha256:27e548e54851578a28dedf179133e41b27f0a1d8e2e64cc854ee92a7d7a2f0ad"},
-]
-
-[package.dependencies]
-dill = "0.3.5.1"
-globus-compute-common = "0.2.0"
-globus-sdk = ">=3.20.1,<4"
-packaging = ">=21.1"
-pika = ">=1.2"
-requests = ">=2.20.0"
-tblib = "1.7.0"
-texttable = ">=1.6.7"
-websockets = "10.3"
-
-[package.extras]
-dev = ["coverage", "flake8 (==3.8.0)", "pre-commit", "pyfakefs", "pytest (>=7.2)", "pytest-mock", "responses"]
-docs = ["furo (==2021.09.08)", "sphinx (<5)"]
-test = ["coverage", "flake8 (==3.8.0)", "pyfakefs", "pytest (>=7.2)", "pytest-mock", "responses"]
-
-[[package]]
-name = "globus-compute-sdk"
 version = "2.11.0"
 description = "Globus Compute: High Performance Function Serving for Science"
 category = "main"
@@ -1332,7 +1298,10 @@ files = [
 ]
 
 [package.dependencies]
-dill = {version = "0.3.5.1", markers = "python_version < \"3.11\""}
+dill = [
+    {version = "0.3.5.1", markers = "python_version < \"3.11\""},
+    {version = "0.3.6", markers = "python_version >= \"3.11\""},
+]
 globus-compute-common = "0.3.0"
 globus-sdk = ">=3.20.1,<4"
 packaging = ">=21.1"
@@ -3802,4 +3771,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "9b9ca8115aac714d7de394b8236557c2ea41f77caf1200e95c5e5e47b22d86fe"
+content-hash = "9c4ab37c5118698e7b4dd6072b57629fb91d59f7f9b6e4858487f1900f650dbc"
