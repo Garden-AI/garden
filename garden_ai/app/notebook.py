@@ -268,14 +268,16 @@ def start(
         )
         _register_container_sigint_handler(container)
 
+    container.reload()
+    port = container.attrs["NetworkSettings"]["Ports"]["8888/tcp"][0]["HostPort"]
     typer.echo(
-        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{notebook_path.name} "
+        f"Notebook started! Opening http://127.0.0.1:{port}/notebooks/{notebook_path.name} "
         "in your default browser (you may need to refresh the page)"
     )
 
     # Give the notebook server a few seconds to start up so that the user doesn't have to refresh manually
     time.sleep(3)
-    webbrowser.open_new_tab(f"http://127.0.0.1:8888/notebooks/{notebook_path.name}")
+    webbrowser.open_new_tab(f"http://127.0.0.1:{port}/notebooks/{notebook_path.name}")
 
     # stream logs from the container
     for line in container.logs(stream=True):
@@ -377,11 +379,13 @@ def debug(
             )
             _register_container_sigint_handler(container)
 
+    container.reload()
+    port = container.attrs["NetworkSettings"]["Ports"]["8888/tcp"][0]["HostPort"]
     typer.echo(
-        f"Notebook started! Opening http://127.0.0.1:8888/notebooks/{debug_path.name} "
+        f"Notebook started! Opening http://127.0.0.1:{port}/notebooks/{debug_path.name} "
         "in your default browser (you may need to refresh the page)"
     )
-    webbrowser.open_new_tab(f"http://127.0.0.1:8888/notebooks/{debug_path.name}")
+    webbrowser.open_new_tab(f"http://127.0.0.1:{port}/notebooks/{debug_path.name}")
 
     # stream logs from the container
     for line in container.logs(stream=True):
