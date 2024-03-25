@@ -3,6 +3,7 @@ import json
 import os
 import io
 import pathlib
+import socket
 import tarfile
 import functools
 import datetime
@@ -24,6 +25,22 @@ class DockerStartFailure(Exception):
         self.original_exception = original_exception
         self.helpful_explanation = explanation
         super().__init__(f"Docker failed to start: {original_exception}")
+
+
+class NoPortAvailable(Exception):
+    """
+    Raised when Garden can't find an available port to start a container.
+    """
+
+    def __init__(self):
+        max_port = (
+            GardenConstants.DEFAULT_JUPYTER_PORT
+            + GardenConstants.MAX_JUPYTER_PORTS_TO_ATTEMPT
+        )
+        super().__init__(
+            f"Failed to find an available port to start your Jupyter notebook. "
+            f"All ports from {GardenConstants.DEFAULT_JUPYTER_PORT} to {max_port} are in use."
+        )
 
 
 class DockerPreBuildFailure(docker.errors.BuildError):
@@ -99,6 +116,27 @@ def get_docker_client() -> docker.DockerClient:
     return docker.from_env()
 
 
+def is_port_available(port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex(("localhost", port))
+    sock.close()
+    return result != 0
+
+
+def find_available_port(start_port, max_attempts=10):
+    port = start_port
+    attempts = 0
+
+    while attempts < max_attempts:
+        if is_port_available(port):
+            return port
+        else:
+            port += 1
+            attempts += 1
+
+    raise NoPortAvailable()
+
+
 @handle_docker_errors
 def start_container_with_notebook(
     client: docker.DockerClient,
@@ -130,7 +168,7 @@ def start_container_with_notebook(
     - docker.models.containers.Container: The started container object.
 
     Note:
-    - The Jupyter Notebook server inside the container runs on port 8888
+    - The Jupyter Notebook server inside the container runs on a port between 9188 and 9198
       and is exposed to the host on the same port.
     """
     if pull:
@@ -141,11 +179,15 @@ def start_container_with_notebook(
     else:
         volumes = {}
 
+    port = find_available_port(
+        GardenConstants.DEFAULT_JUPYTER_PORT,
+        max_attempts=GardenConstants.MAX_JUPYTER_PORTS_TO_ATTEMPT,
+    )
     container = client.containers.run(
         base_image,
         platform="linux/x86_64",
         detach=True,
-        ports={"8888/tcp": 8888},
+        ports={"8888/tcp": port},
         volumes=volumes,
         entrypoint=[
             "jupyter",

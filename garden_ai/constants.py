@@ -35,6 +35,11 @@ class GardenConstants:
 
     DEMO_ENDPOINT = "6ed5d749-abc3-4c83-bcad-80837b3d126f"
 
+    # Constants for picking a port to start a Jupyter notebook on
+    DEFAULT_JUPYTER_PORT = 9188
+    MAX_JUPYTER_PORTS_TO_ATTEMPT = 10
+
+    # The DOIs of entrypoints migrated from DLHub.
     DLHUB_DOIS = set(
         [
             "10.26311/3hz8-as26",

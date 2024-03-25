@@ -20,4 +20,4 @@ If calling your entrypoint function in the `garden-ai notebook debug` session be
 
 Alas, you can't. Garden aways spins up Linux containers, so you can't install the `tensorflow-macos` variant. And the normal `tensorflow` doesn't run on Apple silicon.
 
-To work around this, we recommend using a VPS. Spin up a temporary EC2 instance (or equivalent on different cloud providers) running Linux where you can work on your notebook. When you ssh into your remote workstation, forward the port the notebook runs on so that you can still work on the notebook in your local browser. Like `ssh -L 8888:localhost:8888 my-remote-user@my-remote-workstation`.
+To work around this, we recommend using a VPS. Spin up a temporary EC2 instance (or equivalent on different cloud providers) running Linux where you can work on your notebook. When you ssh into your remote workstation, forward the port the notebook runs on so that you can still work on the notebook in your local browser. Like `ssh -L 9188:localhost:9188 my-remote-user@my-remote-workstation`.

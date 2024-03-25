@@ -48,7 +48,11 @@ def mock_datetime():
         yield fixed_datetime
 
 
-def test_start_container_with_notebook(mock_docker_client):
+def test_start_container_with_notebook(mock_docker_client, mocker):
+    mock_socket = mocker.patch("garden_ai.containers.socket.socket")
+    # Make it so that the port check always shows that port is not in use.
+    mock_socket.return_value.connect_ex.return_value = 1
+
     path = pathlib.Path("/path/to/notebook.ipynb")
     base_image = "gardenai/fake-image:soonest"
 
@@ -77,7 +81,7 @@ def test_start_container_with_notebook(mock_docker_client):
         base_image,
         platform="linux/x86_64",
         detach=True,
-        ports={"8888/tcp": 8888},
+        ports={"8888/tcp": GardenConstants.DEFAULT_JUPYTER_PORT},
         volumes=expected_volumes,
         entrypoint=expected_entrypoint,
         stdin_open=True,
