@@ -187,7 +187,7 @@ def start_container_with_notebook(
         base_image,
         platform="linux/x86_64",
         detach=True,
-        ports={f"8888/tcp": port},
+        ports={"8888/tcp": port},
         volumes=volumes,
         entrypoint=[
             "jupyter",
