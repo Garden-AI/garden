@@ -38,7 +38,7 @@ class NoPortAvailable(Exception):
             + GardenConstants.MAX_JUPYTER_PORTS_TO_ATTEMPT
         )
         super().__init__(
-            f"Failed to find an available port. "
+            f"Failed to find an available port to start your Jupyter notebook. "
             f"All ports from {GardenConstants.DEFAULT_JUPYTER_PORT} to {max_port} are in use."
         )
 

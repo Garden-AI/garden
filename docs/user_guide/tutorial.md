@@ -106,7 +106,7 @@ You should see output like this:
 
 ```bash
 Using base image: gardenai/base:python-3.10-jupyter-sklearn
-Notebook started! Opening http://127.0.0.1:8888/notebooks/tutorial_notebook.ipynb in your default browser (you may need to refresh the page)
+Notebook started! Opening http://127.0.0.1:9188/notebooks/tutorial_notebook.ipynb in your default browser (you may need to refresh the page)
 
 [stream of jupyter logs]
 ```
