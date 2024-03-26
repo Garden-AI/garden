@@ -16,6 +16,8 @@ security: # configuration for the `safety check` command
             reason: this is for a crypto error that is not relevant to us functionally, and only happens on PowerPCs.
         65278:
             reason: cryptography >=42.x has an apparent incompatibility with the openssl installed by conda in our base images.
+        65647:
+            reason: cryptography >=42.x has an apparent incompatibility with the openssl installed by conda in our base images.
 
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
