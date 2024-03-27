@@ -211,6 +211,19 @@ def save_requirements_data(
         return None
 
 
+def add_doi_to_template(notebook_path, doi):
+    ntbk = _read_notebook(notebook_path)
+
+    CELL_SOURCE = f'GARDEN_DOI = "{doi}"\n'
+
+    new_cell = nbformat.v4.new_code_cell(CELL_SOURCE)
+    del new_cell["id"]
+    ntbk.cells[1] = new_cell
+
+    # Write updated notebook data to file
+    nbformat.write(ntbk, notebook_path, version=nbformat.NO_CONVERT)
+
+
 def _read_notebook(notebook_path: Path) -> NotebookNode:
     # Read notebook contents with nbformat
     try:

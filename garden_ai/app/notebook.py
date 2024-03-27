@@ -25,6 +25,7 @@ from garden_ai.containers import (
 )
 
 from garden_ai.notebook_metadata import (
+    add_doi_to_template,
     add_notebook_metadata_cell,
     set_notebook_metadata,
     get_notebook_metadata,
@@ -152,6 +153,11 @@ def start(
             "additional dependencies to install in the base image."
         ),
     ),
+    doi: Optional[str] = typer.Option(
+        None,
+        "--doi",
+        help=("Adds Garden DOI to notebook template when creating a new notebook."),
+    ),
     custom_image_uri: Optional[str] = typer.Option(
         None,
         "--custom-image",
@@ -240,6 +246,10 @@ def start(
         top_level_dir = Path(__file__).parent.parent
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
+
+        # User provided DOI to add to new templated notebook
+        if doi and template_file_name != "tutorial.ipynb":
+            add_doi_to_template(notebook_path, doi)
 
     # Get base image name from notebook if user did not provide
     if base_image_name is None:
