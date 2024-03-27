@@ -332,7 +332,7 @@ def debug(
             _get_base_image_uri(
                 base_image_name=None, custom_image_uri=None, notebook_path=path
             )
-            or "gardenai/base:python-3.10-jupyter"
+            or "gardenai/base:python-3.10-base"
         )
 
         # Validate and read requirements file.

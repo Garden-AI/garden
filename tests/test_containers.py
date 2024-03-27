@@ -23,7 +23,7 @@ def mock_docker_client():
     # Mock the APIClient and set it as the `api` attribute on the DockerClient mock
     api_client = MagicMock()
     api_client.build.return_value = [
-        {"stream": "Step 1/3 : FROM gardenai/base:python-3.10-jupyter"},
+        {"stream": "Step 1/3 : FROM gardenai/base:python-3.10-base"},
         {"stream": " ---> Using cache"},
         {"stream": " ---> 2d6e000f4f63"},
         {"aux": {"ID": IMAGE_ID}},
@@ -215,7 +215,7 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
 def test_build_image_with_dependencies(
     mock_docker_client, mocker, requirements_file, mock_datetime
 ):
-    base_image = "gardenai/base:python-3.10-jupyter"
+    base_image = "gardenai/base:python-3.10-base"
     requirements_path = pathlib.Path(requirements_file) if requirements_file else None
 
     # Mock the file read for requirements.txt
