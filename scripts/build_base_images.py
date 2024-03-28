@@ -6,7 +6,7 @@ from garden_ai.containers import process_docker_build_stream, DockerBuildFailure
 import os
 
 
-def build_base_image(client: DockerClient, python_version) -> str:
+def build_garden_base_image(client: DockerClient, python_version) -> str:
     """Build and tag an image into the gardenai/base repository.
 
     Image is built from the official image for the given python version. Does
@@ -15,7 +15,7 @@ def build_base_image(client: DockerClient, python_version) -> str:
     dockerfile_content = f"""
     FROM --platform=linux/amd64 python:{python_version}
     WORKDIR /garden
-    RUN pip install pandas numpy notebook
+    RUN pip install --no-cache-dir pandas numpy notebook
     """
 
     with TemporaryDirectory() as tmpdir:
@@ -40,7 +40,7 @@ def build_flavor_image(client, python_version, flavor, extras):
     FROM --platform=linux/amd64 gardenai/base:python-{python_version}-base
     """
     for extra in extras:
-        dockerfile_content += f"\nRUN pip install {extra}"
+        dockerfile_content += f"\nRUN pip install --no-cache-dir {extra}"
 
     with TemporaryDirectory() as tmpdir:
         dockerfile_path = os.path.join(tmpdir, "Dockerfile")
@@ -62,8 +62,6 @@ def push_to_dockerhub(client: DockerClient, image_tag: str):
     push_logs = client.images.push(repository=image_tag, stream=True, decode=True)
     for log in push_logs:
         if "error" in log:
-            # docker sdk doesn't throw its own exception if the repo doesn't
-            # exist or the push fails, just records the error in logs
             error_message = log["error"]
             raise docker.errors.InvalidRepository(
                 f"Error pushing image to {image_tag} - {error_message}"
@@ -78,7 +76,7 @@ def push_to_dockerhub(client: DockerClient, image_tag: str):
 
 
 def remove_local_images(client: docker.DockerClient):
-    for image in client.images.list(all=True):
+    for image in client.images.list():
         try:
             print(f"Removing image: {list(image.tags)}")
             client.images.remove(image.id)
@@ -87,7 +85,6 @@ def remove_local_images(client: docker.DockerClient):
     return
 
 
-PYTHON_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 FLAVOR_EXTRAS = {
     "sklearn": [
         "joblib",
@@ -97,9 +94,7 @@ FLAVOR_EXTRAS = {
         "scikit-optimize",
     ],
     "torch": [
-        "torch --index-url https://download.pytorch.org/whl/cpu",
-        "torchvision --index-url https://download.pytorch.org/whl/cpu",
-        "torchaudio --index-url https://download.pytorch.org/whl/cpu",
+        "torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu",
     ],
     "tensorflow": ["tensorflow"],
 }
@@ -111,9 +106,9 @@ FLAVOR_EXTRAS["wisconsin"] = ["pymatgen", "mastml", "madml"]
 if __name__ == "__main__":
     client = docker.from_env()
 
-    for version in PYTHON_VERSIONS:
+    for version in ["3.8", "3.9", "3.10", "3.11"]:
         # build base variant first
-        no_extras = build_base_image(client, version)
+        no_extras = build_garden_base_image(client, version)
         push_to_dockerhub(client, no_extras)
 
         for flavor, extras in FLAVOR_EXTRAS.items():
