@@ -26,7 +26,7 @@ def assert_compatible_dill_version():
             "packages installed from within your notebook. \n\nIf you are installing "
             "dependencies from a cell of your notebook, try specifying them in a "
             "requirements file with the `--requirements` flag from the command line "
-            "instead try again. "
+            "instead and try again. "
         )
         raise EnvironmentError(message)
 

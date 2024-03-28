@@ -440,7 +440,7 @@ def build_image_with_dependencies(
     dockerfile_content = f"""
     FROM {base_image}
     WORKDIR /garden
-    RUN pip install --no-cache-dir garden-ai
+    RUN pip install --no-cache-dir --upgrade garden-ai
     """
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
