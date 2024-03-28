@@ -245,10 +245,11 @@ def test_build_image_with_dependencies(
     contents = dockerfile_content_capture.getvalue()
     # Test that the Dockerfile was created correctly per requirements type
     assert f"FROM {base_image}" in contents
+    assert "WORKDIR /garden" in contents
     assert "RUN pip install --no-cache-dir --upgrade garden-ai" in contents
     if requirements_file == "requirements.txt":
         assert f"COPY {requirements_file} /garden/{requirements_file}" in contents
-        assert "RUN pip install -r /garden/requirements.txt" in contents
+        assert "RUN pip install --upgrade -r /garden/requirements.txt" in contents
         assert "conda" not in contents
     elif requirements_file == "environment.yml":
         assert f"COPY {requirements_file} /garden/{requirements_file}" in contents
