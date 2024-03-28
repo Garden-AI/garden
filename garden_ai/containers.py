@@ -439,7 +439,8 @@ def build_image_with_dependencies(
     # always install garden first
     dockerfile_content = f"""
     FROM {base_image}
-    RUN pip install garden-ai
+    WORKDIR /garden
+    RUN pip install --no-cache-dir --upgrade garden-ai
     """
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = pathlib.Path(temp_dir)
@@ -451,7 +452,7 @@ def build_image_with_dependencies(
                 if requirements_path.suffix == ".txt":  # pip
                     dockerfile_content += f"""
                     COPY {requirements_path.name} /garden/{requirements_path.name}
-                    RUN pip install -r /garden/{requirements_path.name}
+                    RUN pip install --upgrade -r /garden/{requirements_path.name}
                     """
                 else:  # conda
                     # nb: installs directly into base environment instead of isolating from image's already-installed packages

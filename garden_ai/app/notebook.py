@@ -148,7 +148,7 @@ def start(
         None,
         "--requirements",
         help=(
-            "Path to a requirements.txt or a conda environment.yml containing "
+            "Path to a requirements.txt containing "
             "additional dependencies to install in the base image."
         ),
     ),
@@ -316,7 +316,7 @@ def debug(
         None,
         "--requirements",
         help=(
-            "Path to a requirements.txt or a conda environment.yml containing "
+            "Path to a requirements.txt containing "
             "additional dependencies to install in the base image."
         ),
     ),
@@ -332,7 +332,7 @@ def debug(
             _get_base_image_uri(
                 base_image_name=None, custom_image_uri=None, notebook_path=path
             )
-            or "gardenai/base:python-3.10-jupyter"
+            or "gardenai/base:python-3.10-base"
         )
 
         # Validate and read requirements file.
@@ -420,7 +420,7 @@ def publish(
         None,
         "--requirements",
         help=(
-            "Path to a requirements.txt or a conda environment.yml containing "
+            "Path to a requirements.txt containing "
             "additional dependencies to install in the base image."
         ),
     ),

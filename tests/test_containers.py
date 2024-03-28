@@ -23,7 +23,7 @@ def mock_docker_client():
     # Mock the APIClient and set it as the `api` attribute on the DockerClient mock
     api_client = MagicMock()
     api_client.build.return_value = [
-        {"stream": "Step 1/3 : FROM gardenai/base:python-3.10-jupyter"},
+        {"stream": "Step 1/3 : FROM gardenai/base:python-3.10-base"},
         {"stream": " ---> Using cache"},
         {"stream": " ---> 2d6e000f4f63"},
         {"aux": {"ID": IMAGE_ID}},
@@ -215,7 +215,7 @@ def test_push_image_to_public_repo(mock_docker_client, capsys):
 def test_build_image_with_dependencies(
     mock_docker_client, mocker, requirements_file, mock_datetime
 ):
-    base_image = "gardenai/base:python-3.10-jupyter"
+    base_image = "gardenai/base:python-3.10-base"
     requirements_path = pathlib.Path(requirements_file) if requirements_file else None
 
     # Mock the file read for requirements.txt
@@ -245,10 +245,11 @@ def test_build_image_with_dependencies(
     contents = dockerfile_content_capture.getvalue()
     # Test that the Dockerfile was created correctly per requirements type
     assert f"FROM {base_image}" in contents
-    assert "RUN pip install garden-ai" in contents
+    assert "WORKDIR /garden" in contents
+    assert "RUN pip install --no-cache-dir --upgrade garden-ai" in contents
     if requirements_file == "requirements.txt":
         assert f"COPY {requirements_file} /garden/{requirements_file}" in contents
-        assert "RUN pip install -r /garden/requirements.txt" in contents
+        assert "RUN pip install --upgrade -r /garden/requirements.txt" in contents
         assert "conda" not in contents
     elif requirements_file == "environment.yml":
         assert f"COPY {requirements_file} /garden/{requirements_file}" in contents

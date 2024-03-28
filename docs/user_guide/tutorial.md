@@ -98,14 +98,14 @@ garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn --tut
 Garden will ask you to confirm if you want to do this. Type `y` and hit enter.
 
 ```bash
-This will create a new notebook foo.ipynb and open it in Docker image gardenai/base:python-3.10-jupyter-sklearn.
+This will create a new notebook foo.ipynb and open it in Docker image gardenai/base:python-3.10-sklearn.
 Do you want to proceed? [y/N]: y
 ```
 
 You should see output like this:
 
 ```bash
-Using base image: gardenai/base:python-3.10-jupyter-sklearn
+Using base image: gardenai/base:python-3.10-sklearn
 Notebook started! Opening http://127.0.0.1:9188/notebooks/tutorial_notebook.ipynb in your default browser (you may need to refresh the page)
 
 [stream of jupyter logs]
@@ -140,7 +140,7 @@ $ garden-ai notebook publish tutorial_notebook.ipynb --base-image="3.10-sklearn"
 
 Your output should look something like this:
 ```bash
-Using base image: gardenai/base:python-3.10-jupyter-sklearn
+Using base image: gardenai/base:python-3.10-sklearn
 Preparing image ...
 Building image ...
 Built image: <Image: ''>
