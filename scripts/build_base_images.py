@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import docker
+import docker  # type: ignore
 from docker import DockerClient
 from tempfile import TemporaryDirectory
 from garden_ai.containers import process_docker_build_stream, DockerBuildFailure
@@ -76,7 +76,7 @@ def push_to_dockerhub(client: DockerClient, image_tag: str):
 
 
 def remove_local_images(client: docker.DockerClient):
-    for image in client.images.list():
+    for image in client.images.list(name="gardenai/base"):
         try:
             print(f"Removing image: {list(image.tags)}")
             client.images.remove(image.id)
@@ -86,6 +86,7 @@ def remove_local_images(client: docker.DockerClient):
 
 
 FLAVOR_EXTRAS = {
+    "tensorflow": ["tensorflow"],
     "sklearn": [
         "joblib",
         "scipy",
@@ -96,7 +97,6 @@ FLAVOR_EXTRAS = {
     "torch": [
         "torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu",
     ],
-    "tensorflow": ["tensorflow"],
 }
 FLAVOR_EXTRAS["all"] = [
     pkg for (flavor, extras) in FLAVOR_EXTRAS.items() for pkg in extras
@@ -117,4 +117,5 @@ if __name__ == "__main__":
             image_tag = build_flavor_image(client, version, flavor, extras)
             push_to_dockerhub(client, image_tag)
 
+        # not needed if you have enough disk space to build all the images
         remove_local_images(client)
