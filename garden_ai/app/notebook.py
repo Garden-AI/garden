@@ -148,7 +148,7 @@ def start(
         None,
         "--requirements",
         help=(
-            "Path to a requirements.txt or a conda environment.yml containing "
+            "Path to a requirements.txt containing "
             "additional dependencies to install in the base image."
         ),
     ),
@@ -316,7 +316,7 @@ def debug(
         None,
         "--requirements",
         help=(
-            "Path to a requirements.txt or a conda environment.yml containing "
+            "Path to a requirements.txt containing "
             "additional dependencies to install in the base image."
         ),
     ),
@@ -420,7 +420,7 @@ def publish(
         None,
         "--requirements",
         help=(
-            "Path to a requirements.txt or a conda environment.yml containing "
+            "Path to a requirements.txt containing "
             "additional dependencies to install in the base image."
         ),
     ),
