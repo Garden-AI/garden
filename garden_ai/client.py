@@ -11,6 +11,7 @@ from uuid import UUID
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
+from globus_compute_sdk.sdk.login_manager import ComputeScopes
 from globus_compute_sdk.serialize.concretes import DillCodeTextInspect
 from globus_sdk import (
     AuthAPIError,
@@ -40,8 +41,6 @@ from garden_ai.entrypoints import (
 )
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
-
-COMPUTE_RESOURCE_SERVER_NAME = "funcx_service"
 
 logger = logging.getLogger()
 
@@ -109,7 +108,7 @@ class GardenClient:
                 SearchClient.scopes.resource_server
             )
             self.compute_authorizer = self._create_authorizer(
-                COMPUTE_RESOURCE_SERVER_NAME
+                ComputeScopes.resource_server
             )
             self.search_client = (
                 SearchClient(authorizer=self.search_authorizer)
@@ -168,10 +167,12 @@ class GardenClient:
             requested_scopes=[
                 AuthLoginClient.scopes.openid,
                 AuthLoginClient.scopes.email,
+                AuthLoginClient.scopes.manage_projects,
                 GroupsClient.scopes.view_my_groups_and_memberships,
                 SearchClient.scopes.all,
                 GardenClient.scopes.test_scope,
-                Client.FUNCX_SCOPE,
+                GardenClient.scopes.action_all,
+                ComputeScopes.all,
             ],
             refresh_tokens=True,
         )
