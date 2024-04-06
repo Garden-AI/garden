@@ -11,8 +11,34 @@ class ModelRepository(Enum):
 
 class DatasetConnection(BaseModel):
     """
-    The ``DataSetConnection`` class represents all the metadata we want to \
-    publically expose about the datasets that can be utilized with this model.
+    The ``DatasetConnection`` class represents metadata of external datasets \
+    which publishers want to highlight as related to their Entrypoint. This \
+    metadata (if provided) will be displayed with the Entrypoint as "related \
+    work".
+
+    These can be linked to an Entrypoint directly in the `EntrypointMetadata` or \
+    via the ``@garden_entrypoint`` decorator with the `datasets` kwarg.
+
+    Example:
+
+        ```python
+        my_relevant_dataset = DatasetConnection(
+            title="Benchmark Dataset for Locating Atoms in STEM images",
+            doi="10.18126/e73h-3w6n",
+            url="https://foundry-ml.org/#/datasets/10.18126%2Fe73h-3w6n",
+            repository="foundry",
+        )
+        my_metadata = EntrypointMetadata(
+            title="...",
+            # etc
+        )
+
+        @garden_entrypoint(metadata=my_metadata, datasets=[my_relevant_dataset])
+        def my_entrypoint(*args, **kwargs):
+            ...
+
+        ```
+
 
     Attributes:
         title (str):
@@ -23,7 +49,7 @@ class DatasetConnection(BaseModel):
             Location where the dataset can be accessed. If using foundry \
             dataset, both url and DOI must be provided.
         repository (str):
-            The public repository where the dataset is hosted
+            The public repository where the dataset is hosted (e.g. "foundry", "github")
         data_type (str):
             Optional, the type of file of dataset.
 
@@ -34,6 +60,16 @@ class DatasetConnection(BaseModel):
     url: str = Field(...)
     data_type: Optional[str] = Field(None)
     repository: str = Field(...)
+
+    @validator("repository")
+    def check_foundry(cls, v, values, **kwargs):
+        v = v.lower()  # case-insensitive
+        if "url" in values and "doi" in values:
+            if v == "foundry" and (values["url"] is None or values["doi"] is None):
+                raise ValueError(
+                    "For a Foundry repository, both url and doi must be provided"
+                )
+        return v
 
 
 class ModelMetadata(BaseModel):
