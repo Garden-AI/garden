@@ -28,7 +28,8 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import GardenConstants, local_data
+from garden_ai import local_data
+from garden_ai.constants import GardenConstants
 from garden_ai.backend_client import BackendClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden, PublishedGarden
