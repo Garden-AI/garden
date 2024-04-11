@@ -1,14 +1,14 @@
-from ._version import __version__  # noqa  # type: ignore
-from .constants import GardenConstants
 from .client import GardenClient
-from .gardens import Garden, PublishedGarden
+from .constants import GardenConstants
 from .entrypoints import (
     EntrypointMetadata,
     RegisteredEntrypoint,
+    entrypoint_test,
     garden_entrypoint,
     garden_step,
-    entrypoint_test,
 )
+from .gardens import Garden, PublishedGarden
+from .mlmodel import DatasetConnection
 
 __all__ = [
     "GardenConstants",
@@ -20,4 +20,5 @@ __all__ = [
     "garden_entrypoint",
     "garden_step",
     "entrypoint_test",
+    "DatasetConnection",
 ]

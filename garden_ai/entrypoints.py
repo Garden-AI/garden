@@ -21,7 +21,7 @@ from garden_ai.datacite import (
     Title,
     Types,
 )
-from garden_ai.mlmodel import ModelMetadata
+from garden_ai.mlmodel import ModelMetadata, DatasetConnection
 from garden_ai.utils.misc import JSON
 
 
@@ -108,8 +108,9 @@ class EntrypointMetadata(BaseModel):
         short_name: This will be the name of the Python method that people call to invoke your entrypoint.
         year: When did you make this entrypoint? (Defaults to current year)
         tags: Helpful tags
-        repositories: List of related code repositories, like GitHub or GitLab repos.
-        papers: List of related papers, like a paper that describes the model you are publishing here.
+        repositories: List of related code repositories (``Repository``), like GitHub or GitLab repos.
+        papers: List of related papers, like a paper (``Paper``) that describes the model you are publishing here.
+        datasets: List of related datasets (``DatasetConnection``) that is related to the entrypoint you are publishing.
     """
 
     doi: Optional[str] = Field(None)
@@ -122,6 +123,7 @@ class EntrypointMetadata(BaseModel):
     models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
+    datasets: List[DatasetConnection] = Field(default_factory=list)
     # The PrivateAttrs below are used internally for publishing.
     _test_functions: List[str] = PrivateAttr(default_factory=list)
     _target_garden_doi: Optional[str] = PrivateAttr(None)
@@ -275,11 +277,20 @@ class RegisteredEntrypoint(EntrypointMetadata):
 def garden_entrypoint(
     metadata: EntrypointMetadata,
     garden_doi: str = None,
-    model_connectors=None,
+    model_connectors: Optional[List] = None,
+    datasets: Optional[List[DatasetConnection]] = None,
 ):
     def decorate(func):
+        if datasets:
+            # datasets explicitly connected to entrypoint by decorator
+            metadata.datasets += datasets
         if model_connectors:
-            metadata.models += [connector.metadata for connector in model_connectors]
+            for connector in model_connectors:
+                model_meta: ModelMetadata = connector.metadata
+                metadata.models += [model_meta]
+                # datasets implicitly connected from model metadata
+                metadata.datasets += model_meta.datasets
+
         metadata._as_step = Step(
             function_text=inspect.getsource(func),
             function_name=func.__name__,
