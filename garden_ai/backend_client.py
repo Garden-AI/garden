@@ -40,24 +40,24 @@ def backend_toggle(func):
     if garden_env not in env_url_mapping or func.__name__ not in toggles:
         return func
 
-    old_url = GardenConstants.GARDEN_ENDPOINT
-    new_url = env_url_mapping[garden_env]
-
-    old_call_method = BackendClient._call
-
-    def _call_with_trailing_slash(self: BackendClient, http_verb, resource, payload):
-        """Drop in replacement for monkey-patching `BackendClient._call`"""
-        # for context: calls to the new backend on lightsail break without a
-        # trailing slash, but a trailing slash everywhere would break calls to
-        # the old backend.
-        resource = resource + "/"
-        return old_call_method(self, http_verb, resource, payload)
-
     @wraps(func)
     def monkey_patch_url(*args, **kwargs):
+        old_url = GardenConstants.GARDEN_ENDPOINT
+        new_url = env_url_mapping[garden_env]
+
+        old_call_method = BackendClient._call
+
+        def new_call_method(self: BackendClient, http_verb, resource, payload):
+            """Drop in replacement for monkey-patching `BackendClient._call`"""
+            # for context: calls to the new backend on lightsail break without a
+            # trailing slash, but a trailing slash everywhere would break calls to
+            # the old backend.
+            resource = resource + "/"
+            return old_call_method(self, http_verb, resource, payload)
+
         try:
             GardenConstants.GARDEN_ENDPOINT = new_url
-            BackendClient._call = _call_with_trailing_slash
+            BackendClient._call = new_call_method
             return func(*args, **kwargs)
         finally:
             GardenConstants.GARDEN_ENDPOINT = old_url
