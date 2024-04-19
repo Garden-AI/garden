@@ -22,15 +22,19 @@ class GardenConstants:
     GARDEN_KEY_STORE = os.path.join(GARDEN_DIR, "tokens.json")
     URL_ENV_VAR_NAME = "GARDEN_MODELS"
     GARDEN_ENDPOINT = (
-        _DEV_ENDPOINT if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ENDPOINT
+        _DEV_ENDPOINT
+        if os.environ.get("GARDEN_ENV") in ("dev", "local")
+        else _PROD_ENDPOINT
     )
     GARDEN_INDEX_UUID = (
         _DEV_SEARCH_INDEX
-        if os.environ.get("GARDEN_ENV") == "dev"
+        if os.environ.get("GARDEN_ENV") in ("dev", "local")
         else _PROD_SEARCH_INDEX
     )
     GARDEN_ECR_REPO = (
-        _DEV_ECR_REPO if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ECR_REPO
+        _DEV_ECR_REPO
+        if os.environ.get("GARDEN_ENV") in ("dev", "local")
+        else _PROD_ECR_REPO
     )
 
     DEMO_ENDPOINT = "6ed5d749-abc3-4c83-bcad-80837b3d126f"
