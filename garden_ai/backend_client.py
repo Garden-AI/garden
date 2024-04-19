@@ -28,7 +28,7 @@ def backend_toggle(func):
     GARDEN_ENV=local, this targets localhost:5500 (i.e. an instance started with
     the backend's run-dev-server.sh script)
     """
-    # dev, prod or local
+    # "dev", "prod" or "local"
     garden_env = os.getenv("GARDEN_ENV", "")
     # e.g. "mint_doi_on_datacite,update_doi_on_datacite"
     toggles = os.getenv("GARDEN_BACKEND_TOGGLES", "")
@@ -46,6 +46,10 @@ def backend_toggle(func):
     old_call_method = BackendClient._call
 
     def _call_with_trailing_slash(self: BackendClient, http_verb, resource, payload):
+        """Drop in replacement for monkey-patching `BackendClient._call`"""
+        # for context: calls to the new backend on lightsail break without a
+        # trailing slash, but a trailing slash everywhere would break calls to
+        # the old backend.
         resource = resource + "/"
         return old_call_method(self, http_verb, resource, payload)
 
