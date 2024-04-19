@@ -78,6 +78,20 @@ This also means you can do a few things inside of docstrings to add some polish 
 > ```
 >
 
+#### CLI Documentation
+The [typer](https://typer.tiangolo.com/) library generates nicely formatted docs from the docstrings
+in the commands/subcommands.
+
+To genereate the docs run:
+
+``` shell
+# if in a poetry shell
+typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
+
+# otherwise
+poetry run typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
+```
+
 ## Testing
 
 We use `pytest` for testing. After making changes, make sure all tests pass. You can run unit tests using the following command:

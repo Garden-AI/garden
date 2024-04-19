@@ -12,6 +12,8 @@ nav:
   - API Reference:
     - Entrypoints: Entrypoints.md
     - Gardens: Gardens.md
+  - CLI Reference:
+      - garden-ai: garden-ai.md
 theme:
   name: material
   features:
