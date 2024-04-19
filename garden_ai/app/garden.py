@@ -89,7 +89,7 @@ def create(
         rich_help_panel="Recommended",
     ),
     tags: List[str] = typer.Option(
-        None,
+        [],
         "--tag",
         help="Add a tag, keyword, key phrase or other classification pertaining to the Garden.",
         rich_help_panel="Recommended",
