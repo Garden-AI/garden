@@ -20,7 +20,7 @@ You also might encounter problems with the `poetry.lock` file, which we keep und
 
 ## Code of Conduct
 
-We believe in creating a welcoming and inclusive environment for all contributors. With that in mind, all contributors are expected to follow the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/).
+nWe believe in creating a welcoming and inclusive environment for all contributors. With that in mind, all contributors are expected to follow the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/).
 
 
 ## Contribution Guidelines
@@ -77,6 +77,20 @@ This also means you can do a few things inside of docstrings to add some polish 
 >  """
 > ```
 >
+
+#### CLI Documentation
+The [typer](https://typer.tiangolo.com/) library generates nicely formatted docs from the docstrings
+in the commands/subcommands.
+
+To genereate the docs run:
+
+``` shell
+# if in a poetry shell
+typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
+
+# otherwise
+poetry run typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
+```
 
 ## Testing
 
