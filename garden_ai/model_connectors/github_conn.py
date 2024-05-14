@@ -3,6 +3,7 @@ from git.repo.fun import is_git_dir
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import trackcalls
 from requests.exceptions import HTTPError
+import os
 import sys
 import requests
 
@@ -12,20 +13,40 @@ class GitHubConnector:
         self,
         repo_url: str,
         branch="main",
+        revision=None,
         local_dir=None,
         enable_imports=True,
     ):
         self.repo_url = repo_url
         self.branch = branch
+        self.revision = revision
         self.local_dir = local_dir or "gh_model"
         self.enable_imports = enable_imports
         self.metadata = ModelMetadata(
             model_identifier=self.repo_url,
             model_repository="GitHub",
-            model_version=self.branch,
+            model_version=self.revision,
         )
+
+        repo_url_split = repo_url.split("/")
+
+        # Grab the latest commit hash if none was given
+        if self.revision is None:
+            try:
+                # get commit info from GitHub API: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
+                commit_url = f"https://api.github.com/repos/{repo_url_split[-2]}/{repo_url_split[-1]}/commits/{self.branch}"
+                response = requests.get(commit_url)
+                response.raise_for_status()
+                commit_info = response.json()
+                commit_hash = commit_info["sha"]
+                if commit_hash:
+                    self.revision = commit_hash
+                    self.metadata.model_version = self.revision
+            except Exception as e:
+                print(f"Error fetching commit hash: {e}")
+                print("Check that the repo_url is correct and that the repo is public.")
+
         try:
-            repo_url_split = repo_url.split("/")
             readme_url = f"https://raw.githubusercontent.com/{repo_url_split[-2]}/{repo_url_split[-1]}/{self.branch}/README.md"
             self.read_me = requests.get(readme_url).text
         except HTTPError:
@@ -50,6 +71,14 @@ class GitHubConnector:
                 return self.local_dir
 
         Repo.clone_from(f"{self.repo_url}.git", self.local_dir, branch=self.branch)
+
+        # Checkout the pinned revision if available
+        if self.revision:
+            try:
+                repo = Repo(self.local_dir)
+                repo.git.checkout(self.revision)
+            except GitCommandError:
+                raise ValueError(f"Failed to checkout revision {self.revision}")
 
         if self.enable_imports:
             sys.path.append(self.local_dir)

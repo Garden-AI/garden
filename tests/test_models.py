@@ -166,3 +166,70 @@ def test_GHconnector_idempotent(mocker):
     assert (
         mock_repo_instance.remotes.origin.pull.call_count == 2
     ), "Pull should be called on subsequent calls"
+
+
+def test_GitHubConnector_pins_commit_hash_correctly(mocker):
+    # Mock the response from the GitHub API
+    mock_response = mocker.patch("requests.get")
+    mock_response.return_value.json.return_value = {"sha": "fakecommithash"}
+
+    # Mock the Repo
+    repo_url = "https://github.com/fake/repo"
+    mock_repo = MagicMock()
+    mock_repo.remotes.origin.url = repo_url + ".git"
+    mock_repo.remotes.origin.pull = MagicMock()
+    mock_repo.git.checkout = MagicMock()
+    mocker.patch("garden_ai.model_connectors.github_conn.Repo", return_value=mock_repo)
+
+    # Crete the connector
+    connector = GitHubConnector(
+        repo_url=repo_url,
+    )
+
+    # The revision field should be the commit hash from the latest commit
+    assert connector.revision == "fakecommithash"
+
+    # The commit hash should be stored in the metadata object as well
+    assert connector.metadata.model_version == "fakecommithash"
+
+    # stage should checkout the pinned commit when called
+    connector.stage()
+    mock_repo.git.checkout.assert_called_once_with("fakecommithash")
+
+
+def test_HFConnector_pins_commit_hash_correctly(mocker):
+    mocker.patch("os.path.exists", return_value=True)
+    mock_snapshot_download = mocker.patch(
+        "garden_ai.model_connectors.hugging_face.hfh.snapshot_download"
+    )
+
+    # Mock a couple of hfh.GitRefInfo objects, these are returned from hfh.list_repo_refs
+    mock_main_branch = MagicMock()
+    mock_main_branch.name = "main"
+    mock_main_branch.target_commit = "fakecommithash"
+    mock_branch = MagicMock()
+    mock_branch.name = "dev"
+    mock_branch.target_commit = "wrongfakehash"
+
+    # Mock the response from HuggingFace
+    mock_response = MagicMock()
+    mock_response.branches = [mock_main_branch, mock_branch, mock_branch]
+    mocker.patch(
+        "garden_ai.model_connectors.hugging_face.hfh.list_repo_refs",
+        return_value=mock_response,
+    )
+
+    repo = "fake/repo"
+    connector = HFConnector(repo)
+
+    # The revision field should be the commit has from the latest commit on main
+    assert connector.revision == "fakecommithash"
+
+    # The commit hash should be stored in the metadata object as well
+    assert connector.metadata.model_version == "fakecommithash"
+
+    # The commit hash should be passed into hfh.snapshot_download when stage is called
+    connector.stage()
+    mock_snapshot_download.assert_called_with(
+        "fake/repo", revision="fakecommithash", local_dir="hf_model"
+    )
