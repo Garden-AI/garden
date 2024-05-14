@@ -1,9 +1,9 @@
 from git import Repo  # type: ignore
+from git import GitCommandError
 from git.repo.fun import is_git_dir
 from garden_ai.mlmodel import ModelMetadata
 from garden_ai.utils.misc import trackcalls
 from requests.exceptions import HTTPError
-import os
 import sys
 import requests
 
