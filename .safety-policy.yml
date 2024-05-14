@@ -15,6 +15,9 @@ security: # configuration for the `safety check` command
         65212: # Vulnerability ID
             reason: this is for a crypto error that is not relevant to us functionally, and only happens on PowerPCs.
 
+        67599:
+            reason: this only affects the --extra-index-url option in pip which we don't currently use. It is also intended behavior and is up to the user to operate --extra-index-url safely.
+
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
     security:
