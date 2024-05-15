@@ -145,6 +145,7 @@ def test_GHconnector_idempotent(mocker):
         local_dir="gh_model",
         branch="main",
         enable_imports=False,
+        revision="fakecommithash",
     )
 
     # First call should trigger clone since it's not a git dir yet

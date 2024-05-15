@@ -5,6 +5,8 @@ from requests.exceptions import HTTPError
 import os
 import sys
 
+from .exceptions import ConnectorInvalidRevisionError
+
 
 class HFConnector:
     def __init__(
@@ -27,12 +29,16 @@ class HFConnector:
 
         # Grab the model revision from the main branch if it wasn't provided.
         if self.revision is None:
-            refs = hfh.list_repo_refs(self.repo_id)
-            for branch in refs.branches:
-                if branch.name == "main":
-                    self.revision = branch.target_commit
-                    self.metadata.model_version = self.revision
-                    break
+            try:
+                refs = hfh.list_repo_refs(self.repo_id)
+                for branch in refs.branches:
+                    if branch.name == "main":
+                        self.revision = branch.target_commit
+                        self.metadata.model_version = self.revision
+                assert self.revision is not None
+            except Exception as e:
+                # just pass along any error message, the list_repo_refs exceptions have helpful messages
+                raise ConnectorInvalidRevisionError(e)
 
     @trackcalls
     def stage(self) -> str:

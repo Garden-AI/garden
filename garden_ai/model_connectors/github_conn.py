@@ -7,6 +7,8 @@ from requests.exceptions import HTTPError
 import sys
 import requests
 
+from .exceptions import ConnectorInvalidRevisionError
+
 
 class GitHubConnector:
     def __init__(
@@ -43,8 +45,9 @@ class GitHubConnector:
                     self.revision = commit_hash
                     self.metadata.model_version = self.revision
             except Exception as e:
-                print(f"Error fetching commit hash: {e}")
-                print("Check that the repo_url is correct and that the repo is public.")
+                raise ConnectorInvalidRevisionError(
+                    e, "Is the repo_url correct and the repo public?"
+                )
 
         try:
             readme_url = f"https://raw.githubusercontent.com/{repo_url_split[-2]}/{repo_url_split[-1]}/{self.branch}/README.md"
@@ -73,12 +76,11 @@ class GitHubConnector:
         Repo.clone_from(f"{self.repo_url}.git", self.local_dir, branch=self.branch)
 
         # Checkout the pinned revision if available
-        if self.revision:
-            try:
-                repo = Repo(self.local_dir)
-                repo.git.checkout(self.revision)
-            except GitCommandError:
-                raise ValueError(f"Failed to checkout revision {self.revision}")
+        try:
+            repo = Repo(self.local_dir)
+            repo.git.checkout(self.revision)
+        except GitCommandError:
+            raise ValueError(f"Failed to checkout revision {self.revision}")
 
         if self.enable_imports:
             sys.path.append(self.local_dir)
