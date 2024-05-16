@@ -1,3 +1,4 @@
+import base64
 import json
 
 from garden_ai import (
@@ -9,6 +10,9 @@ from garden_ai import (
     EntrypointMetadata,
 )
 from garden_ai.model_connectors import HFConnector, GitHubConnector
+from garden_ai.model_connectors.exceptions import ConnectorLFSError
+
+import unittest
 from unittest.mock import MagicMock
 
 
@@ -172,7 +176,10 @@ def test_GHconnector_idempotent(mocker):
 def test_GitHubConnector_pins_commit_hash_correctly(mocker):
     # Mock the response from the GitHub API
     mock_response = mocker.patch("requests.get")
-    mock_response.return_value.json.return_value = {"sha": "fakecommithash"}
+    mock_response.return_value.json.return_value = {
+        "sha": "fakecommithash",
+        "content": "",
+    }
 
     # Mock the Repo
     repo_url = "https://github.com/fake/repo"
@@ -234,3 +241,26 @@ def test_HFConnector_pins_commit_hash_correctly(mocker):
     mock_snapshot_download.assert_called_with(
         "fake/repo", revision="fakecommithash", local_dir="hf_model"
     )
+
+
+def test_GitHubConnector_raises_exception_with_lfs_file(mocker):
+    # Mock the response from the GitHub API
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    # The file contents are base64 encoded
+    git_lfs_attributes = "large_file.txt filter=lfs diff=lfs merge=lfs -text"
+    git_lfs_attributes_bytes = git_lfs_attributes.encode("utf-8")
+    mock_response.json.return_value = {
+        "content": base64.b64encode(git_lfs_attributes_bytes)
+    }
+    mocker.patch(
+        "garden_ai.model_connectors.github_conn.requests.get",
+        return_value=mock_response,
+    )
+
+    # Constructing a connector using a repo with a git-lfs file should raise an error
+    with unittest.TestCase().assertRaises(ConnectorLFSError):
+        connector_with_lfs = GitHubConnector(
+            "https://github.com/fake/repo",
+            revision="fakecommithash",
+        )

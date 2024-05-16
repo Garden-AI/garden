@@ -6,3 +6,22 @@ class ConnectorInvalidRevisionError(Exception):
             f"Failed to fetch commmit hash: {original_exception}"
             + (f" - {explanation}" if explanation else "")
         )
+
+
+class ConnectorLFSError(Exception):
+    """Raised when a git-lfs file is detected in the repo"""
+
+    def __init__(self):
+        super().__init__(
+            "git-lfs detected. We do not support git-lfs from GitHub. Please consider using HuggingFace for large files."
+        )
+
+
+class ConnectorAPIError(Exception):
+    """Raised when a connector has an issue communicating with a remote API."""
+
+    def __init__(self, original_exception, explanation=None):
+        super().__init__(
+            f"Failed to communicate with API: {original_exception}"
+            + (f" - {explanation}" if explanation else "")
+        )
