@@ -260,7 +260,7 @@ def test_GitHubConnector_raises_exception_with_lfs_file(mocker):
 
     # Constructing a connector using a repo with a git-lfs file should raise an error
     with unittest.TestCase().assertRaises(ConnectorLFSError):
-        connector_with_lfs = GitHubConnector(
+        GitHubConnector(
             "https://github.com/fake/repo",
             revision="fakecommithash",
         )
