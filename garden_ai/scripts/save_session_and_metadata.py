@@ -40,12 +40,14 @@ if __name__ == "__main__":
     dill.dump_session("session.pkl")
 
     import json
+    import os
 
     from pydantic.json import pydantic_encoder
     from garden_ai.model_connectors import HFConnector, GitHubConnector
 
     entrypoint_fns, step_fns, steps = [], [], []
     global_vars = list(globals().values())
+    global_notebook_doi = os.environ.get("GLOBAL_NOTEBOOK_DOI", None)
 
     for obj in global_vars:
         if hasattr(obj, "_garden_entrypoint"):
@@ -77,6 +79,13 @@ if __name__ == "__main__":
         total_meta[key_name]["test_functions"] = entrypoint_meta._test_functions
         if entrypoint_meta._target_garden_doi:
             total_meta[doi_key] = entrypoint_meta._target_garden_doi
+        elif global_notebook_doi:
+            total_meta[doi_key] = global_notebook_doi
+        else:
+            raise ValueError(
+                f"Entrypoint {key_name} has not DOI associated with it. "
+                "Either provide a global notebook DOI in your notebook metadata or provide the entrypoint decorator with a DOI."
+            )
         total_meta[step_key] = entrypoint_meta._as_step
 
     for step_fn in step_fns:

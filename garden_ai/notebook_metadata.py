@@ -26,6 +26,7 @@ class RequirementsData(NamedTuple):
 
 
 class NotebookMetadata(NamedTuple):
+    global_notebook_doi: Optional[str]
     notebook_image_name: Optional[str]
     notebook_image_uri: Optional[str]
     notebook_requirements: Optional[RequirementsData]
@@ -46,7 +47,12 @@ def add_notebook_metadata_cell(
     # Was unable to find cell with garden_metadata_cell tag, add new one to top of notebook
     # notebook_image_uri can be None here since notebook start will require the user provided a base image.
     metadata_string = json.dumps(
-        {"NOTEBOOK_BASE_IMAGE_NAME": None, "NOTEBOOK_REQUIREMENTS": None}, indent=2
+        {
+            "NOTEBOOK_GLOBAL_DOI": None,
+            "NOTEBOOK_BASE_IMAGE_NAME": None,
+            "NOTEBOOK_REQUIREMENTS": None,
+        },
+        indent=2,
     )
     notebook_metadata = NOTEBOOK_METADATA_CELL_TEMPLATE.substitute(
         metadata=metadata_string
@@ -94,6 +100,8 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
     if metadata_match and len(metadata_match.groups()) == 5:
         notebook_metadata_dict = json.loads(metadata_match[4].strip())
 
+        notebook_global_doi = notebook_metadata_dict.get("NOTEBOOK_GLOBAL_DOI", None)
+
         notebook_image_name = notebook_metadata_dict.get(
             "NOTEBOOK_BASE_IMAGE_NAME", None
         )
@@ -110,15 +118,19 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
             notebook_requirements = RequirementsData(**notebook_requirements_dict)
 
         return NotebookMetadata(
-            notebook_image_name, notebook_image_uri, notebook_requirements
+            notebook_global_doi,
+            notebook_image_name,
+            notebook_image_uri,
+            notebook_requirements,
         )
     else:
         typer.echo("Unable to parse garden metadata cell.")
-        return NotebookMetadata(None, None, None)
+        return NotebookMetadata(None, None, None, None)
 
 
 def set_notebook_metadata(
     notebook_path: Path,
+    notebook_global_doi: Optional[str],
     base_image_name: Optional[str],
     base_image_uri: str,
     requirements_data: Optional[RequirementsData],
@@ -135,6 +147,7 @@ def set_notebook_metadata(
             )
             metadata_string = json.dumps(
                 {
+                    "NOTEBOOK_GLOBAL_DOI": notebook_global_doi,
                     "NOTEBOOK_BASE_IMAGE_NAME": base_image_name,
                     "NOTEBOOK_REQUIREMENTS": requirements_data_dict,
                 },
