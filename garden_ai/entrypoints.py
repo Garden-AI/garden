@@ -274,6 +274,12 @@ class RegisteredEntrypoint(EntrypointMetadata):
         return self.doi in GardenConstants.DLHUB_DOIS
 
 
+class EntrypointIdempotencyError(Exception):
+    """Raised when an entrypoint function is found to be non-idempotent."""
+
+    pass
+
+
 def garden_entrypoint(
     metadata: EntrypointMetadata,
     garden_doi: str = None,
@@ -325,6 +331,10 @@ def entrypoint_test(entrypoint_func: Callable):
             return results
 
         ```
+
+    Raises:
+        EntrypointIdempotencyError: When entrypoint_func is found to be non-idempotent, i.e. It cannot be called twice
+            without errors.
     """
     if not entrypoint_func or not entrypoint_func._garden_entrypoint:  # type: ignore
         raise ValueError("Please pass in a valid entrypoint function")
@@ -342,7 +352,14 @@ def entrypoint_test(entrypoint_func: Callable):
             if os.environ.get("GARDEN_SKIP_TESTS") == str(True):
                 return None
             else:
-                return test_func(*args, **kwargs)
+                # call the test_func once
+                result = test_func(*args, **kwargs)
+                # Call the test_func again with the same args to enforce idempotency.
+                if result != test_func(*args, **kwargs):
+                    raise EntrypointIdempotencyError(
+                        "Please ensure your entrypoint can be called more than once without errors."
+                    )
+                return result
 
         return inner
 

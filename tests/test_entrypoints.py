@@ -1,6 +1,9 @@
+import unittest
 from unittest.mock import patch, MagicMock
+from garden_ai import EntrypointMetadata, garden_entrypoint, entrypoint_test
 from garden_ai.entrypoints import (
     RegisteredEntrypoint,
+    EntrypointIdempotencyError,
 )  # Adjust import paths as necessary
 
 # Mock UUIDs for testing
@@ -69,3 +72,60 @@ def test_normal_entrypoint(mock_executor):
         result == "mocked result"
     ), "Should return the direct result for an entrypoint with DOI not in list"
     mock_executor_instance.submit_to_registered_function.assert_called_once()
+
+
+def test_non_idempotent_garden_entrypoint_raises_error():
+    class NonIdempotentCounter:
+        def __init__(self):
+            self.times_called = 0
+
+        def increment(self):
+            self.times_called += 1
+            return self.times_called
+
+    counter = NonIdempotentCounter()
+
+    metadata = EntrypointMetadata(
+        title="Fake Entrypoint",
+        description="A sample description",
+        authors=["Farnsworth, Hubert J."],
+        tags=["test"],
+    )
+
+    # Setup a mock entrypoint that is non-idempotent
+    @garden_entrypoint(metadata=metadata)
+    def non_idempotent_entrypoint_func():
+        return counter.increment()
+
+    # Setup a simple entrypoint_test
+    @entrypoint_test(non_idempotent_entrypoint_func)
+    def test_the_entrypoint():
+        result = non_idempotent_entrypoint_func()
+        return result
+
+    # Assert the entrypoint test throws an error due to non-idempotency
+    with unittest.TestCase().assertRaises(EntrypointIdempotencyError):
+        test_the_entrypoint()
+
+
+def test_idempotent_garden_entrpoint_passes():
+    metadata = EntrypointMetadata(
+        title="Fake Entrypoint",
+        description="A sample description",
+        authors=["Farnsworth, Hubert J."],
+        tags=["test"],
+    )
+
+    # Setup a mock entrypoint that is idempotent
+    @garden_entrypoint(metadata=metadata)
+    def idempotent_entrypoint_func():
+        return True
+
+    # Setup a simple entrypoint_test
+    @entrypoint_test(idempotent_entrypoint_func)
+    def test_the_entrypoint():
+        result = idempotent_entrypoint_func()
+        return result
+
+    # Assert the test returns the value as it should pass the entrypoint_test
+    assert test_the_entrypoint() is True
