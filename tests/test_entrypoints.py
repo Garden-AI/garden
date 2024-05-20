@@ -3,7 +3,6 @@ from unittest.mock import patch, MagicMock
 from garden_ai import EntrypointMetadata, garden_entrypoint, entrypoint_test
 from garden_ai.entrypoints import (
     RegisteredEntrypoint,
-    EntrypointIdempotencyError,
     EntrypointTestError,
 )  # Adjust import paths as necessary
 
@@ -129,4 +128,4 @@ def test_idempotent_garden_entrpoint_passes():
         return result
 
     # Assert the test returns the value as it should pass the entrypoint_test
-    assert test_the_entrypoint() == True
+    assert test_the_entrypoint() is True
