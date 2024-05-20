@@ -367,7 +367,7 @@ def entrypoint_test(entrypoint_func: Callable):
                     import numpy
 
                     if isinstance(result, numpy.ndarray):
-                        if np.array_equal(
+                        if numpy.array_equal(
                             result, test_func(*args, **kwargs), equal_nan=True
                         ):
                             return result
@@ -375,7 +375,7 @@ def entrypoint_test(entrypoint_func: Callable):
                             raise EntrypointIdempotencyError(
                                 "Please ensure your entrypoint can be called more than once without errors."
                             )
-                elif importlib.util.find_spec("pandas") is not None:
+                if importlib.util.find_spec("pandas") is not None:
                     import pandas
 
                     if isinstance(result, pandas.DataFrame):
@@ -385,12 +385,11 @@ def entrypoint_test(entrypoint_func: Callable):
                             raise EntrypointIdempotencyError(
                                 "Please ensure your entrypoint can be called more than once without errors."
                             )
-                else:
-                    if result != test_func(*args, **kwargs):
-                        raise EntrypointIdempotencyError(
-                            "Please ensure your entrypoint can be called more than once without errors."
-                        )
-                    return result
+                if result != test_func(*args, **kwargs):
+                    raise EntrypointIdempotencyError(
+                        "Please ensure your entrypoint can be called more than once without errors."
+                    )
+                return result
 
         return inner
 
