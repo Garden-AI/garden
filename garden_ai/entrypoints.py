@@ -280,12 +280,6 @@ class EntrypointIdempotencyError(Exception):
     pass
 
 
-class EntrypointTestError(Exception):
-    """Raised when an error occurs testing an entrypoint function."""
-
-    pass
-
-
 def garden_entrypoint(
     metadata: EntrypointMetadata,
     garden_doi: str = None,
@@ -339,8 +333,8 @@ def entrypoint_test(entrypoint_func: Callable):
         ```
 
     Raises:
-        EntrypointTestError: When an error occurs testing the entrypoint_func.
-        EntrypointIdempotencyError: When entrypoint_func is found to be non-idempotent.
+        EntrypointIdempotencyError: When entrypoint_func is found to be non-idempotent, i.e. It cannot be called twice
+            without errors.
     """
     if not entrypoint_func or not entrypoint_func._garden_entrypoint:  # type: ignore
         raise ValueError("Please pass in a valid entrypoint function")
@@ -360,15 +354,12 @@ def entrypoint_test(entrypoint_func: Callable):
             else:
                 # call the test_func once
                 result = test_func(*args, **kwargs)
-                try:
-                    # Call the test_func again with the same args to enforce idempotency.
-                    if result != test_func(*args, **kwargs):
-                        raise EntrypointIdempotencyError(
-                            "Your entrypoint function is not indempotent."
-                        )
-                    return result
-                except Exception as e:
-                    raise EntrypointTestError() from e
+                # Call the test_func again with the same args to enforce idempotency.
+                if result != test_func(*args, **kwargs):
+                    raise EntrypointIdempotencyError(
+                        "Please ensure your entrypoint can be called more than once without errors."
+                    )
+                return result
 
         return inner
 

@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from garden_ai import EntrypointMetadata, garden_entrypoint, entrypoint_test
 from garden_ai.entrypoints import (
     RegisteredEntrypoint,
-    EntrypointTestError,
+    EntrypointIdempotencyError,
 )  # Adjust import paths as necessary
 
 # Mock UUIDs for testing
@@ -104,7 +104,7 @@ def test_non_idempotent_garden_entrypoint_raises_error():
         return result
 
     # Assert the entrypoint test throws an error due to non-idempotency
-    with unittest.TestCase().assertRaises(EntrypointTestError):
+    with unittest.TestCase().assertRaises(EntrypointIdempotencyError):
         test_the_entrypoint()
 
 
