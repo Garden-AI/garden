@@ -357,14 +357,40 @@ def entrypoint_test(entrypoint_func: Callable):
             if os.environ.get("GARDEN_SKIP_TESTS") == str(True):
                 return None
             else:
+                import importlib.util
+
                 # call the test_func once
                 result = test_func(*args, **kwargs)
+
                 # Call the test_func again with the same args to enforce idempotency.
-                if result != test_func(*args, **kwargs):
-                    raise EntrypointIdempotencyError(
-                        "Please ensure your entrypoint can be called more than once without errors."
-                    )
-                return result
+                if importlib.util.find_spec("numpy") is not None:
+                    import numpy
+
+                    if isinstance(result, numpy.ndarray):
+                        if np.array_equal(
+                            result, test_func(*args, **kwargs), equal_nan=True
+                        ):
+                            return result
+                        else:
+                            raise EntrypointIdempotencyError(
+                                "Please ensure your entrypoint can be called more than once without errors."
+                            )
+                elif importlib.util.find_spec("pandas") is not None:
+                    import pandas
+
+                    if isinstance(result, pandas.DataFrame):
+                        if result.equals(test_func(*args, **kwargs)):
+                            return result
+                        else:
+                            raise EntrypointIdempotencyError(
+                                "Please ensure your entrypoint can be called more than once without errors."
+                            )
+                else:
+                    if result != test_func(*args, **kwargs):
+                        raise EntrypointIdempotencyError(
+                            "Please ensure your entrypoint can be called more than once without errors."
+                        )
+                    return result
 
         return inner
 
