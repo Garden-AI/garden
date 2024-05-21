@@ -90,7 +90,7 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
     # Return empty notebook metadata dict if was unable to find cell source
     if not notebook_metadata_cell_source:
         typer.echo("Unable to find garden metadata cell.")
-        return NotebookMetadata(None, None, None)
+        return NotebookMetadata(None, None, None, None)
 
     # Grab the part of cell source with the metadata dict in it
     clean_source = notebook_metadata_cell_source.replace("\n", "")

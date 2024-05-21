@@ -456,7 +456,7 @@ def publish(
             "To see all the available Garden base images, use 'garden-ai notebook list-premade-images'"
         ),
     ),
-    global_notebook_doi: Optional[Path] = typer.Option(
+    global_notebook_doi: Optional[str] = typer.Option(
         None,
         "--doi",
         help=(

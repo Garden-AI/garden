@@ -364,7 +364,7 @@ def entrypoint_test(entrypoint_func: Callable):
 
                 # Call the test_func again with the same args to enforce idempotency.
                 if importlib.util.find_spec("numpy") is not None:
-                    import numpy
+                    import numpy  # type: ignore
 
                     if isinstance(result, numpy.ndarray):
                         if numpy.array_equal(
@@ -376,7 +376,7 @@ def entrypoint_test(entrypoint_func: Callable):
                                 "Please ensure your entrypoint can be called more than once without errors."
                             )
                 if importlib.util.find_spec("pandas") is not None:
-                    import pandas
+                    import pandas  # type: ignore
 
                     if isinstance(result, pandas.DataFrame):
                         if result.equals(test_func(*args, **kwargs)):
