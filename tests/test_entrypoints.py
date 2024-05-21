@@ -6,6 +6,8 @@ from garden_ai.entrypoints import (
     EntrypointIdempotencyError,
 )  # Adjust import paths as necessary
 
+import numpy as np
+
 # Mock UUIDs for testing
 function_uuid = "123e4567-e89b-12d3-a456-426614174000"
 container_uuid = "123e4567-e89b-12d3-a456-426614174001"
@@ -94,18 +96,34 @@ def test_non_idempotent_garden_entrypoint_raises_error():
 
     # Setup a mock entrypoint that is non-idempotent
     @garden_entrypoint(metadata=metadata)
-    def non_idempotent_entrypoint_func():
+    def simple_non_idempotent_entrypoint_func():
         return counter.increment()
 
     # Setup a simple entrypoint_test
-    @entrypoint_test(non_idempotent_entrypoint_func)
-    def test_the_entrypoint():
-        result = non_idempotent_entrypoint_func()
+    @entrypoint_test(simple_non_idempotent_entrypoint_func)
+    def simple_test_the_entrypoint():
+        result = simple_non_idempotent_entrypoint_func()
         return result
 
     # Assert the entrypoint test throws an error due to non-idempotency
     with unittest.TestCase().assertRaises(EntrypointIdempotencyError):
-        test_the_entrypoint()
+        simple_test_the_entrypoint()
+
+    # Setup a mock entrypoint that is non-idempotent with ndarray return
+    @garden_entrypoint(metadata=metadata)
+    def numpy_non_idempotent_entrypoint_func():
+        n = counter.increment()
+        return np.array([n, n, n])
+
+    # Setup numpy entrypoint_test
+    @entrypoint_test(numpy_non_idempotent_entrypoint_func)
+    def numpy_test_the_entrypoint():
+        result = numpy_non_idempotent_entrypoint_func()
+        return result
+
+    # Assert the entrypoint test throws an error due to non-idempotency
+    with unittest.TestCase().assertRaises(EntrypointIdempotencyError):
+        numpy_test_the_entrypoint()
 
 
 def test_idempotent_garden_entrpoint_passes():
@@ -129,3 +147,17 @@ def test_idempotent_garden_entrpoint_passes():
 
     # Assert the test returns the value as it should pass the entrypoint_test
     assert test_the_entrypoint() is True
+
+    # Setup a mock entrypoint that is idempotent with ndarray return
+    @garden_entrypoint(metadata=metadata)
+    def numpy_idempotent_entrypoint_func():
+        return np.array([1, 2, 3])
+
+    # Setup numpy entrypoint_test
+    @entrypoint_test(numpy_idempotent_entrypoint_func)
+    def numpy_test_the_entrypoint():
+        result = numpy_idempotent_entrypoint_func()
+        return result
+
+    # Assert the test returns the value as it should pass the entrypoint_test
+    assert np.array_equal(numpy_test_the_entrypoint(), np.array([1, 2, 3])) is True
