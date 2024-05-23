@@ -130,6 +130,8 @@ def create(
                     authors += [name]
                 else:
                     break
+        else:
+            contributors = []
 
     if not description:
         description = Prompt.ask(

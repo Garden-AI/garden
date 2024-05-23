@@ -140,3 +140,6 @@ dmypy.json
 
 # VSCode config
 .vscode/*
+
+# Emacs
+TAGS
