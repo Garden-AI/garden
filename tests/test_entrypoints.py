@@ -7,7 +7,7 @@ from garden_ai.entrypoints import (
 )  # Adjust import paths as necessary
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore
 
 # Mock UUIDs for testing
 function_uuid = "123e4567-e89b-12d3-a456-426614174000"
