@@ -31,6 +31,37 @@ def assert_compatible_dill_version():
         raise EnvironmentError(message)
 
 
+def get_requirements_file():
+    """Return pathlib.Path to a requirements file in the container if one exists.
+
+    Requirements are written into the container in the same directory as the notebook.
+    See garden_ai/app/notebook.py `publish`.
+    """
+    from pathlib import Path
+
+    pip = Path(__file__).parent / "requirements.txt"
+    if pip.exists():
+        return pip
+
+    conda = Path(__file__).parent / "requirements.yml"
+    if conda.exists():
+        return conda
+
+    return None
+
+
+def get_requirements_data():
+    """Return a list of requirements for the current notebook."""
+    from garden_ai.notebook_metadata import read_requirements_data
+
+    path = get_requirements_file()
+    if not path:
+        return None
+
+    reqs = read_requirements_data(path)
+    return reqs.contents if reqs else None
+
+
 if __name__ == "__main__":
     import dill  # type: ignore
 
@@ -65,6 +96,8 @@ if __name__ == "__main__":
     if len(entrypoint_fns) == 0:
         raise ValueError("No functions marked with garden_entrypoint decorator.")
 
+    requirements_data = get_requirements_data()
+
     total_meta = {}
 
     for entrypoint_fn in entrypoint_fns:
@@ -78,6 +111,7 @@ if __name__ == "__main__":
         if entrypoint_meta._target_garden_doi:
             total_meta[doi_key] = entrypoint_meta._target_garden_doi
         total_meta[step_key] = entrypoint_meta._as_step
+        total_meta[key_name]["requirements"] = requirements_data
 
     for step_fn in step_fns:
         # Relying on insertion order being maintained in dicts in Python 3.8 forward 🤠

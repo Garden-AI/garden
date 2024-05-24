@@ -148,6 +148,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
         notebook_url: Link to the notebook used to build this entrypoint.
         steps: Ordered list of Python functions that the entrypoint author wants to highlight.
         test_functions: List of test functions that exercise the entrypoint.
+        requirements: List of Python packages required by the entrypoint.
     """
 
     doi: str = Field(
@@ -161,6 +162,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
     notebook_url: Optional[str] = Field(None)
     steps: List[Step] = Field(default_factory=list)
     test_functions: List[str] = Field(default_factory=list)
+    requirements: Optional[List[str]] = Field(default_factory=list)
 
     def __call__(
         self,
