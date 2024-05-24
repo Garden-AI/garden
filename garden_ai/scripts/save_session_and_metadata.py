@@ -83,7 +83,7 @@ if __name__ == "__main__":
             total_meta[doi_key] = global_notebook_doi
         else:
             raise ValueError(
-                f"Entrypoint {key_name} has not DOI associated with it. "
+                f"Entrypoint {key_name} has no DOI associated with it. "
                 "Either provide a global notebook DOI in your notebook metadata or provide the entrypoint decorator with a DOI."
             )
         total_meta[step_key] = entrypoint_meta._as_step

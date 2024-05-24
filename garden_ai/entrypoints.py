@@ -290,7 +290,7 @@ def garden_entrypoint(
         # If the user is lazy and uses same EntrypointMetadata object for multiple entrypoints,
         # garden ends up writing over the metadata of the single EntrypointMetadata object for each entrypoint.
         # Dirty fix for this is recreating new EntrypointMetadata object.
-        entrypoint_metadata = EntrypointMetadata(**metadata.__dict__)
+        entrypoint_metadata = metadata.copy(deep=True)
 
         if datasets:
             # datasets explicitly connected to entrypoint by decorator
