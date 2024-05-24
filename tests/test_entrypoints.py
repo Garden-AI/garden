@@ -7,6 +7,7 @@ from garden_ai.entrypoints import (
 )  # Adjust import paths as necessary
 
 import numpy as np
+import pandas as pd
 
 # Mock UUIDs for testing
 function_uuid = "123e4567-e89b-12d3-a456-426614174000"
@@ -125,6 +126,22 @@ def test_non_idempotent_garden_entrypoint_raises_error():
     with unittest.TestCase().assertRaises(EntrypointIdempotencyError):
         numpy_test_the_entrypoint()
 
+    # Setup a mock entrypoint that is non-idempotent with dataframe return
+    @garden_entrypoint(metadata=metadata)
+    def pandas_non_idempotent_entrypoint_func():
+        n = counter.increment()
+        return pd.DataFrame([n, n, n])
+
+    # Setup pandas entrypoint_test
+    @entrypoint_test(pandas_non_idempotent_entrypoint_func)
+    def pandas_test_the_entrypoint():
+        result = pandas_non_idempotent_entrypoint_func()
+        return result
+
+    # Assert the entrypoint test throws an error due to non-idempotency
+    with unittest.TestCase().assertRaises(EntrypointIdempotencyError):
+        pandas_test_the_entrypoint()
+
 
 def test_idempotent_garden_entrpoint_passes():
     metadata = EntrypointMetadata(
@@ -161,3 +178,17 @@ def test_idempotent_garden_entrpoint_passes():
 
     # Assert the test returns the value as it should pass the entrypoint_test
     assert np.array_equal(numpy_test_the_entrypoint(), np.array([1, 2, 3])) is True
+
+    # Setup a mock entrypoint that is idempotent with dataframe return
+    @garden_entrypoint(metadata=metadata)
+    def pandas_idempotent_entrypoint_func():
+        return pd.DataFrame([1, 2, 3])
+
+    # Setup pandas entrypoint_test
+    @entrypoint_test(pandas_idempotent_entrypoint_func)
+    def pandas_test_the_entrypoint():
+        result = pandas_idempotent_entrypoint_func()
+        return result
+
+    # Assert the test returns the value as it should pass the entrypoint_test
+    assert pandas_test_the_entrypoint().equals(pd.DataFrame([1, 2, 3])) is True
