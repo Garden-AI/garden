@@ -29,6 +29,7 @@ from garden_ai.notebook_metadata import (
     set_notebook_metadata,
     get_notebook_metadata,
     read_requirements_data,
+    NotebookMetadata,
 )
 
 from garden_ai.utils.notebooks import (
@@ -152,6 +153,15 @@ def start(
             "additional dependencies to install in the base image."
         ),
     ),
+    global_notebook_doi: Optional[str] = typer.Option(
+        None,
+        "--doi",
+        help=(
+            "DOI of a Garden you want to add all entrypoints in this notebook too. "
+            "To override the global notebook DOI for a specific entrypoint, "
+            "provide the garden_entrypoint decorator with the optional garden_doi argument."
+        ),
+    ),
     custom_image_uri: Optional[str] = typer.Option(
         None,
         "--custom-image",
@@ -196,7 +206,6 @@ def start(
         add_notebook_metadata_cell(notebook_path)
 
     # Figure out what base image uri we should start the notebook in
-    # base_image_uri will always be set after this point
     base_image_uri = _get_base_image_uri(
         base_image_name,
         custom_image_uri,
@@ -206,8 +215,12 @@ def start(
     # Now we have all we need to prompt the user to proceed
     if need_to_create_notebook:
         message = f"This will create a new notebook {notebook_path.name} and open it in Docker image {base_image_uri}.\n"
+        # For a new notebook, start with all notebook_metadata values as None.
+        # Updates it with any provided values later on before the notebook starts.
+        notebook_metadata = NotebookMetadata(None, None, None, None)
     else:
         message = f"This will open existing notebook {notebook_path.name} in Docker image {base_image_uri}.\n"
+        notebook_metadata = get_notebook_metadata(notebook_path)
 
     # Validate and read requirements file.
     if requirements_path:
@@ -216,14 +229,8 @@ def start(
         _validate_requirements_path(requirements_path)
         requirements_data = read_requirements_data(requirements_path)
     else:
-        # If no requirements file given, look for requirements data in notebook
-        if notebook_path.is_file():
-            requirements_data = get_notebook_metadata(
-                notebook_path
-            ).notebook_requirements
-        else:
-            # Creating new notebook, no requirements data
-            requirements_data = None
+        # If no requirements file given, look for requirements data in notebook metadata
+        requirements_data = notebook_metadata.notebook_requirements
 
     typer.confirm(message + "Do you want to proceed?", abort=True)
 
@@ -241,15 +248,22 @@ def start(
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
 
-    # Get base image name from notebook if user did not provide
+    # Check for base image name from notebook if user did not provide one.
     if base_image_name is None:
-        # If a user is using a custom image uri, base_image_name might be None
-        notebook_metadata = get_notebook_metadata(notebook_path)
+        # If a user is using a custom image uri, base_image_name might be None.
         base_image_name = notebook_metadata.notebook_image_name
+
+    # Check for global notebook doi from notebook if user did not provide one.
+    if global_notebook_doi is None:
+        global_notebook_doi = notebook_metadata.global_notebook_doi
 
     # Update garden metadata in notebook
     set_notebook_metadata(
-        notebook_path, base_image_name, base_image_uri, requirements_data
+        notebook_path,
+        global_notebook_doi,
+        base_image_name,
+        base_image_uri,
+        requirements_data,
     )
 
     print(
@@ -335,17 +349,20 @@ def debug(
             or "gardenai/base:python-3.10-base"
         )
 
+        notebook_metadata = get_notebook_metadata(path)
+
         # Validate and read requirements file.
         if requirements_path:
             _validate_requirements_path(requirements_path)
             requirements_data = read_requirements_data(requirements_path)
         else:
-            # If no requirements file given, look for requirements data in notebook
-            requirements_data = get_notebook_metadata(path).notebook_requirements
+            # If no requirements file given, look for requirements data in notebook metadata
+            requirements_data = notebook_metadata.notebook_requirements
 
-        base_image_name = get_notebook_metadata(path).notebook_image_name
+        base_image_name = notebook_metadata.notebook_image_name
         if base_image_name is None:
             base_image_name = "3.10-base"
+        global_notebook_doi = notebook_metadata.global_notebook_doi
 
         with TemporaryDirectory() as temp_dir:
             # pre-bake local image with garden-ai and additional user requirements
@@ -353,10 +370,12 @@ def debug(
                 docker_client, base_image_uri, requirements_data
             )
 
+            # pass global notebook doi to image as env_var
             image = build_notebook_session_image(
                 docker_client,
                 path,
                 local_base_image_id,
+                env_vars={"GLOBAL_NOTEBOOK_DOI": global_notebook_doi},
             )
 
             if image is None:
@@ -367,11 +386,15 @@ def debug(
             top_level_dir = Path(__file__).parent.parent
             debug_path = top_level_dir / "notebook_templates" / "debug.ipynb"
 
-            # Make tmp copy of debug notebook to add original notebook's metadata too
+            # Make tmp copy of debug notebook template to add original notebook's metadata too
             temp_debug_path = Path(temp_dir) / "debug.ipynb"
             shutil.copy(debug_path, temp_debug_path)
             set_notebook_metadata(
-                temp_debug_path, base_image_name, base_image_uri, requirements_data
+                temp_debug_path,
+                global_notebook_doi,
+                base_image_name,
+                base_image_uri,
+                requirements_data,
             )
 
             container = start_container_with_notebook(
@@ -433,6 +456,15 @@ def publish(
             "To see all the available Garden base images, use 'garden-ai notebook list-premade-images'"
         ),
     ),
+    global_notebook_doi: Optional[str] = typer.Option(
+        None,
+        "--doi",
+        help=(
+            "DOI of a Garden you want to publish all entrypoints in this notebook too. "
+            "To override the global notebook DOI for a specific entrypoint, "
+            "provide the garden_entrypoint decorator with the optional garden_doi argument."
+        ),
+    ),
     custom_image_uri: Optional[str] = typer.Option(
         None,
         "--custom-image",
@@ -456,8 +488,8 @@ def publish(
     if not notebook_path.exists():
         raise ValueError(f"Could not find file at {notebook_path}")
 
-    # Publish should not change the metadata of users local notebook if user provided different requirements / base image.
-    # So we use a tmpdir with a copy of the original notebook for publish.
+    # Use tmpdir and make a copy of original notebook, since publish should not modify
+    # the original notebook if provided with any new arguments.
     with TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         tmp_notebook_path = temp_dir_path / notebook_path.name
@@ -468,24 +500,31 @@ def publish(
         )
         print(f"Using base image: {base_image_uri}")
 
+        notebook_metadata = get_notebook_metadata(tmp_notebook_path)
         # Validate and read requirements file.
         if requirements_path:
             _validate_requirements_path(requirements_path)
             requirements_data = read_requirements_data(requirements_path)
         else:
-            # If no requirements file given, look for requirements data in notebook
-            requirements_data = get_notebook_metadata(
-                tmp_notebook_path
-            ).notebook_requirements
+            # If no requirements file given, look for requirements data in notebook metadata
+            requirements_data = notebook_metadata.notebook_requirements
 
-        # Get base image name from notebook if user did not provide
+        # Check for base image name from notebook if user did not provide one.
         if base_image_name is None:
             # If a user is using a custom image uri, base_image_name might be None
-            base_image_name = get_notebook_metadata(notebook_path).notebook_image_name
+            base_image_name = notebook_metadata.notebook_image_name
 
-        # Update garden metadata in new tmp notebook
+        # Check for global notebook doi from notebook if user did not provide one.
+        if global_notebook_doi is None:
+            global_notebook_doi = notebook_metadata.global_notebook_doi
+
+        # Update the tmp notebooks metadata with any new publish args
         set_notebook_metadata(
-            tmp_notebook_path, base_image_name, base_image_uri, requirements_data
+            tmp_notebook_path,
+            global_notebook_doi,
+            base_image_name,
+            base_image_uri,
+            requirements_data,
         )
 
         # Pre-process the notebook and make sure it's not too big
@@ -521,6 +560,7 @@ def publish(
                 tmp_notebook_path,
                 local_base_image_id,
                 print_logs=verbose,
+                env_vars={"GLOBAL_NOTEBOOK_DOI": global_notebook_doi},
             )
 
             if image is None:
@@ -555,8 +595,8 @@ def _get_base_image_uri(
         )
         raise typer.Exit(1)
 
+    # Check for saved_image_name in notebooks metadata
     if notebook_path:
-        # saved_image_name could also be None here if not set in the notebooks metadata
         saved_image_name = get_notebook_metadata(notebook_path).notebook_image_name
     else:
         saved_image_name = None

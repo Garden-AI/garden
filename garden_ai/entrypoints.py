@@ -289,24 +289,29 @@ def garden_entrypoint(
     datasets: Optional[List[DatasetConnection]] = None,
 ):
     def decorate(func):
+        # If the user is lazy and uses same EntrypointMetadata object for multiple entrypoints,
+        # garden ends up writing over the metadata of the single EntrypointMetadata object for each entrypoint.
+        # Dirty fix for this is recreating new EntrypointMetadata object.
+        entrypoint_metadata = metadata.copy(deep=True)
+
         if datasets:
             # datasets explicitly connected to entrypoint by decorator
-            metadata.datasets += datasets
+            entrypoint_metadata.datasets += datasets
         if model_connectors:
             for connector in model_connectors:
                 model_meta: ModelMetadata = connector.metadata
-                metadata.models += [model_meta]
+                entrypoint_metadata.models += [model_meta]
                 # datasets implicitly connected from model metadata
-                metadata.datasets += model_meta.datasets
+                entrypoint_metadata.datasets += model_meta.datasets
 
-        metadata._as_step = Step(
+        entrypoint_metadata._as_step = Step(
             function_text=inspect.getsource(func),
             function_name=func.__name__,
             description="Top level entrypoint function",
         )
-        metadata._target_garden_doi = garden_doi
+        entrypoint_metadata._target_garden_doi = garden_doi
         # let func carry its own metadata
-        func._garden_entrypoint = metadata
+        func._garden_entrypoint = entrypoint_metadata
         return func
 
     return decorate
@@ -354,9 +359,34 @@ def entrypoint_test(entrypoint_func: Callable):
             if os.environ.get("GARDEN_SKIP_TESTS") == str(True):
                 return None
             else:
+                import importlib.util
+
                 # call the test_func once
                 result = test_func(*args, **kwargs)
+
                 # Call the test_func again with the same args to enforce idempotency.
+                if importlib.util.find_spec("numpy") is not None:
+                    import numpy  # type: ignore
+
+                    if isinstance(result, numpy.ndarray):
+                        if numpy.array_equal(
+                            result, test_func(*args, **kwargs), equal_nan=True
+                        ):
+                            return result
+                        else:
+                            raise EntrypointIdempotencyError(
+                                "Please ensure your entrypoint can be called more than once without errors."
+                            )
+                if importlib.util.find_spec("pandas") is not None:
+                    import pandas  # type: ignore
+
+                    if isinstance(result, pandas.DataFrame):
+                        if result.equals(test_func(*args, **kwargs)):
+                            return result
+                        else:
+                            raise EntrypointIdempotencyError(
+                                "Please ensure your entrypoint can be called more than once without errors."
+                            )
                 if result != test_func(*args, **kwargs):
                     raise EntrypointIdempotencyError(
                         "Please ensure your entrypoint can be called more than once without errors."

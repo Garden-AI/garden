@@ -52,6 +52,10 @@ nbconvert = "^7.9.2"
 ipython = "<8.13"
 boto3 = "^1.29"
 boto3-stubs = "^1.29"
+urllib3 = [
+     {version = "<2", python = "<3.10"},
+     {version = "^2.2.1", python = ">=3.10"}
+]
 python-dotenv = "^1.0.1"
 
 [tool.poetry.scripts]
@@ -67,6 +71,10 @@ pytest-cov = "^4.0.0"
 flake8 = "^5.0.4"
 mypy = "^0.981"
 numpy = "^1.24.0"
+pandas = [
+     {version = "2.0.3", python = "<3.9"},
+     {version = "^2", python = ">=3.9"}
+]
 types-requests = "^2.20.0"
 safety = "^2.3.1"
 types-pyyaml = "^6.0.12.8"
