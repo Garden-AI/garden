@@ -5,9 +5,33 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, Final
+from typing_extensions import Annotated
 
-from pydantic import AnyUrl, BaseModel, Extra, Field, confloat
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    Extra,
+    Field,
+    confloat,
+    AfterValidator,
+    RootModel,
+)
+from pydantic_core import PydanticCustomError
+
+
+def _validate_unique_list(v):
+    if v is None:
+        return v
+    try:
+        if len(v) != len(set(v)):
+            raise PydanticCustomError("unique_list", "list must be unique")
+        return v
+    except TypeError:
+        pass
+    if len(v) != len(set([item.model_dump_json() for item in v])):
+        raise PydanticCustomError("unique_list", "list must be unique")
+    return v
 
 
 class Identifier(BaseModel):
@@ -54,8 +78,8 @@ class NameIdentifier(BaseModel):
     schemeUri: Optional[AnyUrl] = None
 
 
-class NameIdentifiers(BaseModel):
-    __root__: List[NameIdentifier] = Field(..., unique_items=True)
+class NameIdentifiers(RootModel):
+    root: Annotated[List[NameIdentifier], AfterValidator(_validate_unique_list)]
 
 
 class Affiliation(BaseModel):
@@ -65,8 +89,8 @@ class Affiliation(BaseModel):
     schemeUri: Optional[AnyUrl] = None
 
 
-class Affiliations(BaseModel):
-    __root__: List[Affiliation] = Field(..., unique_items=True)
+class Affiliations(RootModel):
+    root: Annotated[List[Affiliation], AfterValidator(_validate_unique_list)]
 
 
 class TitleType(str, Enum):
@@ -100,8 +124,8 @@ class ContributorType(str, Enum):
     Other = "Other"
 
 
-class Date(BaseModel):
-    __root__: Union[Any, Any, Any, Any, Any, Any, Any, Any]
+class Date(RootModel):
+    root: Union[Any, Any, Any, Any, Any, Any, Any, Any]
 
 
 class DateType(str, Enum):
@@ -203,12 +227,12 @@ class DescriptionType(str, Enum):
     Other = "Other"
 
 
-class Longitude(BaseModel):
-    __root__: confloat(ge=-180.0, le=180.0)  # type: ignore
+class Longitude(RootModel):
+    root: confloat(ge=-180.0, le=180.0)  # type: ignore
 
 
-class Latitude(BaseModel):
-    __root__: confloat(ge=-90.0, le=90.0)  # type: ignore
+class Latitude(RootModel):
+    root: confloat(ge=-90.0, le=90.0)  # type: ignore
 
 
 class FunderIdentifierType(str, Enum):
@@ -295,7 +319,7 @@ class GeoLocationPoint(BaseModel):
 
 
 class GeoLocationPolygon(BaseModel):
-    polygonPoints: List[GeoLocationPoint] = Field(..., min_items=4)
+    polygonPoints: List[GeoLocationPoint] = Field(..., min_length=4)
     inPolygonPoint: Optional[GeoLocationPoint] = None
 
 
@@ -303,9 +327,9 @@ class GeoLocation(BaseModel):
     geoLocationPlace: Optional[str] = None
     geoLocationPoint: Optional[GeoLocationPoint] = None
     geoLocationBox: Optional[GeoLocationBox] = None
-    geoLocationPolygons: Optional[List[GeoLocationPolygon]] = Field(
-        None, unique_items=True
-    )
+    geoLocationPolygons: Annotated[
+        Optional[List[GeoLocationPolygon]], AfterValidator(_validate_unique_list)
+    ] = None
 
 
 class DataciteSchema(BaseModel):
@@ -314,27 +338,51 @@ class DataciteSchema(BaseModel):
 
     # tweaked identifiers, no longer requires at least one. (only change from generated code)
     types: Types
-    identifiers: List[Identifier] = Field(..., min_items=1, unique_items=True)
-    creators: List[Creator] = Field(..., min_items=1, unique_items=True)
-    titles: List[Title] = Field(..., min_items=1, unique_items=True)
+    identifiers: Annotated[
+        List[Identifier],
+        Field(..., min_length=1),
+        AfterValidator(_validate_unique_list),
+    ]
+    creators: Annotated[
+        List[Creator], Field(..., min_length=1), AfterValidator(_validate_unique_list)
+    ]
+    titles: Annotated[
+        List[Title], Field(..., min_length=1), AfterValidator(_validate_unique_list)
+    ]
     publisher: str
     publicationYear: str
-    subjects: Optional[List[Subject]] = Field(None, unique_items=True)
-    contributors: Optional[List[Contributor]] = Field(None, unique_items=True)
-    dates: Optional[List[DateModel]] = Field(None, unique_items=True)
+    subjects: Annotated[
+        Optional[List[Subject]], AfterValidator(_validate_unique_list)
+    ] = None
+    contributors: Annotated[
+        Optional[List[Contributor]], AfterValidator(_validate_unique_list)
+    ] = None
+    dates: Annotated[
+        Optional[List[DateModel]], AfterValidator(_validate_unique_list)
+    ] = None
     language: Optional[str] = None
-    alternateIdentifiers: Optional[List[AlternateIdentifier]] = Field(
-        None, unique_items=True
+    alternateIdentifiers: Annotated[
+        Optional[List[AlternateIdentifier]], AfterValidator(_validate_unique_list)
+    ] = None
+    relatedIdentifiers: Annotated[
+        Optional[List[RelatedIdentifier]], AfterValidator(_validate_unique_list)
+    ] = None
+    sizes: Annotated[Optional[List[str]], AfterValidator(_validate_unique_list)] = None
+    formats: Annotated[Optional[List[str]], AfterValidator(_validate_unique_list)] = (
+        None
     )
-    relatedIdentifiers: Optional[List[RelatedIdentifier]] = Field(
-        None, unique_items=True
-    )
-    sizes: Optional[List[str]] = Field(None, unique_items=True)
-    formats: Optional[List[str]] = Field(None, unique_items=True)
     version: Optional[str] = None
-    rightsList: Optional[List[RightsListItem]] = Field(None, unique_items=True)
-    descriptions: Optional[List[Description]] = Field(None, unique_items=True)
-    geoLocations: Optional[List[GeoLocation]] = Field(None, unique_items=True)
-    fundingReferences: Optional[List[FundingReference]] = Field(None, unique_items=True)
-    schemaVersion: str = Field("http://datacite.org/schema/kernel-4", const=True)
+    rightsList: Annotated[
+        Optional[List[RightsListItem]], AfterValidator(_validate_unique_list)
+    ] = None
+    descriptions: Annotated[
+        Optional[List[Description]], AfterValidator(_validate_unique_list)
+    ] = None
+    geoLocations: Annotated[
+        Optional[List[GeoLocation]], AfterValidator(_validate_unique_list)
+    ] = None
+    fundingReferences: Annotated[
+        Optional[List[FundingReference]], AfterValidator(_validate_unique_list)
+    ] = None
+    schemaVersion: Final[str] = "http://datacite.org/schema/kernel-4"
     container: Optional[Container] = None
