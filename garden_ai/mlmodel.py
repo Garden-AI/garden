@@ -101,3 +101,13 @@ class ModelMetadata(BaseModel):
         if model_repository not in [mr.value for mr in ModelRepository]:
             raise ValueError("is not a supported flavor")
         return model_repository
+
+
+def match_repo_type(url: str) -> ModelRepository:
+    """Match url to the appropriate ModelRepository"""
+    if "github.com" in url:
+        return ModelRepository("GitHub")
+    elif "huggingface.co" in url:
+        return ModelRepository("Hugging Face")
+    else:
+        raise ValueError("Repository type is not supported.")

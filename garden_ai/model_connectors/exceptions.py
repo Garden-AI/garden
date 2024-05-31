@@ -25,3 +25,11 @@ class ConnectorAPIError(Exception):
             f"Failed to communicate with API: {original_exception}"
             + (f" - {explanation}" if explanation else "")
         )
+
+
+class ConnectorStagingError(Exception):
+    """Raised when something goes wrong during staging."""
+
+
+class UnsupportedConnectorError(Exception):
+    """Raised when trying to connect to an unsupported repository type."""

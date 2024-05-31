@@ -1,66 +1,50 @@
 import huggingface_hub as hfh  # type: ignore
-from garden_ai.mlmodel import ModelMetadata
-from garden_ai.utils.misc import trackcalls
-from requests.exceptions import HTTPError
-import os
-import sys
 
+from .model_connector import ModelConnector
 from .exceptions import ConnectorInvalidRevisionError
 
 
-class HFConnector:
-    def __init__(
-        self, repo_id: str, revision=None, local_dir=None, enable_imports=True
-    ):
-        self.repo_id = repo_id
-        self.revision = revision
-        self.local_dir = local_dir or "hf_model"
-        self.enable_imports = enable_imports
-        self.metadata = ModelMetadata(
-            model_identifier=self.repo_id,
-            model_repository="Hugging Face",
-            model_version=self.revision,
+class HFConnector(ModelConnector):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        if "Hugging Face" not in self.metadata.model_repository:
+            raise ValueError("repo_url must be a Hugging Face repository.")
+
+    def _build_url_from_id(repo_id: str) -> str:
+        return f"https://huggingface.co/{repo_id}"
+
+    def _download(self) -> str:
+        if not self.local_dir.exists():
+            self.local_dir.mkdir(parents=True)
+
+        hfh.snapshot_download(
+            repo_id=self.repo_id,
+            local_dir=str(self.local_dir),
+            revision=self.revision,
         )
+
+        return str(self.local_dir)
+
+    def _fetch_readme(self) -> str:
+        # TODO this needs better exception handling
         try:
             # This fetches README.md from the repo and will raise an error if it doesn't exist
-            self.model_card = hfh.ModelCard.load(repo_id)
-        except HTTPError:
-            self.model_card = None
-
-        # Grab the model revision from the main branch if it wasn't provided.
-        if self.revision is None:
-            try:
-                refs = hfh.list_repo_refs(self.repo_id)
-                for branch in refs.branches:
-                    if branch.name == "main":
-                        self.revision = branch.target_commit
-                        self.metadata.model_version = self.revision
-                assert self.revision is not None
-            except Exception as e:
-                # just pass along any error message, the list_repo_refs exceptions have helpful messages
-                raise ConnectorInvalidRevisionError(e)
-
-    @trackcalls
-    def stage(self) -> str:
-        if not os.path.exists(self.local_dir):
-            os.mkdir(self.local_dir)
-        hfh.snapshot_download(
-            self.repo_id, revision=self.revision, local_dir=self.local_dir
-        )
-        if self.enable_imports:
-            sys.path.append(self.local_dir)
-        return self.local_dir
-
-    def _repr_html_(self):
-        if not self.model_card:
+            return hfh.ModelCard.load(self.repo_id).text
+        except Exception:
             return ""
-        try:
-            __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
-            from IPython.display import display, Markdown  # type: ignore
 
-            display(Markdown(self.model_card.text), display_id=True)
-            return (
-                ""  # we need to return a string do it doesn't go try other repr methods
-            )
-        except NameError:
-            return self.model_card.text
+    def _infer_revision(self) -> str:
+        try:
+            refs = hfh.list_repo_refs(self.repo_id)
+            for branch in refs.branches:
+                if branch.name == "main":
+                    return branch.target_commit
+        except Exception as e:
+            # just pass along any error message, the list_repo_refs exceptions have helpful messages
+            raise ConnectorInvalidRevisionError(e)
+
+    def _checkout_revision(self):
+        # Revision is checked out in _download
+        pass
