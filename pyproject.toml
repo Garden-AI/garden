@@ -90,6 +90,7 @@ mkdocs-extensions = "^0.1.2"
 pymdown-extensions = "^10.0.1"
 mkdocs-material = "^9.1.13"
 mkdocstrings = {extras = ["python"], version = "^0.21.2"}
+jupyter = "^1.0.0"
 
 [tool.isort]
 profile = "black"
