@@ -1,7 +1,10 @@
 from pydantic_core import PydanticCustomError
+from typing import Optional, List, TypeVar
+
+T = TypeVar("T")
 
 
-def unique_items_validator(v):
+def unique_items_validator(v: Optional[List[T]]) -> Optional[List[T]]:
     if v is None:
         return v
     try:
