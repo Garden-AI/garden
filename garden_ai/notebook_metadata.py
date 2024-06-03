@@ -205,7 +205,6 @@ def save_requirements_data(
             for line in contents:
                 file_contents += f"{line}\n"
             req_file.write(file_contents)
-            req_file.close()
         return requirements_path
 
     elif file_format == "conda":
@@ -214,13 +213,11 @@ def save_requirements_data(
         with open(requirements_path, "w") as req_file:
             # contents is dict of yaml requirements
             yaml.dump(contents, req_file, allow_unicode=True)
-            req_file.close()
         return requirements_path
     else:
         typer.echo(
             f"Invalid format for requirements data, must be either pip or conda, got {file_format}. Ignoring requirements."
         )
-        req_file.close()
         return None
 
 

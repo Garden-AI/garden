@@ -461,7 +461,7 @@ def show(
         garden = _get_garden(garden_id)
         if garden:
             rich.print(f"Garden: {garden_id} local data:")
-            rich.print_json(json=garden.json())
+            rich.print_json(json=garden.model_dump_json())
             rich.print("\n")
 
 
@@ -501,11 +501,11 @@ def _get_garden(garden_id: str) -> Optional[Garden]:
 
 def create_query(
     title: Optional[str] = None,
-    authors: List[str] = None,
-    year: str = None,
-    contributors: List[str] = None,
+    authors: Optional[List[str]] = None,
+    year: Optional[str] = None,
+    contributors: Optional[List[str]] = None,
     description: Optional[str] = None,
-    tags: List[str] = None,
+    tags: Optional[List[str]] = None,
 ) -> str:
     query_parts = []
     if title:

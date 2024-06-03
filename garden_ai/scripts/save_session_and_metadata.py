@@ -73,7 +73,7 @@ if __name__ == "__main__":
     import json
     import os
 
-    from pydantic.json import pydantic_encoder
+    from pydantic_core import to_jsonable_python
     from garden_ai.model_connectors import HFConnector, GitHubConnector
 
     entrypoint_fns, step_fns, steps = [], [], []
@@ -129,4 +129,4 @@ if __name__ == "__main__":
     total_meta["steps"] = steps
 
     with open("metadata.json", "w+") as fout:
-        json.dump(total_meta, fout, default=pydantic_encoder)
+        json.dump(total_meta, fout, default=to_jsonable_python)

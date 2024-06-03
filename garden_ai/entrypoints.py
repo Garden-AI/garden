@@ -5,11 +5,12 @@ import logging
 from datetime import datetime
 from functools import wraps
 from typing import Any, List, Optional, Union, Callable
+from typing_extensions import Annotated
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
 import globus_sdk
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, AfterValidator
 
 from garden_ai.constants import GardenConstants
 from garden_ai.datacite import (
@@ -23,9 +24,11 @@ from garden_ai.datacite import (
 )
 from garden_ai.mlmodel import ModelMetadata, DatasetConnection
 from garden_ai.utils.misc import JSON
+from garden_ai.utils.pydantic import unique_items_validator
 
 
 logger = logging.getLogger()
+require_unique_items = AfterValidator(unique_items_validator)
 
 
 class Repository(BaseModel):
@@ -119,7 +122,7 @@ class EntrypointMetadata(BaseModel):
     short_name: Optional[str] = Field(None)
     description: Optional[str] = Field(None)
     year: str = Field(default_factory=lambda: str(datetime.now().year))
-    tags: List[str] = Field(default_factory=list, unique_items=True)
+    tags: Annotated[List[str], Field(default_factory=list), require_unique_items]
     models: List[ModelMetadata] = Field(default_factory=list)
     repositories: List[Repository] = Field(default_factory=list)
     papers: List[Paper] = Field(default_factory=list)
@@ -167,7 +170,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
     def __call__(
         self,
         *args: Any,
-        endpoint: Union[UUID, str] = None,
+        endpoint: Optional[Union[UUID, str]] = None,
         **kwargs: Any,
     ) -> Any:
         """Remotely execute this ``RegisteredEntrypoint``'s function from the function uuid.
@@ -264,7 +267,7 @@ class RegisteredEntrypoint(EntrypointMetadata):
                 if self.description
                 else None
             ),
-        ).json()
+        ).model_dump_json()
 
     def _is_dlhub_entrypoint(self) -> bool:
         """
@@ -284,7 +287,7 @@ class EntrypointIdempotencyError(Exception):
 
 def garden_entrypoint(
     metadata: EntrypointMetadata,
-    garden_doi: str = None,
+    garden_doi: Optional[str] = None,
     model_connectors: Optional[List] = None,
     datasets: Optional[List[DatasetConnection]] = None,
 ):
@@ -292,7 +295,7 @@ def garden_entrypoint(
         # If the user is lazy and uses same EntrypointMetadata object for multiple entrypoints,
         # garden ends up writing over the metadata of the single EntrypointMetadata object for each entrypoint.
         # Dirty fix for this is recreating new EntrypointMetadata object.
-        entrypoint_metadata = metadata.copy(deep=True)
+        entrypoint_metadata = metadata.model_copy(deep=True)
 
         if datasets:
             # datasets explicitly connected to entrypoint by decorator
@@ -398,7 +401,7 @@ def entrypoint_test(entrypoint_func: Callable):
     return decorate
 
 
-def garden_step(description: str = None):
+def garden_step(description: Optional[str] = None):
     def decorate(func):
         func._garden_step = Step(
             function_text=inspect.getsource(func),

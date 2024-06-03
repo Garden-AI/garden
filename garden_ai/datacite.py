@@ -11,27 +11,16 @@ from typing_extensions import Annotated
 from pydantic import (
     AnyUrl,
     BaseModel,
-    Extra,
     Field,
     confloat,
     AfterValidator,
     RootModel,
+    ConfigDict,
 )
-from pydantic_core import PydanticCustomError
+from garden_ai.utils.pydantic import unique_items_validator
 
 
-def _validate_unique_list(v):
-    if v is None:
-        return v
-    try:
-        if len(v) != len(set(v)):
-            raise PydanticCustomError("unique_list", "list must be unique")
-        return v
-    except TypeError:
-        pass
-    if len(v) != len(set([item.model_dump_json() for item in v])):
-        raise PydanticCustomError("unique_list", "list must be unique")
-    return v
+require_unique_items = AfterValidator(unique_items_validator)
 
 
 class Identifier(BaseModel):
@@ -79,7 +68,7 @@ class NameIdentifier(BaseModel):
 
 
 class NameIdentifiers(RootModel):
-    root: Annotated[List[NameIdentifier], AfterValidator(_validate_unique_list)]
+    root: Annotated[List[NameIdentifier], require_unique_items]
 
 
 class Affiliation(BaseModel):
@@ -90,7 +79,7 @@ class Affiliation(BaseModel):
 
 
 class Affiliations(RootModel):
-    root: Annotated[List[Affiliation], AfterValidator(_validate_unique_list)]
+    root: Annotated[List[Affiliation], require_unique_items]
 
 
 class TitleType(str, Enum):
@@ -328,61 +317,43 @@ class GeoLocation(BaseModel):
     geoLocationPoint: Optional[GeoLocationPoint] = None
     geoLocationBox: Optional[GeoLocationBox] = None
     geoLocationPolygons: Annotated[
-        Optional[List[GeoLocationPolygon]], AfterValidator(_validate_unique_list)
+        Optional[List[GeoLocationPolygon]], require_unique_items
     ] = None
 
 
 class DataciteSchema(BaseModel):
-    class Config:
-        extra = Extra.forbid
+
+    model_config = ConfigDict(extra="forbid")
 
     # tweaked identifiers, no longer requires at least one. (only change from generated code)
     types: Types
     identifiers: Annotated[
         List[Identifier],
         Field(..., min_length=1),
-        AfterValidator(_validate_unique_list),
+        require_unique_items,
     ]
-    creators: Annotated[
-        List[Creator], Field(..., min_length=1), AfterValidator(_validate_unique_list)
-    ]
-    titles: Annotated[
-        List[Title], Field(..., min_length=1), AfterValidator(_validate_unique_list)
-    ]
+    creators: Annotated[List[Creator], Field(..., min_length=1), require_unique_items]
+    titles: Annotated[List[Title], Field(..., min_length=1), require_unique_items]
     publisher: str
     publicationYear: str
-    subjects: Annotated[
-        Optional[List[Subject]], AfterValidator(_validate_unique_list)
-    ] = None
-    contributors: Annotated[
-        Optional[List[Contributor]], AfterValidator(_validate_unique_list)
-    ] = None
-    dates: Annotated[
-        Optional[List[DateModel]], AfterValidator(_validate_unique_list)
-    ] = None
+    subjects: Annotated[Optional[List[Subject]], require_unique_items] = None
+    contributors: Annotated[Optional[List[Contributor]], require_unique_items] = None
+    dates: Annotated[Optional[List[DateModel]], require_unique_items] = None
     language: Optional[str] = None
     alternateIdentifiers: Annotated[
-        Optional[List[AlternateIdentifier]], AfterValidator(_validate_unique_list)
+        Optional[List[AlternateIdentifier]], require_unique_items
     ] = None
     relatedIdentifiers: Annotated[
-        Optional[List[RelatedIdentifier]], AfterValidator(_validate_unique_list)
+        Optional[List[RelatedIdentifier]], require_unique_items
     ] = None
-    sizes: Annotated[Optional[List[str]], AfterValidator(_validate_unique_list)] = None
-    formats: Annotated[Optional[List[str]], AfterValidator(_validate_unique_list)] = (
-        None
-    )
+    sizes: Annotated[Optional[List[str]], require_unique_items] = None
+    formats: Annotated[Optional[List[str]], require_unique_items] = None
     version: Optional[str] = None
-    rightsList: Annotated[
-        Optional[List[RightsListItem]], AfterValidator(_validate_unique_list)
-    ] = None
-    descriptions: Annotated[
-        Optional[List[Description]], AfterValidator(_validate_unique_list)
-    ] = None
-    geoLocations: Annotated[
-        Optional[List[GeoLocation]], AfterValidator(_validate_unique_list)
-    ] = None
+    rightsList: Annotated[Optional[List[RightsListItem]], require_unique_items] = None
+    descriptions: Annotated[Optional[List[Description]], require_unique_items] = None
+    geoLocations: Annotated[Optional[List[GeoLocation]], require_unique_items] = None
     fundingReferences: Annotated[
-        Optional[List[FundingReference]], AfterValidator(_validate_unique_list)
+        Optional[List[FundingReference]], require_unique_items
     ] = None
     schemaVersion: Final[str] = "http://datacite.org/schema/kernel-4"
     container: Optional[Container] = None
