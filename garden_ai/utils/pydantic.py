@@ -13,6 +13,6 @@ def unique_items_validator(v: Optional[List[T]]) -> Optional[List[T]]:
         return v
     except TypeError:
         pass
-    if len(v) != len(set([item.model_dump_json() for item in v])):
+    if len(v) != len(set([item.model_dump_json() for item in v])):  # type: ignore
         raise PydanticCustomError("unique_list", "list must be unique")
     return v
