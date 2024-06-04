@@ -8,7 +8,7 @@ from .entrypoints import (
     garden_step,
 )
 from .gardens import Garden, PublishedGarden
-from .mlmodel import DatasetConnection
+from .model_connectors import DatasetConnection
 
 __all__ = [
     "GardenConstants",

@@ -1,3 +1,9 @@
+class ConnectorRevisionError(Exception):
+    """Raised when there is an issue with the revision"""
+
+    pass
+
+
 class ConnectorInvalidRevisionError(Exception):
     """Raised when the connector can't infer the commit revision."""
 
@@ -28,8 +34,28 @@ class ConnectorAPIError(Exception):
 
 
 class ConnectorStagingError(Exception):
-    """Raised when something goes wrong during staging."""
+    """Raised when a model connector fails to stage."""
+
+    def __init__(self, original_exception, explanation=None):
+        super().__init__(
+            f"Failed to stage model: {original_exception}"
+            + (f" - {explanation}" if explanation else "")
+        )
 
 
 class UnsupportedConnectorError(Exception):
     """Raised when trying to connect to an unsupported repository type."""
+
+    pass
+
+
+class ConnectorInvalidRepoIdError(Exception):
+    """Raised when a connector is constructed with an invalid repo_id."""
+
+    pass
+
+
+class ConnectorInvalidUrlError(Exception):
+    """Raised when a connector is constructed with an invalid URL."""
+
+    pass

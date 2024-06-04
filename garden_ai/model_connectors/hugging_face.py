@@ -13,9 +13,14 @@ class HFConnector(ModelConnector):
             raise ValueError("repo_url must be a Hugging Face repository.")
 
     def _build_url_from_id(repo_id: str) -> str:
+        """Return the full URL to the repo on Hugging Face."""
         return f"https://huggingface.co/{repo_id}"
 
     def _download(self) -> str:
+        """Snapshot download the model.
+
+        See: https://huggingface.co/docs/huggingface_hub/en/guides/download#download-an-entire-repository
+        """
         if not self.local_dir.exists():
             self.local_dir.mkdir(parents=True)
 
@@ -28,7 +33,7 @@ class HFConnector(ModelConnector):
         return str(self.local_dir)
 
     def _fetch_readme(self) -> str:
-        # TODO this needs better exception handling
+        """Fetch the repo's model card."""
         try:
             # This fetches README.md from the repo and will raise an error if it doesn't exist
             return hfh.ModelCard.load(self.repo_id).text
@@ -36,6 +41,7 @@ class HFConnector(ModelConnector):
             return ""
 
     def _infer_revision(self) -> str:
+        """Return the latest commit on main."""
         try:
             refs = hfh.list_repo_refs(self.repo_id)
             for branch in refs.branches:
@@ -46,5 +52,6 @@ class HFConnector(ModelConnector):
             raise ConnectorInvalidRevisionError(e)
 
     def _checkout_revision(self):
+        """Doesn't do anything."""
         # Revision is checked out in _download
         pass

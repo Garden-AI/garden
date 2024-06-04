@@ -22,7 +22,7 @@ from garden_ai.datacite import (
     Title,
     Types,
 )
-from garden_ai.mlmodel import ModelMetadata, DatasetConnection
+from garden_ai.model_connectors import ModelMetadata, DatasetConnection
 from garden_ai.utils.misc import JSON
 from garden_ai.utils.pydantic import unique_items_validator
 

@@ -4,6 +4,7 @@ import requests
 
 from .exceptions import (
     ConnectorAPIError,
+    ConnectorRevisionError,
     ConnectorInvalidRevisionError,
     ConnectorLFSError,
 )
@@ -11,6 +12,7 @@ from .model_connector import ModelConnector
 
 
 class GitHubConnector(ModelConnector):
+    """Connect to a model stored on GitHub."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -48,6 +50,7 @@ class GitHubConnector(ModelConnector):
             raise ConnectorAPIError(e)
 
     def _download(self) -> str:
+        """Clone the repo indo self.local_dir"""
         Repo.clone_from(f"{self.repo_url}.git", str(self.local_dir), branch=self.branch)
         return self.local_dir
 
@@ -67,6 +70,11 @@ class GitHubConnector(ModelConnector):
             return ""
 
     def _infer_revision(self) -> str:
+        """Get the commit hash from the HEAD of main.
+
+        Raises:
+            ConnectorInvalidRevisionError: when a commit hash cannot be found.
+        """
         owner, repo = self.repo_id.split("/")
         try:
             # get commit info from GitHub API: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
@@ -96,7 +104,10 @@ class GitHubConnector(ModelConnector):
             repo = Repo(self.local_dir)
             repo.git.checkout(self.revision)
         except GitCommandError as e:
-            raise ValueError(f"Failed to checkout revision {self.revision}") from e
+            raise ConnectorRevisionError(
+                f"Failed to checkout revision {self.revision}"
+            ) from e
 
     def _build_url_from_id(repo_id: str) -> str:
+        """Return the full GitHub url to the repo."""
         return f"https://github.com/{repo_id}"
