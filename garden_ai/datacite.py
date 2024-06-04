@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Optional, Union, Final
+from typing import Any, List, Optional, Union
 from typing_extensions import Annotated
 
 from pydantic import (
@@ -16,8 +16,9 @@ from pydantic import (
     AfterValidator,
     RootModel,
     ConfigDict,
+    field_validator,
 )
-from garden_ai.utils.pydantic import unique_items_validator
+from garden_ai.utils.pydantic import unique_items_validator, const_item_validator
 
 
 require_unique_items = AfterValidator(unique_items_validator)
@@ -355,5 +356,10 @@ class DataciteSchema(BaseModel):
     fundingReferences: Annotated[
         Optional[List[FundingReference]], require_unique_items
     ] = None
-    schemaVersion: Final[str] = "http://datacite.org/schema/kernel-4"
+    schemaVersion: str = "http://datacite.org/schema/kernel-4"
     container: Optional[Container] = None
+
+    @field_validator("schemaVersion")
+    @classmethod
+    def const(cls, v, info):
+        return const_item_validator(cls, v, info)
