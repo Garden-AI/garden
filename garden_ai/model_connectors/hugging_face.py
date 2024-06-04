@@ -12,9 +12,9 @@ class HFConnector(ModelConnector):
         if "Hugging Face" not in self.metadata.model_repository:
             raise ValueError("repo_url must be a Hugging Face repository.")
 
-    def _build_url_from_id(repo_id: str) -> str:
+    def _build_url_from_id(self) -> str:
         """Return the full URL to the repo on Hugging Face."""
-        return f"https://huggingface.co/{repo_id}"
+        return f"https://huggingface.co/{self.repo_id}"
 
     def _download(self) -> str:
         """Snapshot download the model.

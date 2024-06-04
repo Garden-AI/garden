@@ -57,6 +57,7 @@ urllib3 = [
      {version = "^2.2.1", python = ">=3.10"}
 ]
 python-dotenv = "^1.0.1"
+pydantic-core = "^2.18.4"
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"

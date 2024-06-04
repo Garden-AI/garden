@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 import re
 import sys
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from git import Repo
 from git.repo.fun import is_git_dir
@@ -11,9 +11,10 @@ from git.repo.fun import is_git_dir
 from pydantic import (
     BaseModel,
     HttpUrl,
-    root_validator,
-    validator,
+    field_validator,
     Field,
+    ValidationError,
+    TypeAdapter,
 )
 
 from garden_ai.utils.misc import trackcalls
@@ -21,6 +22,8 @@ from garden_ai.utils.misc import trackcalls
 from .exceptions import (
     ConnectorStagingError,
     ConnectorInvalidRevisionError,
+    ConnectorInvalidUrlError,
+    ConnectorInvalidRepoIdError,
 )
 
 
@@ -28,10 +31,10 @@ class ModelRepository(Enum):
     HUGGING_FACE = "Hugging Face"
     GITHUB = "GitHub"
 
-    def match_by_url(url: str):
-        if "github.com" in url:
+    def from_url(url: str):
+        if "github.com" in str(url):
             return ModelRepository.GITHUB
-        elif "huggingface.co" in url:
+        elif "huggingface.co" in str(url):
             return ModelRepository.HUGGING_FACE
         else:
             return None
@@ -89,11 +92,14 @@ class DatasetConnection(BaseModel):
     data_type: Optional[str] = Field(None)
     repository: str = Field(...)
 
-    @validator("repository")
-    def check_foundry(cls, v, values, **kwargs):
+    @field_validator("repository")
+    @classmethod
+    def check_foundry(cls, v, values):
         v = v.lower()  # case-insensitive
-        if "url" in values and "doi" in values:
-            if v == "foundry" and (values["url"] is None or values["doi"] is None):
+        if "url" in values.data and "doi" in values.data:
+            if v == "foundry" and (
+                values.data["url"] is None or values.data["doi"] is None
+            ):
                 raise ValueError(
                     "For a Foundry repository, both url and doi must be provided"
                 )
@@ -113,12 +119,15 @@ class ModelMetadata(BaseModel):
             One or more dataset records that the model was trained on.
     """
 
+    class Config:
+        protected_namespaces = ()
+
     model_identifier: str = Field(...)
     model_repository: str = Field(...)
     model_version: Optional[str] = Field(None)
     datasets: List[DatasetConnection] = Field(default_factory=list)
 
-    @validator("model_repository")
+    @field_validator("model_repository")
     def must_be_a_supported_repository(cls, model_repository):
         if model_repository not in [mr.value for mr in ModelRepository]:
             raise ValueError("is not a supported flavor")
@@ -143,27 +152,38 @@ class ModelConnector(BaseModel, ABC):
         model_dir: base directory for model downloads. defaults to './models'
     """
 
-    repo_url: Optional[HttpUrl]
-    repo_id: Optional[str]
+    repo_url: Optional[str] = None
+    repo_id: Optional[str] = None
     branch: str = "main"
-    revision: Optional[str]
-    local_dir: Optional[Path]
+    revision: Optional[str] = None
+    local_dir: Optional[Path] = None
     enable_imports: bool = True
-    metadata: Optional[ModelMetadata]
-    readme: Optional[str]
+    metadata: Optional[ModelMetadata] = None
+    readme: Optional[str] = None
     model_dir: Optional[Path] = "models"
 
     class Config:
         validate_assignment = True  # Validate assignment to fields after creation
+        protected_namespaces = ()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        repo_type = ModelRepository.match_by_url(self.repo_url)
+        if self.repo_url is None and self.repo_id is None:
+            raise ValueError("Must provide either repo_url or repo_id")
+
+        if self.repo_url and self.repo_id is None:
+            # we need a repo_id
+            self.repo_id = ModelConnector.parse_id_from_url(self.repo_url)
+        elif self.repo_id and self.repo_url is None:
+            # we need a url
+            self.repo_url = self._build_url_from_id()
+
+        repo_type = ModelRepository.from_url(self.repo_url)
         if self.metadata is None:
             self.metadata = ModelMetadata(
                 model_identifier=str(self.repo_id),
-                model_repository=repo_type.value,
+                model_repository=str(repo_type.value),
                 model_version=str(self.revision) or None,
             )
 
@@ -218,6 +238,46 @@ class ModelConnector(BaseModel, ABC):
     def _checkout_revision(self):
         """Checkout self.revision if appropriate."""
         raise NotImplementedError()
+
+    @staticmethod
+    def parse_id_from_url(url: str) -> Optional[str]:
+        """Return a repo id in the form 'owner/repo" from the provided URL."""
+        url_parts = str(url).split("/")
+        owner, repo = url_parts[-2], url_parts[-1]
+        return ModelConnector.validate_repo_id(f"{owner}/{repo}")
+
+    @staticmethod
+    def validate_repo_id(repo_id: str) -> Optional[str]:
+        """Parse repo_id to make sure it is in the form 'owner/repo'
+
+        Return: repo_id as a string
+
+        Raises:
+            ValidationError: When repo_id is not in the form 'owner/repo'
+        """
+        if re.fullmatch(r"^[a-zA-Z0-9-]+\/[a-zA-Z0-9-]+$", str(repo_id).strip()):
+            return repo_id
+        else:
+            raise ConnectorInvalidRepoIdError(
+                f"Invalid repo_id: {repo_id}. Must be in the form 'owner/repo'"
+            )
+
+    @staticmethod
+    def is_valid_url(repo: Union[HttpUrl, str]) -> Optional[Union[HttpUrl, str]]:
+        """Validate the given url.
+
+        Returns: the URL if valid, otherwise None
+
+        Raises:
+           ConnectorInvalidUrlError: When the url is not valid.
+        """
+        try:
+            url_adapter = TypeAdapter(HttpUrl)
+            return url_adapter.validate_python(repo)
+        except ValidationError:
+            raise ConnectorInvalidUrlError(
+                f"Invalid repo url: {repo}. Repo url must be a valid HTTP URL."
+            )
 
     @trackcalls
     def stage(self) -> str:
@@ -286,33 +346,7 @@ class ModelConnector(BaseModel, ABC):
         except NameError:
             return self.readme
 
-    @root_validator()
-    def _check_repo_identifier(cls, values) -> dict:
-        """Make sure either repo_url or repo_id are passed to the constructor.
-
-        At least one is needed.
-
-        Raises:
-            ValueError: When neither repo_url or repo_id is present.
-        """
-        repo_url = values.get("repo_url")
-        repo_id = values.get("repo_id")
-
-        if repo_url is None and repo_id is None:
-            raise ValueError("Either repo_url or repo_id must be provided")
-
-        return values
-
-    @root_validator
-    def _build_repo_url(cls, values) -> dict:
-        """Return a full URL to the repo based on the repo_id."""
-        repo_id = values.get("repo_id")
-        repo_url = values.get("repo_url")
-        if repo_url is None and repo_id is not None:
-            values["repo_url"] = cls._build_url_from_id(repo_id)
-        return values
-
-    @validator("revision")
+    @field_validator("revision")
     def validate_revision(cls, revision) -> str:
         """Validate that revision is a valid git commit hash.
 
@@ -327,13 +361,3 @@ class ModelConnector(BaseModel, ABC):
                     "revision must be a valid git commit hash"
                 )
         return revision
-
-    @validator("repo_id", always=True)
-    def _compute_repo_id(cls, v, values) -> str:
-        """Return a repo_id in the form 'owner/repo' from the repo_url."""
-        repo_url = values.get("repo_url")
-        if repo_url is not None:
-            repo_url_split = repo_url.split("/")
-            owner, repo = repo_url_split[-2], repo_url_split[-1]
-            return f"{owner}/{repo}"
-        return v

@@ -108,6 +108,6 @@ class GitHubConnector(ModelConnector):
                 f"Failed to checkout revision {self.revision}"
             ) from e
 
-    def _build_url_from_id(repo_id: str) -> str:
+    def _build_url_from_id(self) -> str:
         """Return the full GitHub url to the repo."""
-        return f"https://github.com/{repo_id}"
+        return f"https://github.com/{self.repo_id}"
