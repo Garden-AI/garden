@@ -7,6 +7,7 @@ import base64
 from pathlib import Path
 from typing import List, Union, Optional
 from uuid import UUID
+import urllib
 
 import typer
 from globus_compute_sdk import Client
@@ -311,7 +312,11 @@ class GardenClient:
         # "publish" in the event field moves the DOI from draft state to findable state
         # https://support.datacite.org/docs/how-do-i-make-a-findable-doi-with-the-rest-api
         if register_doi:
-            metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
+            doi = urllib.parse.quote(obj.doi, safe="")
+            metadata.update(
+                event="publish",
+                url=f"https://thegardens.ai/#/garden/{doi}",
+            )
 
         payload = {"data": {"type": "dois", "attributes": metadata}}
         self.backend_client.update_doi_on_datacite(payload)
