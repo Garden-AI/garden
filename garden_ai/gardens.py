@@ -38,7 +38,7 @@ logger = logging.getLogger()
 require_unique_items = AfterValidator(unique_items_validator)
 
 
-class Garden(BaseModel, validate_assignment=True):
+class Garden(BaseModel):
     """Object representation of a Garden.
 
     Attributes:
@@ -104,7 +104,7 @@ class Garden(BaseModel, validate_assignment=True):
         build one for the user with the datacite api.
     """
 
-    model_config = ConfigDict(validate_default=False)
+    model_config = ConfigDict(validate_default=False, validate_assignment=True)
 
     title: str = cast(str, Field(default_factory=lambda: None))
     authors: Annotated[
@@ -300,7 +300,7 @@ class Garden(BaseModel, validate_assignment=True):
         return
 
 
-class PublishedGarden(BaseModel, validate_assignment=True):
+class PublishedGarden(BaseModel):
     """Metadata of a completed and published `Garden` object.
 
     Attributes:
@@ -351,7 +351,7 @@ class PublishedGarden(BaseModel, validate_assignment=True):
         ```
     """
 
-    model_config = ConfigDict(validate_default=False)
+    model_config = ConfigDict(validate_default=False, validate_assignment=True)
 
     title: str = Field(...)
     authors: List[str] = Field(...)
