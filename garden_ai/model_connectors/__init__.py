@@ -10,11 +10,11 @@ from .github_conn import GitHubConnector
 from .hugging_face import HFConnector
 
 __all__ = [
-    create_connector,
-    ModelRepository,
-    ModelConnector,
-    ModelMetadata,
-    DatasetConnection,
-    GitHubConnector,
-    HFConnector,
+    "create_connector",
+    "ModelRepository",
+    "ModelConnector",
+    "ModelMetadata",
+    "DatasetConnection",
+    "GitHubConnector",
+    "HFConnector",
 ]

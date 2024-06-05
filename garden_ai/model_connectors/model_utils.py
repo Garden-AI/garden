@@ -1,4 +1,4 @@
-from typing import Dict, Type, Union
+from typing import Dict, Type, Union, Optional
 
 from pydantic import (
     HttpUrl,
@@ -20,7 +20,7 @@ CONNECTOR_MAPPING: Dict[ModelRepository, Type[ModelConnector]] = {
 }
 
 
-def match_connector_type_by_url(url: str) -> Type[ModelConnector]:
+def match_connector_type_by_url(url: str) -> Optional[Type[ModelConnector]]:
     """Match url to the appropriate ModelRepository
 
     Args:
@@ -40,12 +40,14 @@ def match_connector_type_by_url(url: str) -> Type[ModelConnector]:
             return CONNECTOR_MAPPING.get(ModelRepository.HUGGING_FACE)
         else:
             raise ValueError("Repository type is not supported.")
+    else:
+        raise ValueError("Invalid URL")
 
 
 def match_connector_type_by_id_and_type(
     repo_id: str,
     repo_type: str,
-) -> Type[ModelConnector]:
+) -> Optional[Type[ModelConnector]]:
     """Match repo_id to the appropriate ModelRepository
 
     Args:
@@ -62,6 +64,8 @@ def match_connector_type_by_id_and_type(
             return CONNECTOR_MAPPING.get(ModelRepository.HUGGING_FACE)
         else:
             raise ValueError("Unsupported repo_type")
+    else:
+        raise ValueError("Invalid repo_id.")
 
 
 def create_connector(
@@ -89,15 +93,17 @@ def create_connector(
     """
     try:
         # Try and match the repo type by URL, throws error if invalid
-        matched_connector = match_connector_type_by_url(repo)
-        return matched_connector(repo_url=repo, **kwargs)
+        matched_connector = match_connector_type_by_url(str(repo))
+        return matched_connector(repo_url=str(repo), **kwargs)  # type: ignore[misc]
     except ConnectorInvalidUrlError:
         try:
             # Try and match the repo type by id and type
             repo_type = kwargs.get("repo_type")
             if repo_type is not None:
-                matched_connector = match_connector_type_by_id_and_type(repo, repo_type)
-                return matched_connector(repo_id=repo, **kwargs)
+                matched_connector = match_connector_type_by_id_and_type(
+                    str(repo), repo_type
+                )
+                return matched_connector(repo_id=repo, **kwargs)  # type: ignore [misc]
             else:
                 raise UnsupportedConnectorError(
                     "Unable to create ModelConnector.\n"

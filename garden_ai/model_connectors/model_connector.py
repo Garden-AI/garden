@@ -31,6 +31,7 @@ class ModelRepository(Enum):
     HUGGING_FACE = "Hugging Face"
     GITHUB = "GitHub"
 
+    @staticmethod
     def from_url(url: str):
         if "github.com" in str(url):
             return ModelRepository.GITHUB
@@ -160,7 +161,7 @@ class ModelConnector(BaseModel, ABC):
     enable_imports: bool = True
     metadata: Optional[ModelMetadata] = None
     readme: Optional[str] = None
-    model_dir: Optional[Path] = "models"
+    model_dir: Optional[Union[Path, str]] = "models"
 
     class Config:
         validate_assignment = True  # Validate assignment to fields after creation
@@ -230,8 +231,8 @@ class ModelConnector(BaseModel, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def _build_url_from_id(repo_id: str) -> str:
-        """Return a full URL to the repo from the repo_id."""
+    def _build_url_from_id(self) -> str:
+        """Return a full URL to the repo from self.repo_id."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -296,13 +297,13 @@ class ModelConnector(BaseModel, ABC):
 
             # pull from the repo if we have already downloaded it.
             if self._pull_if_downloaded():
-                return self.local_dir
+                return str(self.local_dir)
             else:
                 # otherwise download the repo
                 return self._download()
 
         except Exception as e:
-            raise ConnectorStagingError() from e
+            raise ConnectorStagingError(None) from e
 
     def _pull_if_downloaded(self) -> bool:
         """Check if the repo is already present in local_dir, if so pull from the remote.
@@ -318,7 +319,7 @@ class ModelConnector(BaseModel, ABC):
             # double check the existing repo in local_dir refers to the same
             # repo as this connector before pulling
             found_repo = Repo(str(self.local_dir))
-            if self.repo_url not in found_repo.remotes.origin.url:
+            if str(self.repo_url) not in found_repo.remotes.origin.url:
                 raise ValueError(
                     f"Failed to clone {self.repo_url} to {self.local_dir} "
                     f"({found_repo.remotes.origin.url} already cloned here)."
@@ -336,7 +337,8 @@ class ModelConnector(BaseModel, ABC):
         if not self.readme:
             return ""
         try:
-            __IPYTHON__  # Check if running in notebook. '__IPYTHON__' is defined if in one.
+            # Check if running in notebook. '__IPYTHON__' is defined if in one.
+            __IPYTHON__  # type: ignore[name-defined]
             from IPython.display import display, Markdown  # type: ignore
 
             display(Markdown(self.readme), display_id=True)

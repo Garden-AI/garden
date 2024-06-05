@@ -21,8 +21,8 @@ class HFConnector(ModelConnector):
 
         See: https://huggingface.co/docs/huggingface_hub/en/guides/download#download-an-entire-repository
         """
-        if not self.local_dir.exists():
-            self.local_dir.mkdir(parents=True)
+        if not self.local_dir.exists():  # type: ignore[union-attr]
+            self.local_dir.mkdir(parents=True)  # type: ignore[union-attr]
 
         hfh.snapshot_download(
             repo_id=self.repo_id,
@@ -47,6 +47,7 @@ class HFConnector(ModelConnector):
             for branch in refs.branches:
                 if branch.name == "main":
                     return branch.target_commit
+            return ""
         except Exception as e:
             # just pass along any error message, the list_repo_refs exceptions have helpful messages
             raise ConnectorInvalidRevisionError(e)

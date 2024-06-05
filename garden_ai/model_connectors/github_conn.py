@@ -30,7 +30,7 @@ class GitHubConnector(ModelConnector):
         Pulls .gitattributes from the repo and looks for "filter=lfs"
         """
 
-        owner, repo = self.repo_id.split("/")
+        owner, repo = str(self.repo_id).split("/")
 
         # git-lfs marks files in .gitattributes with filter=lfs
         url = f"https://api.github.com/repos/{owner}/{repo}/contents/.gitattributes"
@@ -52,14 +52,14 @@ class GitHubConnector(ModelConnector):
     def _download(self) -> str:
         """Clone the repo indo self.local_dir"""
         Repo.clone_from(f"{self.repo_url}.git", str(self.local_dir), branch=self.branch)
-        return self.local_dir
+        return str(self.local_dir)
 
     def _fetch_readme(self) -> str:
         """Attempt to retrieve README.md from remote repo.
 
         Returns: str README.md text or ''
         """
-        owner, repo = self.repo_id.split("/")
+        owner, repo = str(self.repo_id).split("/")
         readme_url = (
             f"https://raw.githubusercontent.com/{owner}/{repo}/{self.branch}/README.md"
         )
@@ -75,7 +75,7 @@ class GitHubConnector(ModelConnector):
         Raises:
             ConnectorInvalidRevisionError: when a commit hash cannot be found.
         """
-        owner, repo = self.repo_id.split("/")
+        owner, repo = str(self.repo_id).split("/")
         try:
             # get commit info from GitHub API: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28
             commit_url = (
