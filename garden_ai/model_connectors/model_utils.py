@@ -20,7 +20,7 @@ CONNECTOR_MAPPING: Dict[ModelRepository, Type[ModelConnector]] = {
 }
 
 
-def match_repo_type_by_url(url: str) -> Type[ModelConnector]:
+def match_connector_type_by_url(url: str) -> Type[ModelConnector]:
     """Match url to the appropriate ModelRepository
 
     Args:
@@ -42,8 +42,9 @@ def match_repo_type_by_url(url: str) -> Type[ModelConnector]:
             raise ValueError("Repository type is not supported.")
 
 
-def match_repo_type_by_id_and_type(
-    repo_id: str, repo_type: str
+def match_connector_type_by_id_and_type(
+    repo_id: str,
+    repo_type: str,
 ) -> Type[ModelConnector]:
     """Match repo_id to the appropriate ModelRepository
 
@@ -88,16 +89,16 @@ def create_connector(
         UnsupportedConnectorError: If the repository type is unable to be inferred or not a type we support.
     """
     try:
-        # Try and match the repo type by URL, throws error
-        matched_repo = match_repo_type_by_url(repo)
-        return matched_repo(repo_url=repo, **kwargs)
+        # Try and match the repo type by URL, throws error if invalid
+        matched_connector = match_connector_type_by_url(repo)
+        return matched_connector(repo_url=repo, **kwargs)
     except ConnectorInvalidUrlError:
         try:
             # Try and match the repo type by id and type
             repo_type = kwargs.get("repo_type")
             if repo_type is not None:
-                matched_repo = match_repo_type_by_id_and_type(repo, repo_type)
-                return matched_repo(repo_id=repo, **kwargs)
+                matched_connector = match_connector_type_by_id_and_type(repo, repo_type)
+                return matched_connector(repo_id=repo, **kwargs)
             else:
                 raise UnsupportedConnectorError(
                     "Unable to create ModelConnector.\n"

@@ -305,7 +305,7 @@ class ModelConnector(BaseModel, ABC):
             raise ConnectorStagingError() from e
 
     def _pull_if_downloaded(self) -> bool:
-        """Check if the repo is already present, if so pull from the remote.
+        """Check if the repo is already present in local_dir, if so pull from the remote.
 
         Will always return false if self.local_dir is not a git repo.
 
