@@ -1,4 +1,5 @@
 import os
+from unittest.mock import MagicMock
 
 import pytest
 from globus_compute_sdk import Client  # type: ignore
@@ -198,3 +199,27 @@ def test_client_credentials_grant(cc_grant_tuple):
     assert gc.auth_client.oauth2_validate_token(gc.garden_authorizer.access_token)[
         "active"
     ]
+
+
+def test_client_datacite_url_correct(mocker):
+    # Create a mock object for PublishedGarden or RegisteredEntrypoint
+    mock_obj = MagicMock()
+    mock_obj.doi = "10.1234/abcd.efgh"  # Set the doi attribute
+
+    # Mock the datacite_json method to return a dummy JSON
+    mock_obj.datacite_json.return_value = '{"dummy": "json"}'
+
+    # Mock the BackendClient.update_doi_on_datacite method
+    mock_update_doi_on_datacite = mocker.patch(
+        "garden_ai.backend_client.BackendClient.update_doi_on_datacite"
+    )
+
+    # Call _update_datacite with the mock and tell it to register the doi
+    gc = GardenClient()
+    gc._update_datacite(mock_obj, register_doi=True)
+
+    expected_url = f"https://thegardens.ai/#/garden/{mock_obj.doi.replace('/', '%2f')}"
+
+    # Assert that the URL in the payload is correct
+    payload = mock_update_doi_on_datacite.call_args[0][0]
+    assert payload["data"]["attributes"]["url"] == expected_url

@@ -311,7 +311,11 @@ class GardenClient:
         # "publish" in the event field moves the DOI from draft state to findable state
         # https://support.datacite.org/docs/how-do-i-make-a-findable-doi-with-the-rest-api
         if register_doi:
-            metadata.update(event="publish", url=f"https://thegardens.ai/{obj.doi}")
+            doi_split = obj.doi.split("/")
+            metadata.update(
+                event="publish",
+                url=f"https://thegardens.ai/#/garden/{doi_split[0]}%2f{doi_split[1]}",
+            )
 
         payload = {"data": {"type": "dois", "attributes": metadata}}
         self.backend_client.update_doi_on_datacite(payload)
