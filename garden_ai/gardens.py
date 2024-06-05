@@ -4,12 +4,22 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, cast
+from typing_extensions import Annotated
 
-from pydantic import BaseModel, Field, PrivateAttr, root_validator, validator
-from pydantic.json import pydantic_encoder
+from pydantic import (
+    BaseModel,
+    Field,
+    PrivateAttr,
+    model_validator,
+    field_validator,
+    AfterValidator,
+    ConfigDict,
+)
+from pydantic_core import to_jsonable_python
 from tabulate import tabulate
 
 from garden_ai.utils.misc import JSON
+from garden_ai.utils.pydantic import unique_items_validator
 
 from .datacite import (
     Contributor,
@@ -25,6 +35,7 @@ from .datacite import (
 from .entrypoints import RegisteredEntrypoint
 
 logger = logging.getLogger()
+require_unique_items = AfterValidator(unique_items_validator)
 
 
 class Garden(BaseModel):
@@ -93,22 +104,29 @@ class Garden(BaseModel):
         build one for the user with the datacite api.
     """
 
+    model_config = ConfigDict(validate_default=False, validate_assignment=True)
+
     title: str = cast(str, Field(default_factory=lambda: None))
-    authors: List[str] = Field(default_factory=list, min_items=1, unique_items=True)
-    contributors: List[str] = Field(default_factory=list, unique_items=True)
+    authors: Annotated[
+        List[str], Field(default_factory=list, min_length=1), require_unique_items
+    ]
+    contributors: Annotated[
+        List[str], Field(default_factory=list), require_unique_items
+    ]
     doi: str = Field(...)
     doi_is_draft: bool = Field(True)
     description: Optional[str] = Field(None)
     publisher: str = "Garden-AI"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
-    tags: List[str] = Field(default_factory=list, unique_items=True)
+    tags: Annotated[List[str], Field(default_factory=list), require_unique_items]
     version: str = "0.0.1"
     entrypoint_ids: List[str] = Field(default_factory=list)
     entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
     _entrypoint_cache: List[RegisteredEntrypoint] = PrivateAttr(default_factory=list)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def doi_omitted(cls, values):
         assert "doi" in values, (
             "It seems like no DOI has been minted yet for this `Garden`. If you were trying to create a new `Garden`, "
@@ -116,7 +134,8 @@ class Garden(BaseModel):
         )
         return values
 
-    @validator("year")
+    @field_validator("year")
+    @classmethod
     def valid_year(cls, year):
         if len(str(year)) != 4:
             raise ValueError("year must be formatted `YYYY`")
@@ -226,8 +245,8 @@ class Garden(BaseModel):
             EntrypointNotFoundException: If `garden.entrypoint_ids` references an unknown entrypoint ID.
         """
         self._sync_author_metadata()
-        data = self.dict()
-        data["entrypoints"] = [p.dict() for p in self._collect_entrypoints()]
+        data = self.model_dump()
+        data["entrypoints"] = [p.model_dump() for p in self._collect_entrypoints()]
         return data
 
     def expanded_json(self) -> JSON:
@@ -236,7 +255,7 @@ class Garden(BaseModel):
         See: ``Garden.expanded_metadata`` method
         """
         data = self.expanded_metadata()
-        return json.dumps(data, default=pydantic_encoder)
+        return json.dumps(data, default=to_jsonable_python)
 
     def _sync_author_metadata(self):
         known_contributors = set(self.contributors)
@@ -279,16 +298,6 @@ class Garden(BaseModel):
 
         self.entrypoint_aliases[entrypoint_id] = new_name
         return
-
-    class Config:
-        # Configure pydantic per-model settings.
-
-        # We disable validate_all so that pydantic ignores temporarily-illegal defaults
-        # We enable validate_assignment to make validation occur naturally even after object construction
-
-        validate_all = False  # (this is the default)
-        validate_assignment = True  # validators invoked on assignment
-        underscore_attrs_are_private = True
 
 
 class PublishedGarden(BaseModel):
@@ -342,20 +351,25 @@ class PublishedGarden(BaseModel):
         ```
     """
 
+    model_config = ConfigDict(validate_default=False, validate_assignment=True)
+
     title: str = Field(...)
     authors: List[str] = Field(...)
-    contributors: List[str] = Field(default_factory=list, unique_items=True)
+    contributors: Annotated[
+        List[str], Field(default_factory=list), require_unique_items
+    ]
     doi: str = Field(...)
     description: Optional[str] = Field(None)
     publisher: str = "Garden-AI"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
     language: str = "en"
-    tags: List[str] = Field(default_factory=list, unique_items=True)
+    tags: Annotated[List[str], Field(default_factory=list), require_unique_items]
     version: str = "0.0.1"
     entrypoints: List[RegisteredEntrypoint] = Field(...)
     entrypoint_aliases: Dict[str, str] = Field(default_factory=dict)
 
-    @validator("year")
+    @field_validator("year")
+    @classmethod
     def valid_year(cls, year):
         if len(str(year)) != 4:
             raise ValueError("year must be formatted `YYYY`")
@@ -415,7 +429,7 @@ class PublishedGarden(BaseModel):
                 if self.description
                 else None
             ),
-        ).json()
+        ).model_dump_json()
 
     def __getattr__(self, name):
         #  note: this is only called as a fallback when __getattribute__ raises an exception,
@@ -440,16 +454,6 @@ class PublishedGarden(BaseModel):
             self.entrypoint_aliases.get(p.doi) or p.short_name for p in self.entrypoints
         ]
         return list(super().__dir__()) + entrypoint_names
-
-    class Config:
-        # Configure pydantic per-model settings.
-
-        # We disable validate_all so that pydantic ignores temporarily-illegal defaults
-        # We enable validate_assignment to make validation occur naturally even after object construction
-
-        validate_all = False  # (this is the default)
-        validate_assignment = True  # validators invoked on assignment
-        underscore_attrs_are_private = True
 
 
 def garden_repr_html(garden: Union[Garden, PublishedGarden]) -> str:

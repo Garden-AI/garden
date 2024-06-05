@@ -234,7 +234,7 @@ def build_notebook_session_image(
     base_image: str,
     platform: str = "linux/x86_64",
     print_logs: bool = True,
-    env_vars: dict = None,
+    env_vars: Optional[dict] = None,
 ) -> Optional[docker.models.images.Image]:
     """
     Build the docker image to register with Globus Compute locally.

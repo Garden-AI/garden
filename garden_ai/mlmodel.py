@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class ModelRepository(Enum):
@@ -61,11 +61,14 @@ class DatasetConnection(BaseModel):
     data_type: Optional[str] = Field(None)
     repository: str = Field(...)
 
-    @validator("repository")
+    @field_validator("repository")
+    @classmethod
     def check_foundry(cls, v, values, **kwargs):
         v = v.lower()  # case-insensitive
-        if "url" in values and "doi" in values:
-            if v == "foundry" and (values["url"] is None or values["doi"] is None):
+        if "url" in values.data and "doi" in values.data:
+            if v == "foundry" and (
+                values.data["url"] is None or values.data["doi"] is None
+            ):
                 raise ValueError(
                     "For a Foundry repository, both url and doi must be provided"
                 )
@@ -85,12 +88,15 @@ class ModelMetadata(BaseModel):
             One or more dataset records that the model was trained on.
     """
 
+    model_config = ConfigDict(protected_namespaces=())
+
     model_identifier: str = Field(...)
     model_repository: str = Field(...)
     model_version: Optional[str] = Field(None)
     datasets: List[DatasetConnection] = Field(default_factory=list)
 
-    @validator("model_repository")
+    @field_validator("model_repository")
+    @classmethod
     def must_be_a_supported_repository(cls, model_repository):
         if model_repository not in [mr.value for mr in ModelRepository]:
             raise ValueError("is not a supported flavor")

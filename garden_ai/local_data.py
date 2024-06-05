@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from pydantic.json import pydantic_encoder
+from pydantic_core import to_jsonable_python
 
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
@@ -57,7 +57,7 @@ def _read_local_db() -> Dict:
 
 
 def _write_local_db(data: Dict) -> None:
-    contents = json.dumps(data, default=pydantic_encoder)
+    contents = json.dumps(data, default=to_jsonable_python)
     with open(LOCAL_STORAGE / "data.json", "w+") as f:
         f.write(contents)
 
@@ -96,7 +96,7 @@ def _put_resource_from_obj(
     resource: Union[Garden, RegisteredEntrypoint],
     resource_type: ResourceType,
 ) -> None:
-    resource_metadata = resource.dict()
+    resource_metadata = resource.model_dump()
     _put_resource_from_metadata(resource_metadata, resource_type)
 
 

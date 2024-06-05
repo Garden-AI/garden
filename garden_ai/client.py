@@ -5,7 +5,7 @@ import os
 import time
 import base64
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 from uuid import UUID
 
 import typer
@@ -73,8 +73,8 @@ class GardenClient:
 
     def __init__(
         self,
-        auth_client: Union[AuthLoginClient, ConfidentialAppAuthClient] = None,
-        search_client: SearchClient = None,
+        auth_client: Optional[Union[AuthLoginClient, ConfidentialAppAuthClient]] = None,
+        search_client: Optional[SearchClient] = None,
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
@@ -509,7 +509,7 @@ class GardenClient:
         for entrypoint in published.entrypoints:
             local_data.put_local_entrypoint(entrypoint)
 
-        data = published.dict()
+        data = published.model_dump()
         del data["doi"]  # the clone should not retain the DOI
 
         garden = self.create_garden(**data)

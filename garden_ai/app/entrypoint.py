@@ -226,7 +226,7 @@ def show(
         entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
         if entrypoint:
             rich.print(f"Entrypoint: {entrypoint_id} local data:")
-            rich.print_json(json=entrypoint.json())
+            rich.print_json(json=entrypoint.model_dump_json())
             rich.print("\n")
         else:
             rich.print(f"Could not find entrypoint with id {entrypoint_id}")

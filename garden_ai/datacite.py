@@ -6,8 +6,22 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any, List, Optional, Union
+from typing_extensions import Annotated
 
-from pydantic import AnyUrl, BaseModel, Extra, Field, confloat
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    Field,
+    confloat,
+    AfterValidator,
+    RootModel,
+    ConfigDict,
+    field_validator,
+)
+from garden_ai.utils.pydantic import unique_items_validator, const_item_validator
+
+
+require_unique_items = AfterValidator(unique_items_validator)
 
 
 class Identifier(BaseModel):
@@ -54,8 +68,8 @@ class NameIdentifier(BaseModel):
     schemeUri: Optional[AnyUrl] = None
 
 
-class NameIdentifiers(BaseModel):
-    __root__: List[NameIdentifier] = Field(..., unique_items=True)
+class NameIdentifiers(RootModel):
+    root: Annotated[List[NameIdentifier], require_unique_items]
 
 
 class Affiliation(BaseModel):
@@ -65,8 +79,8 @@ class Affiliation(BaseModel):
     schemeUri: Optional[AnyUrl] = None
 
 
-class Affiliations(BaseModel):
-    __root__: List[Affiliation] = Field(..., unique_items=True)
+class Affiliations(RootModel):
+    root: Annotated[List[Affiliation], require_unique_items]
 
 
 class TitleType(str, Enum):
@@ -100,8 +114,8 @@ class ContributorType(str, Enum):
     Other = "Other"
 
 
-class Date(BaseModel):
-    __root__: Union[Any, Any, Any, Any, Any, Any, Any, Any]
+class Date(RootModel):
+    root: Union[Any, Any, Any, Any, Any, Any, Any, Any]
 
 
 class DateType(str, Enum):
@@ -203,12 +217,12 @@ class DescriptionType(str, Enum):
     Other = "Other"
 
 
-class Longitude(BaseModel):
-    __root__: confloat(ge=-180.0, le=180.0)  # type: ignore
+class Longitude(RootModel):
+    root: confloat(ge=-180.0, le=180.0)  # type: ignore
 
 
-class Latitude(BaseModel):
-    __root__: confloat(ge=-90.0, le=90.0)  # type: ignore
+class Latitude(RootModel):
+    root: confloat(ge=-90.0, le=90.0)  # type: ignore
 
 
 class FunderIdentifierType(str, Enum):
@@ -295,7 +309,7 @@ class GeoLocationPoint(BaseModel):
 
 
 class GeoLocationPolygon(BaseModel):
-    polygonPoints: List[GeoLocationPoint] = Field(..., min_items=4)
+    polygonPoints: List[GeoLocationPoint] = Field(..., min_length=4)
     inPolygonPoint: Optional[GeoLocationPoint] = None
 
 
@@ -303,38 +317,49 @@ class GeoLocation(BaseModel):
     geoLocationPlace: Optional[str] = None
     geoLocationPoint: Optional[GeoLocationPoint] = None
     geoLocationBox: Optional[GeoLocationBox] = None
-    geoLocationPolygons: Optional[List[GeoLocationPolygon]] = Field(
-        None, unique_items=True
-    )
+    geoLocationPolygons: Annotated[
+        Optional[List[GeoLocationPolygon]], require_unique_items
+    ] = None
 
 
 class DataciteSchema(BaseModel):
-    class Config:
-        extra = Extra.forbid
+
+    model_config = ConfigDict(extra="forbid")
 
     # tweaked identifiers, no longer requires at least one. (only change from generated code)
     types: Types
-    identifiers: List[Identifier] = Field(..., min_items=1, unique_items=True)
-    creators: List[Creator] = Field(..., min_items=1, unique_items=True)
-    titles: List[Title] = Field(..., min_items=1, unique_items=True)
+    identifiers: Annotated[
+        List[Identifier],
+        Field(..., min_length=1),
+        require_unique_items,
+    ]
+    creators: Annotated[List[Creator], Field(..., min_length=1), require_unique_items]
+    titles: Annotated[List[Title], Field(..., min_length=1), require_unique_items]
     publisher: str
     publicationYear: str
-    subjects: Optional[List[Subject]] = Field(None, unique_items=True)
-    contributors: Optional[List[Contributor]] = Field(None, unique_items=True)
-    dates: Optional[List[DateModel]] = Field(None, unique_items=True)
+    subjects: Annotated[Optional[List[Subject]], require_unique_items] = None
+    contributors: Annotated[Optional[List[Contributor]], require_unique_items] = None
+    dates: Annotated[Optional[List[DateModel]], require_unique_items] = None
     language: Optional[str] = None
-    alternateIdentifiers: Optional[List[AlternateIdentifier]] = Field(
-        None, unique_items=True
-    )
-    relatedIdentifiers: Optional[List[RelatedIdentifier]] = Field(
-        None, unique_items=True
-    )
-    sizes: Optional[List[str]] = Field(None, unique_items=True)
-    formats: Optional[List[str]] = Field(None, unique_items=True)
+    alternateIdentifiers: Annotated[
+        Optional[List[AlternateIdentifier]], require_unique_items
+    ] = None
+    relatedIdentifiers: Annotated[
+        Optional[List[RelatedIdentifier]], require_unique_items
+    ] = None
+    sizes: Annotated[Optional[List[str]], require_unique_items] = None
+    formats: Annotated[Optional[List[str]], require_unique_items] = None
     version: Optional[str] = None
-    rightsList: Optional[List[RightsListItem]] = Field(None, unique_items=True)
-    descriptions: Optional[List[Description]] = Field(None, unique_items=True)
-    geoLocations: Optional[List[GeoLocation]] = Field(None, unique_items=True)
-    fundingReferences: Optional[List[FundingReference]] = Field(None, unique_items=True)
-    schemaVersion: str = Field("http://datacite.org/schema/kernel-4", const=True)
+    rightsList: Annotated[Optional[List[RightsListItem]], require_unique_items] = None
+    descriptions: Annotated[Optional[List[Description]], require_unique_items] = None
+    geoLocations: Annotated[Optional[List[GeoLocation]], require_unique_items] = None
+    fundingReferences: Annotated[
+        Optional[List[FundingReference]], require_unique_items
+    ] = None
+    schemaVersion: str = "http://datacite.org/schema/kernel-4"
     container: Optional[Container] = None
+
+    @field_validator("schemaVersion")
+    @classmethod
+    def const(cls, v, info):
+        return const_item_validator(cls, v, info)
