@@ -56,13 +56,12 @@ def match_connector_type_by_id_and_type(
         ValueError: When the the given repo_type is unsupported.
     """
     if ModelConnector.validate_repo_id(repo_id):
-        match repo_type:
-            case "GH":
-                return CONNECTOR_MAPPING.get(ModelRepository.GITHUB)
-            case "HF":
-                return CONNECTOR_MAPPING.get(ModelRepository.HUGGING_FACE)
-            case _:
-                raise ValueError("Unsupported repo_type")
+        if repo_type == "GH":
+            return CONNECTOR_MAPPING.get(ModelRepository.GITHUB)
+        if repo_type == "HF":
+            return CONNECTOR_MAPPING.get(ModelRepository.HUGGING_FACE)
+        else:
+            raise ValueError("Unsupported repo_type")
 
 
 def create_connector(
