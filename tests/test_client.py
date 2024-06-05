@@ -201,7 +201,51 @@ def test_client_credentials_grant(cc_grant_tuple):
     ]
 
 
-def test_client_datacite_url_correct(mocker):
+def test_client_datacite_url_correct(
+    mocker,
+    mock_authorizer_tuple,
+    token,
+    mock_keystore,
+    identity_jwt,
+):
+    mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
+    # Mocks for KeyStore
+    mock_keystore.file_exists.return_value = False
+
+    # Mocks for Login Flow
+    mock_auth_client = mocker.MagicMock(AuthLoginClient)
+    mock_auth_client.oauth2_get_authorize_url = mocker.Mock(
+        return_value="https://globus.auth.garden"
+    )
+    mock_auth_client.oauth2_start_flow = mocker.Mock()
+    mocker.patch("garden_ai.client.Prompt.ask").return_value = "my token"
+    mocker.patch("garden_ai.client.typer.launch")
+
+    mock_search_client = mocker.MagicMock(SearchClient)
+
+    mock_token_response = mocker.MagicMock(OAuthTokenResponse)
+    mock_token_response.by_resource_server = {
+        "groups.api.globus.org": token,
+        "search.api.globus.org": token,
+        "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
+        "funcx_service": token,
+        "auth.globus.org": token,
+    }
+    mock_token_response.data = {"id_token": identity_jwt}
+    mock_auth_client.oauth2_exchange_code_for_tokens = mocker.Mock(
+        return_value=mock_token_response
+    )
+
+    # Mocks compute client login
+    mock_login_manager = mocker.MagicMock(LoginManager)
+    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
+    mocker.patch("globus_compute_sdk.sdk.client.LoginManager").return_value = (
+        mock_login_manager
+    )
+
+    # Call the Garden constructor
+    gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
+
     # Create a mock object for PublishedGarden or RegisteredEntrypoint
     mock_obj = MagicMock()
     mock_obj.doi = "10.1234/abcd.efgh"  # Set the doi attribute
@@ -215,7 +259,6 @@ def test_client_datacite_url_correct(mocker):
     )
 
     # Call _update_datacite with the mock and tell it to register the doi
-    gc = GardenClient()
     gc._update_datacite(mock_obj, register_doi=True)
 
     expected_url = f"https://thegardens.ai/#/garden/{mock_obj.doi.replace('/', '%2f')}"
