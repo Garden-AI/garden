@@ -15,6 +15,7 @@ from pydantic import (
     Field,
     ValidationError,
     TypeAdapter,
+    ConfigDict,
 )
 
 from garden_ai.utils.misc import trackcalls
@@ -120,8 +121,7 @@ class ModelMetadata(BaseModel):
             One or more dataset records that the model was trained on.
     """
 
-    class Config:
-        protected_namespaces = ()
+    model_config = ConfigDict(protected_namespaces=())
 
     model_identifier: str = Field(...)
     model_repository: str = Field(...)
@@ -163,9 +163,10 @@ class ModelConnector(BaseModel, ABC):
     readme: Optional[str] = None
     model_dir: Optional[Union[Path, str]] = "models"
 
-    class Config:
-        validate_assignment = True  # Validate assignment to fields after creation
-        protected_namespaces = ()
+    model_config = ConfigDict(
+        validate_assignment=True,
+        protected_namespaces=(),
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
