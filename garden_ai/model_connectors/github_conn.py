@@ -50,7 +50,7 @@ class GitHubConnector(ModelConnector):
             raise ConnectorAPIError(e)
 
     def _download(self) -> str:
-        """Clone the repo indo self.local_dir"""
+        """Clone the repo into self.local_dir"""
         Repo.clone_from(f"{self.repo_url}.git", str(self.local_dir), branch=self.branch)
         return str(self.local_dir)
 
