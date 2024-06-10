@@ -303,11 +303,11 @@ def test_create_connector_with_repo_id(mocker):
     # give it a fake revision so it doesn't attempt to fetch one
     hf = create_connector("good/id", repo_type="HF", revision=fake_revision)
     assert isinstance(hf, HFConnector)
-    assert hf.repo_url == "https://huggingface.co/good/id"
+    assert str(hf.repo_url) == "https://huggingface.co/good/id"
 
     gh = create_connector("good/id", repo_type="GH", revision=fake_revision)
     assert isinstance(gh, GitHubConnector)
-    assert gh.repo_url == "https://github.com/good/id"
+    assert str(gh.repo_url) == "https://github.com/good/id"
 
     # repo_id must be in the form 'owner/repo'
     with unittest.TestCase().assertRaises(UnsupportedConnectorError):

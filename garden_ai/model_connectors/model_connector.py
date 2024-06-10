@@ -13,6 +13,7 @@ from pydantic import (
     HttpUrl,
     field_validator,
     Field,
+    model_validator,
     ValidationError,
     TypeAdapter,
     ConfigDict,
@@ -153,7 +154,7 @@ class ModelConnector(BaseModel, ABC):
         model_dir: base directory for model downloads. defaults to './models'
     """
 
-    repo_url: Optional[str] = None
+    repo_url: Optional[HttpUrl] = None
     repo_id: Optional[str] = None
     branch: str = "main"
     revision: Optional[str] = None
@@ -170,39 +171,6 @@ class ModelConnector(BaseModel, ABC):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        if self.repo_url is None and self.repo_id is None:
-            raise ValueError("Must provide either repo_url or repo_id")
-
-        if self.repo_url and self.repo_id is None:
-            # we need a repo_id
-            self.repo_id = ModelConnector.parse_id_from_url(self.repo_url)
-        elif self.repo_id and self.repo_url is None:
-            # we need a url
-            self.repo_url = self._build_url_from_id()
-
-        repo_type = ModelRepository.from_url(self.repo_url)
-        if self.metadata is None:
-            self.metadata = ModelMetadata(
-                model_identifier=str(self.repo_id),
-                model_repository=str(repo_type.value),
-                model_version=str(self.revision) or None,
-            )
-
-        if self.local_dir is None:
-            # default to "./models/repo_name"
-            path = Path(f"{self.model_dir}/{self.repo_id.split('/')[-1]}")
-            self.local_dir = path
-
-        if self.readme is None:
-            self.readme = self._fetch_readme()
-
-        if self.revision is None:
-            self.revision = self._infer_revision()
-            self.metadata.model_version = str(self.revision)
-
-        if self.enable_imports:
-            sys.path.append(self.local_dir)
 
     @abstractmethod
     def _infer_revision(self) -> str:
@@ -304,7 +272,7 @@ class ModelConnector(BaseModel, ABC):
                 return self._download()
 
         except Exception as e:
-            raise ConnectorStagingError(None) from e
+            raise ConnectorStagingError(str(self.repo_url), None) from e
 
     def _pull_if_downloaded(self) -> bool:
         """Check if the repo is already present in local_dir, if so pull from the remote.
@@ -349,6 +317,41 @@ class ModelConnector(BaseModel, ABC):
         except NameError:
             return self.readme
 
+    @model_validator(mode="after")
+    def validate_required_fields(self):
+        if self.repo_url is None and self.repo_id is None:
+            raise ValueError("Must provide either repo_url or repo_id")
+
+        if self.repo_url and self.repo_id is None:
+            # we need a repo_id
+            self.repo_id = ModelConnector.parse_id_from_url(self.repo_url)
+        elif self.repo_id and self.repo_url is None:
+            # we need a url
+            self.repo_url = self._build_url_from_id()
+
+        repo_type = ModelRepository.from_url(self.repo_url)
+        if self.metadata is None:
+            self.metadata = ModelMetadata(
+                model_identifier=str(self.repo_id),
+                model_repository=str(repo_type.value),
+                model_version=str(self.revision) or None,
+            )
+
+        if self.local_dir is None:
+            # default to "./models/repo_name"
+            path = Path(f"{self.model_dir}/{self.repo_id.split('/')[-1]}")
+            self.local_dir = path
+
+        if self.readme is None:
+            self.readme = self._fetch_readme()
+
+        if self.revision is None:
+            self.revision = self._infer_revision()
+            self.metadata.model_version = str(self.revision)
+
+        if self.enable_imports:
+            sys.path.append(self.local_dir)
+
     @field_validator("revision")
     def validate_revision(cls, revision) -> str:
         """Validate that revision is a valid git commit hash.
@@ -361,6 +364,6 @@ class ModelConnector(BaseModel, ABC):
         if revision is not None:
             if not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
                 raise ConnectorInvalidRevisionError(
-                    "revision must be a valid git commit hash"
+                    "revision must be a valid 40-character git commit hash"
                 )
         return revision
