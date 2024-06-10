@@ -9,7 +9,7 @@ class HFConnector(ModelConnector):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        if "Hugging Face" not in self.metadata.model_repository:
+        if "huggingface" not in self.metadata.model_repository:
             raise ValueError("repo_url must be a Hugging Face repository.")
 
     def _build_url_from_id(self) -> str:

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 from pathlib import Path
 import re
 import sys
@@ -27,20 +26,6 @@ from .exceptions import (
     ConnectorInvalidUrlError,
     ConnectorInvalidRepoIdError,
 )
-
-
-class ModelRepository(Enum):
-    HUGGING_FACE = "Hugging Face"
-    GITHUB = "GitHub"
-
-    @staticmethod
-    def from_url(url: str):
-        if "github.com" in str(url):
-            return ModelRepository.GITHUB
-        elif "huggingface.co" in str(url):
-            return ModelRepository.HUGGING_FACE
-        else:
-            return None
 
 
 class DatasetConnection(BaseModel):
@@ -116,7 +101,7 @@ class ModelMetadata(BaseModel):
 
     Attributes:
         model_identifier (str): A short and descriptive name of the model
-        model_repository (ModelRepository): The repository the model is published on.
+        model_repository (str): The repository the model is published on.
         model_version (str): A version identifier
         datasets (DatasetConnection):
             One or more dataset records that the model was trained on.
@@ -128,12 +113,6 @@ class ModelMetadata(BaseModel):
     model_repository: str = Field(...)
     model_version: Optional[str] = Field(None)
     datasets: List[DatasetConnection] = Field(default_factory=list)
-
-    @field_validator("model_repository")
-    def must_be_a_supported_repository(cls, model_repository):
-        if model_repository not in [mr.value for mr in ModelRepository]:
-            raise ValueError("is not a supported flavor")
-        return model_repository
 
 
 class ModelConnector(BaseModel, ABC):
@@ -329,11 +308,11 @@ class ModelConnector(BaseModel, ABC):
             # we need a url
             self.repo_url = self._build_url_from_id()
 
-        repo_type = ModelRepository.from_url(self.repo_url)
+        repo_type = self.repo_url.host
         if self.metadata is None:
             self.metadata = ModelMetadata(
                 model_identifier=str(self.repo_id),
-                model_repository=str(repo_type.value),
+                model_repository=repo_type,
                 model_version=str(self.revision) or None,
             )
 

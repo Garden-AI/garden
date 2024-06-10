@@ -17,7 +17,7 @@ class GitHubConnector(ModelConnector):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        if "GitHub" not in self.metadata.model_repository:
+        if "github" not in self.metadata.model_repository:
             raise ValueError("repo_url must be a GitHub repository.")
 
         # Raise an error if git lfs is used by the repo
