@@ -20,7 +20,7 @@ CONNECTOR_MAPPING: Dict[ModelRepository, Type[ModelConnector]] = {
 }
 
 
-def match_connector_type_by_url(url: str) -> Optional[Type[ModelConnector]]:
+def _match_connector_type_by_url(url: str) -> Optional[Type[ModelConnector]]:
     """Match url to the appropriate ModelRepository
 
     Args:
@@ -44,7 +44,7 @@ def match_connector_type_by_url(url: str) -> Optional[Type[ModelConnector]]:
         raise ValueError("Invalid URL")
 
 
-def match_connector_type_by_id_and_type(
+def _match_connector_type_by_id_and_type(
     repo_id: str,
     repo_type: str,
 ) -> Optional[Type[ModelConnector]]:
@@ -93,25 +93,22 @@ def create_connector(
     """
     try:
         # Try and match the repo type by URL, throws error if invalid
-        matched_connector = match_connector_type_by_url(str(repo))
+        matched_connector = _match_connector_type_by_url(str(repo))
         return matched_connector(repo_url=str(repo), **kwargs)  # type: ignore[misc]
     except ConnectorInvalidUrlError:
-        try:
-            # Try and match the repo type by id and type
-            repo_type = kwargs.get("repo_type")
-            if repo_type is not None:
-                matched_connector = match_connector_type_by_id_and_type(
-                    str(repo), repo_type
-                )
-                return matched_connector(repo_id=repo, **kwargs)  # type: ignore [misc]
-            else:
-                raise UnsupportedConnectorError(
-                    "Unable to create ModelConnector.\n"
-                    "Excpected ether URL or repo_id and repo_type.\n"
-                    "Try:\n"
-                    "\tc = create_connector('https:github.com/owner/repo')\n"
-                    "or:\n"
-                    "\tc = create_connector('owner/repo', 'GH')"
-                )
-        except Exception as e:
-            raise e
+        # Try and match the repo type by id and type
+        repo_type = kwargs.get("repo_type")
+        if repo_type is not None:
+            matched_connector = _match_connector_type_by_id_and_type(
+                str(repo), repo_type
+            )
+            return matched_connector(repo_id=repo, **kwargs)  # type: ignore [misc]
+        else:
+            raise UnsupportedConnectorError(
+                "Unable to create ModelConnector.\n"
+                "Excpected ether URL or repo_id and repo_type.\n"
+                "Try:\n"
+                "\tc = create_connector('https:github.com/owner/repo')\n"
+                "or:\n"
+                "\tc = create_connector('owner/repo', 'GH')"
+            )
