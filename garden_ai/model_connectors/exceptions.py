@@ -1,10 +1,14 @@
 class ConnectorRevisionError(Exception):
     """Raised when there is an issue with the revision"""
 
-    pass
+    def __init__(self, original_exception, explanation=None):
+        super().__init__(
+            f"Error with git revision: {original_exception}"
+            + (f" - {explanation}" if explanation else "")
+        )
 
 
-class ConnectorInvalidRevisionError(Exception):
+class ConnectorInvalidRevisionError(ConnectorRevisionError):
     """Raised when the connector can't infer the commit revision."""
 
     def __init__(self, original_exception, explanation=None):
@@ -36,9 +40,9 @@ class ConnectorAPIError(Exception):
 class ConnectorStagingError(Exception):
     """Raised when a model connector fails to stage."""
 
-    def __init__(self, original_exception, explanation=None):
+    def __init__(self, connected_repository, original_exception, explanation=None):
         super().__init__(
-            f"Failed to stage model: {original_exception}"
+            f"Failed to download model from {connected_repository}: {original_exception}"
             + (f" - {explanation}" if explanation else "")
         )
 
