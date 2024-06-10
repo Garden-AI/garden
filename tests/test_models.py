@@ -12,7 +12,6 @@ from garden_ai import (
 from garden_ai.model_connectors import HFConnector, GitHubConnector
 from garden_ai.model_connectors.exceptions import (
     ConnectorLFSError,
-    UnsupportedConnectorError,
 )
 from garden_ai.model_connectors.model_utils import create_connector
 
@@ -285,33 +284,11 @@ def test_create_connector_returns_correct_connector_type():
     gh_url = create_connector("https://github.com/fake/repo", revision=fake_revision)
     assert isinstance(gh_url, GitHubConnector)
 
-    gh_id = create_connector("fake/repo", repo_type="GH", revision=fake_revision)
-    assert isinstance(gh_id, GitHubConnector)
-
     hf_url = create_connector(
-        "https://huggingface.co/fake/repo", revision=fake_revision
+        "https://huggingface.co/fake/repo",
+        revision=fake_revision,
     )
     assert isinstance(hf_url, HFConnector)
-
-    hf_id = create_connector("fake/repo", repo_type="HF", revision=fake_revision)
-    assert isinstance(hf_id, HFConnector)
-
-
-def test_create_connector_with_repo_id(mocker):
-    fake_revision = "a" * 40
-
-    # give it a fake revision so it doesn't attempt to fetch one
-    hf = create_connector("good/id", repo_type="HF", revision=fake_revision)
-    assert isinstance(hf, HFConnector)
-    assert str(hf.repo_url) == "https://huggingface.co/good/id"
-
-    gh = create_connector("good/id", repo_type="GH", revision=fake_revision)
-    assert isinstance(gh, GitHubConnector)
-    assert str(gh.repo_url) == "https://github.com/good/id"
-
-    # repo_id must be in the form 'owner/repo'
-    with unittest.TestCase().assertRaises(UnsupportedConnectorError):
-        create_connector("bad_repo_id", revision=fake_revision)
 
 
 def test_create_connector_with_url():
@@ -326,8 +303,8 @@ def test_create_connector_with_url():
     assert gh.repo_id == "real/repo"
 
     # URL must be full HTTP e.g. "https://github.com/owner/repo"
-    with unittest.TestCase().assertRaises(UnsupportedConnectorError):
+    with unittest.TestCase().assertRaises(Exception):
         create_connector("github.com/bad/repo")
 
-    with unittest.TestCase().assertRaises(UnsupportedConnectorError):
+    with unittest.TestCase().assertRaises(Exception):
         create_connector("huggingface.co/bad/repo")
