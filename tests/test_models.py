@@ -10,7 +10,10 @@ from garden_ai import (
     EntrypointMetadata,
 )
 from garden_ai.model_connectors import HFConnector, GitHubConnector
-from garden_ai.model_connectors.exceptions import ConnectorLFSError
+from garden_ai.model_connectors.exceptions import (
+    ConnectorLFSError,
+)
+from garden_ai.model_connectors.model_utils import create_connector
 
 import unittest
 from unittest.mock import MagicMock
@@ -64,7 +67,7 @@ def test_garden_entrypoint_decorator():
         tags=["garden_ai"],
     )
 
-    model_connector = HFConnector("willengler-uc/iris-classifier")
+    model_connector = HFConnector(repo_id="willengler-uc/iris-classifier")
 
     @garden_entrypoint(
         metadata=entrypoint_meta,
@@ -89,7 +92,7 @@ def test_garden_entrypoint_decorator_github():
         tags=["garden_ai"],
     )
 
-    model_connector = GitHubConnector("https://github.com/uw-cmg/ASR_model")
+    model_connector = GitHubConnector(repo_id="uw-cmg/ASR_model")
 
     @garden_entrypoint(
         metadata=entrypoint_meta,
@@ -102,7 +105,7 @@ def test_garden_entrypoint_decorator_github():
     assert my_entrypoint._garden_entrypoint.title == "My Entrypoint"
     models = my_entrypoint._garden_entrypoint.models
     assert len(models) == 1
-    assert models[0].model_identifier == "https://github.com/uw-cmg/ASR_model"
+    assert models[0].model_identifier == "uw-cmg/ASR_model"
     assert my_entrypoint._garden_entrypoint._target_garden_doi == "10.23671/fake-doi"
 
 
@@ -122,8 +125,10 @@ def test_GHconnector_idempotent(mocker):
 
     # Mock Repo to simulate both clone and pull scenarios
     mock_repo_class = mocker.patch("garden_ai.model_connectors.github_conn.Repo")
+    mock_repo_base = mocker.patch("garden_ai.model_connectors.model_connector.Repo")
     mock_repo_instance = MagicMock()
     mock_repo_class.return_value = mock_repo_instance
+    mock_repo_base.return_value = mock_repo_instance
     mock_repo_instance.remotes.origin.pull = MagicMock()
     # Set up the mock to return a URL that matches the connector's repo_url
     mock_repo_instance.remotes.origin.url = "https://github.com/fake/repo.git"
@@ -135,7 +140,7 @@ def test_GHconnector_idempotent(mocker):
 
     # Mock is_git_dir to control the flow in the stage method
     mocker.patch(
-        "garden_ai.model_connectors.github_conn.is_git_dir",
+        "garden_ai.model_connectors.model_connector.is_git_dir",
         side_effect=[
             False,
             True,
@@ -143,19 +148,19 @@ def test_GHconnector_idempotent(mocker):
         ],  # First call: not a git dir, then it is a git dir
     )
 
+    fake_commit_hash = "a" * 40
+
     # enable_imports=False just bc mocking sys.path.append was hard
     connector = GitHubConnector(
         repo_url="https://github.com/fake/repo",
-        local_dir="gh_model",
-        branch="main",
         enable_imports=False,
-        revision="fakecommithash",
+        revision=fake_commit_hash,
     )
 
     # First call should trigger clone since it's not a git dir yet
     connector.stage()
     mock_clone_from.assert_called_once_with(
-        "https://github.com/fake/repo.git", "gh_model", branch="main"
+        "https://github.com/fake/repo.git", "models/repo", branch="main"
     )
 
     # Reset mock to test idempotency on subsequent calls
@@ -175,9 +180,10 @@ def test_GHconnector_idempotent(mocker):
 
 def test_GitHubConnector_pins_commit_hash_correctly(mocker):
     # Mock the response from the GitHub API
+    fake_commit_hash = "a" * 40
     mock_response = mocker.patch("requests.get")
     mock_response.return_value.json.return_value = {
-        "sha": "fakecommithash",
+        "sha": fake_commit_hash,
         "content": "",
     }
 
@@ -195,14 +201,14 @@ def test_GitHubConnector_pins_commit_hash_correctly(mocker):
     )
 
     # The revision field should be the commit hash from the latest commit
-    assert connector.revision == "fakecommithash"
+    assert connector.revision == fake_commit_hash
 
     # The commit hash should be stored in the metadata object as well
-    assert connector.metadata.model_version == "fakecommithash"
+    assert connector.metadata.model_version == fake_commit_hash
 
     # stage should checkout the pinned commit when called
     connector.stage()
-    mock_repo.git.checkout.assert_called_once_with("fakecommithash")
+    mock_repo.git.checkout.assert_called_once_with(fake_commit_hash)
 
 
 def test_HFConnector_pins_commit_hash_correctly(mocker):
@@ -211,10 +217,12 @@ def test_HFConnector_pins_commit_hash_correctly(mocker):
         "garden_ai.model_connectors.hugging_face.hfh.snapshot_download"
     )
 
+    fake_commit_hash = "a" * 40
+
     # Mock a couple of hfh.GitRefInfo objects, these are returned from hfh.list_repo_refs
     mock_main_branch = MagicMock()
     mock_main_branch.name = "main"
-    mock_main_branch.target_commit = "fakecommithash"
+    mock_main_branch.target_commit = fake_commit_hash
     mock_branch = MagicMock()
     mock_branch.name = "dev"
     mock_branch.target_commit = "wrongfakehash"
@@ -228,18 +236,20 @@ def test_HFConnector_pins_commit_hash_correctly(mocker):
     )
 
     repo = "fake/repo"
-    connector = HFConnector(repo)
+    connector = HFConnector(repo_id=repo)
 
     # The revision field should be the commit has from the latest commit on main
-    assert connector.revision == "fakecommithash"
+    assert connector.revision == fake_commit_hash
 
     # The commit hash should be stored in the metadata object as well
-    assert connector.metadata.model_version == "fakecommithash"
+    assert connector.metadata.model_version == fake_commit_hash
 
     # The commit hash should be passed into hfh.snapshot_download when stage is called
     connector.stage()
     mock_snapshot_download.assert_called_with(
-        "fake/repo", revision="fakecommithash", local_dir="hf_model"
+        repo_id="fake/repo",
+        local_dir="models/repo",
+        revision=fake_commit_hash,
     )
 
 
@@ -261,6 +271,40 @@ def test_GitHubConnector_raises_exception_with_lfs_file(mocker):
     # Constructing a connector using a repo with a git-lfs file should raise an error
     with unittest.TestCase().assertRaises(ConnectorLFSError):
         GitHubConnector(
-            "https://github.com/fake/repo",
-            revision="fakecommithash",
+            repo_url="https://github.com/fake/repo",
+            revision="a" * 40,
+            readme="",  # give it a readme so it doesn't try to pull one from the repo
         )
+
+
+def test_create_connector_returns_correct_connector_type():
+    fake_revision = "a" * 40
+
+    # Give them a fake revision so they don't attempt to fetch one.
+    gh_url = create_connector("https://github.com/fake/repo", revision=fake_revision)
+    assert isinstance(gh_url, GitHubConnector)
+
+    hf_url = create_connector(
+        "https://huggingface.co/fake/repo",
+        revision=fake_revision,
+    )
+    assert isinstance(hf_url, HFConnector)
+
+
+def test_create_connector_with_url():
+    fake_revision = "a" * 40
+
+    hf = create_connector("https://huggingface.co/real/repo", revision=fake_revision)
+    assert isinstance(hf, HFConnector)
+    assert hf.repo_id == "real/repo"
+
+    gh = create_connector("https://github.com/real/repo", revision=fake_revision)
+    assert isinstance(gh, GitHubConnector)
+    assert gh.repo_id == "real/repo"
+
+    # URL must be full HTTP e.g. "https://github.com/owner/repo"
+    with unittest.TestCase().assertRaises(Exception):
+        create_connector("github.com/bad/repo")
+
+    with unittest.TestCase().assertRaises(Exception):
+        create_connector("huggingface.co/bad/repo")

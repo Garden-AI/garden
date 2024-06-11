@@ -57,6 +57,7 @@ urllib3 = [
      {version = "^2.2.1", python = ">=3.10"}
 ]
 python-dotenv = "^1.0.1"
+pydantic-core = "^2.18.4"
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
@@ -90,6 +91,7 @@ mkdocs-extensions = "^0.1.2"
 pymdown-extensions = "^10.0.1"
 mkdocs-material = "^9.1.13"
 mkdocstrings = {extras = ["python"], version = "^0.21.2"}
+jupyter = "^1.0.0"
 
 [tool.isort]
 profile = "black"
