@@ -25,11 +25,10 @@ from garden_ai.containers import (
 )
 
 from garden_ai.notebook_metadata import (
-    add_notebook_metadata_cell,
+    add_notebook_metadata,
     set_notebook_metadata,
     get_notebook_metadata,
     read_requirements_data,
-    NotebookMetadata,
 )
 
 from garden_ai.utils.notebooks import (
@@ -185,6 +184,7 @@ def start(
     Quit the process with Ctrl-C or by shutting down jupyter from the browser.
     If a different base image is chosen, that image will be reused as the default for this notebook in the future.
     """
+
     # First figure out the name of the notebook and whether we need to create it
     need_to_create_notebook = False
 
@@ -201,10 +201,6 @@ def start(
         if not notebook_path.exists():
             need_to_create_notebook = True
 
-    # Adds notebook metadata if cell is missing
-    if not need_to_create_notebook:
-        add_notebook_metadata_cell(notebook_path)
-
     # Figure out what base image uri we should start the notebook in
     base_image_uri = _get_base_image_uri(
         base_image_name,
@@ -212,26 +208,17 @@ def start(
         None if need_to_create_notebook else notebook_path,
     )
 
-    # Now we have all we need to prompt the user to proceed
+    # Build prompt
     if need_to_create_notebook:
         message = f"This will create a new notebook {notebook_path.name} and open it in Docker image {base_image_uri}.\n"
-        # For a new notebook, start with all notebook_metadata values as None.
-        # Updates it with any provided values later on before the notebook starts.
-        notebook_metadata = NotebookMetadata(None, None, None, None)
     else:
         message = f"This will open existing notebook {notebook_path.name} in Docker image {base_image_uri}.\n"
-        notebook_metadata = get_notebook_metadata(notebook_path)
 
-    # Validate and read requirements file.
     if requirements_path:
         message += f"Additional dependencies specified in {requirements_path.name} will also be installed in {base_image_uri}.\n"
         message += "Any dependencies previously associated with this notebook will be overwritten by the new requirements.\n"
-        _validate_requirements_path(requirements_path)
-        requirements_data = read_requirements_data(requirements_path)
-    else:
-        # If no requirements file given, look for requirements data in notebook metadata
-        requirements_data = notebook_metadata.notebook_requirements
 
+    # Now we have all we need to prompt the user to proceed
     typer.confirm(message + "Do you want to proceed?", abort=True)
 
     if need_to_create_notebook:
@@ -247,6 +234,19 @@ def start(
         top_level_dir = Path(__file__).parent.parent
         source_path = top_level_dir / "notebook_templates" / template_file_name
         shutil.copy(source_path, notebook_path)
+
+    # Adds metadata widget cell and garden_metadata dict if either is missing
+    add_notebook_metadata(notebook_path)
+
+    notebook_metadata = get_notebook_metadata(notebook_path)
+
+    # Validate and read requirements file.
+    if requirements_path:
+        _validate_requirements_path(requirements_path)
+        requirements_data = read_requirements_data(requirements_path)
+    else:
+        # If no requirements file given, look for requirements data in notebook metadata
+        requirements_data = notebook_metadata.notebook_requirements
 
     # Check for base image name from notebook if user did not provide one.
     if base_image_name is None:
@@ -398,7 +398,12 @@ def debug(
             )
 
             container = start_container_with_notebook(
-                docker_client, temp_debug_path, image_name, mount=False, pull=False
+                docker_client,
+                temp_debug_path,
+                image_name,
+                mount=False,
+                pull=False,
+                custom_config=False,
             )
             _register_container_sigint_handler(container)
 
