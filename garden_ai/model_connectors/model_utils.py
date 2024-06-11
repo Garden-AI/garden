@@ -39,11 +39,12 @@ def create_connector(
 ) -> ModelConnector:
     """Create a model connector to the given repo.
 
-    Accepts either a full url:
+    Accepts a full url:
     `con = create_connector("https://huggingface.co/Garden-AI/sklearn-iris")`
+    `con = create_connector("https://github.com/Garden-AI/garden)`
 
     Args:
-        repo (Union[HttpUrl, str]): The URL or identifier of the repository.
+        repo (Union[HttpUrl, str]): The URL of the repository.
         **kwargs: any other keyword arguments are passed directly to the ModelConnector's __init__
             see `garden_ai.model_connectors.model_connector.ModelConnector` for specifics.
 
