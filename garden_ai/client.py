@@ -170,7 +170,7 @@ class GardenClient:
                 AuthLoginClient.scopes.openid,
                 AuthLoginClient.scopes.email,
                 AuthLoginClient.scopes.manage_projects,
-                GroupsClient.scopes.view_my_groups_and_memberships,
+                GroupsClient.scopes.all,
                 SearchClient.scopes.all,
                 GardenClient.scopes.test_scope,
                 GardenClient.scopes.action_all,
