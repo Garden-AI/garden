@@ -298,7 +298,9 @@ def display_metadata_widget():
             save_requirements_data(reqs_path.parent, nb_meta.notebook_requirements)
 
             # get any new requirements added
-            new_reqs = nb_meta.notebook_requirements.contents - old_reqs.contents
+            new_reqs = list(
+                set(nb_meta.notebook_requirements.contents) - set(old_reqs.contents)
+            )
 
             # pip install new requirements
             current_req = ""
