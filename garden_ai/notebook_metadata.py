@@ -292,16 +292,22 @@ def display_metadata_widget():
             nonlocal nb_meta
             # save changes to requirements file
             # REQUIREMENTS_PATH env var set in start_container_with_notebook
-            reqs_dir_path = Path(os.environ["REQUIREMENTS_PATH"]).parent
-            reqs_path = save_requirements_data(
-                reqs_dir_path, nb_meta.notebook_requirements
-            )
+            reqs_path = Path(os.environ["REQUIREMENTS_PATH"])
+            old_reqs = read_requirements_data(reqs_path)
 
-            # pip install new requirements file
-            with console.status("[bold green] Installing new libraries..."):
-                subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", "-r", reqs_path]
-                )
+            save_requirements_data(reqs_path.parent, nb_meta.notebook_requirements)
+
+            # get any new requirements added
+            new_reqs = nb_meta.notebook_requirements.contents - old_reqs.contents
+
+            # pip install new requirements
+            current_req = ""
+            with console.status(
+                f"[bold green] Installing new requirement: {current_req}"
+            ):
+                for req in new_reqs:
+                    current_req = req
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", req])
 
             # restart jupyter kernel
             IPython.Application.instance().kernel.do_shutdown(True)
