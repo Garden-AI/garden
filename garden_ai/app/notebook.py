@@ -300,7 +300,7 @@ def start(
 
     # stream logs from the container
     for line in container.logs(stream=True):
-        print(line.decode("utf-8"), end="")
+        print(line.decode("utf-8"), end="", errors="ignore")
 
     # block until the container finishes
     try:
@@ -423,7 +423,7 @@ def debug(
 
     # stream logs from the container
     for line in container.logs(stream=True):
-        print(line.decode("utf-8"), end="")
+        print(line.decode("utf-8"), end="", errors="ignore")
 
     # block until the container finishes
     try:
