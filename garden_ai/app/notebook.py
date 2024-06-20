@@ -278,7 +278,11 @@ def start(
         )
         # start container and listen for Ctrl-C
         container = start_container_with_notebook(
-            docker_client, notebook_path, local_base_image_id, pull=False
+            docker_client,
+            notebook_path,
+            local_base_image_id,
+            requirements_path,
+            pull=False,
         )
         _register_container_sigint_handler(container)
 
@@ -401,6 +405,7 @@ def debug(
                 docker_client,
                 temp_debug_path,
                 image_name,
+                requirements_path=None,
                 mount=False,
                 pull=False,
                 custom_config=False,

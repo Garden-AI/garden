@@ -142,6 +142,7 @@ def start_container_with_notebook(
     client: docker.DockerClient,
     path: pathlib.Path,
     base_image: str,
+    requirements_path: Optional[pathlib.Path] = None,
     platform: str = "linux/x86_64",
     mount: bool = True,
     pull: bool = True,
@@ -159,6 +160,7 @@ def start_container_with_notebook(
     - path (pathlib.Path): The local path to the notebook.
     - base_image (str): The Docker image to be used as the base. It should
       have Jupyter pre-installed.
+    - requirements_path (Optional[pathlib.Path]): The local path to the requirements file.
     - platform (str): Passed directly to docker sdk. Defaults to "linux/x86_64".
     - mount (bool): Whether the notebook should be mounted (True) or just
       copied in (False).
@@ -176,8 +178,16 @@ def start_container_with_notebook(
     if pull:
         client.images.pull(base_image, platform=platform)
 
+    environment = {"NOTEBOOK_PATH": f"/garden/{path.name}"}
+
     if mount:
         volumes = {str(path): {"bind": f"/garden/{path.name}", "mode": "rw"}}
+        if requirements_path is not None:
+            volumes[str(requirements_path)] = {
+                "bind": f"/garden/{requirements_path.name}",
+                "mode": "rw",
+            }
+            environment["REQUIREMENTS_PATH"] = f"/garden/{requirements_path.name}"
     else:
         volumes = {}
 
@@ -205,7 +215,7 @@ def start_container_with_notebook(
         ports={"8888/tcp": port},
         volumes=volumes,
         entrypoint=entrypoint,
-        environment={"NOTEBOOK_PATH": f"/garden/{path.name}"},
+        environment=environment,
         stdin_open=True,
         tty=True,
         remove=True,
@@ -482,7 +492,10 @@ def build_image_with_dependencies(
             garden_ai.scripts.custom_jupyter_config
         )
 
-        # Line causes error when trying to import, append after import to avoid
+        # 'c' is the jupyter config object that jupyter defines during runtime
+        # as a result, importing custom_jupyter_config will cause an error
+        # dirty workaround is to append the line to the script after import
+        # https://jupyter-server.readthedocs.io/en/latest/developers/savehooks.html
         script_jupyter_config_contents += (
             "\nc.FileContentsManager.post_save_hook = post_save_hook\n"
         )
