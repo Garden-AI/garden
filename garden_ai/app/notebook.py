@@ -242,6 +242,7 @@ def start(
 
     # Validate and read requirements file.
     if requirements_path:
+        requirements_path = requirements_path.resolve()
         _validate_requirements_path(requirements_path)
         requirements_data = read_requirements_data(requirements_path)
     else:

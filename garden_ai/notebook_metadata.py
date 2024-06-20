@@ -201,7 +201,7 @@ def display_metadata_widget():
     from garden_ai.app.console import console
 
     # NOTEBOOK_PATH env var set in start_container_with_notebook
-    notebook_path = os.environ["NOTEBOOK_PATH"]
+    notebook_path = Path(os.environ["NOTEBOOK_PATH"])
     nb_meta = get_notebook_metadata(notebook_path)
 
     output = widgets.Output()
@@ -292,7 +292,7 @@ def display_metadata_widget():
             nonlocal nb_meta
             # save changes to requirements file
             # REQUIREMENTS_PATH env var set in start_container_with_notebook
-            reqs_path = os.environ["REQUIREMENTS_PATH"]
+            reqs_path = Path(os.environ["REQUIREMENTS_PATH"])
             save_requirements_data(reqs_path, nb_meta.notebook_requirements)
 
             # pip install new requirements file
