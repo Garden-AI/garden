@@ -199,6 +199,7 @@ def display_metadata_widget():
     go and look for the pickled NotebookMetadata and save it to the notebooks metadata.
     """
     from garden_ai.app.console import console
+    from rich.status import Status
 
     # NOTEBOOK_PATH env var set in start_container_with_notebook
     notebook_path = Path(os.environ["NOTEBOOK_PATH"])
@@ -303,12 +304,12 @@ def display_metadata_widget():
             )
 
             # pip install new requirements
-            current_req = ""
-            with console.status(
-                f"[bold green] Installing new requirement: {current_req}"
-            ):
+            status = Status(
+                "[bold green] Installing new requirements...", console=console
+            )
+            with status:
                 for req in new_reqs:
-                    current_req = req
+                    status.update(f"[bold green] Installing new requirement: {req}")
                     subprocess.check_call([sys.executable, "-m", "pip", "install", req])
 
             # restart jupyter kernel
