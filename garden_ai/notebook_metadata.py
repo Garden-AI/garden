@@ -292,8 +292,10 @@ def display_metadata_widget():
             nonlocal nb_meta
             # save changes to requirements file
             # REQUIREMENTS_PATH env var set in start_container_with_notebook
-            reqs_path = Path(os.environ["REQUIREMENTS_PATH"])
-            save_requirements_data(reqs_path, nb_meta.notebook_requirements)
+            reqs_dir_path = Path(os.environ["REQUIREMENTS_PATH"]).parent
+            reqs_path = save_requirements_data(
+                reqs_dir_path, nb_meta.notebook_requirements
+            )
 
             # pip install new requirements file
             with console.status("[bold green] Installing new libraries..."):
