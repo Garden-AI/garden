@@ -241,7 +241,7 @@ def display_metadata_widget():
     update_reqs_widget = widgets.Button(
         description="Install new requirements",
         style=widgets.ButtonStyle(button_color="lightgreen", font_weight="bold"),
-        layout=widgets.Layout(width="100%", height="50px", border="1px solid black"),
+        layout=widgets.Layout(width="100%", height="50px"),
     )
 
     accordion_widget = widgets.Accordion(
