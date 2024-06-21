@@ -22,7 +22,3 @@ def start():
 def publish():
     """Publish your hpc-notebook."""
     print(f"🚧🌱🚧 Under Construction 🚧🌱🚧")
-
-
-if __name__ == "__main__":
-    hpc_notebook_app()
