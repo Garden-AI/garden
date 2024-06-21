@@ -19,6 +19,8 @@ security: # configuration for the `safety check` command
             reason: this only affects the --extra-index-url option in pip which we don't currently use. It is also intended behavior and is up to the user to operate --extra-index-url safely.
         70612:
             reason: we're only using jinja on the client side to template notebooks
+        71064:
+            reason: docker currently does not work with requests>2.31.0, temporarily ignoring until this is fixed and we can upgrade requests.
 
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
