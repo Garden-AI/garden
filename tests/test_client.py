@@ -69,7 +69,7 @@ def test_client_no_previous_tokens(
             "openid",
             "email",
             "urn:globus:auth:scope:auth.globus.org:manage_projects",
-            "urn:globus:auth:scope:groups.api.globus.org:view_my_groups_and_memberships",
+            "urn:globus:auth:scope:groups.api.globus.org:all",
             "urn:globus:auth:scope:search.api.globus.org:all",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/test_scope",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all",
