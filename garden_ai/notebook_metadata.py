@@ -300,6 +300,9 @@ def display_metadata_widget():
 
     def update_reqs_observer(button):
         with output:
+            # disable button so user cant start multiple installs
+            button.disabled = True
+
             nonlocal nb_meta
             # save changes to requirements file
             # REQUIREMENTS_PATH env var set to the containers requirements file path
@@ -320,13 +323,16 @@ def display_metadata_widget():
                     status.update(f"[bold green] Installing requirement: {req}")
                     subprocess.check_call([sys.executable, "-m", "pip", "install", req])
 
-            # restart jupyter kernel
-            IPython.Application.instance().kernel.do_shutdown(True)
-
             # remove update button from metadata_widget
             new_children = list(metadata_widget.children)
             new_children.remove(update_reqs_widget)
             metadata_widget.children = new_children
+
+            # re-enable button
+            button.disabled = False
+
+            # restart jupyter kernel
+            IPython.Application.instance().kernel.do_shutdown(True)
 
     update_reqs_widget.on_click(update_reqs_observer)
 
