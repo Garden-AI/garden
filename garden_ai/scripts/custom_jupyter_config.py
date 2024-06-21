@@ -9,24 +9,19 @@ from garden_ai.notebook_metadata import NotebookMetadata
 def post_save_hook(model, os_path, contents_manager):
     # Check if the saved file is a notebook
     if model["type"] == "notebook":
-        with open(os_path, "r", encoding="utf-8") as f:
-            nb = nbformat.read(f, as_version=4)
-
-        # If notebook_metadata.pkl does not exist,
+        # If notebook_metadata.json does not exist,
         # no edits to the notebooks metadata have been made with widget, so just exit
         if not os.path.isfile("./notebook_metadata.json"):
             print("Could not file notebook_metadata.json")
             return
 
         # Load picked metadata and save to notebooks metadata
-        try:
-            with open("./notebook_metadata.json", "rb") as f:
-                nb_meta = json.load(f)
-            assert all(
-                field in nb_meta for field in list(NotebookMetadata.model_fields)
-            )
+        with open("./notebook_metadata.json", "rb") as f:
+            nb_meta = json.load(f)
+        assert all(field in nb_meta for field in list(NotebookMetadata.model_fields))
 
-            nb["metadata"]["garden_metadata"] = nb_meta
-            nbformat.write(nb, os_path, version=nbformat.NO_CONVERT)
-        except FileNotFoundError:
-            print("Unable to save notebook metadata")
+        with open(os_path, "r", encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+
+        nb["metadata"]["garden_metadata"] = nb_meta
+        nbformat.write(nb, os_path, version=nbformat.NO_CONVERT)

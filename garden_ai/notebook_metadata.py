@@ -95,7 +95,7 @@ def add_notebook_metadata(
 def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
     ntbk = _read_notebook(notebook_path)
 
-    # Return empty notebook metadata dict if was unable to find cell source
+    # Return empty NotebookMetadata if was unable to find cell source
     if "garden_metadata" not in ntbk["metadata"]:
         typer.echo("Unable to find garden metadata.")
         return NotebookMetadata(
@@ -108,6 +108,7 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
     try:
         return NotebookMetadata.parse_obj(ntbk["metadata"]["garden_metadata"])
     except ValidationError:
+        # Return empty NotebookMetadata if was unable parse the saved garden_metadata
         typer.echo("Unable to parse garden metadata cell.")
         return NotebookMetadata(
             global_notebook_doi=None,
@@ -197,6 +198,11 @@ def display_metadata_widget():
     When one of the widgets fields is changed, pickles and saves the updated NotebookMetadata.
     When the notebook is saved, the post_save_hook in custom_jupyter_config will
     go and look for the pickled NotebookMetadata and save it to the notebooks metadata.
+    When any requirements are changed, will display the button 'Install new requirements',
+    that installs the new requirements to the container, updates the users requirements
+    file if one was provided and restarts the jupyter kernel.
+    The widget does not support conda requirements since we are
+    planning on removing support for them.
     """
     from garden_ai.app.console import console
     from rich.status import Status
@@ -257,6 +263,7 @@ def display_metadata_widget():
         with output:
             nonlocal nb_meta
             nb_meta.global_notebook_doi = change.new.strip()
+            # save empty field as None
             if nb_meta.global_notebook_doi == "":
                 nb_meta.global_notebook_doi = None
             _save_metadata_as_json(nb_meta)
@@ -267,6 +274,7 @@ def display_metadata_widget():
         with output:
             nonlocal nb_meta
             nb_meta.notebook_image_name = change.new.strip()
+            # save empty field as None
             if nb_meta.notebook_image_name == "":
                 nb_meta.notebook_image_name = None
             _save_metadata_as_json(nb_meta)
@@ -276,11 +284,13 @@ def display_metadata_widget():
     def reqs_observer(change):
         with output:
             nonlocal nb_meta
-            nb_meta.notebook_requirements.contents = change.new.split("\n")
 
+            nb_meta.notebook_requirements.contents = change.new.split("\n")
             if "" in nb_meta.notebook_requirements.contents:
                 nb_meta.notebook_requirements.contents.remove("")
             _save_metadata_as_json(nb_meta)
+            # if changes to requirements have been made, show the
+            # 'Install new requirements' button
             if update_reqs_widget not in metadata_widget.children:
                 metadata_widget.children = list(metadata_widget.children) + [
                     update_reqs_widget
@@ -292,24 +302,22 @@ def display_metadata_widget():
         with output:
             nonlocal nb_meta
             # save changes to requirements file
-            # REQUIREMENTS_PATH env var set in start_container_with_notebook
-            reqs_path = Path(os.environ["REQUIREMENTS_PATH"])
-            old_reqs = read_requirements_data(reqs_path)
-
-            save_requirements_data(reqs_path.parent, nb_meta.notebook_requirements)
-
-            # get any new requirements added
-            new_reqs = list(
-                set(nb_meta.notebook_requirements.contents) - set(old_reqs.contents)
-            )
+            # REQUIREMENTS_PATH env var set to the containers requirements file path
+            # in 'start_container_with_notebook' only if user provided requirements.
+            reqs_path = os.environ.get("REQUIREMENTS_PATH", None)
+            if reqs_path is not None:
+                # container requirements file is bound to users local requirements file
+                save_requirements_data(
+                    Path(reqs_path).parent, nb_meta.notebook_requirements
+                )
 
             # pip install new requirements
             status = Status(
                 "[bold green] Installing new requirements...", console=console
             )
             with status:
-                for req in new_reqs:
-                    status.update(f"[bold green] Installing new requirement: {req}")
+                for req in nb_meta.notebook_requirements.contents:
+                    status.update(f"[bold green] Installing requirement: {req}")
                     subprocess.check_call([sys.executable, "-m", "pip", "install", req])
 
             # restart jupyter kernel
