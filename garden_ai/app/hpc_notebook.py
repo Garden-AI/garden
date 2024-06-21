@@ -15,10 +15,10 @@ def hpc_notebook():
 @hpc_notebook_app.command()
 def start():
     """Open a notebook file in HPC."""
-    print(f"🚧🌱🚧 Under Construction 🚧🌱🚧")
+    print("🚧🌱🚧 Under Construction 🚧🌱🚧")
 
 
 @hpc_notebook_app.command()
 def publish():
     """Publish your hpc-notebook."""
-    print(f"🚧🌱🚧 Under Construction 🚧🌱🚧")
+    print("🚧🌱🚧 Under Construction 🚧🌱🚧")
