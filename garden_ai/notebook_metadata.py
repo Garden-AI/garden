@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import subprocess
+from subprocess import SubprocessError
 
 import ipywidgets as widgets  # type: ignore
 import IPython
@@ -15,6 +16,8 @@ from IPython.display import display
 import nbformat
 
 from nbformat.notebooknode import NotebookNode  # type: ignore
+
+from garden_ai import GardenConstants
 
 
 NOTEBOOK_DISPLAY_METADATA_CELL = (
@@ -259,6 +262,44 @@ def display_metadata_widget():
         children=[accordion_widget],
     )
 
+    def make_html_popup_widget(message, title="Info:", alert_type="alert"):
+        # create html widget popup box that has info message with a close button on it
+        html_content = f"""
+        <div class="{alert_type}">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            <strong>{title}</strong> {message}
+        </div>
+        """
+
+        css_content = """
+        <style>
+        .alert {
+            padding: 20px;
+            background-color: #1cb4eb;
+            color: white;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            position: relative;
+            width: 95%;
+        }
+        .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .closebtn:hover {
+            color: black;
+        }
+        </style>
+        """
+
+        return widgets.HTML(f"{css_content}{html_content}")
+
     def doi_observer(change):
         with output:
             nonlocal nb_meta
@@ -273,11 +314,22 @@ def display_metadata_widget():
     def base_image_observer(change):
         with output:
             nonlocal nb_meta
-            nb_meta.notebook_image_name = change.new.strip()
-            # save empty field as None
-            if nb_meta.notebook_image_name == "":
-                nb_meta.notebook_image_name = None
-            _save_metadata_as_json(nb_meta)
+
+            new_notebook_image_name = change.new.strip()
+            if new_notebook_image_name in GardenConstants.PREMADE_IMAGES.keys():
+                nb_meta.notebook_image_name = new_notebook_image_name
+                _save_metadata_as_json(nb_meta)
+                msg = "The new Garden base image will be loaded when the container is restarted."
+                info_widget = make_html_popup_widget(msg)
+            else:
+                msg = (
+                    "The base image you have provided is not one of the pre-made Garden base images.\n"
+                    "To see the available Garden base images, run 'garden-ai notebook list-premade-images'"
+                )
+                info_widget = make_html_popup_widget(msg)
+
+            # add info widget to display
+            metadata_widget.children = [info_widget] + list(metadata_widget.children)
 
     base_image_widget.observe(base_image_observer, "value")
 
@@ -292,6 +344,7 @@ def display_metadata_widget():
             # if changes to requirements have been made, show the
             # 'Install new requirements' button
             if update_reqs_widget not in metadata_widget.children:
+                update_reqs_widget.disabled = False
                 metadata_widget.children = list(metadata_widget.children) + [
                     update_reqs_widget
                 ]
@@ -321,7 +374,20 @@ def display_metadata_widget():
             with status:
                 for req in nb_meta.notebook_requirements.contents:
                     status.update(f"[bold green] Installing requirement: {req}")
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", req])
+                    try:
+                        subprocess.check_call(
+                            [sys.executable, "-m", "pip", "install", req]
+                        )
+                    except SubprocessError as e:
+                        # if new reqs failed to install, display popup error msg, enable install button and return
+                        print(e)
+                        msg = f"Failed to install requirement: {req}"
+                        info_widget = make_html_popup_widget(msg)
+                        metadata_widget.children = [info_widget] + list(
+                            metadata_widget.children
+                        )
+                        button.disabled = False
+                        return
 
             # remove update button from metadata_widget
             new_children = list(metadata_widget.children)
