@@ -20,7 +20,7 @@ security: # configuration for the `safety check` command
         70612:
             reason: we're only using jinja on the client side to template notebooks
         71064:
-            reason: higher version requests cannot connect to docker
+            reason: the CVE-2024-35195 vulnerability affects the use of "verify=False" in requests, but our project does not use this parameter in any API calls, so this risk can be ignored. If this version fixes our bug, we will find another solution.
 
     continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
