@@ -225,10 +225,9 @@ def display_metadata_widget():
     )
 
     # Base image name widget
-    base_image_widget = widgets.Textarea(
+    base_image_widget = widgets.Dropdown(
+        options=GardenConstants.PREMADE_IMAGES.keys(),
         value=nb_meta.notebook_image_name,
-        placeholder="Base image name",
-        continuous_update=False,
         disabled=False,
     )
 
@@ -262,27 +261,27 @@ def display_metadata_widget():
         children=[accordion_widget],
     )
 
-    def make_html_popup_widget(message, title="Info:", alert_type="alert"):
+    def make_html_popup_widget(message, alert_type="alert", background_color="#1cb4eb"):
         # create html widget popup box that has info message with a close button on it
         html_content = f"""
         <div class="{alert_type}">
             <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
-            <strong>{title}</strong> {message}
+            {message}
         </div>
         """
 
-        css_content = """
+        css_content = f"""
         <style>
-        .alert {
+        .alert {{
             padding: 20px;
-            background-color: #1cb4eb;
+            background-color: {background_color};
             color: white;
             margin-bottom: 15px;
             border-radius: 5px;
             position: relative;
             width: 95%;
-        }
-        .closebtn {
+        }}
+        .closebtn {{
             margin-left: 15px;
             color: white;
             font-weight: bold;
@@ -291,10 +290,10 @@ def display_metadata_widget():
             line-height: 20px;
             cursor: pointer;
             transition: 0.3s;
-        }
-        .closebtn:hover {
+        }}
+        .closebtn:hover {{
             color: black;
-        }
+        }}
         </style>
         """
 
@@ -309,24 +308,33 @@ def display_metadata_widget():
                 nb_meta.global_notebook_doi = None
             _save_metadata_as_json(nb_meta)
 
+            msg = (
+                "You have made changes to your notebook's metadata. "
+                "Make sure to save your notebook to also save the new metadata."
+            )
+            info_widget = make_html_popup_widget(msg)
+            # add info widget to display
+            metadata_widget.children = [info_widget] + [
+                value
+                for value in list(metadata_widget.children)
+                if not isinstance(value, widgets.HTML)
+            ]
+
     doi_widget.observe(doi_observer, "value")
 
     def base_image_observer(change):
         with output:
             nonlocal nb_meta
 
-            new_notebook_image_name = change.new.strip()
-            if new_notebook_image_name in GardenConstants.PREMADE_IMAGES.keys():
-                nb_meta.notebook_image_name = new_notebook_image_name
-                _save_metadata_as_json(nb_meta)
-                msg = "The new Garden base image will be loaded when the container is restarted."
-                info_widget = make_html_popup_widget(msg)
-            else:
-                msg = (
-                    "The base image you have provided is not one of the pre-made Garden base images.\n"
-                    "To see the available Garden base images, run 'garden-ai notebook list-premade-images'"
-                )
-                info_widget = make_html_popup_widget(msg)
+            nb_meta.notebook_image_name = change.new
+            _save_metadata_as_json(nb_meta)
+
+            msg = (
+                "You have made changes to your notebook's metadata. "
+                "Make sure to save your notebook to also save the new metadata.<br>"
+                "The new Garden base image you have selected will used next time you start this notebook."
+            )
+            info_widget = make_html_popup_widget(msg)
 
             # add info widget to display
             metadata_widget.children = [info_widget] + [
@@ -352,6 +360,18 @@ def display_metadata_widget():
                 metadata_widget.children = list(metadata_widget.children) + [
                     update_reqs_widget
                 ]
+
+            msg = (
+                "You have made changes to your notebook's metadata. "
+                "Make sure to save your notebook to also save the new metadata."
+            )
+            info_widget = make_html_popup_widget(msg)
+            # add info widget to display
+            metadata_widget.children = [info_widget] + [
+                value
+                for value in list(metadata_widget.children)
+                if not isinstance(value, widgets.HTML)
+            ]
 
     reqs_widget.observe(reqs_observer, "value")
 
@@ -383,10 +403,12 @@ def display_metadata_widget():
                             [sys.executable, "-m", "pip", "install", req]
                         )
                     except SubprocessError as e:
-                        # if new reqs failed to install, display popup error msg, enable install button and return
+                        # if new req failed to install, display popup error msg, enable install button and return
                         print(e)
-                        msg = f"Failed to install requirement: {req}"
-                        info_widget = make_html_popup_widget(msg)
+                        msg = f"Failed to install {req}"
+                        info_widget = make_html_popup_widget(
+                            msg, background_color="#fc0f03"
+                        )
                         metadata_widget.children = [info_widget] + [
                             value
                             for value in list(metadata_widget.children)
