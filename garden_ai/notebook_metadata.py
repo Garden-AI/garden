@@ -328,6 +328,7 @@ def display_metadata_widget():
             nonlocal nb_meta
 
             nb_meta.notebook_image_name = change.new
+            nb_meta.notebook_image_uri = GardenConstants.PREMADE_IMAGES[change.new]
             _save_metadata_as_json(nb_meta)
 
             msg = (
