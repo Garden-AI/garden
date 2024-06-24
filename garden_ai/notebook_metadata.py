@@ -329,7 +329,11 @@ def display_metadata_widget():
                 info_widget = make_html_popup_widget(msg)
 
             # add info widget to display
-            metadata_widget.children = [info_widget] + list(metadata_widget.children)
+            metadata_widget.children = [info_widget] + [
+                value
+                for value in list(metadata_widget.children)
+                if not isinstance(value, widgets.HTML)
+            ]
 
     base_image_widget.observe(base_image_observer, "value")
 
@@ -383,9 +387,11 @@ def display_metadata_widget():
                         print(e)
                         msg = f"Failed to install requirement: {req}"
                         info_widget = make_html_popup_widget(msg)
-                        metadata_widget.children = [info_widget] + list(
-                            metadata_widget.children
-                        )
+                        metadata_widget.children = [info_widget] + [
+                            value
+                            for value in list(metadata_widget.children)
+                            if not isinstance(value, widgets.HTML)
+                        ]
                         button.disabled = False
                         return
 
