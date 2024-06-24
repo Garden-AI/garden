@@ -313,6 +313,7 @@ def display_metadata_widget():
                 "Make sure to save your notebook to also save the new metadata."
             )
             info_widget = make_html_popup_widget(msg)
+
             # add info widget to display
             metadata_widget.children = [info_widget] + [
                 value
@@ -363,9 +364,12 @@ def display_metadata_widget():
 
             msg = (
                 "You have made changes to your notebook's metadata. "
-                "Make sure to save your notebook to also save the new metadata."
+                "Make sure to save your notebook to also save the new metadata.<br>"
+                "Use 'Install new requirements' to install the new requirements to the container and restart the kernel. "
+                "This will also update your requirements file if one was provided."
             )
             info_widget = make_html_popup_widget(msg)
+
             # add info widget to display
             metadata_widget.children = [info_widget] + [
                 value
