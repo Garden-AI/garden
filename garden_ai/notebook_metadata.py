@@ -28,7 +28,7 @@ NOTEBOOK_DISPLAY_METADATA_CELL = (
     "Any changes made to your notebook's metadata using the widget will be saved when the notebook is saved.\n\n"
     "Notebook metadata fields:\n"
     "   - Global DOI: The DOI of a Garden you want to add all entrypoints in this notebook too.\n"
-    "     If you want to specify a differnt Garden DOI for individual entrypoints, you can provide that entrypoint's\n"
+    "     If you want to specify a different Garden DOI for individual entrypoints, you can provide that entrypoint's\n"
     "     'garden_entrypoint' decorator with the optional 'garden_doi' argument. Providing the decorator with a DOI\n"
     "     will override the Global DOI for that specific entrypoint.\n"
     "   - Base image name: The name of the garden base image you want to start this notebook with.\n"
