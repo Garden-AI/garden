@@ -32,7 +32,7 @@ NOTEBOOK_DISPLAY_METADATA_CELL = (
     "     'garden_entrypoint' decorator with the optional 'garden_doi' argument. Providing the decorator with a DOI\n"
     "     will override the Global DOI for that specific entrypoint.\n"
     "   - Base image name: The name of the garden base image you want to start this notebook with.\n"
-    "     To see a list of the available Garden base images, use 'garden-ai notebook list-premade-images'\n"
+    "     To see a list of the available Garden base images, see the dropdown menu under "Base Image" below or use 'garden-ai notebook list-premade-images'\n"
     "   - Requirements: Any additional requirements that should be installed in this notebook's container.\n"
     "     After making changes to your notebook's requirements, the widget will show a 'Install new requirements' button\n"
     "     that installs the new requirements to the container, restarts the jupyter kernel and \n"
