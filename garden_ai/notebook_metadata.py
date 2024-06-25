@@ -10,7 +10,6 @@ import subprocess
 from subprocess import SubprocessError
 
 import ipywidgets as widgets  # type: ignore
-import IPython
 from IPython.display import display
 
 import nbformat
@@ -32,11 +31,11 @@ NOTEBOOK_DISPLAY_METADATA_CELL = (
     "     'garden_entrypoint' decorator with the optional 'garden_doi' argument. Providing the decorator with a DOI\n"
     "     will override the Global DOI for that specific entrypoint.\n"
     "   - Base image name: The name of the garden base image you want to start this notebook with.\n"
-    "     To see a list of the available Garden base images, see the dropdown menu under "Base Image" below or use 'garden-ai notebook list-premade-images'\n"
+    "     To see a list of the available Garden base images, see the dropdown menu under 'Base Image' below or \n"
+    "     use 'garden-ai notebook list-premade-images'\n"
     "   - Requirements: Any additional requirements that should be installed in this notebook's container.\n"
     "     After making changes to your notebook's requirements, the widget will show a 'Install new requirements' button\n"
-    "     that installs the new requirements to the container, restarts the jupyter kernel and \n"
-    "     updates your local requirements file if one was provided.\n"
+    "     that installs the new requirements to the container and updates your local requirements file if one was provided.\n"
     '"""\n\n'
     "from garden_ai.notebook_metadata import display_metadata_widget\n"
     "display_metadata_widget()"
@@ -430,8 +429,13 @@ def display_metadata_widget():
             # re-enable button
             button.disabled = False
 
-            # restart jupyter kernel
-            IPython.Application.instance().kernel.do_shutdown(True)
+            msg = "Successfully installed the new requirements, make sure to restart the kernel for the changes to take effect."
+            info_widget = make_html_popup_widget(msg, background_color="#0ff702")
+            metadata_widget.children = [info_widget] + [
+                value
+                for value in list(metadata_widget.children)
+                if not isinstance(value, widgets.HTML)
+            ]
 
     update_reqs_widget.on_click(update_reqs_observer)
 
