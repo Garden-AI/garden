@@ -27,7 +27,7 @@ NOTEBOOK_DISPLAY_METADATA_CELL = (
     "That way, the next time you run this notebook, Garden will start it with the same environment.\n"
     "Any changes made to your notebook's metadata using the widget will be saved when the notebook is saved.\n\n"
     "Notebook metadata fields:\n"
-    "   - Global DOI: The DOI of a Garden you want to add all entrypoints in this notebook too.\n"
+    "   - Global Garden DOI: If specified, `garden-ai notebook publish` will add all entrypoints in this notebook to the Garden with the given DOI.\n"
     "     If you want to specify a different Garden DOI for individual entrypoints, you can provide that entrypoint's\n"
     "     'garden_entrypoint' decorator with the optional 'garden_doi' argument. Providing the decorator with a DOI\n"
     "     will override the Global DOI for that specific entrypoint.\n"
