@@ -201,8 +201,8 @@ def display_metadata_widget():
     When the notebook is saved, the post_save_hook in custom_jupyter_config will
     go and look for the pickled NotebookMetadata and save it to the notebooks metadata.
     When any requirements are changed, will display the button 'Install new requirements',
-    that installs the new requirements to the container, updates the users requirements
-    file if one was provided and restarts the jupyter kernel.
+    that installs the new requirements to the container and updates the users requirements
+    file if one was provided.
     The widget does not support conda requirements since we are
     planning on removing support for them.
     """
@@ -365,8 +365,8 @@ def display_metadata_widget():
             msg = (
                 "You have made changes to your notebook's metadata. "
                 "Make sure to save your notebook to also save the new metadata.<br>"
-                "Use 'Install new requirements' to install the new requirements to the container and restart the kernel. "
-                "This will also update your requirements file if one was provided."
+                "Use 'Install new requirements' to install the new requirements to the container and "
+                "update your requirements file if one was provided."
             )
             info_widget = make_html_popup_widget(msg)
 
@@ -429,7 +429,7 @@ def display_metadata_widget():
             # re-enable button
             button.disabled = False
 
-            msg = "Successfully installed the new requirements, make sure to restart the kernel for the changes to take effect."
+            msg = "Successfully installed the new requirements."
             info_widget = make_html_popup_widget(msg, background_color="#0ff702")
             metadata_widget.children = [info_widget] + [
                 value
