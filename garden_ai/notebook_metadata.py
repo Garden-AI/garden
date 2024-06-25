@@ -219,7 +219,7 @@ def display_metadata_widget():
     # Global DOI widget
     doi_widget = widgets.Textarea(
         value=nb_meta.global_notebook_doi,
-        placeholder="Global DOI",
+        placeholder="Global Garden DOI",
         continuous_update=False,
         disabled=False,
     )
