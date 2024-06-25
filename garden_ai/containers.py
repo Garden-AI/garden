@@ -142,9 +142,11 @@ def start_container_with_notebook(
     client: docker.DockerClient,
     path: pathlib.Path,
     base_image: str,
+    requirements_path: Optional[pathlib.Path] = None,
     platform: str = "linux/x86_64",
     mount: bool = True,
     pull: bool = True,
+    custom_config: bool = True,
 ) -> docker.models.containers.Container:
     """
     Start a Docker container with a Jupyter Notebook server.
@@ -158,11 +160,13 @@ def start_container_with_notebook(
     - path (pathlib.Path): The local path to the notebook.
     - base_image (str): The Docker image to be used as the base. It should
       have Jupyter pre-installed.
+    - requirements_path (Optional[pathlib.Path]): The local path to the requirements file.
     - platform (str): Passed directly to docker sdk. Defaults to "linux/x86_64".
     - mount (bool): Whether the notebook should be mounted (True) or just
       copied in (False).
     - pull (bool): Whether the base_image exists locally or needs to be
       pulled down.
+    - custom_config (bool): Whether to start jupyter with our custom notebook config
 
     Returns:
     - docker.models.containers.Container: The started container object.
@@ -174,8 +178,16 @@ def start_container_with_notebook(
     if pull:
         client.images.pull(base_image, platform=platform)
 
+    environment = {"NOTEBOOK_PATH": f"/garden/{path.name}"}
+
     if mount:
         volumes = {str(path): {"bind": f"/garden/{path.name}", "mode": "rw"}}
+        if requirements_path is not None:
+            volumes[str(requirements_path)] = {
+                "bind": f"/garden/{requirements_path.name}",
+                "mode": "rw",
+            }
+            environment["REQUIREMENTS_PATH"] = f"/garden/{requirements_path.name}"
     else:
         volumes = {}
 
@@ -183,22 +195,27 @@ def start_container_with_notebook(
         GardenConstants.DEFAULT_JUPYTER_PORT,
         max_attempts=GardenConstants.MAX_JUPYTER_PORTS_TO_ATTEMPT,
     )
+    entrypoint = [
+        "jupyter",
+        "notebook",
+        "--notebook-dir=/garden",
+        "--NotebookApp.token=''",
+        "--ip",
+        "0.0.0.0",
+        "--no-browser",
+        "--allow-root",
+    ]
+    if custom_config:
+        entrypoint.append("--config=/garden/custom_jupyter_config.py")
+
     container = client.containers.run(
         base_image,
         platform="linux/x86_64",
         detach=True,
         ports={"8888/tcp": port},
         volumes=volumes,
-        entrypoint=[
-            "jupyter",
-            "notebook",
-            "--notebook-dir=/garden",
-            "--NotebookApp.token=''",
-            "--ip",
-            "0.0.0.0",
-            "--no-browser",
-            "--allow-root",
-        ],
+        entrypoint=entrypoint,
+        environment=environment,
         stdin_open=True,
         tty=True,
         remove=True,
@@ -275,9 +292,15 @@ def build_notebook_session_image(
             f.write(notebook_path.read_text())
 
         import nbconvert  # lazy import to speed up garden cold start
+        from garden_ai.notebook_metadata import METADATA_CELL_TAG
 
         # convert notebook to sister script in temp dir
         exporter = nbconvert.PythonExporter()
+        # remove display metadata widget cell from py script
+        preprocessor = nbconvert.preprocessors.TagRemovePreprocessor()
+        preprocessor.remove_cell_tags = {METADATA_CELL_TAG}
+        exporter.register_preprocessor(preprocessor, enabled=True)
+
         script_contents, _notebook_meta = exporter.from_filename(str(notebook_path))
 
         # append code to save the interpreter session and metadata
@@ -460,6 +483,29 @@ def build_image_with_dependencies(
                     COPY {requirements_path.name} /garden/{requirements_path.name}
                     RUN conda env update --name base --file /garden/{requirements_path.name} && conda clean -afy
                     """
+
+        # Add custom_jupyter_config.py script to image
+        # This is used to to add a post_save_hook to jupyter to also save notebooks metadata
+        import garden_ai.scripts.custom_jupyter_config  # type: ignore
+
+        script_jupyter_config_contents = inspect.getsource(
+            garden_ai.scripts.custom_jupyter_config
+        )
+
+        # 'c' is the jupyter config object that jupyter defines during runtime
+        # as a result, importing custom_jupyter_config will cause an error
+        # dirty workaround is to append the line to the script after import
+        # https://jupyter-server.readthedocs.io/en/latest/developers/savehooks.html
+        script_jupyter_config_contents += (
+            "\nc.FileContentsManager.post_save_hook = post_save_hook\n"
+        )
+
+        script_jupyter_config_path = temp_dir_path / "custom_jupyter_config.py"
+        script_jupyter_config_path.write_text(script_jupyter_config_contents)
+
+        dockerfile_content += (
+            f"COPY {script_jupyter_config_path.name} /garden/custom_jupyter_config.py"
+        )
 
         dockerfile_path = temp_dir_path / "Dockerfile"
         with dockerfile_path.open("w") as f:

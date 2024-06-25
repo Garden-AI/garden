@@ -75,6 +75,7 @@ def test_start_container_with_notebook(mock_docker_client, mocker):
         "0.0.0.0",
         "--no-browser",
         "--allow-root",
+        "--config=/garden/custom_jupyter_config.py",
     ]
 
     mock_docker_client.containers.run.assert_called_once_with(
@@ -84,6 +85,7 @@ def test_start_container_with_notebook(mock_docker_client, mocker):
         ports={"8888/tcp": GardenConstants.DEFAULT_JUPYTER_PORT},
         volumes=expected_volumes,
         entrypoint=expected_entrypoint,
+        environment={"NOTEBOOK_PATH": "/garden/notebook.ipynb"},
         stdin_open=True,
         tty=True,
         remove=True,
@@ -247,6 +249,7 @@ def test_build_image_with_dependencies(
     assert f"FROM {base_image}" in contents
     assert "WORKDIR /garden" in contents
     assert "RUN pip install --no-cache-dir --upgrade garden-ai" in contents
+    assert "COPY custom_jupyter_config.py /garden/custom_jupyter_config.py" in contents
     if requirements_file == "requirements.txt":
         assert f"COPY {requirements_file} /garden/{requirements_file}" in contents
         assert "RUN pip install --upgrade -r /garden/requirements.txt" in contents
@@ -259,7 +262,6 @@ def test_build_image_with_dependencies(
         )
         assert "pip install -r" not in contents
     else:  # None
-        assert "COPY" not in contents
         assert "pip install -r" not in contents
         assert "conda" not in contents
 
