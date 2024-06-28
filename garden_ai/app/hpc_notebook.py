@@ -3,20 +3,11 @@ import shutil
 import typer
 from pathlib import Path
 from typing import Optional
-
+import os
 from garden_ai import GardenConstants
 from garden_ai.app.notebook import _get_base_image_uri
+import subprocess
 
-from garden_ai.notebook_metadata import (
-    add_notebook_metadata,
-    get_notebook_metadata,
-    set_notebook_metadata,
-    read_requirements_data,
-)
-from garden_ai.utils.notebooks import (
-    generate_botanical_filename,
-    _validate_requirements_path,
-)
 
 logger = logging.getLogger()
 
@@ -29,139 +20,56 @@ def hpc_notebook():
     pass
 
 
-@hpc_notebook_app.command(no_args_is_help=True)
+@hpc_notebook_app.command()
 def start(
-    path: Optional[Path] = typer.Argument(
-        default=None,
-        file_okay=True,
-        dir_okay=False,
-        writable=True,
-        readable=True,
-        help=("Path to a .ipynb notebook to open in a HPC container."),
-    ),
-    base_image_name: Optional[str] = typer.Option(
-        None,
-        "--base-image",
-        help=(
-            "A Garden base image to boot the notebook in. "
-            "For example, to boot your notebook with the default Garden python 3.8 image, use --base-image 3.8-base. "
-        ),
-    ),
-    requirements_path: Optional[Path] = typer.Option(
-        None,
-        "--requirements",
-        help=(
-            "Path to a requirements.txt containing "
-            "additional dependencies to install in the base image."
-        ),
-    ),
-    global_notebook_doi: Optional[str] = typer.Option(
-        None,
-        "--doi",
-        help=(
-            "DOI of a Garden you want to add all entrypoints in this notebook too. "
-            "To override the global notebook DOI for a specific entrypoint, "
-            "provide the garden_entrypoint decorator with the optional garden_doi argument."
-        ),
-    ),
-    custom_image_uri: Optional[str] = typer.Option(
-        None,
-        "--custom-image",
-        help=(
-            "Power users only! Provide a uri of a publicly available docker image to boot the notebook in."
-        ),
-        hidden=True,
-    ),
+    working_directory: str = typer.Option(..., help="Working directory for the operation."),
+    notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
+    container_image: str = "hpc-notebook.sif",
+    definition_file: str = "Singularity.def"
 ):
     """Open a notebook file in HPC."""
-    # First figure out the name of the notebook and whether we need to create it
-    need_to_create_notebook = False
+    
+    tmp_dir = os.path.abspath(os.path.join(working_directory, "tmp"))
+    notebooks_dir = os.path.abspath(notebooks_dir)
 
-    if path is None:
-        need_to_create_notebook = True
-        new_notebook_name = generate_botanical_filename()
-        notebook_path = Path.cwd() / new_notebook_name
-    else:
-        notebook_path = path.resolve()
-        if notebook_path.suffix != ".ipynb":
-            typer.echo("File must be a jupyter notebook (.ipynb)")
-            raise typer.Exit(1)
+    # Step 1: Create temporary directory if it doesn't exist
+    os.makedirs(tmp_dir, exist_ok=True)
+    
+    # Step 2: Set environment variables
+    os.environ["SINGULARITY_TMPDIR"] = tmp_dir
+    os.environ["APPTAINER_TMPDIR"] = tmp_dir
+    os.environ["JUPYTER_RUNTIME_DIR"] = tmp_dir
+    os.environ["JUPYTER_DATA_DIR"] = tmp_dir
+    os.environ["JUPYTER_CONFIG_DIR"] = tmp_dir
 
-        if not notebook_path.exists():
-            need_to_create_notebook = True
+    try:
+        # Ensure the definition file exists
+        if not os.path.isfile(definition_file):
+            logger.error(f"Definition file {definition_file} not found.")
+            typer.echo(f"🚧🌱🚧 Definition file {definition_file} not found 🚧🌱🚧")
+            raise typer.Exit(code=1)
 
-    # Figure out what base image uri we should start the notebook in
-    base_image_uri = _get_base_image_uri(
-        base_image_name,
-        custom_image_uri,
-        None if need_to_create_notebook else notebook_path,
-    )
+        # Step 3: Build the Apptainer container
+        build_command = ["apptainer", "build", container_image, definition_file]
+        subprocess.run(build_command, check=True)
+        logger.info("Apptainer container built successfully.")
 
-    # Build prompt
-    if need_to_create_notebook:
-        message = f"This will create a new notebook {notebook_path.name} and open it in Docker image {base_image_uri}.\n"
-    else:
-        message = f"This will open existing notebook {notebook_path.name} in Docker image {base_image_uri}.\n"
-
-    if requirements_path:
-        message += f"Additional dependencies specified in {requirements_path.name} will also be installed in {base_image_uri}.\n"
-        message += "Any dependencies previously associated with this notebook will be overwritten by the new requirements.\n"
-
-    # Now we have all we need to prompt the user to proceed
-    typer.confirm(message + "Do you want to proceed?", abort=True)
-
-    if need_to_create_notebook:
-        if base_image_name:
-            template_file_name = GardenConstants.IMAGES_TO_FLAVOR.get(
-                base_image_name, "empty.ipynb"
-            )
-        else:
-            template_file_name = "empty.ipynb"
-
-        top_level_dir = Path(__file__).parent.parent
-        source_path = top_level_dir / "notebook_templates" / template_file_name
-        shutil.copy(source_path, notebook_path)
-
-    # Adds metadata widget cell and garden_metadata dict if either is missing
-    add_notebook_metadata(notebook_path)
-
-    notebook_metadata = get_notebook_metadata(notebook_path)
-
-    # Validate and read requirements file.
-    if requirements_path:
-        requirements_path = requirements_path.resolve()
-        _validate_requirements_path(requirements_path)
-        requirements_data = read_requirements_data(requirements_path)
-    else:
-        # If no requirements file given, look for requirements data in notebook metadata
-        requirements_data = notebook_metadata.notebook_requirements
-
-    # Check for base image name from notebook if user did not provide one.
-    if base_image_name is None:
-        # If a user is using a custom image uri, base_image_name might be None.
-        base_image_name = notebook_metadata.notebook_image_name
-
-    # Check for global notebook doi from notebook if user did not provide one.
-    if global_notebook_doi is None:
-        global_notebook_doi = notebook_metadata.global_notebook_doi
-
-    # Update garden metadata in notebook
-    set_notebook_metadata(
-        notebook_path,
-        global_notebook_doi,
-        base_image_name,
-        base_image_uri,
-        requirements_data,
-    )
-
-    print(
-        f"Starting hpc-notebook inside base image with full name {base_image_uri}. "
-        f"If you start this notebook again from the same folder, it will use this image by default."
-    )
-
-    print("🚧🌱🚧 Under Construction 🚧🌱🚧")
-
-
+        # Step 4: Run the Apptainer container and start Jupyter Notebook
+        run_command = [
+            "apptainer", "run",
+            "--bind", f"{notebooks_dir}:/notebooks",
+            container_image,
+            "jupyter", "notebook", "--no-browser", "--ip=0.0.0.0", "--allow-root"
+        ]
+        subprocess.run(run_command, check=True)
+        logger.info("Jupyter Notebook started successfully in the Apptainer container.")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to start Jupyter Notebook: {e}")
+        typer.echo("🚧🌱🚧 Failed to start Jupyter Notebook 🚧🌱🚧")
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        typer.echo("🚧🌱🚧 An unexpected error occurred 🚧🌱🚧")
+        
 @hpc_notebook_app.command()
 def publish():
     """Publish your hpc-notebook."""
