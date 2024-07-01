@@ -4,7 +4,7 @@ import typer
 
 import os
 
-from garden_ai.app.notebook import _get_base_image_uri
+
 import subprocess
 
 
