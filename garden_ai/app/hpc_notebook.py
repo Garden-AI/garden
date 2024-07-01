@@ -1,10 +1,9 @@
 import logging
-import shutil
+
 import typer
-from pathlib import Path
-from typing import Optional
+
 import os
-from garden_ai import GardenConstants
+
 from garden_ai.app.notebook import _get_base_image_uri
 import subprocess
 
