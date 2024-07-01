@@ -22,19 +22,21 @@ def hpc_notebook():
 
 @hpc_notebook_app.command()
 def start(
-    working_directory: str = typer.Option(..., help="Working directory for the operation."),
+    working_directory: str = typer.Option(
+        ..., help="Working directory for the operation."
+    ),
     notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
     container_image: str = "hpc-notebook.sif",
-    definition_file: str = "Singularity.def"
+    definition_file: str = "Singularity.def",
 ):
     """Open a notebook file in HPC."""
-    
+
     tmp_dir = os.path.abspath(os.path.join(working_directory, "tmp"))
     notebooks_dir = os.path.abspath(notebooks_dir)
 
     # Step 1: Create temporary directory if it doesn't exist
     os.makedirs(tmp_dir, exist_ok=True)
-    
+
     # Step 2: Set environment variables
     os.environ["SINGULARITY_TMPDIR"] = tmp_dir
     os.environ["APPTAINER_TMPDIR"] = tmp_dir
@@ -56,10 +58,16 @@ def start(
 
         # Step 4: Run the Apptainer container and start Jupyter Notebook
         run_command = [
-            "apptainer", "run",
-            "--bind", f"{notebooks_dir}:/notebooks",
+            "apptainer",
+            "run",
+            "--bind",
+            f"{notebooks_dir}:/notebooks",
             container_image,
-            "jupyter", "notebook", "--no-browser", "--ip=0.0.0.0", "--allow-root"
+            "jupyter",
+            "notebook",
+            "--no-browser",
+            "--ip=0.0.0.0",
+            "--allow-root",
         ]
         subprocess.run(run_command, check=True)
         logger.info("Jupyter Notebook started successfully in the Apptainer container.")
@@ -69,7 +77,8 @@ def start(
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         typer.echo("🚧🌱🚧 An unexpected error occurred 🚧🌱🚧")
-        
+
+
 @hpc_notebook_app.command()
 def publish():
     """Publish your hpc-notebook."""
