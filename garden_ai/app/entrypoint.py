@@ -14,6 +14,7 @@ from garden_ai.app.console import (
 from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 from garden_ai.app.completion import complete_entrypoint
 from garden_ai.entrypoints import Repository, Paper
+from garden_ai import local_data
 from garden_ai.local_data import (
     put_local_entrypoint,
     get_local_entrypoint_by_doi,
@@ -23,6 +24,24 @@ from garden_ai.local_data import (
 logger = logging.getLogger()
 
 entrypoint_app = typer.Typer(name="entrypoint", no_args_is_help=True)
+
+
+def _get_entrypoint(doi):
+    if local_data._IS_DISABLED:
+        client = GardenClient()
+        entrypoint = client.backend_client.get_entrypoint(doi)
+    else:
+        entrypoint = get_local_entrypoint_by_doi(doi)
+    return entrypoint
+
+
+def _put_entrypoint(entrypoint):
+    if local_data._IS_DISABLED:
+        client = GardenClient()
+        client.backend_client.put_entrypoint(entrypoint)
+    else:
+        put_local_entrypoint(entrypoint)
+    return
 
 
 def parse_full_name(name: str) -> str:
@@ -73,7 +92,8 @@ def add_repository(
     ),
 ):
     # get registered entrypoint
-    entrypoint = get_local_entrypoint_by_doi(doi)
+    entrypoint = _get_entrypoint(doi)
+
     if not entrypoint:
         rich.print(f"Could not find entrypoint with id {doi}\n")
     else:
@@ -95,7 +115,7 @@ def add_repository(
             repo_name=repository_name, url=url, contributors=contributors
         )
         entrypoint.repositories.append(repository)
-        put_local_entrypoint(entrypoint)
+        _put_entrypoint(entrypoint)
         rich.print(f"Repository added to entrypoint {doi}.")
 
 
@@ -140,7 +160,7 @@ def add_paper(
         rich_help_panel="Recommended",
     ),
 ):
-    entrypoint = get_local_entrypoint_by_doi(doi)
+    entrypoint = _get_entrypoint(doi)
     if not entrypoint:
         rich.print(f"Could not find entrypoint with id {doi}\n")
     else:
@@ -168,7 +188,7 @@ def add_paper(
             )
         paper = Paper(title=title, authors=authors, doi=paper_doi, citation=citation)
         entrypoint.papers.append(paper)
-        put_local_entrypoint(entrypoint)
+        _put_entrypoint(entrypoint)
         rich.print(f"The paper {title} is successfully added to entrypoint {doi}.")
 
 
@@ -190,11 +210,12 @@ def register_doi(
         The DOI of the entrypoint to be registered.
     """
     client = GardenClient()
-    entrypoint = get_local_entrypoint_by_doi(doi)
+    entrypoint = _get_entrypoint(doi)
     if not entrypoint:
         rich.print(f"Could not find entrypoint with doi {doi}")
         raise typer.Exit(code=1)
     client.register_entrypoint_doi(entrypoint)
+    _put_entrypoint(entrypoint)
     rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
 
 
@@ -223,7 +244,7 @@ def show(
     """Shows all info for some entrypoints"""
 
     for entrypoint_id in entrypoint_ids:
-        entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
+        entrypoint = _get_entrypoint(entrypoint_id)
         if entrypoint:
             rich.print(f"Entrypoint: {entrypoint_id} local data:")
             rich.print_json(json=entrypoint.model_dump_json())
@@ -243,7 +264,7 @@ def edit(
 ):
     """Edit an Entrypoint's metadata"""
 
-    entrypoint = get_local_entrypoint_by_doi(doi)
+    entrypoint = _get_entrypoint(doi)
     if not entrypoint:
         rich.print(f"Could not find entrypoint with doi {doi}")
         raise typer.Exit(code=1)
@@ -253,7 +274,7 @@ def edit(
 
     edited_entrypoint = gui_edit_garden_entity(entrypoint, string_fields, list_fields)
 
-    put_local_entrypoint(edited_entrypoint)
+    _put_entrypoint(edited_entrypoint)
     console.print(
         "Updated entrypoint {doi}. For the changes to be reflected on thegardens.ai, publish a garden that this entrypoint belongs to."
     )
