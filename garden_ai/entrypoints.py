@@ -167,6 +167,8 @@ class RegisteredEntrypoint(EntrypointMetadata):
     test_functions: List[str] = Field(default_factory=list)
     requirements: Optional[List[str]] = Field(default_factory=list)
 
+    function_text: Optional[str] = Field(None)
+
     def __call__(
         self,
         *args: Any,

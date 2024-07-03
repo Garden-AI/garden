@@ -6,7 +6,8 @@ import boto3
 import requests
 
 from garden_ai.constants import GardenConstants
-from garden_ai.gardens import PublishedGarden
+from garden_ai.gardens import Garden, PublishedGarden
+from garden_ai.entrypoints import RegisteredEntrypoint
 
 logger = logging.getLogger()
 
@@ -90,3 +91,38 @@ class BackendClient:
             aws_session_token=resp["SessionToken"],
             region_name="us-east-1",
         )
+
+    def create_garden(self, garden: Garden):
+        self._post("/gardens", garden.model_dump(mode="json"))
+        return
+
+    def update_garden(self, garden: Garden):
+        doi = garden.doi
+        self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
+        return
+
+    def get_garden(self, doi: str) -> PublishedGarden:
+        result = self._get(f"/gardens/{doi}")
+        return PublishedGarden(**result)
+
+    def delete_garden(self, doi: str):
+        self._delete(f"/gardens/{doi}")
+
+    def create_entrypoint(self, entrypoint: RegisteredEntrypoint):
+        if not entrypoint.function_text:
+            entrypoint.function_text = entrypoint.steps[0].function_text
+        self._post("/entrypoints", entrypoint.model_dump(mode="json", exclude="steps"))
+
+    def update_entrypoint(self, entrypoint: RegisteredEntrypoint):
+        doi = entrypoint.doi
+        if not entrypoint.function_text:
+            entrypoint.function_text = entrypoint.steps[0].function_text
+        payload = entrypoint.model_dump(mode="json", exclude="steps")
+        self._put(f"/entrypoints/{doi}", payload)
+
+    def get_entrypoint(self, doi: str) -> RegisteredEntrypoint:
+        result = self._get(f"/entrypoints/{doi}")
+        return RegisteredEntrypoint(**result)
+
+    def delete_entrypoint(self, doi: str):
+        self._delete(f"/entrypoints/{doi}")
