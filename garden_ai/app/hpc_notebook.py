@@ -28,13 +28,13 @@ def start(
     definition_file: str = "Singularity.def"
 ):
     """Open a notebook file in HPC."""
-    
+
     tmp_dir = os.path.abspath(os.path.join(working_directory, "tmp"))
     notebooks_dir = os.path.abspath(notebooks_dir)
 
     # Step 1: Create temporary directory if it doesn't exist
     os.makedirs(tmp_dir, exist_ok=True)
-    
+
     # Step 2: Set environment variables
     os.environ["SINGULARITY_TMPDIR"] = tmp_dir
     os.environ["APPTAINER_TMPDIR"] = tmp_dir
@@ -69,7 +69,8 @@ def start(
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         typer.echo("🚧🌱🚧 An unexpected error occurred 🚧🌱🚧")
-        
+
+
 @hpc_notebook_app.command()
 def publish():
     """Publish your hpc-notebook."""
