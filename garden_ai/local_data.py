@@ -1,14 +1,24 @@
-import json
-import logging
-from enum import Enum
+import os
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
-from pydantic_core import to_jsonable_python
+from dotenv import load_dotenv
 
-from garden_ai.constants import GardenConstants
-from garden_ai.gardens import Garden
-from garden_ai.entrypoints import RegisteredEntrypoint
+dotenv_path = Path(f"{__file__}/../..").resolve() / ".env"
+load_dotenv(dotenv_path=dotenv_path)
+_IS_DISABLED = bool(os.getenv("GARDEN_DISABLE_LOCAL_DATA"))
+
+
+import json  # noqa: E402
+import logging  # noqa: E402
+from enum import Enum  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Dict, List, Optional, Union  # noqa: E402
+
+from pydantic_core import to_jsonable_python  # noqa: E402
+
+from garden_ai.constants import GardenConstants  # noqa: E402
+from garden_ai.entrypoints import RegisteredEntrypoint  # noqa: E402
+from garden_ai.gardens import Garden  # noqa: E402
 
 LOCAL_STORAGE = Path(GardenConstants.GARDEN_DIR)
 LOCAL_STORAGE.mkdir(parents=True, exist_ok=True)
