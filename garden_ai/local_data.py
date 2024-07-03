@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 
 dotenv_path = Path(f"{__file__}/../..").resolve() / ".env"
 load_dotenv(dotenv_path=dotenv_path)
-if os.getenv("GARDEN_DISABLE_LOCAL_DATA", False):
-    raise NotImplementedError
+_IS_DISABLED = bool(os.getenv("GARDEN_DISABLE_LOCAL_DATA"))
+
 
 import json  # noqa: E402
 import logging  # noqa: E402
