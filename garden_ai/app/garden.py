@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import rich
 import typer
@@ -16,7 +16,7 @@ from garden_ai.globus_search.garden_search import (
 from garden_ai.utils.dois import is_doi_registered
 from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 from garden_ai.constants import GardenConstants
-from garden_ai.gardens import Garden
+from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.app.console import (
     console,
@@ -149,10 +149,10 @@ def create(
         tags=tags,
     )
 
-    local_data.put_local_garden(garden)
+    _put_garden(garden)
 
     if verbose:
-        metadata = json.dumps(local_data.get_local_garden_by_doi(garden.doi))
+        metadata = json.dumps(_get_garden(garden.doi))
         rich.print_json(metadata)
 
     if garden.doi:
@@ -278,10 +278,39 @@ def add_entrypoint(
             print(
                 f"Entrypoint {entrypoint_id} is already in Garden {garden_id} as {old_name}. Renaming to {entrypoint_alias}."
             )
-            garden.rename_entrypoint(to_add.doi, entrypoint_alias)
+            if local_data._IS_DISABLED:
+                # the garden.rename_entrypoint method lazy-imports local_data so
+                # need to skip it completely here. This is equivalent in light
+                # of the fact that `garden` is a full PublishedGarden when
+                # local_data is disabled.
+                assert (
+                    entrypoint_alias.isidentifier()
+                ), "New name must be a valid python identifier"
+                names = set(
+                    garden.entrypoint_aliases.get(ep.doi) or ep.short_name
+                    for ep in garden.entrypoints
+                )
+                assert (
+                    entrypoint_alias not in names
+                ), "Entrypoint already exists in this garden with that name."
+                garden.entrypoint_aliases[to_add.doi] = entrypoint_alias
+            else:
+                garden.rename_entrypoint(to_add.doi, entrypoint_alias)
     else:
-        garden.add_entrypoint(entrypoint_id, entrypoint_alias)
-    local_data.put_local_garden(garden)
+        if local_data._IS_DISABLED:
+            # same kludge as above
+            names = set(
+                ep.short_name
+                for ep in garden.entrypoints
+                if ep.doi not in garden.entrypoint_aliases
+            ) | set(garden.entrypoint_aliases.values())
+            assert (
+                to_add.short_name not in names
+            ), "Entrypoint already exists in this garden with that name."
+            garden.entrypoint_ids += [to_add.doi]
+        else:
+            garden.add_entrypoint(entrypoint_id, entrypoint_alias)
+    _put_garden(garden)
     logger.info(f"Added entrypoint {entrypoint_id} to Garden {garden_id}")
 
 
@@ -336,6 +365,20 @@ def delete(
 ):
     """Delete a Garden from your local storage and the thegardens.ai website"""
     client = GardenClient()
+    if local_data._IS_DISABLED:
+        # revamped api handles delete permission, so just re-raise the error if not allowed to delete
+        typer.confirm(
+            f"You are about to delete garden {garden_id} from the thegardens.ai search index. "
+            "Are you sure you want to proceed?",
+            abort=True,
+        )
+        try:
+            client.backend_client.delete_garden(garden_id)
+            client.delete_garden_from_search_index(garden_id)
+        except Exception as e:
+            raise typer.Exit(code=1) from e
+        console.print(f"Garden {garden_id} has been deleted from thegardens.ai.")
+        return
 
     # Does the user have this garden locally?
     garden = _get_garden(garden_id)
@@ -418,9 +461,9 @@ def register_doi(
     garden = _get_garden(doi)
     if not garden:
         raise typer.Exit(code=1)
-    client.publish_garden_metadata(garden, register_doi=True)
     garden.doi_is_draft = False
-    local_data.put_local_garden(garden)
+    client.publish_garden_metadata(garden, register_doi=True)
+    _put_garden(garden)
     rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
 
 
@@ -439,7 +482,11 @@ def list():
 
 
 def _get_entrypoint(entrypoint_id: str) -> Optional[RegisteredEntrypoint]:
-    entrypoint = local_data.get_local_entrypoint_by_doi(entrypoint_id)
+    if local_data._IS_DISABLED:
+        client = GardenClient()
+        entrypoint = client.backend_client.get_entrypoint(entrypoint_id)
+    else:
+        entrypoint = local_data.get_local_entrypoint_by_doi(entrypoint_id)
     if not entrypoint:
         logger.warning(f"Could not find entrypoint with id {entrypoint_id}")
         return None
@@ -485,18 +532,30 @@ def edit(
 
     edited_garden = gui_edit_garden_entity(garden, string_fields, list_fields)
 
-    local_data.put_local_garden(edited_garden)
+    _put_garden(edited_garden)
     console.print(
         f"Updated garden {doi}. Run `garden-ai garden publish -g {doi}` to push the change to thegardens.ai"
     )
 
 
-def _get_garden(garden_id: str) -> Optional[Garden]:
-    garden = local_data.get_local_garden_by_doi(garden_id)
+def _get_garden(garden_id: str) -> Optional[Union[Garden, PublishedGarden]]:
+    if local_data._IS_DISABLED:
+        client = GardenClient()
+        garden = client.backend_client.get_garden(garden_id)
+    else:
+        garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
         logger.warning(f"Could not find local garden with id {garden_id}")
         return None
     return garden
+
+
+def _put_garden(garden):
+    if local_data._IS_DISABLED:
+        client = GardenClient()
+        client.backend_client.update_garden(garden)
+    else:
+        local_data.put_local_garden(garden)
 
 
 def create_query(

@@ -359,6 +359,7 @@ class PublishedGarden(BaseModel):
         List[str], Field(default_factory=list), require_unique_items
     ]
     doi: str = Field(...)
+    doi_is_draft: bool = Field(True)
     description: Optional[str] = Field(None)
     publisher: str = "Garden-AI"
     year: str = Field(default_factory=lambda: str(datetime.now().year))
