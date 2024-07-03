@@ -106,18 +106,19 @@ class BackendClient:
         return PublishedGarden(**result)
 
     def delete_garden(self, doi: str):
-        self._delete(f"/gardens/{doi}")
+        self._delete(f"/gardens/{doi}", {})
 
     def create_entrypoint(self, entrypoint: RegisteredEntrypoint):
         if not entrypoint.function_text:
             entrypoint.function_text = entrypoint.steps[0].function_text
-        self._post("/entrypoints", entrypoint.model_dump(mode="json", exclude="steps"))
+        payload = entrypoint.model_dump(mode="json", exclude={"steps"})
+        self._post("/entrypoints", payload)
 
     def update_entrypoint(self, entrypoint: RegisteredEntrypoint):
         doi = entrypoint.doi
         if not entrypoint.function_text:
             entrypoint.function_text = entrypoint.steps[0].function_text
-        payload = entrypoint.model_dump(mode="json", exclude="steps")
+        payload = entrypoint.model_dump(mode="json", exclude={"steps"})
         self._put(f"/entrypoints/{doi}", payload)
 
     def get_entrypoint(self, doi: str) -> RegisteredEntrypoint:
@@ -125,4 +126,4 @@ class BackendClient:
         return RegisteredEntrypoint(**result)
 
     def delete_entrypoint(self, doi: str):
-        self._delete(f"/entrypoints/{doi}")
+        self._delete(f"/entrypoints/{doi}", {})
