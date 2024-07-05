@@ -503,12 +503,22 @@ class GardenClient:
 
             registered = RegisteredEntrypoint(**record)
             self._update_datacite(registered)
-            local_data.put_local_entrypoint(registered)
+            if local_data._IS_DISABLED:
+                self.backend_client.update_entrypoint(registered)
+            else:
+                local_data.put_local_entrypoint(registered)
 
             # fetch garden we're attaching this entrypoint to (if one was specified)
             garden_doi = metadata.get(f"{key}.garden_doi")
             if garden_doi:
-                garden = local_data.get_local_garden_by_doi(garden_doi)
+                if local_data._IS_DISABLED:
+                    published = self.backend_client.get_garden(garden_doi)
+                    garden = Garden(
+                        **published.model_dump(), _entrypoints=published.entrypoints
+                    )
+                else:
+                    garden = local_data.get_local_garden_by_doi(garden_doi)
+
                 if garden is None:
                     msg = (
                         f"Could not add entrypoint {key} to garden "
@@ -516,14 +526,23 @@ class GardenClient:
                     )
                     raise ValueError(msg)
                 garden.add_entrypoint(registered.doi, replace=True)
-                local_data.put_local_garden(garden)
+                if local_data._IS_DISABLED:
+                    self.backend_client.update_garden(garden)
+                else:
+                    local_data.put_local_garden(garden)
                 dirty_gardens |= {garden.doi}
                 print(
                     f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden.doi} ({garden.title})!"
                 )
 
         for doi in dirty_gardens:
-            garden = local_data.get_local_garden_by_doi(doi)
+            if local_data._IS_DISABLED:
+                published = self.backend_client.get_garden(garden_doi)
+                garden = Garden(
+                    **published.model_dump(), _entrypoints=published.entrypoints
+                )
+            else:
+                garden = local_data.get_local_garden_by_doi(garden_doi)
             if garden:
                 print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
                 self.publish_garden_metadata(garden)
