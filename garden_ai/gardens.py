@@ -141,8 +141,13 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def __init__(self, **kwargs):
+    def __init__(self, _entrypoints: List[RegisteredEntrypoint] = None, **kwargs):
         super().__init__(**kwargs)
+
+        if _entrypoints is not None:
+            # HACK: see usage in app.garden._get_garden
+            self._entrypoint_cache = _entrypoints
+            return
 
         self._entrypoint_cache = self._collect_entrypoints()
         return
@@ -157,6 +162,24 @@ class Garden(BaseModel):
         Returns:
             A list of RegisteredEntrypoint objects.
         """
+
+        # HACK: this is ugly, but no more so than the circular
+        # local_data import it is replacing. As soon as the migration is
+        # complete and we can remove the local_data module itself we can remove
+        # the affected methods too (maybe even removing the whole Garden class).
+        # This is the compromise while this is still a load-bearing helper method.
+        import garden_ai.local_data
+
+        if garden_ai.local_data._IS_DISABLED:
+            entrypoints = []
+            from garden_ai.client import GardenClient
+
+            client = GardenClient()
+            for doi in self.entrypoint_ids:
+                entrypoint = client.backend_client.get_entrypoint(doi)
+                entrypoints += [entrypoint]
+            return entrypoints
+
         from .local_data import EntrypointNotFoundException, get_local_entrypoint_by_doi
 
         entrypoints = []
@@ -193,13 +216,24 @@ class Garden(BaseModel):
                     "to rename an entrypoint, see `rename_entrypoint`"
                 )
 
-        from .local_data import get_local_entrypoint_by_doi
+        import garden_ai.local_data
 
-        entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
-        if entrypoint is None:
-            raise ValueError(
-                f"Error: no entrypoint was found in the local database with the given DOI {entrypoint_id}."
-            )
+        # HACK: same workaround as _collect_entrypoints. This method will be safe to remove
+        # once we're in a post-local_data-world.
+        if garden_ai.local_data._IS_DISABLED:
+            from garden_ai.client import GardenClient
+
+            client = GardenClient()
+            entrypoint = client.backend_client.get_entrypoint(entrypoint_id)
+
+        else:
+            from .local_data import get_local_entrypoint_by_doi
+
+            entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
+            if entrypoint is None:
+                raise ValueError(
+                    f"Error: no entrypoint was found in the local database with the given DOI {entrypoint_id}."
+                )
 
         entrypoint_names = (
             self.entrypoint_aliases.get(cached.doi) or cached.short_name

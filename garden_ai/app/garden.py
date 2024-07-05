@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import rich
 import typer
@@ -278,38 +278,9 @@ def add_entrypoint(
             print(
                 f"Entrypoint {entrypoint_id} is already in Garden {garden_id} as {old_name}. Renaming to {entrypoint_alias}."
             )
-            if local_data._IS_DISABLED:
-                # the garden.rename_entrypoint method lazy-imports local_data so
-                # need to skip it completely here. This is equivalent in light
-                # of the fact that `garden` is a full PublishedGarden when
-                # local_data is disabled.
-                assert (
-                    entrypoint_alias.isidentifier()
-                ), "New name must be a valid python identifier"
-                names = set(
-                    garden.entrypoint_aliases.get(ep.doi) or ep.short_name
-                    for ep in garden.entrypoints
-                )
-                assert (
-                    entrypoint_alias not in names
-                ), "Entrypoint already exists in this garden with that name."
-                garden.entrypoint_aliases[to_add.doi] = entrypoint_alias
-            else:
-                garden.rename_entrypoint(to_add.doi, entrypoint_alias)
+            garden.rename_entrypoint(to_add.doi, entrypoint_alias)
     else:
-        if local_data._IS_DISABLED:
-            # same kludge as above
-            names = set(
-                ep.short_name
-                for ep in garden.entrypoints
-                if ep.doi not in garden.entrypoint_aliases
-            ) | set(garden.entrypoint_aliases.values())
-            assert (
-                to_add.short_name not in names
-            ), "Entrypoint already exists in this garden with that name."
-            garden.entrypoint_ids += [to_add.doi]
-        else:
-            garden.add_entrypoint(entrypoint_id, entrypoint_alias)
+        garden.add_entrypoint(entrypoint_id, entrypoint_alias)
     _put_garden(garden)
     logger.info(f"Added entrypoint {entrypoint_id} to Garden {garden_id}")
 
@@ -538,10 +509,14 @@ def edit(
     )
 
 
-def _get_garden(garden_id: str) -> Optional[Union[Garden, PublishedGarden]]:
+def _get_garden(garden_id: str) -> Optional[Garden]:
     if local_data._IS_DISABLED:
         client = GardenClient()
-        garden = client.backend_client.get_garden(garden_id)
+        published: PublishedGarden = client.backend_client.get_garden(garden_id)
+        # keep contract consistent with local_data equivalent, which returns a plain Garden
+        # note: the _entrypoints kwarg is to skip the redundant/expensive
+        # _collect_entrypoints call in Garden.__init__.
+        garden = Garden(**published.model_dump(), _entrypoints=published.entrypoints)
     else:
         garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
