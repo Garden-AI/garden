@@ -1,12 +1,11 @@
 import logging
 import shutil
 import typer
-from pathlib import Path
-from typing import Optional
+
 import os
-from garden_ai import GardenConstants
-from garden_ai.app.notebook import _get_base_image_uri
+
 import subprocess
+import tempfile
 
 
 logger = logging.getLogger()
@@ -22,17 +21,28 @@ def hpc_notebook():
 
 @hpc_notebook_app.command()
 def start(
-    working_directory: str = typer.Option(..., help="Working directory for the operation."),
+    working_directory: str = typer.Option(None, help="Working directory for the operation."),
     notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
     container_image: str = "hpc-notebook.sif",
-    definition_file: str = "Singularity.def"
+    definition_file: str = "scripts/Singularity.def"
 ):
     """Open a notebook file in HPC."""
+    definition_file = os.path.abspath(definition_file)
+    if working_directory is None:
+        working_directory = tempfile.mkdtemp()
+        logger.info(f"Working directory not provided. Created temporary directory: {working_directory}")
 
-    tmp_dir = os.path.abspath(os.path.join(working_directory, "tmp"))
+    tmp_dir = os.path.join(working_directory, "tmp")
+
     notebooks_dir = os.path.abspath(notebooks_dir)
 
+    if not os.path.exists(notebooks_dir):
+        logger.info(f"Notebooks directory {notebooks_dir} does not exist. Creating it.")
+        os.makedirs(notebooks_dir)
+
     # Step 1: Create temporary directory if it doesn't exist
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
     os.makedirs(tmp_dir, exist_ok=True)
 
     # Step 2: Set environment variables
@@ -59,7 +69,7 @@ def start(
             "apptainer", "run",
             "--bind", f"{notebooks_dir}:/notebooks",
             container_image,
-            "jupyter", "notebook", "--no-browser", "--ip=0.0.0.0", "--allow-root"
+            "jupyter", "notebook", "--no-browser", "--ip=0.0.0.0"
         ]
         subprocess.run(run_command, check=True)
         logger.info("Jupyter Notebook started successfully in the Apptainer container.")
