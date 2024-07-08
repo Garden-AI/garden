@@ -38,7 +38,7 @@ def _get_entrypoint(doi):
 def _put_entrypoint(entrypoint):
     if local_data._IS_DISABLED:
         client = GardenClient()
-        client.backend_client.put_entrypoint(entrypoint)
+        client.backend_client.update_entrypoint(entrypoint)
     else:
         put_local_entrypoint(entrypoint)
     return
@@ -219,18 +219,22 @@ def register_doi(
     rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
 
 
-@entrypoint_app.command(no_args_is_help=False)
-def list():
-    """Lists all local entrypoints."""
+if not local_data._IS_DISABLED:
+    # this subcommand is no longer meaningful when local_data is disabled.
+    # we can replace this with "list my gardens" behavior once
+    # https://github.com/Garden-AI/garden-backend/issues/111 is live.
+    @entrypoint_app.command(no_args_is_help=False)
+    def list():
+        """Lists all local entrypoints."""
 
-    resource_table_cols = ["doi", "title", "description", DOI_STATUS_COLUMN]
-    table_name = "Local Entrypoints"
+        resource_table_cols = ["doi", "title", "description", DOI_STATUS_COLUMN]
+        table_name = "Local Entrypoints"
 
-    table = get_local_entrypoint_rich_table(
-        resource_table_cols=resource_table_cols, table_name=table_name
-    )
-    console.print("\n")
-    console.print(table)
+        table = get_local_entrypoint_rich_table(
+            resource_table_cols=resource_table_cols, table_name=table_name
+        )
+        console.print("\n")
+        console.print(table)
 
 
 @entrypoint_app.command(no_args_is_help=True)

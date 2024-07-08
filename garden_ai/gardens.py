@@ -145,7 +145,9 @@ class Garden(BaseModel):
         super().__init__(**kwargs)
 
         if _entrypoints is not None:
-            # HACK: see usage in app.garden._get_garden
+            # HACK: for compatibility with usage in app.garden._get_garden
+            # skips expensive _collect_entrypoints() call when we already have
+            # them from the GET /gardens response
             self._entrypoint_cache = _entrypoints
             return
 

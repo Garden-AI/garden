@@ -156,7 +156,7 @@ def start(
         None,
         "--doi",
         help=(
-            "DOI of a Garden you want to add all entrypoints in this notebook too. "
+            "DOI of a Garden you want to add all entrypoints in this notebook to. "
             "To override the global notebook DOI for a specific entrypoint, "
             "provide the garden_entrypoint decorator with the optional garden_doi argument."
         ),

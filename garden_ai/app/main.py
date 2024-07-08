@@ -35,6 +35,10 @@ def show_version(show: bool):
     if show:
         if env := os.environ.get("GARDEN_ENV"):
             version_str += f" ({env})"
+        import garden_ai.local_data
+
+        if garden_ai.local_data._IS_DISABLED:
+            version_str += " (local_data disabled)"
         rich.print(version_str)
         raise typer.Exit()
 

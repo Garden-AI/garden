@@ -438,18 +438,22 @@ def register_doi(
     rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
 
 
-@garden_app.command(no_args_is_help=False)
-def list():
-    """Lists all local Gardens."""
+if not local_data._IS_DISABLED:
+    # this subcommand is no longer meaningful when local_data is disabled.
+    # we can replace this with "list my gardens" behavior once
+    # https://github.com/Garden-AI/garden-backend/issues/111 is live.
+    @garden_app.command(no_args_is_help=False)
+    def list():
+        """Lists all local Gardens."""
 
-    resource_table_cols = ["doi", "title", "description", DOI_STATUS_COLUMN]
-    table_name = "Local Gardens"
+        resource_table_cols = ["doi", "title", "description", DOI_STATUS_COLUMN]
+        table_name = "Local Gardens"
 
-    table = get_local_garden_rich_table(
-        resource_table_cols=resource_table_cols, table_name=table_name
-    )
-    console.print("\n")
-    console.print(table)
+        table = get_local_garden_rich_table(
+            resource_table_cols=resource_table_cols, table_name=table_name
+        )
+        console.print("\n")
+        console.print(table)
 
 
 def _get_entrypoint(entrypoint_id: str) -> Optional[RegisteredEntrypoint]:
@@ -514,9 +518,13 @@ def _get_garden(garden_id: str) -> Optional[Garden]:
         client = GardenClient()
         published: PublishedGarden = client.backend_client.get_garden(garden_id)
         # keep contract consistent with local_data equivalent, which returns a plain Garden
-        # note: the _entrypoints kwarg is to skip the redundant/expensive
-        # _collect_entrypoints call in Garden.__init__.
-        garden = Garden(**published.model_dump(), _entrypoints=published.entrypoints)
+        # note: the _entrypoints and kwarg is to skip the redundant/expensive
+        # _collect_entrypoints call in Garden.__init__
+        garden = Garden(
+            **published.model_dump(),
+            entrypoint_ids=[ep.doi for ep in published.entrypoints],
+            _entrypoints=published.entrypoints,
+        )
     else:
         garden = local_data.get_local_garden_by_doi(garden_id)
     if not garden:
