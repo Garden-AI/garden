@@ -461,7 +461,7 @@ def _get_entrypoint(entrypoint_id: str) -> Optional[RegisteredEntrypoint]:
         client = GardenClient()
         entrypoint = client.backend_client.get_entrypoint(entrypoint_id)
     else:
-        entrypoint = local_data.get_local_entrypoint_by_doi(entrypoint_id)
+        entrypoint = local_data.get_local_entrypoint_by_doi(entrypoint_id)  # type: ignore[assignment]
     if not entrypoint:
         logger.warning(f"Could not find entrypoint with id {entrypoint_id}")
         return None
@@ -526,7 +526,7 @@ def _get_garden(garden_id: str) -> Optional[Garden]:
             _entrypoints=published.entrypoints,
         )
     else:
-        garden = local_data.get_local_garden_by_doi(garden_id)
+        garden = local_data.get_local_garden_by_doi(garden_id)  # type: ignore[assignment]
     if not garden:
         logger.warning(f"Could not find local garden with id {garden_id}")
         return None

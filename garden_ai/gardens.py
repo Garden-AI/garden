@@ -141,7 +141,9 @@ class Garden(BaseModel):
             raise ValueError("year must be formatted `YYYY`")
         return str(year)
 
-    def __init__(self, _entrypoints: List[RegisteredEntrypoint] = None, **kwargs):
+    def __init__(
+        self, _entrypoints: Optional[List[RegisteredEntrypoint]] = None, **kwargs
+    ):
         super().__init__(**kwargs)
 
         if _entrypoints is not None:
@@ -186,7 +188,7 @@ class Garden(BaseModel):
 
         entrypoints = []
         for doi in self.entrypoint_ids:
-            entrypoint = get_local_entrypoint_by_doi(doi)
+            entrypoint = get_local_entrypoint_by_doi(doi)  # type: ignore[assignment]
             if entrypoint is None:
                 raise EntrypointNotFoundException(
                     f"Could not find registered entrypoint with id {doi}."
@@ -231,7 +233,7 @@ class Garden(BaseModel):
         else:
             from .local_data import get_local_entrypoint_by_doi
 
-            entrypoint = get_local_entrypoint_by_doi(entrypoint_id)
+            entrypoint = get_local_entrypoint_by_doi(entrypoint_id)  # type: ignore[assignment]
             if entrypoint is None:
                 raise ValueError(
                     f"Error: no entrypoint was found in the local database with the given DOI {entrypoint_id}."

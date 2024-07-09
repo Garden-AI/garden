@@ -517,8 +517,7 @@ class GardenClient:
                         **published.model_dump(), _entrypoints=published.entrypoints
                     )
                 else:
-                    garden = local_data.get_local_garden_by_doi(garden_doi)
-
+                    garden = local_data.get_local_garden_by_doi(garden_doi)  # type: ignore[assignment]
                 if garden is None:
                     msg = (
                         f"Could not add entrypoint {key} to garden "
@@ -537,12 +536,12 @@ class GardenClient:
 
         for doi in dirty_gardens:
             if local_data._IS_DISABLED:
-                published = self.backend_client.get_garden(garden_doi)
+                published = self.backend_client.get_garden(doi)
                 garden = Garden(
                     **published.model_dump(), _entrypoints=published.entrypoints
                 )
             else:
-                garden = local_data.get_local_garden_by_doi(garden_doi)
+                garden = local_data.get_local_garden_by_doi(doi)  # type: ignore[assignment]
             if garden:
                 print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
                 self.publish_garden_metadata(garden)
