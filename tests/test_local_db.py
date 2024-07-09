@@ -1,4 +1,4 @@
-from garden_ai import PublishedGarden, local_data
+from garden_ai import local_data
 
 
 def test_local_storage_garden(mocker, garden_client, garden_all_fields, tmp_path):
@@ -41,24 +41,3 @@ def test_local_storage_keyerror(
     # can find the entrypoint
     from_record = local_data.get_local_entrypoint_by_doi(entrypoint.doi)
     assert from_record == entrypoint
-
-
-def test_local_db_clone(mocker, garden_client, garden_all_fields, tmp_path):
-    # mock to replace "~/.garden/db"
-    mocker.patch("garden_ai.local_data.LOCAL_STORAGE", new=tmp_path)
-
-    # mock fetch and new garden creation operations
-    mocker.patch(
-        "garden_ai.client.GardenClient.get_published_garden",
-        return_value=PublishedGarden.from_garden(garden_all_fields),
-    )
-    mocker.patch(
-        "garden_ai.client.GardenClient._mint_draft_doi",
-        return_value="10.26311/fake-doi",
-    )
-
-    # this test asserts that the clone operation is correctly populating
-    # the local db with the entrypoints referenced by the remote garden
-    garden_client.clone_published_garden(garden_all_fields.doi, silent=True)
-
-    assert local_data.get_local_entrypoint_by_doi("10.26311/fake-doi") is not None

@@ -35,12 +35,8 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden, PublishedGarden
 from garden_ai.globus_search import garden_search
-from garden_ai.local_data import GardenNotFoundException, EntrypointNotFoundException
-from garden_ai.entrypoints import (
-    Paper,
-    RegisteredEntrypoint,
-    Repository,
-)
+from garden_ai.local_data import EntrypointNotFoundException
+from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
 
@@ -290,7 +286,10 @@ class GardenClient:
         """
         self._update_datacite(entrypoint, register_doi=True)
         entrypoint.doi_is_draft = False
-        local_data.put_local_entrypoint(entrypoint)
+        if local_data._IS_DISABLED:
+            self.backend_client.update_entrypoint(entrypoint)
+        else:
+            local_data.put_local_entrypoint(entrypoint)
 
     def _mint_draft_doi(self) -> str:
         """Register a new draft DOI with DataCite via Garden backend."""
@@ -322,82 +321,6 @@ class GardenClient:
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
 
-    def add_paper(self, title: str, doi: str, **kwargs) -> None:
-        """Adds a ``Paper`` to a ``RegisteredEntrypoint`` corresponding to the given DOI.
-
-        Parameters
-        ----------
-        doi : str
-            The previously registered entrypoint's DOI. Raises an
-            exception if not found.
-
-        title : str
-            An official name or title for the paper.
-
-        **kwargs :
-            Metadata for the new Paper object. Keyword arguments matching
-            required or recommended fields will be (where necessary) coerced to the appropriate type.
-            May include: List[str] authors and Optional[str] citation.
-
-        Raises
-        ------
-        EntrypointNotFoundException
-            Raised when no known entrypoint exists with the given identifier.
-        """
-        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
-        if not entrypoint:
-            raise EntrypointNotFoundException(
-                f"Could not find any entrypoints with DOI {doi}."
-            )
-        data = dict(kwargs)
-        if title:
-            data["title"] = title
-        paper = Paper(**data)
-        entrypoint.papers.append(paper)
-        local_data.put_local_entrypoint(entrypoint)
-
-    def add_repository(self, doi: str, url: str, repo_name: str, **kwargs) -> None:
-        """Adds a ``Repository`` to a ``RegisteredEntrypoint`` corresponding to the given DOI.
-
-        Parameters
-        ----------
-        doi : str
-            The previously registered entrypoint's DOI. Raises an
-            exception if not found.
-
-        title : str
-            An official name or title for the repository.
-
-        url: str
-            The url to access this repository.
-
-        **kwargs :
-            Metadata for the new Repository object. Keyword arguments matching
-            required or recommended fields will be (where necessary) coerced to the appropriate type.
-            May include: List[str] contributors.
-
-        Raises
-        ------
-        EntrypointNotFoundException
-            Raised when no known entrypoint exists with the given identifier.
-        """
-        data = dict(kwargs)
-        if doi:
-            data["doi"] = doi
-        if url:
-            data["url"] = url
-        if repo_name:
-            data["repo_name"] = repo_name
-        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
-        if not entrypoint:
-            raise EntrypointNotFoundException(
-                f"Could not find any entrypoints with DOI {doi}."
-            )
-
-        repository = Repository(**data)
-        entrypoint.repositories.append(repository)
-        local_data.put_local_entrypoint(entrypoint)
-
     def get_registered_entrypoint(self, doi: str) -> RegisteredEntrypoint:
         """Return a callable ``RegisteredEntrypoint`` corresponding to the given DOI.
 
@@ -418,6 +341,8 @@ class GardenClient:
         EntrypointNotFoundException
             Raised when no known entrypoint exists with the given identifier.
         """
+        if local_data._IS_DISABLED:
+            return self.backend_client.get_entrypoint(doi)
         entrypoint = local_data.get_local_entrypoint_by_doi(doi)
 
         if entrypoint is None:
@@ -428,34 +353,6 @@ class GardenClient:
 
     def get_email(self) -> str:
         return local_data._get_user_email()
-
-    def get_local_garden(self, doi: str) -> Garden:
-        """Return a registered ``Garden`` corresponding to the given DOI.
-
-        Any ``RegisteredEntrypoints`` registered to the Garden will be callable
-        as attributes on the garden by their (registered) short_name, e.g.
-            ```python
-                my_garden = client.get_local_garden('garden-doi')
-                #  entrypoint would have been registered with short_name='my_entrypoint'
-                my_garden.my_entrypoint(*args, endpoint='where-to-execute')
-            ```
-        Tip: To access the entrypoint by a different name, use ``my_garden.rename_entrypoint(entrypoint_id, new_name)``.
-        To persist a new name for an entrypoint, re-register it to the garden and specify an alias.
-
-        Parameters
-        ----------
-        doi : str
-            The previously registered Garden's DOI. Raises an
-            exception if not found.
-
-        """
-        garden = local_data.get_local_garden_by_doi(doi)
-
-        if garden is None:
-            raise GardenNotFoundException(
-                f"Could not find any Gardens with identifier {doi}."
-            )
-        return garden
 
     def publish_garden_metadata(self, garden: Garden, register_doi=False) -> None:
         """
@@ -492,39 +389,6 @@ class GardenClient:
         Given a Globus Search advanced query, returns JSON Globus Search result string with gardens as entries.
         """
         return garden_search.search_gardens(query, self.search_client)
-
-    def clone_published_garden(self, doi: str, *, silent: bool = False) -> Garden:
-        """
-        Queries Globus Search for the garden with the given DOI
-        and creates a local clone of it that can be modified.
-
-        NOTE: the clone will have a different DOI than the original
-
-        Parameters
-        ----------
-        doi: The DOI of the garden you want to clone.
-        silent: Whether or not to print any messages.
-
-        Returns
-        -------
-        Garden populated with metadata from the remote metadata record.
-        """
-        published = self.get_published_garden(doi)
-
-        for entrypoint in published.entrypoints:
-            local_data.put_local_entrypoint(entrypoint)
-
-        data = published.model_dump()
-        del data["doi"]  # the clone should not retain the DOI
-
-        garden = self.create_garden(**data)
-
-        if not silent:
-            log_msg = f"Garden {doi} successfully cloned locally and given replacement DOI {garden.doi}."
-            logger.info(log_msg)
-            print(log_msg)
-
-        return garden
 
     def get_published_garden(self, doi: str) -> PublishedGarden:
         """
@@ -639,12 +503,21 @@ class GardenClient:
 
             registered = RegisteredEntrypoint(**record)
             self._update_datacite(registered)
-            local_data.put_local_entrypoint(registered)
+            if local_data._IS_DISABLED:
+                self.backend_client.update_entrypoint(registered)
+            else:
+                local_data.put_local_entrypoint(registered)
 
             # fetch garden we're attaching this entrypoint to (if one was specified)
             garden_doi = metadata.get(f"{key}.garden_doi")
             if garden_doi:
-                garden = local_data.get_local_garden_by_doi(garden_doi)
+                if local_data._IS_DISABLED:
+                    published = self.backend_client.get_garden(garden_doi)
+                    garden = Garden(
+                        **published.model_dump(), _entrypoints=published.entrypoints
+                    )
+                else:
+                    garden = local_data.get_local_garden_by_doi(garden_doi)  # type: ignore[assignment]
                 if garden is None:
                     msg = (
                         f"Could not add entrypoint {key} to garden "
@@ -652,14 +525,23 @@ class GardenClient:
                     )
                     raise ValueError(msg)
                 garden.add_entrypoint(registered.doi, replace=True)
-                local_data.put_local_garden(garden)
+                if local_data._IS_DISABLED:
+                    self.backend_client.update_garden(garden)
+                else:
+                    local_data.put_local_garden(garden)
                 dirty_gardens |= {garden.doi}
                 print(
                     f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden.doi} ({garden.title})!"
                 )
 
         for doi in dirty_gardens:
-            garden = local_data.get_local_garden_by_doi(doi)
+            if local_data._IS_DISABLED:
+                published = self.backend_client.get_garden(doi)
+                garden = Garden(
+                    **published.model_dump(), _entrypoints=published.entrypoints
+                )
+            else:
+                garden = local_data.get_local_garden_by_doi(doi)  # type: ignore[assignment]
             if garden:
                 print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
                 self.publish_garden_metadata(garden)
