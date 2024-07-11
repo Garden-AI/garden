@@ -18,8 +18,8 @@ From: python:3.8-slim
 
 %runscript
    
-    jupyter notebook --notebook-dir=/notebooks --ip 0.0.0.0 --no-browser --allow-root
+    jupyter notebook --notebook-dir=/notebooks --ip 0.0.0.0 --no-browser 
 
 %startscript
   
-    exec /bin/bash -c "jupyter notebook --notebook-dir=/notebooks --ip 0.0.0.0 --no-browser --allow-root"
+    exec /bin/bash -c "jupyter notebook --notebook-dir=/notebooks --ip 0.0.0.0 --no-browser"
