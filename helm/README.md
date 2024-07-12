@@ -1,9 +1,16 @@
 Note: These instructions paraphrase/revise the instructions from the Globus Compute [kubernetes endpoint chart](https://github.com/funcx-faas/funcX/blob/main/helm/README.md) as well as some old DLHub deployment docs.
 
 # Prerequisites
-- `kubectl` installed, configured per instructions [here](https://login-river.ssl-hep.org/login/river) (requires login).
-  - sanity check: `kubectl -n dlhub get pods`. If you get something like `Error from server (Forbidden): pods is forbidden: User "owenpriceskelly@uchicago.edu" cannot list resource "pods" in API group "" in the namespace “dlhub”` you might need to email Lincoln Bryant to get permissions sorted out.
+- `kubectl` installed, configured per instructions [here](https://login-riverdev.ssl-hep.org/login/river) (requires login).
+- permissions for the 'dlhub' namespace on the river kubernetes cluster. Lincoln Bryant was able to get mine sorted out; alternatively you could try river-admin@cs.uchicago.edu.
+
 - `helm` installed. note that helm commands also need to be namespaced with `-n dlhub`.
+
+## Troubleshooting
+  - `kubectl -n dlhub get pods` to see the endpoint pod (`garden-demo-endpoint-<bunchanumbers>`) and current worker pods (`globus-compute-worker-<timestamp>`). `kubectl -n dlhub logs <pod-name>` for the logs.
+  - endpoint pod has status `CreateContainerConfigError`
+    - a system update may have wiped the kubernetes secret -- `kubectl get secrets -n dlhub` should list `garden-demo-ep`. If it doesn't, see the Authentication > Client Credentials section below.
+  - worker pod has status `CrashLoopBackOff`. Often due to a globus compute interchange error after a task has been completed, typically safe to ignore.
 
 # Kubernetes Endpoint Helm Chart
 This chart will deploy a functioning Kubernetes endpoint into your cluster. It
