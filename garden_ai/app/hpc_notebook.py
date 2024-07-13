@@ -20,12 +20,9 @@ def hpc_notebook():
 
 
 @hpc_notebook_app.command()
-def rerun(
-    # notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
-    container_image: str = "hpc-notebook.sif"
-):
+def rerun(container_image: str = "hpc-notebook.sif"):
     current_directory = os.getcwd()
-    notebooks_dir = os.path.join(current_directory,"notebooks")
+    notebooks_dir = os.path.join(current_directory, "notebooks")
 
     if not os.path.exists(container_image):
         logger.error("Not found.")
@@ -35,7 +32,6 @@ def rerun(
 
         tmp_dir = os.path.join(working_directory, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
-
 
         # Step 2: Set environment variables
         os.environ["SINGULARITY_TMPDIR"] = tmp_dir
@@ -60,7 +56,6 @@ def rerun(
 
 @hpc_notebook_app.command()
 def start(
-    # notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
     container_image: str = "hpc-notebook.sif",
 ):
     """Open a notebook file in HPC."""
@@ -72,10 +67,8 @@ def start(
     definition_file = os.path.join(script_dir, "scripts", "Singularity.def")
 
     current_directory = os.getcwd()
-    notebooks_dir = os.path.join(current_directory,"notebooks")
+    notebooks_dir = os.path.join(current_directory, "notebooks")
 
-    # if not os.path.exists(notebooks_dir):
-    #     logger.info(f"Notebooks directory {notebooks_dir} does not exist. Creating it.")
     os.makedirs(notebooks_dir)
 
     # Step 1: Create temporary directory if it doesn't exist
