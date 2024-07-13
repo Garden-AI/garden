@@ -3,7 +3,7 @@ import logging
 import typer
 
 import os
-import shutil
+
 import subprocess
 import tempfile
 
@@ -21,12 +21,12 @@ def hpc_notebook():
 
 @hpc_notebook_app.command()
 def rerun(
-    notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
+    # notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
+    container_image: str = "hpc-notebook.sif"
 ):
-    root = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(root)
-    root = os.path.dirname(root)
-    container_image = os.path.join(root, "hpc-notebook.sif")
+    current_directory = os.getcwd()
+    notebooks_dir = os.path.join(current_directory,"notebooks")
+
     if not os.path.exists(container_image):
         logger.error("Not found.")
         typer.echo("Not found")
@@ -34,9 +34,8 @@ def rerun(
         working_directory = tempfile.mkdtemp()
 
         tmp_dir = os.path.join(working_directory, "tmp")
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
         os.makedirs(tmp_dir, exist_ok=True)
+
 
         # Step 2: Set environment variables
         os.environ["SINGULARITY_TMPDIR"] = tmp_dir
@@ -61,30 +60,28 @@ def rerun(
 
 @hpc_notebook_app.command()
 def start(
-    notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
+    # notebooks_dir: str = typer.Option(..., help="Directory to bind for notebooks."),
+    container_image: str = "hpc-notebook.sif",
 ):
     """Open a notebook file in HPC."""
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     script_dir = os.path.dirname(script_dir)
     script_dir = os.path.dirname(script_dir)
-    container_image = os.path.join(script_dir, "hpc-notebook.sif")
+
     definition_file = os.path.join(script_dir, "scripts", "Singularity.def")
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(script_dir, ".."))
-    definition_file = os.path.abspath(os.path.join(project_root, definition_file))
+    current_directory = os.getcwd()
+    notebooks_dir = os.path.join(current_directory,"notebooks")
 
-    if not os.path.exists(notebooks_dir):
-        logger.info(f"Notebooks directory {notebooks_dir} does not exist. Creating it.")
-        os.makedirs(notebooks_dir)
+    # if not os.path.exists(notebooks_dir):
+    #     logger.info(f"Notebooks directory {notebooks_dir} does not exist. Creating it.")
+    os.makedirs(notebooks_dir)
 
     # Step 1: Create temporary directory if it doesn't exist
     working_directory = tempfile.mkdtemp()
 
     tmp_dir = os.path.join(working_directory, "tmp")
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
     os.makedirs(tmp_dir, exist_ok=True)
 
     # Step 2: Set environment variables
