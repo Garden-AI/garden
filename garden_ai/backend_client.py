@@ -96,10 +96,10 @@ class BackendClient:
         self._post("/gardens", garden.model_dump(mode="json"))
         return
 
-    def update_garden(self, garden: Garden):
+    def update_garden(self, garden: Garden) -> PublishedGarden:
         doi = garden.doi
-        self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
-        return
+        result = self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
+        return PublishedGarden(**result)
 
     def get_garden(self, doi: str) -> PublishedGarden:
         result = self._get(f"/gardens/{doi}")
