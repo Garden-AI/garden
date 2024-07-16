@@ -29,7 +29,7 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import local_data
+from garden_ai import local_data, globus_search
 from garden_ai.constants import GardenConstants
 from garden_ai.backend_client import BackendClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
@@ -359,6 +359,16 @@ class GardenClient:
         Publishes a Garden's expanded_json to the backend /garden-search-route,
         making it visible on our Globus Search index.
         """
+        if globus_search._IS_DISABLED:
+            try:
+                published: PublishedGarden = self.backend_client.update_garden(garden)
+                self._update_datacite(published, register_doi=register_doi)
+            except Exception as e:
+                raise Exception(
+                    f"Request to Garden backend to publish garden failed with error: {str(e)}"
+                )
+            return
+
         published = PublishedGarden.from_garden(garden)
 
         self._update_datacite(published, register_doi=register_doi)
@@ -426,6 +436,11 @@ class GardenClient:
         doi: The DOI of the garden you want to delete.
 
         """
+        if globus_search._IS_DISABLED:
+            # delete is idempotent, ok if called twice (garden delete command)
+            self.backend_client.delete_garden(doi)
+            return
+
         self.backend_client.delete_garden_metadata(doi)
 
     def _get_auth_config_for_ecr_push(self) -> dict:
