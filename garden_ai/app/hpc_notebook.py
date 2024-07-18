@@ -9,10 +9,12 @@ logger = logging.getLogger()
 
 hpc_notebook_app = typer.Typer(name="hpc-notebook")
 
+
 @hpc_notebook_app.callback(no_args_is_help=True)
 def hpc_notebook():
     """sub-commands for editing and publishing from sandboxed notebooks in HPC."""
     pass
+
 
 def start_apptainer(notebooks_dir, container_image):
     process = None
@@ -41,7 +43,9 @@ def start_apptainer(notebooks_dir, container_image):
             ]
             process = subprocess.Popen(run_command)
             process.wait()
-            logger.info("Jupyter Notebook started successfully in the Apptainer container.")
+            logger.info(
+                "Jupyter Notebook started successfully in the Apptainer container."
+            )
     except KeyboardInterrupt:
         if process:
             process.terminate()
@@ -49,6 +53,7 @@ def start_apptainer(notebooks_dir, container_image):
         logger.info("Operation cancelled by user (Ctrl-C).")
         typer.echo("Operation cancelled by user (Ctrl-C).")
         sys.exit(0)
+
 
 @hpc_notebook_app.command()
 def rerun(container_image: str = "hpc-notebook.sif"):
@@ -60,6 +65,7 @@ def rerun(container_image: str = "hpc-notebook.sif"):
         typer.echo("Not found")
     else:
         start_apptainer(notebooks_dir, container_image)
+
 
 @hpc_notebook_app.command()
 def start(container_image: str = "hpc-notebook.sif"):
@@ -101,10 +107,12 @@ def start(container_image: str = "hpc-notebook.sif"):
         logger.error(f"An error occurred: {e}")
         typer.echo("🚧🌱🚧 An unexpected error occurred 🚧🌱🚧")
 
+
 @hpc_notebook_app.command()
 def publish():
     """Publish your hpc-notebook."""
     print("🚧🌱🚧 Under Construction 🚧🌱🚧")
+
 
 if __name__ == "__main__":
     hpc_notebook_app()
