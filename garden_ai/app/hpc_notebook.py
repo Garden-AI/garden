@@ -9,10 +9,12 @@ logger = logging.getLogger()
 
 hpc_notebook_app = typer.Typer(name="hpc-notebook")
 
+
 @hpc_notebook_app.callback(no_args_is_help=True)
 def hpc_notebook():
     """sub-commands for editing and publishing from sandboxed notebooks in HPC."""
     pass
+
 
 def start_apptainer(notebooks_dir, container_image):
     process = None
@@ -41,7 +43,9 @@ def start_apptainer(notebooks_dir, container_image):
             ]
             process = subprocess.Popen(run_command)
             process.wait()
-            logger.info("Jupyter Notebook started successfully in the Apptainer container.")
+            logger.info(
+                "Jupyter Notebook started successfully in the Apptainer container."
+            )
     except KeyboardInterrupt:
         if process:
             process.terminate()
@@ -49,6 +53,7 @@ def start_apptainer(notebooks_dir, container_image):
         logger.info("Operation cancelled by user (Ctrl-C).")
         typer.echo("Operation cancelled by user (Ctrl-C).")
         sys.exit(0)
+
 
 @hpc_notebook_app.command()
 def rerun(container_image: str = "hpc-notebook.sif"):
@@ -61,6 +66,7 @@ def rerun(container_image: str = "hpc-notebook.sif"):
     else:
         start_apptainer(notebooks_dir, container_image)
 
+
 @hpc_notebook_app.command()
 def start(container_image: str = "hpc-notebook.sif"):
     """Open a notebook file in HPC."""
@@ -68,7 +74,9 @@ def start(container_image: str = "hpc-notebook.sif"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Get the absolute path of the definition file located three levels up from the current script's directory
-    definition_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../scripts/Singularity.def'))
+    definition_file = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../scripts/Singularity.def")
+    )
 
     current_directory = os.getcwd()
     notebooks_dir = os.path.join(current_directory, "notebooks")
@@ -100,10 +108,12 @@ def start(container_image: str = "hpc-notebook.sif"):
         logger.error(f"An error occurred: {e}")
         typer.echo("🚧🌱🚧 An unexpected error occurred 🚧🌱🚧")
 
+
 @hpc_notebook_app.command()
 def publish():
     """Publish your hpc-notebook."""
     print("🚧🌱🚧 Under Construction 🚧🌱🚧")
+
 
 if __name__ == "__main__":
     hpc_notebook_app()
