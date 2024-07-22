@@ -71,8 +71,6 @@ def rerun(container_image: str = "hpc-notebook.sif"):
 def start(container_image: str = "hpc-notebook.sif"):
     """Open a notebook file in HPC."""
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
     # Get the absolute path of the definition file located three levels up from the current script's directory
     definition_file = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../../scripts/Singularity.def")
