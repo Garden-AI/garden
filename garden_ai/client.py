@@ -529,7 +529,9 @@ class GardenClient:
                 if local_data._IS_DISABLED:
                     published = self.backend_client.get_garden(garden_doi)
                     garden = Garden(
-                        **published.model_dump(), _entrypoints=published.entrypoints
+                        **published.model_dump(),
+                        _entrypoints=published.entrypoints,
+                        entrypoint_ids=[ep.doi for ep in published.entrypoints],
                     )
                 else:
                     garden = local_data.get_local_garden_by_doi(garden_doi)  # type: ignore[assignment]
