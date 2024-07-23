@@ -17,9 +17,12 @@ def do_not_sleep(mocker):
 
 
 @pytest.fixture(autouse=True)
-def mock_IS_DISABLED_toggles(mocker):
-    mocker.patch("garden_ai.local_data._IS_DISABLED", return_value=False)
-    mocker.patch("garden_ai.globus_search._IS_DISABLED", return_value=False)
+def mock_local_data_collect_entrypoints(mocker, registered_entrypoint_toy_example):
+    mocker.patch(
+        "garden_ai.Garden._collect_entrypoints",
+        return_value=[registered_entrypoint_toy_example],
+    )
+    yield
 
 
 @pytest.fixture(autouse=True)

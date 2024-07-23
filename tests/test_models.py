@@ -6,10 +6,8 @@ from unittest.mock import MagicMock
 from garden_ai import (
     EntrypointMetadata,
     PublishedGarden,
-    RegisteredEntrypoint,
     garden_entrypoint,
     garden_step,
-    local_data,
 )
 from garden_ai.model_connectors import GitHubConnector, HFConnector
 from garden_ai.model_connectors.exceptions import ConnectorLFSError
@@ -43,17 +41,6 @@ def test_entrypoint_datacite(registered_entrypoint_toy_example):
     assert isinstance(data["creators"], list)
     assert isinstance(data["titles"], list)
     assert data["publisher"] == "thegardens.ai"
-
-
-def test_garden_can_access_entrypoint_as_attribute(
-    mocker, database_with_connected_entrypoint
-):
-    mocker.patch(
-        "garden_ai.local_data.LOCAL_STORAGE", new=database_with_connected_entrypoint
-    )
-    garden = local_data.get_local_garden_by_doi("10.23677/fake-doi")
-    published = PublishedGarden.from_garden(garden)
-    assert isinstance(published.fixture_entrypoint, RegisteredEntrypoint)
 
 
 def test_garden_entrypoint_decorator():
