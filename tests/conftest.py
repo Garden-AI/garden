@@ -17,6 +17,15 @@ def do_not_sleep(mocker):
 
 
 @pytest.fixture(autouse=True)
+def mock_local_data_collect_entrypoints(mocker, registered_entrypoint_toy_example):
+    mocker.patch(
+        "garden_ai.Garden._collect_entrypoints",
+        return_value=[registered_entrypoint_toy_example],
+    )
+    yield
+
+
+@pytest.fixture(autouse=True)
 def auto_mock_GardenClient_mint_draft_doi(mocker):
     mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
