@@ -27,7 +27,7 @@ repository = "https://github.com/Garden-AI/garden"
 documentation = "https://garden-ai.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 dill = [ # same constraints as globus compute
 # https://github.com/funcx-faas/funcX/blob/369807addb855e1964d55bada67c0a374ba44896/compute_sdk/setup.py#L17
      {version = "0.3.5.1", python = "<3.11"},
