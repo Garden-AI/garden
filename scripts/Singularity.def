@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: python:3.8-slim
+
+%post
+    # install Jupyter Notebook
+    apt-get update && apt-get install -y \
+        python3-pip
+
+    pip install jupyter
+
+    # create notebook directory
+    mkdir /notebooks
+
+%environment
+   
+    export PATH=/usr/local/bin:$PATH
+    export HOME=/root
+
+%runscript
+   
+    jupyter notebook --notebook-dir=/notebooks --ip 0.0.0.0 --no-browser 
+
+%startscript
+  
+    exec /bin/bash -c "jupyter notebook --notebook-dir=/notebooks --ip 0.0.0.0 --no-browser"
