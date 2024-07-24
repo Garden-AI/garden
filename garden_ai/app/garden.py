@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime
 from typing import List, Optional
@@ -9,21 +8,20 @@ from globus_sdk import SearchAPIError
 from rich.prompt import Prompt
 
 from garden_ai import local_data
-from garden_ai.client import GardenClient
-from garden_ai.globus_search.garden_search import (
-    RemoteGardenException,
-)
-from garden_ai.utils.dois import is_doi_registered
-from garden_ai.utils.interactive_cli import gui_edit_garden_entity
-from garden_ai.constants import GardenConstants
-from garden_ai.gardens import Garden, PublishedGarden
-from garden_ai.entrypoints import RegisteredEntrypoint
+from garden_ai.app.completion import complete_entrypoint, complete_garden
 from garden_ai.app.console import (
+    DOI_STATUS_COLUMN,
     console,
     get_local_garden_rich_table,
-    DOI_STATUS_COLUMN,
 )
-from garden_ai.app.completion import complete_garden, complete_entrypoint
+from garden_ai.client import GardenClient
+from garden_ai.constants import GardenConstants
+from garden_ai.entrypoints import RegisteredEntrypoint
+from garden_ai.gardens import Garden, Garden_, PublishedGarden
+from garden_ai.globus_search.garden_search import RemoteGardenException
+from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.utils.dois import is_doi_registered
+from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 
 logger = logging.getLogger()
 
@@ -140,23 +138,28 @@ def create(
 
     client = GardenClient()
 
-    garden = client.create_garden(
-        authors=authors,
-        title=title,
-        year=year,
-        description=description,
-        contributors=contributors,
-        tags=tags,
+    doi = client._mint_draft_doi()
+
+    garden: Garden_ = client.create_garden(
+        GardenMetadata(
+            doi=doi,
+            authors=authors,
+            title=title,
+            year=year,
+            description=description,
+            contributors=contributors,
+            tags=tags,
+        )
     )
 
-    _put_garden(garden)
+    _put_garden(garden.metadata)
 
     if verbose:
-        metadata = json.dumps(_get_garden(garden.doi))
-        rich.print_json(metadata)
+        rich.print_json(garden.metadata.model_dump_json())
 
-    if garden.doi:
-        rich.print(f"Garden '{garden.title}' created with DOI: {garden.doi}")
+    rich.print(
+        f"Garden '{garden.metadata.title}' created with DOI: {garden.metadata.doi}"
+    )
 
     return
 

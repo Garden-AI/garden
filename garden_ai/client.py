@@ -5,7 +5,7 @@ import os
 import time
 import base64
 from pathlib import Path
-from typing import List, Union, Optional
+from typing import Union, Optional
 from uuid import UUID
 import urllib
 
@@ -33,12 +33,13 @@ from garden_ai import local_data, globus_search
 from garden_ai.constants import GardenConstants
 from garden_ai.backend_client import BackendClient
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden, PublishedGarden
+from garden_ai.gardens import Garden, PublishedGarden, Garden_
 from garden_ai.globus_search import garden_search
 from garden_ai.local_data import EntrypointNotFoundException
 from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
+from garden_ai.schemas.garden import GardenMetadata
 
 logger = logging.getLogger()
 
@@ -226,59 +227,17 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(
-        self, authors: List[str] = [], title: str = "", **kwargs
-    ) -> Garden:
-        """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
-
-        Up to user preference, metadata (e.g. `title="My Garden"` or
-        `version="1.0.0"`) can be provided here as kwargs.
-
-        This might be useful if, for example, one wanted to build a Garden starting
-        from an already-existing Garden or pre-populated dict of template
-        metadata. Otherwise, the user is free to incrementally populate or
-        replace even the Garden object's required fields (e.g. `pea_garden.title
-        = "Experiments on Plant Hybridization"`) at any time -- field validation
-        is still performed.
-
-        Parameters
-        ----------
-        authors : List[str]
-            The personal names of main researchers/authors involved in
-            cultivating the Garden. Names should be formatted "Family, Given",
-            e.g. `authors=["Mendel, Gregor"]`. Affiliations/institutional
-            relationships should be added via the Garden object helper method
-            `add_affiliation`, e.g.  `pea_garden.add_affiliation({"Mendel,
-            Gregor": "St Thomas' Abbey"})`. (NOTE: add_affiliation not yet implemented)
-
-        title : str
-            An official name or title for the Garden. This attribute must be set
-            in order to register a DOI.
-
-        **kwargs :
-            Metadata for the new Garden object. Keyword arguments matching
-            required or recommended fields will be (where necessary) coerced to the
-            appropriate type and validated per the Garden metadata spec.
-
-        Examples
-        --------
-            gc = GardenClient()
-            pea_garden = gc.create_garden(
-                authors=["Mendel, Gregor"],
-                title="Experiments on Plant Hybridization",
-                subjects=["Peas"]
+    def create_garden(self, metadata: GardenMetadata) -> Garden_:
+        """Initialize a new Garden object and its Entrypoints specified in the GardenMetadata."""
+        # collect entrypoints, if any
+        if metadata.entrypoint_ids:
+            entrypoints = self.backend_client.get_entrypoints(
+                dois=metadata.entrypoint_ids
             )
-            pea_garden.year = 1863
-            pea_garden.tags += ["Genetics"] # (didn't have the word for it earlier)
-        """
-        data = dict(kwargs)
-        if authors:
-            data["authors"] = authors
-        if title:
-            data["title"] = title
-        data["doi"] = data.get("doi") or self._mint_draft_doi()
+        else:
+            entrypoints = []
 
-        return Garden(**data)
+        return Garden_(metadata, entrypoints)
 
     def register_entrypoint_doi(self, entrypoint: RegisteredEntrypoint) -> None:
         """
