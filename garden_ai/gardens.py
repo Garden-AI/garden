@@ -22,7 +22,7 @@ from garden_ai.utils.misc import JSON
 from garden_ai.utils.pydantic import unique_items_validator
 from garden_ai.schemas.garden import GardenMetadata
 
-from .datacite import (
+from garden_ai.schemas.datacite import (
     Contributor,
     Creator,
     DataciteSchema,
@@ -33,16 +33,21 @@ from .datacite import (
     Title,
     Types,
 )
-from .entrypoints import RegisteredEntrypoint
+from .entrypoints import Entrypoint_, RegisteredEntrypoint
 
 logger = logging.getLogger()
 require_unique_items = AfterValidator(unique_items_validator)
 
 
 class Garden_:
-    def __init__(self, metadata: GardenMetadata, entrypoints: list):
+    def __init__(self, metadata: GardenMetadata, entrypoints: list[Entrypoint_]):
+        if set(metadata.entrypoint_ids) != set([ep.doi for ep in entrypoints]):
+            raise ValueError(
+                "Expected `entrypoints` DOIs to match `metadata.entrypoint_ids`."
+            )
         self.metadata = metadata
         self.entrypoints = entrypoints
+        return
 
     def __getattr__(self, name):
         # enables method-like syntax for calling entrypoints from this garden.

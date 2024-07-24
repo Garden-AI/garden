@@ -5,23 +5,21 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Optional, Union
-from typing_extensions import Annotated
+from typing import Any, List, Union
 
 from pydantic import (
     AnyUrl,
     BaseModel,
-    Field,
-    confloat,
-    AfterValidator,
-    RootModel,
     ConfigDict,
+    Field,
+    RootModel,
+    confloat,
     field_validator,
 )
-from garden_ai.utils.pydantic import unique_items_validator, const_item_validator
 
+from garden_ai.utils.pydantic import const_item_validator
 
-require_unique_items = AfterValidator(unique_items_validator)
+from .schema_utils import UniqueList
 
 
 class Identifier(BaseModel):
@@ -31,10 +29,10 @@ class Identifier(BaseModel):
 
 class Subject(BaseModel):
     subject: str
-    subjectScheme: Optional[str] = None
-    schemeUri: Optional[AnyUrl] = None
-    valueUri: Optional[AnyUrl] = None
-    lang: Optional[str] = None
+    subjectScheme: str | None = None
+    schemeUri: AnyUrl | None = None
+    valueUri: AnyUrl | None = None
+    lang: str | None = None
 
 
 class AlternateIdentifier(BaseModel):
@@ -43,18 +41,18 @@ class AlternateIdentifier(BaseModel):
 
 
 class RightsListItem(BaseModel):
-    rights: Optional[str] = None
-    rightsUri: Optional[AnyUrl] = None
-    rightsIdentifier: Optional[str] = None
-    rightsIdentifierScheme: Optional[str] = None
-    schemeUri: Optional[AnyUrl] = None
-    lang: Optional[str] = None
+    rights: str | None = None
+    rightsUri: AnyUrl | None = None
+    rightsIdentifier: str | None = None
+    rightsIdentifierScheme: str | None = None
+    schemeUri: AnyUrl | None = None
+    lang: str | None = None
 
 
 class Container(BaseModel):
-    type: Optional[str] = None
-    title: Optional[str] = None
-    firstPage: Optional[str] = None
+    type: str | None = None
+    title: str | None = None
+    firstPage: str | None = None
 
 
 class NameType(str, Enum):
@@ -65,22 +63,22 @@ class NameType(str, Enum):
 class NameIdentifier(BaseModel):
     nameIdentifier: str
     nameIdentifierScheme: str
-    schemeUri: Optional[AnyUrl] = None
+    schemeUri: AnyUrl | None = None
 
 
 class NameIdentifiers(RootModel):
-    root: Annotated[List[NameIdentifier], require_unique_items]
+    root: UniqueList[NameIdentifier]
 
 
 class Affiliation(BaseModel):
     name: str
-    affiliationIdentifier: Optional[str] = None
-    affiliationIdentifierScheme: Optional[str] = None
-    schemeUri: Optional[AnyUrl] = None
+    affiliationIdentifier: str | None = None
+    affiliationIdentifierScheme: str | None = None
+    schemeUri: AnyUrl | None = None
 
 
 class Affiliations(RootModel):
-    root: Annotated[List[Affiliation], require_unique_items]
+    root: UniqueList[Affiliation]
 
 
 class TitleType(str, Enum):
@@ -240,51 +238,51 @@ class Types(BaseModel):
 
 class Creator(BaseModel):
     name: str
-    nameType: Optional[NameType] = None
-    givenName: Optional[str] = None
-    familyName: Optional[str] = None
-    nameIdentifiers: Optional[NameIdentifiers] = None
-    affiliation: Optional[Affiliations] = None
-    lang: Optional[str] = None
+    nameType: NameType | None = None
+    givenName: str | None = None
+    familyName: str | None = None
+    nameIdentifiers: NameIdentifiers | None = None
+    affiliation: Affiliations | None = None
+    lang: str | None = None
 
 
 class Title(BaseModel):
     title: str
-    titleType: Optional[TitleType] = None
-    lang: Optional[str] = None
+    titleType: TitleType | None = None
+    lang: str | None = None
 
 
 class Contributor(BaseModel):
     contributorType: ContributorType
     name: str
-    nameType: Optional[NameType] = None
-    givenName: Optional[str] = None
-    familyName: Optional[str] = None
-    nameIdentifiers: Optional[NameIdentifiers] = None
-    affiliation: Optional[Affiliations] = None
-    lang: Optional[str] = None
+    nameType: NameType | None = None
+    givenName: str | None = None
+    familyName: str | None = None
+    nameIdentifiers: NameIdentifiers | None = None
+    affiliation: Affiliations | None = None
+    lang: str | None = None
 
 
 class DateModel(BaseModel):
     date: Date
     dateType: DateType
-    dateInformation: Optional[str] = None
+    dateInformation: str | None = None
 
 
 class RelatedIdentifier(BaseModel):
     relatedIdentifier: str
     relatedIdentifierType: RelatedIdentifierType
     relationType: RelationType
-    relatedMetadataScheme: Optional[str] = None
-    schemeUri: Optional[AnyUrl] = None
-    schemeType: Optional[str] = None
-    resourceTypeGeneral: Optional[ResourceTypeGeneral] = None
+    relatedMetadataScheme: str | None = None
+    schemeUri: AnyUrl | None = None
+    schemeType: str | None = None
+    resourceTypeGeneral: ResourceTypeGeneral | None = None
 
 
 class Description(BaseModel):
     description: str
     descriptionType: DescriptionType
-    lang: Optional[str] = None
+    lang: str | None = None
 
 
 class GeoLocationBox(BaseModel):
@@ -296,11 +294,11 @@ class GeoLocationBox(BaseModel):
 
 class FundingReference(BaseModel):
     funderName: str
-    funderIdentifier: Optional[str] = None
-    funderIdentifierType: Optional[FunderIdentifierType] = None
-    awardNumber: Optional[str] = None
-    awardUri: Optional[AnyUrl] = None
-    awardTitle: Optional[str] = None
+    funderIdentifier: str | None = None
+    funderIdentifierType: FunderIdentifierType | None = None
+    awardNumber: str | None = None
+    awardUri: AnyUrl | None = None
+    awardTitle: str | None = None
 
 
 class GeoLocationPoint(BaseModel):
@@ -310,54 +308,41 @@ class GeoLocationPoint(BaseModel):
 
 class GeoLocationPolygon(BaseModel):
     polygonPoints: List[GeoLocationPoint] = Field(..., min_length=4)
-    inPolygonPoint: Optional[GeoLocationPoint] = None
+    inPolygonPoint: GeoLocationPoint | None = None
 
 
 class GeoLocation(BaseModel):
-    geoLocationPlace: Optional[str] = None
-    geoLocationPoint: Optional[GeoLocationPoint] = None
-    geoLocationBox: Optional[GeoLocationBox] = None
-    geoLocationPolygons: Annotated[
-        Optional[List[GeoLocationPolygon]], require_unique_items
-    ] = None
+    geoLocationPlace: str | None = None
+    geoLocationPoint: GeoLocationPoint | None = None
+    geoLocationBox: GeoLocationBox | None = None
+    geoLocationPolygons: UniqueList[GeoLocationPolygon] | None = None
 
 
 class DataciteSchema(BaseModel):
-
     model_config = ConfigDict(extra="forbid")
 
     # tweaked identifiers, no longer requires at least one. (only change from generated code)
     types: Types
-    identifiers: Annotated[
-        List[Identifier],
-        Field(..., min_length=1),
-        require_unique_items,
-    ]
-    creators: Annotated[List[Creator], Field(..., min_length=1), require_unique_items]
-    titles: Annotated[List[Title], Field(..., min_length=1), require_unique_items]
+    identifiers: UniqueList[Identifier]
+    creators: UniqueList[Creator]
+    titles: UniqueList[Title]
     publisher: str
     publicationYear: str
-    subjects: Annotated[Optional[List[Subject]], require_unique_items] = None
-    contributors: Annotated[Optional[List[Contributor]], require_unique_items] = None
-    dates: Annotated[Optional[List[DateModel]], require_unique_items] = None
-    language: Optional[str] = None
-    alternateIdentifiers: Annotated[
-        Optional[List[AlternateIdentifier]], require_unique_items
-    ] = None
-    relatedIdentifiers: Annotated[
-        Optional[List[RelatedIdentifier]], require_unique_items
-    ] = None
-    sizes: Annotated[Optional[List[str]], require_unique_items] = None
-    formats: Annotated[Optional[List[str]], require_unique_items] = None
-    version: Optional[str] = None
-    rightsList: Annotated[Optional[List[RightsListItem]], require_unique_items] = None
-    descriptions: Annotated[Optional[List[Description]], require_unique_items] = None
-    geoLocations: Annotated[Optional[List[GeoLocation]], require_unique_items] = None
-    fundingReferences: Annotated[
-        Optional[List[FundingReference]], require_unique_items
-    ] = None
+    subjects: UniqueList[Subject] | None = None
+    contributors: UniqueList[Contributor] | None = None
+    dates: UniqueList[DateModel] | None = None
+    language: str | None = None
+    alternateIdentifiers: UniqueList[AlternateIdentifier] | None = None
+    relatedIdentifiers: UniqueList[RelatedIdentifier] | None = None
+    sizes: UniqueList[str] | None = None
+    formats: UniqueList[str] | None = None
+    version: str | None = None
+    rightsList: UniqueList[RightsListItem] | None = None
+    descriptions: UniqueList[Description] | None = None
+    geoLocations: UniqueList[GeoLocation] | None = None
+    fundingReferences: UniqueList[FundingReference] | None = None
     schemaVersion: str = "http://datacite.org/schema/kernel-4"
-    container: Optional[Container] = None
+    container: Container | None = None
 
     @field_validator("schemaVersion")
     @classmethod

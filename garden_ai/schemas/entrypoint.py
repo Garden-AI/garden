@@ -1,9 +1,18 @@
+from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field, BaseModel
-from datetime import datetime
+from pydantic import BaseModel, Field
 
-from .schema_utils import UniqueList, Url
+from .datacite import (
+    Creator,
+    DataciteSchema,
+    Description,
+    Identifier,
+    Subject,
+    Title,
+    Types,
+)
+from .schema_utils import JsonStr, UniqueList, Url
 
 
 class RepositoryMetadata(BaseModel):
@@ -67,3 +76,22 @@ class RegisteredEntrypointMetadata(EntrypointMetadata):
     requirements: list[str] = Field(default_factory=list)
     test_functions: list[str] = Field(default_factory=list)
     owner_identity_id: UUID | None = None
+
+    def datacite_json(self) -> JsonStr:
+        """Convert metadata into a DataCite-schema-compliant JSON string."""
+        return DataciteSchema(
+            identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
+            types=Types(resourceType="Pretrained AI/ML Model", resourceTypeGeneral="Software"),  # type: ignore
+            creators=[Creator(name=name) for name in self.authors],
+            titles=[Title(title=self.title)],
+            publisher="thegardens.ai",
+            publicationYear=self.year,
+            subjects=[Subject(subject=tag) for tag in self.tags],
+            descriptions=(
+                [
+                    Description(description=self.description, descriptionType="Other")  # type: ignore
+                ]
+                if self.description
+                else None
+            ),
+        ).model_dump_json()

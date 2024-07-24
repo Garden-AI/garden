@@ -4,17 +4,17 @@ import inspect
 import logging
 from datetime import datetime
 from functools import wraps
-from typing import Any, List, Optional, Union, Callable
-from typing_extensions import Annotated
+from typing import Any, Callable, List, Optional, Union
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
 import globus_sdk
-from pydantic import BaseModel, Field, PrivateAttr, AfterValidator
+from pydantic import AfterValidator, BaseModel, Field, PrivateAttr
+from typing_extensions import Annotated
 
 from garden_ai.constants import GardenConstants
-from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
-from garden_ai.datacite import (
+from garden_ai.model_connectors import DatasetConnection, ModelMetadata
+from garden_ai.schemas.datacite import (
     Creator,
     DataciteSchema,
     Description,
@@ -23,16 +23,15 @@ from garden_ai.datacite import (
     Title,
     Types,
 )
-from garden_ai.model_connectors import ModelMetadata, DatasetConnection
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.utils.misc import JSON
 from garden_ai.utils.pydantic import unique_items_validator
-
 
 logger = logging.getLogger()
 require_unique_items = AfterValidator(unique_items_validator)
 
 
-class Entrypoint:
+class Entrypoint_:
     def __init__(self, metadata: RegisteredEntrypointMetadata):
         self.metadata = metadata
 

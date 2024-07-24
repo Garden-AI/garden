@@ -1,4 +1,4 @@
-from typing import Annotated, TypeVar
+from typing import Annotated, TypeVar, TypeAlias
 
 from pydantic import (
     AfterValidator,
@@ -9,6 +9,8 @@ from pydantic import (
 from pydantic_core import PydanticCustomError
 
 T = TypeVar("T")
+
+JsonStr: TypeAlias = str
 
 
 # see: https://github.com/pydantic/pydantic-core/pull/820#issuecomment-1670475909
