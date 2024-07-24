@@ -41,7 +41,7 @@ require_unique_items = AfterValidator(unique_items_validator)
 
 class Garden_:
     def __init__(self, metadata: GardenMetadata, entrypoints: list[Entrypoint_]):
-        if set(metadata.entrypoint_ids) != set([ep.doi for ep in entrypoints]):
+        if set(metadata.entrypoint_ids) != set([ep.metadata.doi for ep in entrypoints]):
             raise ValueError(
                 "Expected `entrypoints` DOIs to match `metadata.entrypoint_ids`."
             )

@@ -22,12 +22,16 @@ from garden_ai.utils.pydantic import const_item_validator
 from .schema_utils import UniqueList
 
 
-class Identifier(BaseModel):
+class _DataCiteBaseModel(BaseModel, frozen=True):
+    pass
+
+
+class Identifier(_DataCiteBaseModel):
     identifier: str
     identifierType: str
 
 
-class Subject(BaseModel):
+class Subject(_DataCiteBaseModel):
     subject: str
     subjectScheme: str | None = None
     schemeUri: AnyUrl | None = None
@@ -35,12 +39,12 @@ class Subject(BaseModel):
     lang: str | None = None
 
 
-class AlternateIdentifier(BaseModel):
+class AlternateIdentifier(_DataCiteBaseModel):
     alternateIdentifier: str
     alternateIdentifierType: str
 
 
-class RightsListItem(BaseModel):
+class RightsListItem(_DataCiteBaseModel):
     rights: str | None = None
     rightsUri: AnyUrl | None = None
     rightsIdentifier: str | None = None
@@ -49,7 +53,7 @@ class RightsListItem(BaseModel):
     lang: str | None = None
 
 
-class Container(BaseModel):
+class Container(_DataCiteBaseModel):
     type: str | None = None
     title: str | None = None
     firstPage: str | None = None
@@ -60,7 +64,7 @@ class NameType(str, Enum):
     Personal = "Personal"
 
 
-class NameIdentifier(BaseModel):
+class NameIdentifier(_DataCiteBaseModel):
     nameIdentifier: str
     nameIdentifierScheme: str
     schemeUri: AnyUrl | None = None
@@ -70,7 +74,7 @@ class NameIdentifiers(RootModel):
     root: UniqueList[NameIdentifier]
 
 
-class Affiliation(BaseModel):
+class Affiliation(_DataCiteBaseModel):
     name: str
     affiliationIdentifier: str | None = None
     affiliationIdentifierScheme: str | None = None
@@ -231,12 +235,12 @@ class FunderIdentifierType(str, Enum):
     Other = "Other"
 
 
-class Types(BaseModel):
+class Types(_DataCiteBaseModel):
     resourceType: str
     resourceTypeGeneral: ResourceTypeGeneral
 
 
-class Creator(BaseModel):
+class Creator(_DataCiteBaseModel):
     name: str
     nameType: NameType | None = None
     givenName: str | None = None
@@ -246,13 +250,13 @@ class Creator(BaseModel):
     lang: str | None = None
 
 
-class Title(BaseModel):
+class Title(_DataCiteBaseModel):
     title: str
     titleType: TitleType | None = None
     lang: str | None = None
 
 
-class Contributor(BaseModel):
+class Contributor(_DataCiteBaseModel):
     contributorType: ContributorType
     name: str
     nameType: NameType | None = None
@@ -263,13 +267,13 @@ class Contributor(BaseModel):
     lang: str | None = None
 
 
-class DateModel(BaseModel):
+class DateModel(_DataCiteBaseModel):
     date: Date
     dateType: DateType
     dateInformation: str | None = None
 
 
-class RelatedIdentifier(BaseModel):
+class RelatedIdentifier(_DataCiteBaseModel):
     relatedIdentifier: str
     relatedIdentifierType: RelatedIdentifierType
     relationType: RelationType
@@ -279,20 +283,20 @@ class RelatedIdentifier(BaseModel):
     resourceTypeGeneral: ResourceTypeGeneral | None = None
 
 
-class Description(BaseModel):
+class Description(_DataCiteBaseModel):
     description: str
     descriptionType: DescriptionType
     lang: str | None = None
 
 
-class GeoLocationBox(BaseModel):
+class GeoLocationBox(_DataCiteBaseModel):
     westBoundLongitude: Longitude
     eastBoundLongitude: Longitude
     southBoundLatitude: Latitude
     northBoundLatitude: Latitude
 
 
-class FundingReference(BaseModel):
+class FundingReference(_DataCiteBaseModel):
     funderName: str
     funderIdentifier: str | None = None
     funderIdentifierType: FunderIdentifierType | None = None
@@ -301,24 +305,24 @@ class FundingReference(BaseModel):
     awardTitle: str | None = None
 
 
-class GeoLocationPoint(BaseModel):
+class GeoLocationPoint(_DataCiteBaseModel):
     pointLongitude: Longitude
     pointLatitude: Latitude
 
 
-class GeoLocationPolygon(BaseModel):
+class GeoLocationPolygon(_DataCiteBaseModel):
     polygonPoints: List[GeoLocationPoint] = Field(..., min_length=4)
     inPolygonPoint: GeoLocationPoint | None = None
 
 
-class GeoLocation(BaseModel):
+class GeoLocation(_DataCiteBaseModel):
     geoLocationPlace: str | None = None
     geoLocationPoint: GeoLocationPoint | None = None
     geoLocationBox: GeoLocationBox | None = None
     geoLocationPolygons: UniqueList[GeoLocationPolygon] | None = None
 
 
-class DataciteSchema(BaseModel):
+class DataciteSchema(_DataCiteBaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # tweaked identifiers, no longer requires at least one. (only change from generated code)

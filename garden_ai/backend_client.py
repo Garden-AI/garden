@@ -224,3 +224,6 @@ class BackendClient:
             ]
             gardens += [Garden_(metadata, entrypoints)]
         return gardens
+
+    def get_user_info(self) -> dict:
+        return self._get("/users")

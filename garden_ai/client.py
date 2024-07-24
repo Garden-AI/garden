@@ -268,7 +268,8 @@ class GardenClient:
     def register_garden_doi(self, garden_doi: str) -> None:
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)
         self._update_datacite(garden_meta, register_doi=True)
-        return
+        garden_meta.doi_is_draft = False
+        self.backend_client.put_garden(garden_meta)
 
     def register_entrypoint_doi(self, entrypoint: RegisteredEntrypoint) -> None:
         """
@@ -343,6 +344,10 @@ class GardenClient:
 
     def get_email(self) -> str:
         return local_data._get_user_email()
+
+    def get_user_identity_id(self) -> str:
+        user_data = self.backend_client.get_user_info()
+        return user_data["identity_id"]
 
     def publish_garden_metadata(self, garden: Garden, register_doi=False) -> None:
         """
