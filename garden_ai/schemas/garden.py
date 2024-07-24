@@ -31,8 +31,10 @@ class GardenMetadata(BaseModel):
     tags: UniqueList[str] = Field(default_factory=list)
     version: str = "0.0.1"
     entrypoint_aliases: dict[str, str] = Field(default_factory=dict)
-    owner_identity_id: UUID | None = None
     entrypoint_ids: UniqueList[str] = Field(default_factory=list)
+
+    owner_identity_id: UUID | None = None
+    id: int | None = None
 
     def datacite_json(self) -> JsonStr:
         """Convert metadata into a DataCite-schema-compliant JSON string."""

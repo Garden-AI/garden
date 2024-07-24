@@ -44,7 +44,7 @@ class ModelMetadata(BaseModel, protected_namespaces=()):
 
 
 class EntrypointMetadata(BaseModel):
-    """Class holding user-provided metadata about an entrypoint."""
+    """Class containing user-provided metadata about an entrypoint."""
 
     # only title and authors are hard requirements
     title: str
@@ -61,7 +61,7 @@ class EntrypointMetadata(BaseModel):
 
 
 class RegisteredEntrypointMetadata(EntrypointMetadata):
-    """Class for garden-provided metadata about an entrypoint"""
+    """Class containing user- and garden-provided metadata about an entrypoint"""
 
     doi: str
     doi_is_draft: bool
@@ -76,6 +76,7 @@ class RegisteredEntrypointMetadata(EntrypointMetadata):
     requirements: list[str] = Field(default_factory=list)
     test_functions: list[str] = Field(default_factory=list)
     owner_identity_id: UUID | None = None
+    id: int | None = None
 
     def datacite_json(self) -> JsonStr:
         """Convert metadata into a DataCite-schema-compliant JSON string."""
