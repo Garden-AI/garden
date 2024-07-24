@@ -16,11 +16,9 @@ from garden_ai.app.console import (
 )
 from garden_ai.client import GardenClient
 from garden_ai.constants import GardenConstants
-from garden_ai.entrypoints import RegisteredEntrypoint
-from garden_ai.gardens import Garden, Garden_, PublishedGarden
-from garden_ai.globus_search.garden_search import RemoteGardenException
+from garden_ai.gardens import Garden_
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
-from garden_ai.utils.dois import is_doi_registered
 from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 
 logger = logging.getLogger()
@@ -151,16 +149,11 @@ def create(
             tags=tags,
         )
     )
-
-    _put_garden(garden.metadata)
-
     if verbose:
         rich.print_json(garden.metadata.model_dump_json())
-
     rich.print(
         f"Garden '{garden.metadata.title}' created with DOI: {garden.metadata.doi}"
     )
-
     return
 
 
@@ -237,7 +230,7 @@ def search(
 
 @garden_app.command(no_args_is_help=True)
 def add_entrypoint(
-    garden_id: str = typer.Option(
+    garden_doi: str = typer.Option(
         ...,
         "-g",
         "--garden",
@@ -246,9 +239,9 @@ def add_entrypoint(
         help="The name of the garden you want to add an entrypoint to",
         rich_help_panel="Required",
     ),
-    entrypoint_id: str = typer.Option(
+    entrypoint_doi: str = typer.Option(
         ...,
-        "-p",
+        "-e",
         "--entrypoint",
         autocompletion=complete_entrypoint,
         prompt="Please enter the DOI of an entrypoint",
@@ -265,153 +258,43 @@ def add_entrypoint(
             "name used when the entrypoint was first registered."
         ),
     ),
-):
-    """Add a registered entrypoint to a garden"""
-
-    garden = _get_garden(garden_id)
-    if not garden:
-        raise typer.Exit(code=1)
-    to_add = _get_entrypoint(entrypoint_id)
-    if not to_add:
-        raise typer.Exit(code=1)
-
-    if to_add.doi in garden.entrypoint_ids:
-        if entrypoint_alias:
-            old_name = garden.entrypoint_aliases.get(to_add.doi) or to_add.short_name
-            print(
-                f"Entrypoint {entrypoint_id} is already in Garden {garden_id} as {old_name}. Renaming to {entrypoint_alias}."
-            )
-            garden.rename_entrypoint(to_add.doi, entrypoint_alias)
-    else:
-        garden.add_entrypoint(entrypoint_id, entrypoint_alias)
-    _put_garden(garden)
-    logger.info(f"Added entrypoint {entrypoint_id} to Garden {garden_id}")
-
-
-@garden_app.command(no_args_is_help=True)
-def publish(
-    garden_id: str = typer.Option(
-        ...,
-        "-g",
-        "--garden",
-        autocompletion=complete_garden,
-        prompt="Please enter the DOI of a garden",
-        help="The DOI of the garden you want to publish",
-        rich_help_panel="Required",
+    verbose: bool = typer.Option(
+        False, help="If true, print Garden's metadata when successful."
     ),
 ):
-    """Push data about a Garden stored to Globus Search so that other users can search for it"""
-
+    """Add a registered entrypoint to a garden"""
     client = GardenClient()
-    garden = _get_garden(garden_id)
-    if not garden:
-        raise typer.Exit(code=1)
-    try:
-        client.publish_garden_metadata(garden)
-    except RemoteGardenException as e:
-        logger.fatal(f"Could not publish garden {garden_id}")
-        logger.fatal(str(e))
-        raise typer.Exit(code=1) from e
-    console.print(
-        f"Successfully published garden {garden.title} with DOI {garden.doi}!"
+    garden = client.add_entrypoint_to_garden(
+        entrypoint_doi, garden_doi, alias=entrypoint_alias
     )
+    print(f"Added entrypoint {entrypoint_doi} to Garden {garden_doi}.")
+    if verbose:
+        print(garden.metadata)
 
 
 @garden_app.command(no_args_is_help=True)
 def delete(
-    garden_id: str = typer.Option(
+    garden_doi: str = typer.Argument(
         ...,
-        "-g",
-        "--garden",
         autocompletion=complete_garden,
         prompt="Please enter the DOI of a garden",
         help="The DOI of the garden you want to publish",
         rich_help_panel="Required",
     ),
-    dangerous_override: bool = typer.Option(
-        False,
-        "--dangerous-override",
-        help=(
-            "Power users only! Deletes a garden even if it is not in your local data.json file."
-        ),
-        hidden=True,
-    ),
 ):
     """Delete a Garden from your local storage and the thegardens.ai website"""
     client = GardenClient()
-    if local_data._IS_DISABLED:
-        # revamped api handles delete permission, so just re-raise the error if not allowed to delete
-        typer.confirm(
-            f"You are about to delete garden {garden_id} from the thegardens.ai search index. "
-            "Are you sure you want to proceed?",
-            abort=True,
-        )
-        try:
-            client.backend_client.delete_garden(garden_id)
-            client.delete_garden_from_search_index(garden_id)
-        except Exception as e:
-            raise typer.Exit(code=1) from e
-        console.print(f"Garden {garden_id} has been deleted from thegardens.ai.")
-        return
-
-    # Does the user have this garden locally?
-    garden = _get_garden(garden_id)
-
-    # No, and they're not using the override
-    if not garden and not dangerous_override:
-        raise typer.Exit(code=1)
-
-    # Is the garden DOI not in a draft state?
-    is_registered = is_doi_registered(garden_id)
-    if is_registered:
-        if garden:
-            # It has a registered DOI and they have the garden locally.
-            typer.confirm(
-                f"The DOI {garden_id} is registered, so we can't remove it from the search index. "
-                "You can still delete it from your local data. "
-                "Would you like to delete it locally?",
-                abort=True,
-            )
-            client.delete_garden_locally(garden_id)
-            console.print(f"Garden {garden_id} has been deleted locally.")
-            return
-
-        if not garden:
-            # It has a registered DOI and they don't have the garden locally - nothing to do
-            console.print(
-                f"The DOI {garden_id} is registered, so we can't remove it from the search index. "
-                "You also don't have it in your local data. "
-                "There is nothing to delete.",
-            )
-            raise typer.Exit(code=1)
-
-    if garden:
-        # They have the garden locally and it was just a draft DOI.
-        # We can delete from both places.
-        typer.confirm(
-            f"You are about to delete garden {garden_id} ({garden.title}) "
-            "from your local data and the thegardens.ai search index.\n"
-            f"Are you sure you want to proceed?",
-            abort=True,
-        )
-        client.delete_garden_locally(garden_id)
-        client.delete_garden_from_search_index(garden_id)
-        console.print(
-            f"Garden {garden_id} has been deleted locally and from thegardens.ai."
-        )
-        return
-
-    if not garden and dangerous_override:
-        # They do not have the garden locally, but they have used the override.
-        # It's a draft DOI so we can remove the record from our search index.
-        typer.confirm(
-            f"You are about to delete garden {garden_id} from the thegardens.ai search index. "
-            "Are you sure you want to proceed?",
-            abort=True,
-        )
-        client.delete_garden_from_search_index(garden_id)
-        console.print(f"Garden {garden_id} has been deleted from thegardens.ai.")
-        return
+    # revamped api handles delete permission, so just re-raise the error if not allowed to delete
+    typer.confirm(
+        f"You are about to delete garden {garden_doi} from the thegardens.ai search index. "
+        "Are you sure you want to proceed?",
+        abort=True,
+    )
+    try:
+        client.backend_client.delete_garden(garden_doi)
+    except Exception as e:
+        raise typer.Exit(code=1) from e
+    console.print(f"Garden {garden_doi} has been deleted from thegardens.ai.")
 
 
 @garden_app.command(no_args_is_help=True)
@@ -432,12 +315,7 @@ def register_doi(
         The DOI of the garden to be registered.
     """
     client = GardenClient()
-    garden = _get_garden(doi)
-    if not garden:
-        raise typer.Exit(code=1)
-    garden.doi_is_draft = False
-    client.publish_garden_metadata(garden, register_doi=True)
-    _put_garden(garden)
+    client.register_garden_doi(doi)
     rich.print(f"DOI {doi} has been moved out of draft status and can now be cited.")
 
 
@@ -459,16 +337,9 @@ if not local_data._IS_DISABLED:
         console.print(table)
 
 
-def _get_entrypoint(entrypoint_id: str) -> Optional[RegisteredEntrypoint]:
-    if local_data._IS_DISABLED:
-        client = GardenClient()
-        entrypoint = client.backend_client.get_entrypoint(entrypoint_id)
-    else:
-        entrypoint = local_data.get_local_entrypoint_by_doi(entrypoint_id)  # type: ignore[assignment]
-    if not entrypoint:
-        logger.warning(f"Could not find entrypoint with id {entrypoint_id}")
-        return None
-    return entrypoint
+def _get_entrypoint_meta(entrypoint_id: str) -> RegisteredEntrypointMetadata | None:
+    client = GardenClient()
+    return client.backend_client.get_entrypoint_metadata(entrypoint_id)
 
 
 @garden_app.command(no_args_is_help=True)
@@ -481,13 +352,12 @@ def show(
     ),
 ):
     """Shows all info for some Gardens"""
-
-    for garden_id in garden_ids:
-        garden = _get_garden(garden_id)
-        if garden:
-            rich.print(f"Garden: {garden_id} local data:")
-            rich.print_json(json=garden.model_dump_json())
-            rich.print("\n")
+    client = GardenClient()
+    gardens = client.backend_client.get_gardens(dois=garden_ids)
+    for garden in gardens:
+        rich.print(f"Garden {garden.metadata.doi} data:")
+        rich.print_json(json=garden.metadata.model_dump_json())
+        rich.print("\n")
 
 
 @garden_app.command()
@@ -516,32 +386,20 @@ def edit(
     )
 
 
-def _get_garden(garden_id: str) -> Optional[Garden]:
-    if local_data._IS_DISABLED:
-        client = GardenClient()
-        published: PublishedGarden = client.backend_client.get_garden(garden_id)
-        # keep contract consistent with local_data equivalent, which returns a plain Garden
-        # note: the _entrypoints and kwarg is to skip the redundant/expensive
-        # _collect_entrypoints call in Garden.__init__
-        garden = Garden(
-            **published.model_dump(),
-            entrypoint_ids=[ep.doi for ep in published.entrypoints],
-            _entrypoints=published.entrypoints,
-        )
-    else:
-        garden = local_data.get_local_garden_by_doi(garden_id)  # type: ignore[assignment]
-    if not garden:
-        logger.warning(f"Could not find local garden with id {garden_id}")
+def _get_garden(garden_id: str) -> Garden_ | None:
+    client = GardenClient()
+    try:
+        garden = client.backend_client.get_garden(garden_id)
+        return garden
+    except Exception as e:
+        logger.warning(f"Failed to get garden with doi {garden_id}: {e}")
         return None
-    return garden
 
 
-def _put_garden(garden):
-    if local_data._IS_DISABLED:
-        client = GardenClient()
-        client.backend_client.update_garden(garden)
-    else:
-        local_data.put_local_garden(garden)
+def _put_garden(garden: Garden_):
+    client = GardenClient()
+    client.backend_client.put_garden(garden.metadata)
+    return
 
 
 def create_query(

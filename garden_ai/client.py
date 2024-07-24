@@ -228,16 +228,47 @@ class GardenClient:
         return authorizer
 
     def create_garden(self, metadata: GardenMetadata) -> Garden_:
-        """Initialize a new Garden object and its Entrypoints specified in the GardenMetadata."""
-        # collect entrypoints, if any
-        if metadata.entrypoint_ids:
-            entrypoints = self.backend_client.get_entrypoints(
-                dois=metadata.entrypoint_ids
-            )
-        else:
-            entrypoints = []
+        """Initialize a new Garden object from GardenMetadata"""
+        return self.backend_client.put_garden(metadata)
 
-        return Garden_(metadata, entrypoints)
+    def add_entrypoint_to_garden(
+        self, entrypoint_doi: str, garden_doi: str, alias: str | None = None
+    ) -> Garden_:
+        """Add an entrypoint to a garden via the backend.
+
+        Parameters
+        ----------
+        entrypoint_doi:
+            The DOI of the entrypoint you want to attach. User does not need to
+            own this entrypoint.
+        garden_doi:
+            The DOI of the target garden. User must own this garden or request
+            will fail.
+        alias:
+            If provided, an alternative name this garden should use when
+            accessing the entrypoint as an attribute.
+
+        Returns
+        -------
+        Garden_
+            Rehydrated ``Garden_`` with the entrypoint attached.
+        """
+        garden_meta = self.backend_client.get_garden_metadata(garden_doi)
+        if entrypoint_doi not in garden_meta.entrypoint_ids:
+            garden_meta.entrypoint_ids += [entrypoint_doi]
+
+        if alias:
+            assert (
+                alias.isidentifier()
+            ), "entrypoint alias must be a valid python identifier."
+            garden_meta.entrypoint_aliases[entrypoint_doi] = alias
+
+        return self.backend_client.put_garden(garden_meta)
+
+    def register_garden_doi(self, garden_doi: str) -> None:
+        garden_meta = self.backend_client.get_garden_metadata(garden_doi)
+        self._update_datacite(garden_meta, register_doi=True)
+        return
 
     def register_entrypoint_doi(self, entrypoint: RegisteredEntrypoint) -> None:
         """

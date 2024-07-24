@@ -110,9 +110,33 @@ class BackendClient:
         result = self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
         return PublishedGarden(**result)
 
-    def get_garden(self, doi: str) -> PublishedGarden:
+    def get_garden(self, doi: str) -> Garden_:
+        response = self._get(f"/gardens/{doi}")
+        metadata = GardenMetadata(**response)
+        entrypoints = [
+            Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
+            for ep_data in response["entrypoints"]
+        ]
+        return Garden_(metadata, entrypoints)
+
+    def put_garden(self, garden_meta: GardenMetadata) -> Garden_:
+        doi = garden_meta.doi
+        response = self._put(f"/gardens/{doi}", garden_meta.model_dump(mode="json"))
+
+        updated_meta = GardenMetadata(**response)
+        updated_entrypoints = [
+            Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
+            for ep_data in response["entrypoints"]
+        ]
+        return Garden_(updated_meta, updated_entrypoints)
+
+    def get_garden_metadata(self, doi: str) -> GardenMetadata:
         result = self._get(f"/gardens/{doi}")
-        return PublishedGarden(**result)
+        return GardenMetadata(**result)
+
+    def get_entrypoint_metadata(self, doi: str) -> RegisteredEntrypointMetadata:
+        result = self._get(f"/entrypoints/{doi}")
+        return RegisteredEntrypointMetadata(**result)
 
     def delete_garden(self, doi: str):
         self._delete(f"/gardens/{doi}", {})
