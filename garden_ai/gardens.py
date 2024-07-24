@@ -20,6 +20,7 @@ from tabulate import tabulate
 
 from garden_ai.utils.misc import JSON
 from garden_ai.utils.pydantic import unique_items_validator
+from garden_ai.schemas.garden import GardenMetadata
 
 from .datacite import (
     Contributor,
@@ -36,6 +37,74 @@ from .entrypoints import RegisteredEntrypoint
 
 logger = logging.getLogger()
 require_unique_items = AfterValidator(unique_items_validator)
+
+
+class Garden_:
+    def __init__(self, metadata: GardenMetadata, entrypoints: list):
+        self.metadata = metadata
+        self.entrypoints = entrypoints
+
+    def __getattr__(self, name):
+        # enables method-like syntax for calling entrypoints from this garden.
+        # note: this is only called as a fallback when __getattribute__ raises an exception,
+        # existing attributes are not affected by overriding this
+        message_extra = ""
+        for entrypoint in self.entrypoints:
+            short_name = entrypoint.metadata.short_name
+            alias = (
+                self.metadata.entrypoint_aliases.get(entrypoint.metadata.doi)
+                or short_name
+            )
+            if name == alias:
+                return entrypoint
+            elif name == short_name:
+                message_extra = f" Did you mean {alias}?"
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'."
+            + message_extra
+        )
+
+    def __dir__(self):
+        # this gets us jupyter/ipython/repl tab-completion of entrypoint names
+        entrypoint_names = []
+        for entrypoint in self.entrypoints:
+            name = self.metadata.entrypoint_aliases.get(entrypoint.metadata.doi)
+            if name is None:
+                name = entrypoint.metadata.short_name
+            entrypoint_names += [name]
+
+        return list(super().__dir__()) + entrypoint_names
+
+    def _repr_html_(self) -> str:
+        data = self.metadata.model_dump()
+        data["entrypoints"] = [ep.metadata.model_dump() for ep in self.entrypoints]
+
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{data['title']}</h2>"
+        details = f"<p>Authors: {', '.join(data['authors'])}<br>DOI: {data['doi']}</p>"
+        entrypoints = "<h3>Entrypoints</h3>" + tabulate(
+            [
+                {
+                    key.title(): str(entrypoint[key])
+                    for key in ("short_name", "title", "authors", "doi")
+                }
+                for entrypoint in data["entrypoints"]
+            ],
+            headers="keys",
+            tablefmt="html",
+        )
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, str(val))
+                for field, val in data.items()
+                if field not in ("title", "authors", "doi", "short_name")
+                and "entrypoint" not in field
+                and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + entrypoints + optional
 
 
 class Garden(BaseModel):

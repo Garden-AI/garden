@@ -13,6 +13,7 @@ import globus_sdk
 from pydantic import BaseModel, Field, PrivateAttr, AfterValidator
 
 from garden_ai.constants import GardenConstants
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.datacite import (
     Creator,
     DataciteSchema,
@@ -29,6 +30,80 @@ from garden_ai.utils.pydantic import unique_items_validator
 
 logger = logging.getLogger()
 require_unique_items = AfterValidator(unique_items_validator)
+
+
+class Entrypoint:
+    def __init__(self, metadata: RegisteredEntrypointMetadata):
+        self.metadata = metadata
+
+    def __call__(
+        self,
+        *args,
+        endpoint: str | UUID | None = GardenConstants.DEMO_ENDPOINT,
+        **kwargs,
+    ) -> Any:
+        """Remotely execute this entrypoint's function from its function uuid.
+
+        Args:
+            *args (Any):
+                Input data passed directly to the entrypoint function.
+            endpoint (UUID | str | None):
+                Where to run the entrypoint. Must be a valid Globus Compute endpoint UUID.
+                If no endpoint is specified, the default demo endpoint is used.
+            **kwargs (Any):
+                Additional keyword arguments passed directly to the entrypoint function.
+
+        Returns:
+            Results from invoking the entrypoint function with the given input data.
+        """
+        # delayed import so dill doesn't try to serialize console ref
+        from garden_ai.app.console import console
+
+        if self._is_dlhub_entrypoint():
+            args = ({"inputs": args[0], "parameters": [], "debug": False},)
+
+        with globus_compute_sdk.Executor(endpoint_id=str(endpoint)) as gce:
+            with console.status(
+                f"[bold green] executing remotely on endpoint {endpoint}"
+            ):
+                future = gce.submit_to_registered_function(
+                    function_id=str(self.metadata.func_uuid), args=args, kwargs=kwargs
+                )
+                result = future.result()
+                if self._is_dlhub_entrypoint():
+                    inner_result = result[0]
+                    if inner_result[1]["success"]:
+                        return inner_result[0]
+                    else:
+                        return result
+                else:
+                    return result
+
+    def _is_dlhub_entrypoint(self) -> bool:
+        """
+        There are 13 DLHub models that we converted to Garden entrypoints.
+        We know their DOIs. We can use this to check if a DOI is a DLHub entrypoint.
+        If so, we convert the user's input into the format that DLHub models expect.
+        We also just pass along the model output to the user and strip the rest.
+        """
+        return self.metadata.doi in GardenConstants.DLHUB_DOIS
+
+    def _repr_html_(self) -> str:
+        # delayed import so dill doesn't try to serialize tabulate ref
+        from tabulate import tabulate
+
+        style = "<style>th {text-align: left;}</style>"
+        title = f"<h2>{self.title}</h2>"
+        details = f"<p>Authors: {', '.join(self.metadata.authors)}<br>DOI: {self.metadata.doi}</p>"
+        optional = "<h3>Additional data</h3>" + tabulate(
+            [
+                (field, val)
+                for field, val in self.metadata.model_dump().items()
+                if field not in ("title", "authors", "doi") and val
+            ],
+            tablefmt="html",
+        )
+        return style + title + details + optional
 
 
 class Repository(BaseModel):

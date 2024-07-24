@@ -35,7 +35,7 @@ class ModelMetadata(BaseModel, protected_namespaces=()):
 
 
 class EntrypointMetadata(BaseModel):
-    """Schema for user-provided metadata about an entrypoint."""
+    """Class holding user-provided metadata about an entrypoint."""
 
     # only title and authors are hard requirements
     title: str
@@ -52,7 +52,7 @@ class EntrypointMetadata(BaseModel):
 
 
 class RegisteredEntrypointMetadata(EntrypointMetadata):
-    """Full entrypoint metadata"""
+    """Class for garden-provided metadata about an entrypoint"""
 
     doi: str
     doi_is_draft: bool
