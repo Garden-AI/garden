@@ -29,7 +29,7 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import globus_search, local_data
+from garden_ai import globus_search
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import RegisteredEntrypoint
@@ -38,7 +38,6 @@ from garden_ai.gardens import Garden_, PublishedGarden
 from garden_ai.globus_search import garden_search
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
-from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 logger = logging.getLogger()
 
@@ -136,8 +135,6 @@ class GardenClient:
                 self.auth_client, GardenClient.scopes.test_scope
             )
 
-            local_data._store_user_email(GardenConstants.GARDEN_TEST_EMAIL)
-
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
 
@@ -211,8 +208,6 @@ class GardenClient:
             self.auth_key_store.store(response)
             tokens = response.by_resource_server[resource_server]
 
-            email = extract_email_from_globus_jwt(response.data["id_token"])
-            local_data._store_user_email(email)
         else:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(resource_server)
@@ -376,17 +371,6 @@ class GardenClient:
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         return garden
 
-    def delete_garden_locally(self, doi: str) -> None:
-        """
-        Deletes a garden from the local database.
-
-        Parameters
-        ----------
-        doi: The DOI of the garden you want to delete.
-
-        """
-        local_data.delete_local_garden_by_doi(doi)
-
     def delete_garden_from_search_index(self, doi: str) -> None:
         """
         Deletes a garden from the local search index.
@@ -477,10 +461,8 @@ class GardenClient:
 
             registered = RegisteredEntrypoint(**record)
             self._update_datacite(registered)
-            if local_data._IS_DISABLED:
-                self.backend_client.update_entrypoint(registered)
-            else:
-                local_data.put_local_entrypoint(registered)
+
+            self.backend_client.update_entrypoint(registered)
 
             # fetch garden we're attaching this entrypoint to (if one was specified)
             garden_doi = metadata.get(f"{key}.garden_doi")
