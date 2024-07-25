@@ -34,7 +34,7 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden, Garden_, PublishedGarden
+from garden_ai.gardens import Garden_, PublishedGarden
 from garden_ai.globus_search import garden_search
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
@@ -339,31 +339,6 @@ class GardenClient:
         user_data = self.backend_client.get_user_info()
         return user_data["identity_id"]
 
-    def publish_garden_metadata(self, garden: Garden, register_doi=False) -> None:
-        """
-        Publishes a Garden's expanded_json to the backend /garden-search-route,
-        making it visible on our Globus Search index.
-        """
-        if globus_search._IS_DISABLED:
-            try:
-                published: PublishedGarden = self.backend_client.update_garden(garden)
-                self._update_datacite(published, register_doi=register_doi)
-            except Exception as e:
-                raise Exception(
-                    f"Request to Garden backend to publish garden failed with error: {str(e)}"
-                )
-            return
-
-        published = PublishedGarden.from_garden(garden)
-
-        self._update_datacite(published, register_doi=register_doi)
-        try:
-            self.backend_client.publish_garden_metadata(published)
-        except Exception as e:
-            raise Exception(
-                f"Request to Garden backend to publish garden failed with error: {str(e)}"
-            )
-
     def upload_notebook(self, notebook_contents: dict, notebook_name: str) -> str:
         """
         POSTs a notebook's contents to the backend /notebook route
@@ -472,7 +447,6 @@ class GardenClient:
             When attempting to add an entrypoint to a garden which does not exist
             in local data.
         """
-        dirty_gardens = set()  # it's good for gardens to get dirty, actually
 
         container_uuid = UUID(
             self.compute_client.register_container(full_image_uri, "docker")
@@ -511,34 +485,8 @@ class GardenClient:
             # fetch garden we're attaching this entrypoint to (if one was specified)
             garden_doi = metadata.get(f"{key}.garden_doi")
             if garden_doi:
-                if local_data._IS_DISABLED:
-                    published = self.backend_client.get_garden(garden_doi)
-                    garden = Garden(
-                        **published.model_dump(),
-                        _entrypoints=published.entrypoints,
-                        entrypoint_ids=[ep.doi for ep in published.entrypoints],
-                    )
-                else:
-                    garden = local_data.get_local_garden_by_doi(garden_doi)  # type: ignore[assignment]
-                if garden is None:
-                    msg = (
-                        f"Could not add entrypoint {key} to garden "
-                        f"{garden_doi}: could not find local garden with that DOI"
-                    )
-                    raise ValueError(msg)
-                garden.add_entrypoint(registered.doi, replace=True)
-                if local_data._IS_DISABLED:
-                    self.backend_client.update_garden(garden)
-                else:
-                    local_data.put_local_garden(garden)
-                dirty_gardens |= {garden.doi}
+                garden_meta = self.backend_client.get_garden_metadata(garden_doi)
+                self.add_entrypoint_to_garden(registered.doi, garden_doi)
                 print(
-                    f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden.doi} ({garden.title})!"
+                    f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden_meta.doi} ({garden_meta.title})!"
                 )
-        if local_data._IS_DISABLED:
-            return  # no need to republish; already updated with backend
-        for doi in dirty_gardens:
-            garden = local_data.get_local_garden_by_doi(doi)  # type: ignore[assignment]
-            if garden:
-                print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
-                self.publish_garden_metadata(garden)
