@@ -182,11 +182,12 @@ def register_doi(
 def list():
     """Lists all owned entrypoints."""
 
+    client = GardenClient()
     resource_table_cols = ["doi", "title", "description", "doi_is_draft"]
     table_name = "My Entrypoints"
 
     table = get_owned_entrypoints_rich_table(
-        resource_table_cols=resource_table_cols, table_name=table_name
+        client, resource_table_cols=resource_table_cols, table_name=table_name
     )
     console.print("\n")
     console.print(table)
