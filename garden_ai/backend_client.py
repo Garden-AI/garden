@@ -138,6 +138,16 @@ class BackendClient:
         result = self._get(f"/entrypoints/{doi}")
         return RegisteredEntrypointMetadata(**result)
 
+    def put_entrypoint_metadata(
+        self, entrypoint_meta: RegisteredEntrypointMetadata
+    ) -> RegisteredEntrypointMetadata:
+        doi = entrypoint_meta.doi
+        response = self._put(
+            f"/entrypoints/{doi}", entrypoint_meta.model_dump(mode="json")
+        )
+        updated_entrypoint = RegisteredEntrypointMetadata(**response)
+        return updated_entrypoint
+
     def delete_garden(self, doi: str):
         self._delete(f"/gardens/{doi}", {})
 
@@ -154,9 +164,9 @@ class BackendClient:
         payload = entrypoint.model_dump(mode="json", exclude={"steps"})
         self._put(f"/entrypoints/{doi}", payload)
 
-    def get_entrypoint(self, doi: str) -> RegisteredEntrypoint:
+    def get_entrypoint(self, doi: str) -> Entrypoint_:
         result = self._get(f"/entrypoints/{doi}")
-        return RegisteredEntrypoint(**result)
+        return Entrypoint_(RegisteredEntrypointMetadata(**result))
 
     def delete_entrypoint(self, doi: str):
         self._delete(f"/entrypoints/{doi}", {})

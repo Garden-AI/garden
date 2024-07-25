@@ -1,18 +1,18 @@
 # mypy: disable-error-code="import"
+import base64
 import json
 import logging
 import os
 import time
-import base64
-from pathlib import Path
-from typing import Union, Optional
-from uuid import UUID
 import urllib
+from pathlib import Path
+from typing import Optional, Union
+from uuid import UUID
 
 import typer
 from globus_compute_sdk import Client
-from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
 from globus_compute_sdk.sdk.login_manager import ComputeScopes
+from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
 from globus_compute_sdk.serialize.concretes import DillCodeTextInspect
 from globus_sdk import (
     AuthAPIError,
@@ -29,17 +29,16 @@ from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import local_data, globus_search
-from garden_ai.constants import GardenConstants
+from garden_ai import globus_search, local_data
 from garden_ai.backend_client import BackendClient
-from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden, PublishedGarden, Garden_
-from garden_ai.globus_search import garden_search
-from garden_ai.local_data import EntrypointNotFoundException
+from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import RegisteredEntrypoint
+from garden_ai.garden_file_adapter import GardenFileAdapter
+from garden_ai.gardens import Garden, Garden_, PublishedGarden
+from garden_ai.globus_search import garden_search
+from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
 from garden_ai.utils.misc import extract_email_from_globus_jwt
-from garden_ai.schemas.garden import GardenMetadata
 
 logger = logging.getLogger()
 
@@ -271,16 +270,14 @@ class GardenClient:
         garden_meta.doi_is_draft = False
         self.backend_client.put_garden(garden_meta)
 
-    def register_entrypoint_doi(self, entrypoint: RegisteredEntrypoint) -> None:
+    def register_entrypoint_doi(self, entrypoint_doi: str) -> None:
         """
         Makes an entrypoint's DOI registered and findable with DataCite via the Garden backend.
         """
-        self._update_datacite(entrypoint, register_doi=True)
-        entrypoint.doi_is_draft = False
-        if local_data._IS_DISABLED:
-            self.backend_client.update_entrypoint(entrypoint)
-        else:
-            local_data.put_local_entrypoint(entrypoint)
+        entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
+        self._update_datacite(entrypoint_meta, register_doi=True)
+        entrypoint_meta.doi_is_draft = False
+        self.backend_client.put_entrypoint_metadata(entrypoint_meta)
 
     def _mint_draft_doi(self) -> str:
         """Register a new draft DOI with DataCite via Garden backend."""
@@ -332,18 +329,11 @@ class GardenClient:
         EntrypointNotFoundException
             Raised when no known entrypoint exists with the given identifier.
         """
-        if local_data._IS_DISABLED:
-            return self.backend_client.get_entrypoint(doi)
-        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
+        return self.backend_client.get_entrypoint(doi)
 
-        if entrypoint is None:
-            raise EntrypointNotFoundException(
-                f"Could not find any entrypoints with DOI {doi}."
-            )
-        return entrypoint
-
-    def get_email(self) -> str:
-        return local_data._get_user_email()
+    def get_email(self) -> str | None:
+        user_data = self.backend_client.get_user_info()
+        return user_data.get("email") or user_data.get("username")
 
     def get_user_identity_id(self) -> str:
         user_data = self.backend_client.get_user_info()

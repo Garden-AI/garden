@@ -354,16 +354,14 @@ def edit(
     """Edit a Garden's metadata"""
 
     client = GardenClient()
-    garden = client.backend_client.get_garden(doi)
-    if not garden:
+    garden_meta = client.backend_client.get_garden_metadata(doi)
+    if not garden_meta:
         raise typer.Exit(code=1)
 
     string_fields = ["title", "description", "year"]
     list_fields = ["authors", "contributors", "tags"]
 
-    edited_garden_meta = gui_edit_garden_entity(
-        garden.metadata, string_fields, list_fields
-    )
+    edited_garden_meta = gui_edit_garden_entity(garden_meta, string_fields, list_fields)
     client.backend_client.put_garden(edited_garden_meta)
     console.print(f"Updated garden {doi}.")
 
