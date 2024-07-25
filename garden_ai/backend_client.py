@@ -101,10 +101,6 @@ class BackendClient:
             region_name="us-east-1",
         )
 
-    def create_garden(self, garden: Garden):
-        self._post("/gardens", garden.model_dump(mode="json"))
-        return
-
     def update_garden(self, garden: Garden) -> PublishedGarden:
         doi = garden.doi
         result = self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
@@ -123,12 +119,14 @@ class BackendClient:
         doi = garden_meta.doi
         response = self._put(f"/gardens/{doi}", garden_meta.model_dump(mode="json"))
 
-        updated_meta = GardenMetadata(**response)
-        updated_entrypoints = [
+        updated_garden_meta = GardenMetadata(**response)
+        entrypoints = [
             Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
             for ep_data in response["entrypoints"]
         ]
-        return Garden_(updated_meta, updated_entrypoints)
+        # 'entrypoint_ids' not included in response schema
+        updated_garden_meta.entrypoint_ids = [ep.metadata.doi for ep in entrypoints]
+        return Garden_(updated_garden_meta, entrypoints)
 
     def get_garden_metadata(self, doi: str) -> GardenMetadata:
         result = self._get(f"/gardens/{doi}")
@@ -232,6 +230,7 @@ class BackendClient:
                 Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
                 for ep_data in data["entrypoints"]
             ]
+            metadata.entrypoint_ids = [ep.metadata.doi for ep in entrypoints]
             gardens += [Garden_(metadata, entrypoints)]
         return gardens
 
