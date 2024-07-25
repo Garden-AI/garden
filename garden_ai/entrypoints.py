@@ -368,9 +368,8 @@ def garden_entrypoint(
     datasets: Optional[List[DatasetConnection]] = None,
 ):
     def decorate(func):
-        # If the user is lazy and uses same EntrypointMetadata object for multiple entrypoints,
-        # garden ends up writing over the metadata of the single EntrypointMetadata object for each entrypoint.
-        # Dirty fix for this is recreating new EntrypointMetadata object.
+        # If the user is lazy and uses same EntrypointMetadata object for
+        # multiple entrypoints, avoid overwriting the metadata of object
         entrypoint_metadata = metadata.model_copy(deep=True)
 
         if datasets:
@@ -383,13 +382,10 @@ def garden_entrypoint(
                 # datasets implicitly connected from model metadata
                 entrypoint_metadata.datasets += model_meta.datasets
 
-        entrypoint_metadata._as_step = Step(
-            function_text=inspect.getsource(func),
-            function_name=func.__name__,
-            description="Top level entrypoint function",
-        )
         entrypoint_metadata._target_garden_doi = garden_doi
-        # let func carry its own metadata
+        entrypoint_metadata._function_text = inspect.getsource(func)
+
+        # save metadata to function object for the publishing script
         func._garden_entrypoint = entrypoint_metadata
         return func
 
@@ -473,17 +469,5 @@ def entrypoint_test(entrypoint_func: Callable):
                 return result
 
         return inner
-
-    return decorate
-
-
-def garden_step(description: Optional[str] = None):
-    def decorate(func):
-        func._garden_step = Step(
-            function_text=inspect.getsource(func),
-            function_name=func.__name__,
-            description=description,
-        )
-        return func
 
     return decorate

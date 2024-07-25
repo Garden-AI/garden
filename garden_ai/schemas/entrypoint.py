@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from .datacite import (
     Creator,
@@ -58,13 +58,21 @@ class EntrypointMetadata(BaseModel):
     repositories: list[RepositoryMetadata] = Field(default_factory=list)
     papers: list[PaperMetadata] = Field(default_factory=list)
     datasets: list[DatasetMetadata] = Field(default_factory=list)
+    # private; populated directly by decorators
+    _test_functions: list[str] = PrivateAttr(default_factory=list)
+    _target_garden_doi: str | None = None
+    _function_text: str | None = None
 
 
 class RegisteredEntrypointMetadata(EntrypointMetadata):
     """Class containing user- and garden-provided metadata about an entrypoint"""
 
     doi: str
-    doi_is_draft: bool
+    doi_is_draft: bool = True
+
+    short_name: str
+    test_functions: list[str] = Field(default_factory=list)
+    requirements: list[str] = Field(default_factory=list)
 
     func_uuid: UUID
     container_uuid: UUID
@@ -73,8 +81,6 @@ class RegisteredEntrypointMetadata(EntrypointMetadata):
     notebook_url: Url
     function_text: str
 
-    requirements: list[str] = Field(default_factory=list)
-    test_functions: list[str] = Field(default_factory=list)
     owner_identity_id: UUID | None = None
     id: int | None = None
 

@@ -36,6 +36,9 @@ from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden_, PublishedGarden
 from garden_ai.globus_search import garden_search
+from garden_ai.schemas.entrypoint import (
+    RegisteredEntrypointMetadata,
+)
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
 
@@ -436,39 +439,31 @@ class GardenClient:
             self.compute_client.register_container(full_image_uri, "docker")
         )
 
-        common_steps = metadata.pop("steps")
-
-        for key, record in metadata.items():
-            if "." in key:
-                # skip "{key}.garden_doi" and "{key}.entrypoint_step" for now
-                continue
-
-            # register function & populate RegisteredEntrypoint fields
-            to_register = make_function_to_register(key)
-            record["container_uuid"] = container_uuid
-            record["func_uuid"] = self.compute_client.register_function(
+        for function_name, record in metadata.items():
+            # register function & populate remaining metadata fields
+            to_register = make_function_to_register(function_name)
+            func_uuid = self.compute_client.register_function(
                 to_register, container_uuid=str(container_uuid), public=True
             )
-            entrypoint_step = metadata.get(f"{key}.entrypoint_step")
-            all_steps = common_steps[:]
-            all_steps.append(entrypoint_step)
-            record["steps"] = all_steps
-            record["doi"] = record.get("doi") or self._mint_draft_doi()
-            record["short_name"] = record.get("short_name") or key
-            record["notebook_url"] = notebook_url
-            record["base_image_uri"] = base_image_uri
-            record["full_image_uri"] = full_image_uri
+            doi = self._mint_draft_doi()
+            registered_meta = RegisteredEntrypointMetadata(
+                doi=doi,
+                doi_is_draft=True,
+                func_uuid=func_uuid,
+                container_uuid=container_uuid,
+                notebook_url=notebook_url,
+                full_image_uri=full_image_uri,
+                **record,
+            )
+            self._update_datacite(registered_meta)
 
-            registered = RegisteredEntrypoint(**record)
-            self._update_datacite(registered)
+            self.backend_client.put_entrypoint_metadata(registered_meta)
 
-            self.backend_client.update_entrypoint(registered)
-
-            # fetch garden we're attaching this entrypoint to (if one was specified)
-            garden_doi = metadata.get(f"{key}.garden_doi")
-            if garden_doi:
+            # attach entrypoint to garden (if one was specified)
+            if "target_garden_doi" in record:
+                garden_doi = record["target_garden_doi"]
                 garden_meta = self.backend_client.get_garden_metadata(garden_doi)
-                self.add_entrypoint_to_garden(registered.doi, garden_doi)
+                self.add_entrypoint_to_garden(registered_meta.doi, garden_doi)
                 print(
-                    f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden_meta.doi} ({garden_meta.title})!"
+                    f"Added entrypoint {registered_meta.doi} ({registered_meta.short_name}) to garden {garden_meta.doi} ({garden_meta.title})!"
                 )

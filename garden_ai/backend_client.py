@@ -9,7 +9,7 @@ from garden_ai.constants import GardenConstants
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.entrypoints import RegisteredEntrypoint, Entrypoint_
-from garden_ai.gardens import Garden, PublishedGarden, Garden_
+from garden_ai.gardens import PublishedGarden, Garden_
 
 logger = logging.getLogger()
 
@@ -101,7 +101,7 @@ class BackendClient:
             region_name="us-east-1",
         )
 
-    def update_garden(self, garden: Garden) -> PublishedGarden:
+    def update_garden(self, garden) -> PublishedGarden:
         doi = garden.doi
         result = self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
         return PublishedGarden(**result)

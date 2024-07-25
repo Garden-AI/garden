@@ -12,10 +12,10 @@ def post_save_hook(model, os_path, contents_manager):
         # If notebook_metadata.json does not exist,
         # no edits to the notebooks metadata have been made with widget, so just exit
         if not os.path.isfile("./notebook_metadata.json"):
-            print("Could not file notebook_metadata.json")
+            print("Could not find file notebook_metadata.json")
             return
 
-        # Load picked metadata and save to notebooks metadata
+        # Load metadata and save to notebooks metadata
         with open("./notebook_metadata.json", "rb") as f:
             nb_meta = json.load(f)
         assert all(field in nb_meta for field in list(NotebookMetadata.model_fields))
