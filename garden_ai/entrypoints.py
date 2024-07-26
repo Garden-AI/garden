@@ -21,7 +21,7 @@ from garden_ai.schemas.entrypoint import (
 logger = logging.getLogger()
 
 
-class Entrypoint_:
+class Entrypoint:
     def __init__(self, metadata: RegisteredEntrypointMetadata):
         self.metadata = metadata
 

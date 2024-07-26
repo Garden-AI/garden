@@ -8,13 +8,13 @@ from tabulate import tabulate
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 
-from .entrypoints import Entrypoint_
+from .entrypoints import Entrypoint
 
 logger = logging.getLogger()
 
 
 class Garden:
-    def __init__(self, metadata: GardenMetadata, entrypoints: list[Entrypoint_]):
+    def __init__(self, metadata: GardenMetadata, entrypoints: list[Entrypoint]):
         if set(metadata.entrypoint_ids) != set([ep.metadata.doi for ep in entrypoints]):
             raise ValueError(
                 "Expected `entrypoints` DOIs to match `metadata.entrypoint_ids`. "
@@ -92,9 +92,7 @@ class Garden:
         metadata = GardenMetadata(**data)
         entrypoints = []
         for entrypoint_data in data["entrypoints"]:
-            entrypoints += [
-                Entrypoint_(RegisteredEntrypointMetadata(**entrypoint_data))
-            ]
+            entrypoints += [Entrypoint(RegisteredEntrypointMetadata(**entrypoint_data))]
             metadata.entrypoint_ids += [entrypoint_data["doi"]]
 
         return cls(metadata, entrypoints)

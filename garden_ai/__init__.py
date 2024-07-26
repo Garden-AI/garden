@@ -1,7 +1,7 @@
 from .client import GardenClient
 from .constants import GardenConstants
 from .entrypoints import (
-    Entrypoint_,
+    Entrypoint,
     entrypoint_test,
     garden_entrypoint,
 )
@@ -13,7 +13,7 @@ __all__ = [
     "GardenClient",
     "Garden",
     "EntrypointMetadata",
-    "Entrypoint_",
+    "Entrypoint",
     "garden_entrypoint",
     "entrypoint_test",
 ]

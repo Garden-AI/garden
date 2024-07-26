@@ -8,7 +8,7 @@ import requests
 from garden_ai.constants import GardenConstants
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
-from garden_ai.entrypoints import Entrypoint_
+from garden_ai.entrypoints import Entrypoint
 from garden_ai.gardens import Garden
 
 logger = logging.getLogger()
@@ -125,10 +125,10 @@ class BackendClient:
         updated_entrypoint = RegisteredEntrypointMetadata(**response)
         return updated_entrypoint
 
-    def get_entrypoint(self, doi: str) -> Entrypoint_:
+    def get_entrypoint(self, doi: str) -> Entrypoint:
         # like get_entrypoint_metadata, but returns the callable object
         result = self._get(f"/entrypoints/{doi}")
-        return Entrypoint_(RegisteredEntrypointMetadata(**result))
+        return Entrypoint(RegisteredEntrypointMetadata(**result))
 
     def delete_entrypoint(self, doi: str):
         self._delete(f"/entrypoints/{doi}", {})
@@ -142,7 +142,7 @@ class BackendClient:
         year: str | None = None,
         owner_uuid: str | None = None,
         limit: int = 50,
-    ) -> list[Entrypoint_]:
+    ) -> list[Entrypoint]:
         params = {
             "doi": dois,
             "tags": tags,
@@ -158,7 +158,7 @@ class BackendClient:
         response: list[dict] = self._get("/entrypoints", params=params)
 
         entrypoints = [
-            Entrypoint_(RegisteredEntrypointMetadata(**data)) for data in response
+            Entrypoint(RegisteredEntrypointMetadata(**data)) for data in response
         ]
         return entrypoints
 
