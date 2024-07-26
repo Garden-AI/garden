@@ -76,7 +76,7 @@ if __name__ == "__main__":
     global_notebook_doi = os.environ.get("GLOBAL_NOTEBOOK_DOI", None)
 
     for obj in global_vars:
-        if hasattr(obj, "_garden_entrypoint"):
+        if hasattr(obj, "_entrypoint_metadata"):
             entrypoint_fns.append(obj)
 
         if isinstance(obj, ModelConnector):
@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     for entrypoint_fn in entrypoint_fns:
         key_name = entrypoint_fn.__name__
-        entrypoint_meta = entrypoint_fn._garden_entrypoint
+        entrypoint_meta = entrypoint_fn._entrypoint_metadata
         entrypoint_meta.short_name = entrypoint_meta.short_name or key_name
 
         # add the EntrypointMetadata dict to total_meta
