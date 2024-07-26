@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 from .datacite import (
     Creator,
@@ -35,6 +35,20 @@ class DatasetMetadata(BaseModel):
     url: Url | None = None
     data_type: str | None = None
 
+    # copied from old DatasetConnection
+    @field_validator("repository")
+    @classmethod
+    def check_foundry(cls, v, values):
+        v = v.lower()  # case-insensitive
+        if "url" in values.data and "doi" in values.data:
+            if v.strip() == "foundry" and (
+                values.data["url"] is None or values.data["doi"] is None
+            ):
+                raise ValueError(
+                    "For a Foundry repository, both url and doi must be provided"
+                )
+        return v
+
 
 # protected_namespaces=() to allow model_* attribute names
 class ModelMetadata(BaseModel, protected_namespaces=()):
@@ -44,7 +58,20 @@ class ModelMetadata(BaseModel, protected_namespaces=()):
 
 
 class EntrypointMetadata(BaseModel):
-    """Class containing user-provided metadata about an entrypoint."""
+    """User-provided metadata about an entrypoint prior to its registration. \
+    Passed to the `garden_entrypoint` decorator marking the entrypoint function.
+
+    Attributes:
+        title: A short title that describes the entrypoint.
+        description: A longer free text description of this entrypoint.
+        authors: A list of the authors of this entrypoint. You need at least one.
+        short_name: This will be the name of the Python method that people call to invoke your entrypoint.
+        year: When did you make this entrypoint? (Defaults to current year)
+        tags: Tags to associate with the entrypoint for discoverability.
+        repositories: List of related code repositories (``RepositoryMetadata``), like GitHub or GitLab repos.
+        papers: List of related papers, like a paper (``PaperMetadata``) that describes the model you are publishing here.
+        datasets: List of related datasets (``DatasetMetadata``) that is related to the entrypoint you are publishing.
+    """
 
     # only title and authors are hard requirements
     title: str
@@ -65,7 +92,10 @@ class EntrypointMetadata(BaseModel):
 
 
 class RegisteredEntrypointMetadata(EntrypointMetadata):
-    """Class containing user- and garden-provided metadata about an entrypoint"""
+    """Class containing complete (user- and garden-provided) metadata about an entrypoint.
+
+    This corresponds to the EntrypointMetadataResponse schema on the backend.
+    """
 
     doi: str
     doi_is_draft: bool = True
