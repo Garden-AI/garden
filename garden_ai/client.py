@@ -32,7 +32,7 @@ from rich.prompt import Prompt
 
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
-from garden_ai.entrypoints import RegisteredEntrypoint
+from garden_ai.entrypoints import Entrypoint_
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden_, PublishedGarden
 from garden_ai.globus_search import garden_search
@@ -297,7 +297,7 @@ class GardenClient:
 
     def _update_datacite(
         self,
-        obj: Union[PublishedGarden, RegisteredEntrypoint],
+        obj: GardenMetadata | RegisteredEntrypointMetadata,
         register_doi: bool = False,
     ) -> None:
         logger.info("Requesting update to DOI")
@@ -316,8 +316,8 @@ class GardenClient:
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
 
-    def get_registered_entrypoint(self, doi: str) -> RegisteredEntrypoint:
-        """Return a callable ``RegisteredEntrypoint`` corresponding to the given DOI.
+    def get_registered_entrypoint(self, doi: str) -> Entrypoint_:
+        """Return a callable ``Entrypoint_`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -327,8 +327,8 @@ class GardenClient:
 
         Returns
         -------
-        RegisteredEntrypoint
-            Instance of ``RegisteredEntrypoint``, which can be run on
+        Entrypoint_
+            Instance of ``Entrypoint_``, which can be run on
             a specified remote Globus Compute endpoint.
 
         Raises

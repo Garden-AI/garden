@@ -1,7 +1,6 @@
 from .model_connector import (
     ModelConnector,
     ModelMetadata,
-    DatasetConnection,
 )
 
 from .model_utils import create_connector
@@ -12,7 +11,6 @@ __all__ = [
     "create_connector",
     "ModelConnector",
     "ModelMetadata",
-    "DatasetConnection",
     "GitHubConnector",
     "HFConnector",
 ]
