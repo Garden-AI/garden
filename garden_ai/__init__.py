@@ -5,13 +5,13 @@ from .entrypoints import (
     entrypoint_test,
     garden_entrypoint,
 )
-from .gardens import Garden_
+from .gardens import Garden
 from .schemas.entrypoint import EntrypointMetadata
 
 __all__ = [
     "GardenConstants",
     "GardenClient",
-    "Garden_",
+    "Garden",
     "EntrypointMetadata",
     "Entrypoint_",
     "garden_entrypoint",

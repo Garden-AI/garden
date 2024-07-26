@@ -9,7 +9,7 @@ from garden_ai.constants import GardenConstants
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.entrypoints import Entrypoint_
-from garden_ai.gardens import Garden_
+from garden_ai.gardens import Garden
 
 logger = logging.getLogger()
 
@@ -94,14 +94,14 @@ class BackendClient:
             region_name="us-east-1",
         )
 
-    def get_garden(self, doi: str) -> Garden_:
+    def get_garden(self, doi: str) -> Garden:
         response = self._get(f"/gardens/{doi}")
-        return Garden_._from_nested_metadata(response)
+        return Garden._from_nested_metadata(response)
 
-    def put_garden(self, garden_meta: GardenMetadata) -> Garden_:
+    def put_garden(self, garden_meta: GardenMetadata) -> Garden:
         doi = garden_meta.doi
         response = self._put(f"/gardens/{doi}", garden_meta.model_dump(mode="json"))
-        return Garden_._from_nested_metadata(response)
+        return Garden._from_nested_metadata(response)
 
     def get_garden_metadata(self, doi: str) -> GardenMetadata:
         # like get_garden but returns metadata only
@@ -172,7 +172,7 @@ class BackendClient:
         year: str | None = None,
         owner_uuid: str | None = None,
         limit: int = 50,
-    ) -> list[Garden_]:
+    ) -> list[Garden]:
         params = {
             "doi": dois,
             "draft": draft,
@@ -189,7 +189,7 @@ class BackendClient:
 
         gardens = []
         for data in result:
-            gardens += [Garden_._from_nested_metadata(data)]
+            gardens += [Garden._from_nested_metadata(data)]
         return gardens
 
     def get_user_info(self) -> dict:

@@ -33,7 +33,7 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint_
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden_
+from garden_ai.gardens import Garden
 from garden_ai.globus_search import garden_search
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
@@ -222,13 +222,13 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, metadata: GardenMetadata) -> Garden_:
+    def create_garden(self, metadata: GardenMetadata) -> Garden:
         """Initialize a new Garden object from GardenMetadata"""
         return self.backend_client.put_garden(metadata)
 
     def add_entrypoint_to_garden(
         self, entrypoint_doi: str, garden_doi: str, alias: str | None = None
-    ) -> Garden_:
+    ) -> Garden:
         """Add an entrypoint to a garden via the backend.
 
         Parameters
@@ -245,8 +245,8 @@ class GardenClient:
 
         Returns
         -------
-        Garden_
-            Rehydrated ``Garden_`` with the entrypoint attached.
+        Garden
+            Rehydrated ``Garden`` with the entrypoint attached.
         """
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)
         entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
@@ -363,9 +363,9 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, doi: str) -> Garden_:
+    def get_published_garden(self, doi: str) -> Garden:
         """
-        Get the published Garden_ object associated with the DOI.
+        Get the published Garden object associated with the DOI.
 
         Parameters
         ----------
@@ -373,9 +373,9 @@ class GardenClient:
 
         Returns
         -------
-        Garden_
-            Garden_ corresponding to the DOI. Entrypoints published to this
-            Garden_ can be called like methods on the object.
+        Garden
+            Garden corresponding to the DOI. Entrypoints published to this
+            Garden can be called like methods on the object.
 
         """
         garden = self.backend_client.get_garden(doi)

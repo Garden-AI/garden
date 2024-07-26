@@ -13,7 +13,7 @@ from .entrypoints import Entrypoint_
 logger = logging.getLogger()
 
 
-class Garden_:
+class Garden:
     def __init__(self, metadata: GardenMetadata, entrypoints: list[Entrypoint_]):
         if set(metadata.entrypoint_ids) != set([ep.metadata.doi for ep in entrypoints]):
             raise ValueError(

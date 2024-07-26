@@ -11,7 +11,7 @@ from garden_ai.app.completion import complete_entrypoint, complete_garden
 from garden_ai.app.console import console, get_owned_gardens_rich_table
 from garden_ai.client import GardenClient
 from garden_ai.constants import GardenConstants
-from garden_ai.gardens import Garden_
+from garden_ai.gardens import Garden
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils.interactive_cli import gui_edit_garden_entity
 
@@ -132,7 +132,7 @@ def create(
 
     doi = client._mint_draft_doi()
 
-    garden: Garden_ = client.create_garden(
+    garden: Garden = client.create_garden(
         GardenMetadata(
             doi=doi,
             authors=authors,
