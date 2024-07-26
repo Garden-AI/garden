@@ -169,7 +169,7 @@ def register_doi(
     ),
 ):
     """
-    Publicly register an Enrypoint's DOI, moving it out of draft state.
+    Publicly register an Entrypoint's DOI, moving it out of draft state.
 
     NOTE: Entrypoints with registered DOIs cannot be deleted.
     """
