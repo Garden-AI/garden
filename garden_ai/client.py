@@ -29,18 +29,18 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
-
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint_
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden_, PublishedGarden
+from garden_ai.gardens import Garden_
 from garden_ai.globus_search import garden_search
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
 
 logger = logging.getLogger()
+rich.traceback.install()
 
 
 class AuthException(Exception):
@@ -367,9 +367,9 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, doi: str) -> PublishedGarden:
+    def get_published_garden(self, doi: str) -> Garden_:
         """
-        Queries Globus Search for the garden with this DOI.
+        Get the published Garden_ object associated with the DOI.
 
         Parameters
         ----------
@@ -377,10 +377,12 @@ class GardenClient:
 
         Returns
         -------
-        PublishedGarden populated with metadata from the remote metadata record.
+        Garden_
+            Garden_ corresponding to the DOI. Entrypoints published to this
+            Garden_ can be called like methods on the object.
 
         """
-        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        garden = self.backend_client.get_garden(doi)
         return garden
 
     def _get_auth_config_for_ecr_push(self) -> dict:

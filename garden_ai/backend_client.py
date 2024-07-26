@@ -9,7 +9,7 @@ from garden_ai.constants import GardenConstants
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.entrypoints import Entrypoint_
-from garden_ai.gardens import PublishedGarden, Garden_
+from garden_ai.gardens import Garden_
 
 logger = logging.getLogger()
 
@@ -66,10 +66,6 @@ class BackendClient:
     def update_doi_on_datacite(self, payload: dict):
         self._put("/doi", payload)
 
-    def publish_garden_metadata(self, garden: PublishedGarden):
-        payload = json.loads(garden.json())
-        self._post("/garden-search-record", payload)
-
     def delete_garden_metadata(self, doi: str):
         self._delete("/garden-search-record", {"doi": doi})
 
@@ -101,34 +97,17 @@ class BackendClient:
             region_name="us-east-1",
         )
 
-    def update_garden(self, garden) -> PublishedGarden:
-        doi = garden.doi
-        result = self._put(f"/gardens/{doi}", garden.model_dump(mode="json"))
-        return PublishedGarden(**result)
-
     def get_garden(self, doi: str) -> Garden_:
         response = self._get(f"/gardens/{doi}")
-        metadata = GardenMetadata(**response)
-        entrypoints = [
-            Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
-            for ep_data in response["entrypoints"]
-        ]
-        return Garden_(metadata, entrypoints)
+        return Garden_._from_nested_metadata(response)
 
     def put_garden(self, garden_meta: GardenMetadata) -> Garden_:
         doi = garden_meta.doi
         response = self._put(f"/gardens/{doi}", garden_meta.model_dump(mode="json"))
-
-        updated_garden_meta = GardenMetadata(**response)
-        entrypoints = [
-            Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
-            for ep_data in response["entrypoints"]
-        ]
-        # 'entrypoint_ids' not included in response schema
-        updated_garden_meta.entrypoint_ids = [ep.metadata.doi for ep in entrypoints]
-        return Garden_(updated_garden_meta, entrypoints)
+        return Garden_._from_nested_metadata(response)
 
     def get_garden_metadata(self, doi: str) -> GardenMetadata:
+        # like get_garden but returns metadata only
         result = self._get(f"/gardens/{doi}")
         return GardenMetadata(**result)
 
@@ -213,13 +192,7 @@ class BackendClient:
 
         gardens = []
         for data in result:
-            metadata = GardenMetadata(**data)
-            entrypoints = [
-                Entrypoint_(RegisteredEntrypointMetadata(**ep_data))
-                for ep_data in data["entrypoints"]
-            ]
-            metadata.entrypoint_ids = [ep.metadata.doi for ep in entrypoints]
-            gardens += [Garden_(metadata, entrypoints)]
+            gardens += [Garden_._from_nested_metadata(data)]
         return gardens
 
     def get_user_info(self) -> dict:
