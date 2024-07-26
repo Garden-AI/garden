@@ -7,7 +7,6 @@ from typing import Any, Callable
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
-from pydantic import AfterValidator
 
 from garden_ai.constants import GardenConstants
 from garden_ai.model_connectors import ModelConnector, ModelMetadata
@@ -18,10 +17,8 @@ from garden_ai.schemas.entrypoint import (
     RegisteredEntrypointMetadata,
     RepositoryMetadata,
 )
-from garden_ai.utils.pydantic import unique_items_validator
 
 logger = logging.getLogger()
-require_unique_items = AfterValidator(unique_items_validator)
 
 
 class Entrypoint_:

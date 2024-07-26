@@ -277,9 +277,9 @@ def delete(
 ):
     """Delete a Garden from thegardens.ai"""
     client = GardenClient()
-    # revamped api handles delete permission, so just re-raise the error if not allowed to delete
+    # backend handles delete permission, so just re-raise the error if not allowed to delete
     typer.confirm(
-        f"You are about to delete garden {garden_doi} from the thegardens.ai search index. "
+        f"You are about to delete garden {garden_doi} from thegardens.ai. "
         "Are you sure you want to proceed?",
         abort=True,
     )

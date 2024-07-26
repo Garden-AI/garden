@@ -331,10 +331,6 @@ class GardenClient:
             Instance of ``Entrypoint_``, which can be run on
             a specified remote Globus Compute endpoint.
 
-        Raises
-        ------
-        EntrypointNotFoundException
-            Raised when no known entrypoint exists with the given identifier.
         """
         return self.backend_client.get_entrypoint(doi)
 

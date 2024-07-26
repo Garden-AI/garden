@@ -66,9 +66,6 @@ class BackendClient:
     def update_doi_on_datacite(self, payload: dict):
         self._put("/doi", payload)
 
-    def delete_garden_metadata(self, doi: str):
-        self._delete("/garden-search-record", {"doi": doi})
-
     def upload_notebook(
         self, notebook_contents: dict, username: str, notebook_name: str
     ):

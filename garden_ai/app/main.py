@@ -6,14 +6,13 @@ from typing import Optional
 import rich
 import typer
 
-from garden_ai.app.garden import garden_app
-from garden_ai.app.entrypoint import entrypoint_app
-from garden_ai.app.notebook import notebook_app
-from garden_ai.app.docker import docker_app
-from garden_ai.app.hpc_notebook import hpc_notebook_app
-
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
+from garden_ai.app.docker import docker_app
+from garden_ai.app.entrypoint import entrypoint_app
+from garden_ai.app.garden import garden_app
+from garden_ai.app.hpc_notebook import hpc_notebook_app
+from garden_ai.app.notebook import notebook_app
 
 logger = logging.getLogger()
 
