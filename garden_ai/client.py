@@ -26,6 +26,7 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+import rich
 from rich import print
 from rich.prompt import Prompt
 
@@ -251,14 +252,24 @@ class GardenClient:
             Rehydrated ``Garden_`` with the entrypoint attached.
         """
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)
+        entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
         if entrypoint_doi not in garden_meta.entrypoint_ids:
             garden_meta.entrypoint_ids += [entrypoint_doi]
+
+        entrypoint_name = alias or entrypoint_meta.short_name
+        if entrypoint_name in garden_meta.entrypoint_aliases.values():
+            raise ValueError(
+                f"Failed to add entrypoint {entrypoint_meta.doi} ({entrypoint_name}) to garden {garden_meta.doi}: "
+                "garden already has another entrypoint under that name."
+            )
 
         if alias:
             assert (
                 alias.isidentifier()
             ), "entrypoint alias must be a valid python identifier."
             garden_meta.entrypoint_aliases[entrypoint_doi] = alias
+        else:
+            garden_meta.entrypoint_aliases[entrypoint_doi] = entrypoint_meta.short_name
 
         return self.backend_client.put_garden(garden_meta)
 
@@ -451,8 +462,9 @@ class GardenClient:
                 doi_is_draft=True,
                 func_uuid=func_uuid,
                 container_uuid=container_uuid,
-                notebook_url=notebook_url,
+                base_image_uri=base_image_uri,
                 full_image_uri=full_image_uri,
+                notebook_url=notebook_url,
                 **record,
             )
             self._update_datacite(registered_meta)
@@ -460,10 +472,19 @@ class GardenClient:
             self.backend_client.put_entrypoint_metadata(registered_meta)
 
             # attach entrypoint to garden (if one was specified)
-            if "target_garden_doi" in record:
-                garden_doi = record["target_garden_doi"]
-                garden_meta = self.backend_client.get_garden_metadata(garden_doi)
-                self.add_entrypoint_to_garden(registered_meta.doi, garden_doi)
-                print(
-                    f"Added entrypoint {registered_meta.doi} ({registered_meta.short_name}) to garden {garden_meta.doi} ({garden_meta.title})!"
-                )
+            if garden_doi := record.get("target_garden_doi"):
+                try:
+                    garden = self.add_entrypoint_to_garden(
+                        registered_meta.doi, garden_doi
+                    )
+                except ValueError as e:
+                    suggested_command = f"garden-ai garden add-entrypoint --garden {garden_doi} --entrypoint {registered_meta.doi} --alias <new_name>"
+                    message = f"--------------------------------\n{e}\n"
+                    message += "Entrypoint was registered successfully; you can still add the entrypoint to this garden under an alternative name "
+                    message += "with the following CLI command: \n"
+                    message += f"[bold green]  {suggested_command}[/bold green]"
+                    rich.print(message)
+                else:
+                    print(
+                        f"Added entrypoint {registered_meta.doi} ({registered_meta.short_name}) to garden {garden_doi} ({garden.metadata.title})!"
+                    )
