@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional, Union
 from uuid import UUID
 
+import rich
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.sdk.login_manager import ComputeScopes
@@ -26,20 +27,16 @@ from globus_sdk import (
 )
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-import rich
 from rich import print
 from rich.prompt import Prompt
 
-from garden_ai import globus_search
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import RegisteredEntrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden_, PublishedGarden
 from garden_ai.globus_search import garden_search
-from garden_ai.schemas.entrypoint import (
-    RegisteredEntrypointMetadata,
-)
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
 
@@ -253,8 +250,6 @@ class GardenClient:
         """
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)
         entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
-        if entrypoint_doi not in garden_meta.entrypoint_ids:
-            garden_meta.entrypoint_ids += [entrypoint_doi]
 
         entrypoint_name = alias or entrypoint_meta.short_name
         if entrypoint_name in garden_meta.entrypoint_aliases.values():
@@ -262,6 +257,9 @@ class GardenClient:
                 f"Failed to add entrypoint {entrypoint_meta.doi} ({entrypoint_name}) to garden {garden_meta.doi}: "
                 "garden already has another entrypoint under that name."
             )
+
+        if entrypoint_doi not in garden_meta.entrypoint_ids:
+            garden_meta.entrypoint_ids += [entrypoint_doi]
 
         if alias:
             assert (
@@ -385,22 +383,6 @@ class GardenClient:
         garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
         return garden
 
-    def delete_garden_from_search_index(self, doi: str) -> None:
-        """
-        Deletes a garden from the local search index.
-
-        Parameters
-        ----------
-        doi: The DOI of the garden you want to delete.
-
-        """
-        if globus_search._IS_DISABLED:
-            # delete is idempotent, ok if called twice (garden delete command)
-            self.backend_client.delete_garden(doi)
-            return
-
-        self.backend_client.delete_garden_metadata(doi)
-
     def _get_auth_config_for_ecr_push(self) -> dict:
         """
         Calls the Garden backend to get a short-lived boto3 session with ECR permissions.
@@ -426,7 +408,7 @@ class GardenClient:
         notebook_url: str,
         metadata: dict,
     ):
-        """Register entrypoints and (re-)publish affected gardens from a user's finished notebook session image.
+        """Register entrypoints update affected gardens from a user's finished notebook session image.
 
         Parameters:
         - base_image_uri: str
@@ -439,11 +421,6 @@ class GardenClient:
         - metadata: dict
             metadata for entrypoints defined in the full image (i.e. the
             contents of the metadata.json extracted from the image)
-
-        Raises:
-        - ValueError
-            When attempting to add an entrypoint to a garden which does not exist
-            in local data.
         """
 
         container_uuid = UUID(
@@ -485,6 +462,6 @@ class GardenClient:
                     message += f"[bold green]  {suggested_command}[/bold green]"
                     rich.print(message)
                 else:
-                    print(
-                        f"Added entrypoint {registered_meta.doi} ({registered_meta.short_name}) to garden {garden_doi} ({garden.metadata.title})!"
+                    rich.print(
+                        f"[b g]Added entrypoint {doi} ({registered_meta.short_name}) to garden {garden_doi} ({garden.metadata.title})![/b g]"
                     )

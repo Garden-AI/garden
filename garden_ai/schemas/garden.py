@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
-
-from pydantic import BaseModel, Field
+from typing import Self
+from pydantic import BaseModel, Field, model_validator
 
 from .datacite import (
     Contributor,
@@ -35,6 +35,15 @@ class GardenMetadata(BaseModel):
 
     owner_identity_id: UUID | None = None
     id: int | None = None
+
+    @model_validator(mode="after")
+    def validate_aliases(self) -> Self:
+        """Ensure aliases only refer to entrypoints actually in the garden."""
+        known_dois = set(self.entrypoint_ids)
+        aliased_dois = set(self.entrypoint_aliases.keys())
+        for unknown_doi in aliased_dois - known_dois:
+            del self.entrypoint_aliases[unknown_doi]
+        return self
 
     def datacite_json(self) -> JsonStr:
         """Convert metadata into a DataCite-schema-compliant JSON string."""
