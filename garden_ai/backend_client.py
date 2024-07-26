@@ -8,7 +8,7 @@ import requests
 from garden_ai.constants import GardenConstants
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
-from garden_ai.entrypoints import RegisteredEntrypoint, Entrypoint_
+from garden_ai.entrypoints import Entrypoint_
 from garden_ai.gardens import PublishedGarden, Garden_
 
 logger = logging.getLogger()
@@ -132,6 +132,9 @@ class BackendClient:
         result = self._get(f"/gardens/{doi}")
         return GardenMetadata(**result)
 
+    def delete_garden(self, doi: str):
+        self._delete(f"/gardens/{doi}", {})
+
     def get_entrypoint_metadata(self, doi: str) -> RegisteredEntrypointMetadata:
         result = self._get(f"/entrypoints/{doi}")
         return RegisteredEntrypointMetadata(**result)
@@ -146,23 +149,8 @@ class BackendClient:
         updated_entrypoint = RegisteredEntrypointMetadata(**response)
         return updated_entrypoint
 
-    def delete_garden(self, doi: str):
-        self._delete(f"/gardens/{doi}", {})
-
-    def create_entrypoint(self, entrypoint: RegisteredEntrypoint):
-        if not entrypoint.function_text:
-            entrypoint.function_text = entrypoint.steps[0].function_text
-        payload = entrypoint.model_dump(mode="json", exclude={"steps"})
-        self._post("/entrypoints", payload)
-
-    def update_entrypoint(self, entrypoint: RegisteredEntrypoint):
-        doi = entrypoint.doi
-        if not entrypoint.function_text:
-            entrypoint.function_text = entrypoint.steps[0].function_text
-        payload = entrypoint.model_dump(mode="json", exclude={"steps"})
-        self._put(f"/entrypoints/{doi}", payload)
-
     def get_entrypoint(self, doi: str) -> Entrypoint_:
+        # like get_entrypoint_metadata, but returns the callable object
         result = self._get(f"/entrypoints/{doi}")
         return Entrypoint_(RegisteredEntrypointMetadata(**result))
 
