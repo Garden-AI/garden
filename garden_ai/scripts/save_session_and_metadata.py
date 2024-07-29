@@ -113,11 +113,6 @@ if __name__ == "__main__":
             ] = entrypoint_meta._target_garden_doi
         elif global_notebook_doi:
             total_meta[key_name]["target_garden_doi"] = global_notebook_doi
-        else:
-            raise ValueError(
-                f"Entrypoint {key_name} has no DOI associated with it. "
-                "Either provide a global notebook DOI in your notebook metadata or provide the entrypoint decorator with a DOI."
-            )
 
     with open("metadata.json", "w+") as fout:
         json.dump(total_meta, fout)
