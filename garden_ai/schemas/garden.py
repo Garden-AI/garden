@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID
-from typing import Self
+from typing_extensions import Self
 from pydantic import BaseModel, Field, model_validator
 
 from .datacite import (
