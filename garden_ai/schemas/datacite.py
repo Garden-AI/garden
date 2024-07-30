@@ -17,9 +17,8 @@ from pydantic import (
     field_validator,
 )
 
-from garden_ai.utils.pydantic import const_item_validator
 
-from .schema_utils import UniqueList
+from .schema_utils import UniqueList, const_item_validator
 
 
 class _DataCiteBaseModel(BaseModel, frozen=True):
