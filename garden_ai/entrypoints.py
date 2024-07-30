@@ -82,17 +82,22 @@ class Entrypoint:
         from tabulate import tabulate
 
         style = "<style>th {text-align: left;}</style>"
-        title = f"<h2>{self.title}</h2>"
+        title = f"<h2>{self.metadata.title}</h2>"
         details = f"<p>Authors: {', '.join(self.metadata.authors)}<br>DOI: {self.metadata.doi}</p>"
         optional = "<h3>Additional data</h3>" + tabulate(
             [
                 (field, val)
-                for field, val in self.metadata.model_dump().items()
-                if field not in ("title", "authors", "doi") and val
+                for field, val in self.metadata.model_dump(
+                    exclude={"title", "authors", "doi", "owner_identity_id", "id"}
+                ).items()
+                if val
             ],
             tablefmt="html",
         )
         return style + title + details + optional
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.metadata == other.metadata
 
 
 class EntrypointIdempotencyError(Exception):

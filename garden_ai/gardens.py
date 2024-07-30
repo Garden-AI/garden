@@ -57,7 +57,9 @@ class Garden:
         return list(super().__dir__()) + entrypoint_names
 
     def _repr_html_(self) -> str:
-        data = self.metadata.model_dump()
+        data = self.metadata.model_dump(
+            exclude={"owner_identity_id", "id", "language", "publisher"}
+        )
         data["entrypoints"] = [ep.metadata.model_dump() for ep in self.entrypoints]
 
         style = "<style>th {text-align: left;}</style>"

@@ -316,7 +316,7 @@ class GardenClient:
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
 
-    def get_registered_entrypoint(self, doi: str) -> Entrypoint:
+    def get_entrypoint(self, doi: str) -> Entrypoint:
         """Return a callable ``Entrypoint`` corresponding to the given DOI.
 
         Parameters
@@ -363,7 +363,7 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, doi: str) -> Garden:
+    def get_garden(self, doi: str) -> Garden:
         """
         Get the published Garden object associated with the DOI.
 

@@ -1492,7 +1492,7 @@ def _test_run_garden_on_endpoint(
         with open(input_data_file, "rb") as f:
             Xtest = pickle.load(f)
 
-        test_garden = client.get_published_garden(garden.doi)
+        test_garden = client.get_garden(garden.doi)
 
         run_entrypoint = getattr(test_garden, entrypoint_name)
         result = run_entrypoint(Xtest, endpoint=globus_compute_endpoint)
