@@ -1,0 +1,30 @@
+{
+    "title": "Example Entrypoint",
+    "authors": ["John Doe", "Jane Smith"],
+    "description": "This is a detailed description of the example entrypoint.",
+    "year": "2024",
+    "short_name": "example_entry",
+    "tags": ["example", "test", "metadata"],
+    "models": [],
+    "repositories": [
+    ],
+    "papers": [
+    ],
+    "datasets": [
+    ],
+    "_test_functions": ["test_example_function"],
+    "_target_garden_doi": "10.1234/example.doi",
+    "_function_text": "def example_function(): pass",
+    "doi": "10.1234/example.doi",
+    "doi_is_draft": true,
+    "test_functions": ["test_example_function"],
+    "requirements": ["requirement1", "requirement2"],
+    "func_uuid": "550e8400-e29b-41d4-a716-446655440000",
+    "container_uuid": "660e8400-e29b-41d4-a716-446655440000",
+    "base_image_uri": "docker://example/base_image",
+    "full_image_uri": "docker://example/full_image",
+    "notebook_url": "https://example.com/notebook",
+    "function_text": "def example_function(): pass",
+    "owner_identity_id": "770e8400-e29b-41d4-a716-446655440000",
+    "id": 1
+}

@@ -1,0 +1,17 @@
+{
+  "doi": "10.1234/example-doi",
+  "title": "The Growth of Urban Gardens",
+  "authors": ["Alice Johnson", "Bob Smith"],
+  "contributors": ["Charles Lee", "Diana Patel"],
+  "doi_is_draft": true,
+  "description": "A comprehensive study on the development and impact of urban gardens in metropolitan areas.",
+  "publisher": "Garden-AI",
+  "year": "2024",
+  "language": "en",
+  "tags": ["urban gardening", "sustainability", "horticulture"],
+  "version": "0.0.1",
+  "entrypoint_aliases": {},
+  "entrypoint_ids": [],
+  "owner_identity_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "id": 1
+}

@@ -15,7 +15,7 @@ def test_version_displays_correctly(cli_runner, app):
 
 
 @pytest.mark.cli
-def test_whoami_prints_logged_in_user(cli_runner, app):
+def test_whoami_prints_logged_in_user(cli_runner, app, patch_backend_client_requests):
     result = cli_runner.invoke(app, ["whoami"])
     assert result.exit_code == 0
     assert "fake@email.com" in result.stdout

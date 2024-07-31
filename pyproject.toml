@@ -81,6 +81,7 @@ types-requests = "^2.20.0"
 safety = "^2.3.1"
 types-pyyaml = "^6.0.12.8"
 coverage = { extras = ["toml"], version = "^7.2.3" }
+faker = "^26.1.0"
 
 [tool.poetry.group.develop.dependencies]
 pre-commit = "^3.1.1"

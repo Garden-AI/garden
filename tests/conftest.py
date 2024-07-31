@@ -1,3 +1,4 @@
+import json
 import pathlib  # noqa
 from unittest.mock import patch
 
@@ -10,6 +11,9 @@ from typer.testing import CliRunner
 from garden_ai.client import GardenClient
 from garden_ai.constants import GardenConstants
 from garden_ai.garden_file_adapter import GardenFileAdapter
+from garden_ai.gardens import Garden
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
+from garden_ai.schemas.garden import GardenMetadata
 
 
 @pytest.fixture
@@ -18,7 +22,12 @@ def cli_runner() -> CliRunner:
 
 
 @pytest.fixture
-def app(garden_client) -> Typer:
+def app(garden_client, mocker) -> Typer:
+    """Provides an instance of the CLI app for tests.
+
+    Overrides the GardenClient that the app constructs in commands/subcommands.
+    Replaces the GardenClient with one that has mocked auth and network functions.
+    """
     with patch("garden_ai.GardenClient", return_value=garden_client):
         from garden_ai.app.main import app as cli_app
 
@@ -56,10 +65,16 @@ def mock_keystore(mocker):
 
 
 @pytest.fixture
-def patch_backend_client(mocker):
+def patch_backend_client_requests(mocker, garden_nested_metadata_json):
+    backend_client = "garden_ai.backend_client.BackendClient"
     mocker.patch(
-        "garden_ai.backend_client.BackendClient.get_user_info",
+        f"{backend_client}.get_user_info",
         return_value={"email": "fake@email.com"},
+    )
+
+    mocker.patch(
+        f"{backend_client}.put_garden",
+        return_value=Garden._from_nested_metadata(garden_nested_metadata_json),
     )
 
 
@@ -79,7 +94,6 @@ def garden_client(
     mock_keystore,
     token,
     identity_jwt,
-    patch_backend_client,
     patch_garden_constants,
 ):
 
@@ -130,3 +144,45 @@ def logged_in_user(tmp_path):
         tmp_path,
     ):
         yield
+
+
+@pytest.fixture
+def mock_mint_doi(faker):
+    doi = f"{faker.name()}/{faker.name()}"
+    with patch("garden_ai.client.GardenClient._mint_draft_doi", return_value=doi):
+        yield
+
+
+@pytest.fixture
+def garden_metadata_json():
+    f = pathlib.Path(__file__).parent / "fixtures" / "garden_metadata.json"
+    with open(f, "r") as f_in:
+        return json.load(f_in)
+
+
+@pytest.fixture
+def garden_nested_metadata_json():
+    f = (
+        pathlib.Path(__file__).parent
+        / "fixtures"
+        / "garden_nested_metadata_response.json"
+    )
+    with open(f, "r") as f_in:
+        return json.load(f_in)
+
+
+@pytest.fixture
+def entrypoint_metadata_json():
+    f = pathlib.Path(__file__).parent / "fixtures" / "entrypoint_metadata.json"
+    with open(f, "r") as f_in:
+        return json.load(f_in)
+
+
+@pytest.fixture
+def mock_GardenMetadata(garden_nested_metadata_json):
+    return GardenMetadata(**garden_nested_metadata_json)
+
+
+@pytest.fixture
+def mock_RegisteredEntrypointMetadata(entrypoint_metadata_json):
+    return RegisteredEntrypointMetadata(**entrypoint_metadata_json)
