@@ -53,7 +53,7 @@ class BackendClient:
     def _delete(self, resource: str, payload: dict) -> dict:
         return self._call(requests.delete, resource, payload)
 
-    def _get(self, resource: str, params: dict | None = None) -> dict | list:
+    def _get(self, resource: str, params: dict | None = None) -> dict:
         return self._call(requests.get, resource, None, params=params)
 
     def mint_doi_on_datacite(self, payload: dict) -> str:
@@ -155,7 +155,7 @@ class BackendClient:
         # skip unspecified values
         params = {k: v for k, v in params.items() if v is not None}
 
-        response: list[dict] = self._get("/entrypoints", params=params)
+        response: list[dict] = self._get("/entrypoints", params=params)  # type: ignore
 
         entrypoints = [
             Entrypoint(RegisteredEntrypointMetadata(**data)) for data in response

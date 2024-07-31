@@ -334,9 +334,11 @@ class GardenClient:
         """
         return self.backend_client.get_entrypoint(doi)
 
-    def get_email(self) -> str | None:
+    def get_email(self) -> str:
         user_data = self.backend_client.get_user_info()
-        return user_data.get("email") or user_data.get("username")
+        user_email = user_data.get("email") or user_data.get("username")
+        assert user_email is not None, "Failed to find user email"
+        return user_email
 
     def get_user_identity_id(self) -> str:
         user_data = self.backend_client.get_user_info()
