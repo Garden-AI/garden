@@ -1,18 +1,19 @@
 # mypy: disable-error-code="import"
+import base64
 import json
 import logging
 import os
 import time
-import base64
-from pathlib import Path
-from typing import List, Union, Optional
-from uuid import UUID
 import urllib
+from pathlib import Path
+from typing import Optional, Union
+from uuid import UUID
 
+import rich
 import typer
 from globus_compute_sdk import Client
-from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
 from globus_compute_sdk.sdk.login_manager import ComputeScopes
+from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
 from globus_compute_sdk.serialize.concretes import DillCodeTextInspect
 from globus_sdk import (
     AuthAPIError,
@@ -28,19 +29,18 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
-
-from garden_ai import local_data, globus_search
-from garden_ai.constants import GardenConstants
 from garden_ai.backend_client import BackendClient
+from garden_ai.constants import GardenConstants
+from garden_ai.entrypoints import Entrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden, PublishedGarden
+from garden_ai.gardens import Garden
 from garden_ai.globus_search import garden_search
-from garden_ai.local_data import EntrypointNotFoundException
-from garden_ai.entrypoints import RegisteredEntrypoint
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
+from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
-from garden_ai.utils.misc import extract_email_from_globus_jwt
 
 logger = logging.getLogger()
+rich.traceback.install()
 
 
 class AuthException(Exception):
@@ -136,8 +136,6 @@ class GardenClient:
                 self.auth_client, GardenClient.scopes.test_scope
             )
 
-            local_data._store_user_email(GardenConstants.GARDEN_TEST_EMAIL)
-
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
 
@@ -211,8 +209,6 @@ class GardenClient:
             self.auth_key_store.store(response)
             tokens = response.by_resource_server[resource_server]
 
-            email = extract_email_from_globus_jwt(response.data["id_token"])
-            local_data._store_user_email(email)
         else:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(resource_server)
@@ -226,70 +222,69 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(
-        self, authors: List[str] = [], title: str = "", **kwargs
+    def create_garden(self, metadata: GardenMetadata) -> Garden:
+        """Initialize a new Garden object from GardenMetadata"""
+        return self.backend_client.put_garden(metadata)
+
+    def add_entrypoint_to_garden(
+        self, entrypoint_doi: str, garden_doi: str, alias: str | None = None
     ) -> Garden:
-        """Construct a new Garden object, optionally populating any number of metadata fields from `kwargs`.
-
-        Up to user preference, metadata (e.g. `title="My Garden"` or
-        `version="1.0.0"`) can be provided here as kwargs.
-
-        This might be useful if, for example, one wanted to build a Garden starting
-        from an already-existing Garden or pre-populated dict of template
-        metadata. Otherwise, the user is free to incrementally populate or
-        replace even the Garden object's required fields (e.g. `pea_garden.title
-        = "Experiments on Plant Hybridization"`) at any time -- field validation
-        is still performed.
+        """Add an entrypoint to a garden via the backend.
 
         Parameters
         ----------
-        authors : List[str]
-            The personal names of main researchers/authors involved in
-            cultivating the Garden. Names should be formatted "Family, Given",
-            e.g. `authors=["Mendel, Gregor"]`. Affiliations/institutional
-            relationships should be added via the Garden object helper method
-            `add_affiliation`, e.g.  `pea_garden.add_affiliation({"Mendel,
-            Gregor": "St Thomas' Abbey"})`. (NOTE: add_affiliation not yet implemented)
+        entrypoint_doi:
+            The DOI of the entrypoint you want to attach. User does not need to
+            own this entrypoint.
+        garden_doi:
+            The DOI of the target garden. User must own this garden or request
+            will fail.
+        alias:
+            If provided, an alternative name this garden should use when
+            accessing the entrypoint as an attribute.
 
-        title : str
-            An official name or title for the Garden. This attribute must be set
-            in order to register a DOI.
-
-        **kwargs :
-            Metadata for the new Garden object. Keyword arguments matching
-            required or recommended fields will be (where necessary) coerced to the
-            appropriate type and validated per the Garden metadata spec.
-
-        Examples
-        --------
-            gc = GardenClient()
-            pea_garden = gc.create_garden(
-                authors=["Mendel, Gregor"],
-                title="Experiments on Plant Hybridization",
-                subjects=["Peas"]
-            )
-            pea_garden.year = 1863
-            pea_garden.tags += ["Genetics"] # (didn't have the word for it earlier)
+        Returns
+        -------
+        Garden
+            Rehydrated ``Garden`` with the entrypoint attached.
         """
-        data = dict(kwargs)
-        if authors:
-            data["authors"] = authors
-        if title:
-            data["title"] = title
-        data["doi"] = data.get("doi") or self._mint_draft_doi()
+        garden_meta = self.backend_client.get_garden_metadata(garden_doi)
+        entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
 
-        return Garden(**data)
+        entrypoint_name = alias or entrypoint_meta.short_name
+        if entrypoint_name in garden_meta.entrypoint_aliases.values():
+            raise ValueError(
+                f"Failed to add entrypoint {entrypoint_meta.doi} ({entrypoint_name}) to garden {garden_meta.doi}: "
+                "garden already has another entrypoint under that name."
+            )
 
-    def register_entrypoint_doi(self, entrypoint: RegisteredEntrypoint) -> None:
+        if entrypoint_doi not in garden_meta.entrypoint_ids:
+            garden_meta.entrypoint_ids += [entrypoint_doi]
+
+        if alias:
+            assert (
+                alias.isidentifier()
+            ), "entrypoint alias must be a valid python identifier."
+            garden_meta.entrypoint_aliases[entrypoint_doi] = alias
+        else:
+            garden_meta.entrypoint_aliases[entrypoint_doi] = entrypoint_meta.short_name
+
+        return self.backend_client.put_garden(garden_meta)
+
+    def register_garden_doi(self, garden_doi: str) -> None:
+        garden_meta = self.backend_client.get_garden_metadata(garden_doi)
+        self._update_datacite(garden_meta, register_doi=True)
+        garden_meta.doi_is_draft = False
+        self.backend_client.put_garden(garden_meta)
+
+    def register_entrypoint_doi(self, entrypoint_doi: str) -> None:
         """
         Makes an entrypoint's DOI registered and findable with DataCite via the Garden backend.
         """
-        self._update_datacite(entrypoint, register_doi=True)
-        entrypoint.doi_is_draft = False
-        if local_data._IS_DISABLED:
-            self.backend_client.update_entrypoint(entrypoint)
-        else:
-            local_data.put_local_entrypoint(entrypoint)
+        entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
+        self._update_datacite(entrypoint_meta, register_doi=True)
+        entrypoint_meta.doi_is_draft = False
+        self.backend_client.put_entrypoint_metadata(entrypoint_meta)
 
     def _mint_draft_doi(self) -> str:
         """Register a new draft DOI with DataCite via Garden backend."""
@@ -302,7 +297,7 @@ class GardenClient:
 
     def _update_datacite(
         self,
-        obj: Union[PublishedGarden, RegisteredEntrypoint],
+        obj: GardenMetadata | RegisteredEntrypointMetadata,
         register_doi: bool = False,
     ) -> None:
         logger.info("Requesting update to DOI")
@@ -321,8 +316,8 @@ class GardenClient:
         self.backend_client.update_doi_on_datacite(payload)
         logger.info("Update request succeeded")
 
-    def get_registered_entrypoint(self, doi: str) -> RegisteredEntrypoint:
-        """Return a callable ``RegisteredEntrypoint`` corresponding to the given DOI.
+    def get_entrypoint(self, doi: str) -> Entrypoint:
+        """Return a callable ``Entrypoint`` corresponding to the given DOI.
 
         Parameters
         ----------
@@ -332,52 +327,22 @@ class GardenClient:
 
         Returns
         -------
-        RegisteredEntrypoint
-            Instance of ``RegisteredEntrypoint``, which can be run on
+        Entrypoint
+            Instance of ``Entrypoint``, which can be run on
             a specified remote Globus Compute endpoint.
 
-        Raises
-        ------
-        EntrypointNotFoundException
-            Raised when no known entrypoint exists with the given identifier.
         """
-        if local_data._IS_DISABLED:
-            return self.backend_client.get_entrypoint(doi)
-        entrypoint = local_data.get_local_entrypoint_by_doi(doi)
-
-        if entrypoint is None:
-            raise EntrypointNotFoundException(
-                f"Could not find any entrypoints with DOI {doi}."
-            )
-        return entrypoint
+        return self.backend_client.get_entrypoint(doi)
 
     def get_email(self) -> str:
-        return local_data._get_user_email()
+        user_data = self.backend_client.get_user_info()
+        user_email = user_data.get("email") or user_data.get("username")
+        assert user_email is not None, "Failed to find user email"
+        return user_email
 
-    def publish_garden_metadata(self, garden: Garden, register_doi=False) -> None:
-        """
-        Publishes a Garden's expanded_json to the backend /garden-search-route,
-        making it visible on our Globus Search index.
-        """
-        if globus_search._IS_DISABLED:
-            try:
-                published: PublishedGarden = self.backend_client.update_garden(garden)
-                self._update_datacite(published, register_doi=register_doi)
-            except Exception as e:
-                raise Exception(
-                    f"Request to Garden backend to publish garden failed with error: {str(e)}"
-                )
-            return
-
-        published = PublishedGarden.from_garden(garden)
-
-        self._update_datacite(published, register_doi=register_doi)
-        try:
-            self.backend_client.publish_garden_metadata(published)
-        except Exception as e:
-            raise Exception(
-                f"Request to Garden backend to publish garden failed with error: {str(e)}"
-            )
+    def get_user_identity_id(self) -> str:
+        user_data = self.backend_client.get_user_info()
+        return user_data["identity_id"]
 
     def upload_notebook(self, notebook_contents: dict, notebook_name: str) -> str:
         """
@@ -400,9 +365,9 @@ class GardenClient:
         """
         return garden_search.search_gardens(query, self.search_client)
 
-    def get_published_garden(self, doi: str) -> PublishedGarden:
+    def get_garden(self, doi: str) -> Garden:
         """
-        Queries Globus Search for the garden with this DOI.
+        Get the published Garden object associated with the DOI.
 
         Parameters
         ----------
@@ -410,38 +375,13 @@ class GardenClient:
 
         Returns
         -------
-        PublishedGarden populated with metadata from the remote metadata record.
+        Garden
+            Garden corresponding to the DOI. Entrypoints published to this
+            Garden can be called like methods on the object.
 
         """
-        garden = garden_search.get_remote_garden_by_doi(doi, self.search_client)
+        garden = self.backend_client.get_garden(doi)
         return garden
-
-    def delete_garden_locally(self, doi: str) -> None:
-        """
-        Deletes a garden from the local database.
-
-        Parameters
-        ----------
-        doi: The DOI of the garden you want to delete.
-
-        """
-        local_data.delete_local_garden_by_doi(doi)
-
-    def delete_garden_from_search_index(self, doi: str) -> None:
-        """
-        Deletes a garden from the local search index.
-
-        Parameters
-        ----------
-        doi: The DOI of the garden you want to delete.
-
-        """
-        if globus_search._IS_DISABLED:
-            # delete is idempotent, ok if called twice (garden delete command)
-            self.backend_client.delete_garden(doi)
-            return
-
-        self.backend_client.delete_garden_metadata(doi)
 
     def _get_auth_config_for_ecr_push(self) -> dict:
         """
@@ -468,7 +408,7 @@ class GardenClient:
         notebook_url: str,
         metadata: dict,
     ):
-        """Register entrypoints and (re-)publish affected gardens from a user's finished notebook session image.
+        """Register entrypoints update affected gardens from a user's finished notebook session image.
 
         Parameters:
         - base_image_uri: str
@@ -481,79 +421,47 @@ class GardenClient:
         - metadata: dict
             metadata for entrypoints defined in the full image (i.e. the
             contents of the metadata.json extracted from the image)
-
-        Raises:
-        - ValueError
-            When attempting to add an entrypoint to a garden which does not exist
-            in local data.
         """
-        dirty_gardens = set()  # it's good for gardens to get dirty, actually
 
         container_uuid = UUID(
             self.compute_client.register_container(full_image_uri, "docker")
         )
 
-        common_steps = metadata.pop("steps")
-
-        for key, record in metadata.items():
-            if "." in key:
-                # skip "{key}.garden_doi" and "{key}.entrypoint_step" for now
-                continue
-
-            # register function & populate RegisteredEntrypoint fields
-            to_register = make_function_to_register(key)
-            record["container_uuid"] = container_uuid
-            record["func_uuid"] = self.compute_client.register_function(
+        for function_name, record in metadata.items():
+            # register function & populate remaining metadata fields
+            to_register = make_function_to_register(function_name)
+            func_uuid = self.compute_client.register_function(
                 to_register, container_uuid=str(container_uuid), public=True
             )
-            entrypoint_step = metadata.get(f"{key}.entrypoint_step")
-            all_steps = common_steps[:]
-            all_steps.append(entrypoint_step)
-            record["steps"] = all_steps
-            record["doi"] = record.get("doi") or self._mint_draft_doi()
-            record["short_name"] = record.get("short_name") or key
-            record["notebook_url"] = notebook_url
-            record["base_image_uri"] = base_image_uri
-            record["full_image_uri"] = full_image_uri
+            doi = self._mint_draft_doi()
+            registered_meta = RegisteredEntrypointMetadata(
+                doi=doi,
+                doi_is_draft=True,
+                func_uuid=func_uuid,
+                container_uuid=container_uuid,
+                base_image_uri=base_image_uri,
+                full_image_uri=full_image_uri,
+                notebook_url=notebook_url,
+                **record,
+            )
+            self._update_datacite(registered_meta)
 
-            registered = RegisteredEntrypoint(**record)
-            self._update_datacite(registered)
-            if local_data._IS_DISABLED:
-                self.backend_client.update_entrypoint(registered)
-            else:
-                local_data.put_local_entrypoint(registered)
+            self.backend_client.put_entrypoint_metadata(registered_meta)
 
-            # fetch garden we're attaching this entrypoint to (if one was specified)
-            garden_doi = metadata.get(f"{key}.garden_doi")
-            if garden_doi:
-                if local_data._IS_DISABLED:
-                    published = self.backend_client.get_garden(garden_doi)
-                    garden = Garden(
-                        **published.model_dump(),
-                        _entrypoints=published.entrypoints,
-                        entrypoint_ids=[ep.doi for ep in published.entrypoints],
+            # attach entrypoint to garden (if one was specified)
+            if garden_doi := record.get("target_garden_doi"):
+                try:
+                    garden = self.add_entrypoint_to_garden(
+                        registered_meta.doi, garden_doi
                     )
+                except ValueError as e:
+                    suggested_command = f"garden-ai garden add-entrypoint --garden {garden_doi} --entrypoint {registered_meta.doi} --alias <new_name>"
+                    message = f"--------------------------------\n{e}\n"
+                    message += "Entrypoint was registered successfully; you can still add the entrypoint to this garden under an alternative name "
+                    message += "with the following CLI command: \n"
+                    message += f"[bold green]  {suggested_command}[/bold green]"
+                    rich.print(message)
                 else:
-                    garden = local_data.get_local_garden_by_doi(garden_doi)  # type: ignore[assignment]
-                if garden is None:
-                    msg = (
-                        f"Could not add entrypoint {key} to garden "
-                        f"{garden_doi}: could not find local garden with that DOI"
+                    rich.print(
+                        f"[b g]Added entrypoint {doi} ({registered_meta.short_name}) to garden {garden_doi} ({garden.metadata.title})![/b g]"
                     )
-                    raise ValueError(msg)
-                garden.add_entrypoint(registered.doi, replace=True)
-                if local_data._IS_DISABLED:
-                    self.backend_client.update_garden(garden)
-                else:
-                    local_data.put_local_garden(garden)
-                dirty_gardens |= {garden.doi}
-                print(
-                    f"Added entrypoint {registered.doi} ({registered.short_name}) to garden {garden.doi} ({garden.title})!"
-                )
-        if local_data._IS_DISABLED:
-            return  # no need to republish; already updated with backend
-        for doi in dirty_gardens:
-            garden = local_data.get_local_garden_by_doi(doi)  # type: ignore[assignment]
-            if garden:
-                print(f"(Re-)publishing garden {garden.doi} ({garden.title}) ...")
-                self.publish_garden_metadata(garden)

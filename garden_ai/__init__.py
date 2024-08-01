@@ -1,24 +1,19 @@
 from .client import GardenClient
 from .constants import GardenConstants
 from .entrypoints import (
-    EntrypointMetadata,
-    RegisteredEntrypoint,
+    Entrypoint,
     entrypoint_test,
     garden_entrypoint,
-    garden_step,
 )
-from .gardens import Garden, PublishedGarden
-from .model_connectors import DatasetConnection
+from .gardens import Garden
+from .schemas.entrypoint import EntrypointMetadata
 
 __all__ = [
     "GardenConstants",
     "GardenClient",
     "Garden",
-    "PublishedGarden",
     "EntrypointMetadata",
-    "RegisteredEntrypoint",
+    "Entrypoint",
     "garden_entrypoint",
-    "garden_step",
     "entrypoint_test",
-    "DatasetConnection",
 ]

@@ -1,2 +1,0 @@
-## Please specify all entrypoint dependencies here
-tensorflow==2.13.0

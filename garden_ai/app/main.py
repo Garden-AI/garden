@@ -6,15 +6,13 @@ from typing import Optional
 import rich
 import typer
 
-from garden_ai.app.garden import garden_app
-from garden_ai.app.entrypoint import entrypoint_app
-from garden_ai.app.notebook import notebook_app
-from garden_ai.app.docker import docker_app
-from garden_ai.app.hpc_notebook import hpc_notebook_app
-
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
-from garden_ai.local_data import _get_user_email, _clear_user_email
+from garden_ai.app.docker import docker_app
+from garden_ai.app.entrypoint import entrypoint_app
+from garden_ai.app.garden import garden_app
+from garden_ai.app.hpc_notebook import hpc_notebook_app
+from garden_ai.app.notebook import notebook_app
 
 logger = logging.getLogger()
 
@@ -35,10 +33,6 @@ def show_version(show: bool):
     if show:
         if env := os.environ.get("GARDEN_ENV"):
             version_str += f" ({env})"
-        import garden_ai.local_data
-
-        if garden_ai.local_data._IS_DISABLED:
-            version_str += " (local_data disabled)"
         rich.print(version_str)
         raise typer.Exit()
 
@@ -46,12 +40,9 @@ def show_version(show: bool):
 @app.command()
 def whoami():
     """Print the email of the currently logged in user. If logged out, attempt a login."""
-    user = _get_user_email()
-    if user != "unknown":
-        rich.print(user)
-    else:
-        # attempt login, if necessary
-        GardenClient()
+    client = GardenClient()
+    user = client.get_email()
+    rich.print(user)
 
 
 @app.command()
@@ -67,7 +58,6 @@ def login():
 @app.command()
 def logout():
     """Logs out the current user."""
-    _clear_user_email()
     # silently ignores the case where the file is already gone
     Path.unlink(Path(GardenConstants.GARDEN_KEY_STORE), missing_ok=True)
 

@@ -1,2 +1,0 @@
-## Please specify all entrypoint dependencies here
-scikit-learn

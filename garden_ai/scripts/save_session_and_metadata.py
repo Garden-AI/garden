@@ -43,10 +43,6 @@ def get_requirements_file():
     if pip.exists():
         return pip
 
-    conda = Path(__file__).parent / "requirements.yml"
-    if conda.exists():
-        return conda
-
     return None
 
 
@@ -73,21 +69,17 @@ if __name__ == "__main__":
     import json
     import os
 
-    from pydantic_core import to_jsonable_python
-    from garden_ai.model_connectors import HFConnector, GitHubConnector
+    from garden_ai.model_connectors import ModelConnector
 
-    entrypoint_fns, step_fns, steps = [], [], []
+    entrypoint_fns = []
     global_vars = list(globals().values())
     global_notebook_doi = os.environ.get("GLOBAL_NOTEBOOK_DOI", None)
 
     for obj in global_vars:
-        if hasattr(obj, "_garden_entrypoint"):
+        if hasattr(obj, "_entrypoint_metadata"):
             entrypoint_fns.append(obj)
 
-        if hasattr(obj, "_garden_step"):
-            step_fns.append(obj)
-
-        if isinstance(obj, (HFConnector, GitHubConnector)):
+        if isinstance(obj, ModelConnector):
             if obj.stage.has_been_called:
                 raise RuntimeWarning(
                     f"{obj}'s `.stage()` method was called unexpectedly during "
@@ -104,29 +96,23 @@ if __name__ == "__main__":
 
     for entrypoint_fn in entrypoint_fns:
         key_name = entrypoint_fn.__name__
-        doi_key = f"{key_name}.garden_doi"
-        step_key = f"{key_name}.entrypoint_step"
-        entrypoint_meta = entrypoint_fn._garden_entrypoint
+        entrypoint_meta = entrypoint_fn._entrypoint_metadata
+        entrypoint_meta.short_name = entrypoint_meta.short_name or key_name
 
-        total_meta[key_name] = entrypoint_meta.dict()
+        # add the EntrypointMetadata dict to total_meta
+        total_meta[key_name] = entrypoint_meta.model_dump(mode="json")
+
+        # include private metadata attributes & requirements data
         total_meta[key_name]["test_functions"] = entrypoint_meta._test_functions
-        if entrypoint_meta._target_garden_doi:
-            total_meta[doi_key] = entrypoint_meta._target_garden_doi
-        elif global_notebook_doi:
-            total_meta[doi_key] = global_notebook_doi
-        else:
-            raise ValueError(
-                f"Entrypoint {key_name} has no DOI associated with it. "
-                "Either provide a global notebook DOI in your notebook metadata or provide the entrypoint decorator with a DOI."
-            )
-        total_meta[step_key] = entrypoint_meta._as_step
+        total_meta[key_name]["function_text"] = entrypoint_meta._function_text
         total_meta[key_name]["requirements"] = requirements_data
 
-    for step_fn in step_fns:
-        # Relying on insertion order being maintained in dicts in Python 3.8 forward 🤠
-        steps.append(step_fn._garden_step.dict())
-
-    total_meta["steps"] = steps
+        if entrypoint_meta._target_garden_doi:
+            total_meta[key_name][
+                "target_garden_doi"
+            ] = entrypoint_meta._target_garden_doi
+        elif global_notebook_doi:
+            total_meta[key_name]["target_garden_doi"] = global_notebook_doi
 
     with open("metadata.json", "w+") as fout:
-        json.dump(total_meta, fout, default=to_jsonable_python)
+        json.dump(total_meta, fout)

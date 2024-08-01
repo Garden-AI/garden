@@ -99,7 +99,7 @@ profile = "black"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
-exclude = "/fixtures/"
+exclude = "fixtures|scripts"
 
 [tool.pytest.ini_options]
 norecursedirs = "tests/ete"
@@ -110,4 +110,4 @@ markers = [
 
 [tool.coverage.run]
 source = ["garden_ai/"]
-omit = ["garden_ai/notebook_templates/", "tests/"]
+omit = ["garden_ai/notebook_templates/", "tests/", "scripts/"]

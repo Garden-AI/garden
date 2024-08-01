@@ -4,9 +4,10 @@ import typer
 from prompt_toolkit.shortcuts import radiolist_dialog
 from prompt_toolkit import prompt
 
-from garden_ai import RegisteredEntrypoint, Garden
+from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
+from garden_ai.schemas.garden import GardenMetadata
 
-T = TypeVar("T", RegisteredEntrypoint, Garden)
+T = TypeVar("T", RegisteredEntrypointMetadata, GardenMetadata)
 
 
 def gui_edit_garden_entity(
