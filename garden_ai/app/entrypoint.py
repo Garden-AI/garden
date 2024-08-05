@@ -33,7 +33,7 @@ def entrypoint():
 def add_repository(
     doi: str = typer.Argument(
         ...,
-        autocompletion=complete_entrypoint,
+        shell_complete=complete_entrypoint,
         help="The DOI for the entrypoint you would like to link to a code repository",
         rich_help_panel="Required",
     ),
@@ -92,7 +92,7 @@ def add_repository(
 def add_paper(
     entrypoint_doi: str = typer.Argument(
         ...,
-        autocompletion=complete_entrypoint,
+        shell_complete=complete_entrypoint,
         help="The DOI of the entrypoint you would like to link to a paper",
         rich_help_panel="Required",
     ),
@@ -163,7 +163,7 @@ def add_paper(
 def register_doi(
     doi: str = typer.Argument(
         ...,
-        autocompletion=complete_entrypoint,
+        shell_complete=complete_entrypoint,
         help="The draft entrypoint DOI you want to register",
         rich_help_panel="Required",
     ),
@@ -198,7 +198,7 @@ def show(
     entrypoint_ids: List[str] = typer.Argument(
         ...,
         help="The DOIs of the entrypoints you want to show local data for. ",
-        autocompletion=complete_entrypoint,
+        shell_complete=complete_entrypoint,
     ),
 ):
     """Shows all info for some entrypoints"""
@@ -215,7 +215,7 @@ def show(
 def edit(
     doi: str = typer.Argument(
         ...,
-        autocompletion=complete_entrypoint,
+        shell_complete=complete_entrypoint,
         help="The DOI of the entrypoint you want to edit",
         rich_help_panel="Required",
     )

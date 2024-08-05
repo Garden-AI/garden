@@ -228,7 +228,7 @@ def add_entrypoint(
         ...,
         "-g",
         "--garden",
-        autocompletion=complete_garden,
+        shell_complete=complete_garden,
         prompt="Please enter the DOI of a garden",
         help="The name of the garden you want to add an entrypoint to",
         rich_help_panel="Required",
@@ -237,7 +237,7 @@ def add_entrypoint(
         ...,
         "-e",
         "--entrypoint",
-        autocompletion=complete_entrypoint,
+        shell_complete=complete_entrypoint,
         prompt="Please enter the DOI of an entrypoint",
         help="The name of the entrypoint you want to add",
         rich_help_panel="Required",
@@ -270,7 +270,7 @@ def add_entrypoint(
 def delete(
     garden_doi: str = typer.Argument(
         ...,
-        autocompletion=complete_garden,
+        shell_complete=complete_garden,
         help="The DOI of the garden you want to delete.",
         rich_help_panel="Required",
     ),
@@ -294,7 +294,7 @@ def delete(
 def register_doi(
     doi: str = typer.Argument(
         ...,
-        autocompletion=complete_garden,
+        shell_complete=complete_garden,
         help="The draft garden DOI you want to register",
         rich_help_panel="Required",
     ),
@@ -328,9 +328,9 @@ def list():
 def show(
     garden_ids: List[str] = typer.Argument(
         ...,
-        help="The DOIs of the Gardens you want to show the local data for. "
-        "e.g. ``garden show garden1_doi garden2_doi`` will show the local data for both Gardens listed.",
-        autocompletion=complete_garden,
+        help="The DOIs of the Gardens you want to show the data for. "
+        "e.g. ``garden show garden1_doi garden2_doi`` will show the data for both Gardens listed.",
+        shell_complete=complete_garden,
     ),
 ):
     """Shows all info for some Gardens"""
@@ -346,7 +346,7 @@ def show(
 def edit(
     doi: str = typer.Argument(
         ...,
-        autocompletion=complete_garden,
+        shell_complete=complete_garden,
         help="The DOI of the garden you want to edit",
         rich_help_panel="Required",
     )
