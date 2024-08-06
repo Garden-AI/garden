@@ -18,12 +18,13 @@ from garden_ai.schemas.garden import GardenMetadata
 
 @pytest.fixture
 def cli_runner() -> CliRunner:
+    """Return a typer.testing.CliRunner for use in tests."""
     return CliRunner()
 
 
 @pytest.fixture
 def app(garden_client, mocker) -> Typer:
-    """Provides an instance of the CLI app for tests.
+    """Provides an instance of the garden-ai CLI app for tests.
 
     Overrides the GardenClient that the app constructs in commands/subcommands.
     Replaces the GardenClient with one that has mocked auth and network functions.
@@ -35,7 +36,8 @@ def app(garden_client, mocker) -> Typer:
 
 
 @pytest.fixture
-def mock_authorizer_tuple(mocker):
+def mock_authorizer_tuple(mocker) -> tuple:
+    """Return mocks of the Globus authorizer for the GardenClient."""
     mock_authorizer = mocker.Mock()
     mock_authorizer_constructor = mocker.patch(
         "garden_ai.client.RefreshTokenAuthorizer", return_value=mock_authorizer
@@ -44,12 +46,14 @@ def mock_authorizer_tuple(mocker):
 
 
 @pytest.fixture
-def identity_jwt():
+def identity_jwt() -> str:
+    """Return a mock Globus Auth JWT"""
     return "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YzllMjIzZi1jMjE1LTRjMjYtOWFiYi0yNjJkYmNlMDAwMWMiLCJlbWFpbCI6IndpbGxlbmdsZXJAdWNoaWNhZ28uZWR1IiwibGFzdF9hdXRoZW50aWNhdGlvbiI6MTY3NjU2MjEyNiwiaWRlbnRpdHlfc2V0IjpbeyJzdWIiOiI2YzllMjIzZi1jMjE1LTRjMjYtOWFiYi0yNjJkYmNlMDAwMWMiLCJlbWFpbCI6IndpbGxlbmdsZXJAdWNoaWNhZ28uZWR1IiwibGFzdF9hdXRoZW50aWNhdGlvbiI6MTY3NjU2MjEyNn1dLCJpc3MiOiJodHRwczovL2F1dGguZ2xvYnVzLm9yZyIsImF1ZCI6ImNmOWY4OTM4LWZiNzItNDM5Yy1hNzBiLTg1YWRkZjFiODUzOSIsImV4cCI6MTY3Nzc4NzMzNCwiaWF0IjoxNjc3NjE0NTM0LCJhdF9oYXNoIjoiT1VMX0s3ZmVyNXNBdk03cEI0dXJnNE95dXZVOUxEcGh3SnhCX1VUXzY1cyJ9.TssuMsFeKFQH9Bd29c2Bj0V_f-KkN8alGtHnZOZbg5AQwVPokthHRA4bro7IHuOCXIoh3kX03KPNcLfyRRM5JN1d4SKl0L9KpkJB45BkKzKcg8KPgChOzs_9jRiiDwmXvIpgWiUNVI4grHIEYVpB_VdFdKw6EwWQgu6ZrN_2rvpa45Pc-NZ_-WR4WDFAx2Hak7sXRXslY_1ftlRgV9348uwp78jh1pnXft-mpgpzwqHVALLKgzecCESYmaipWTd3-atczpH9SPIxOn7DoiX2I2Nhn_8IkrhIZnbmtOyY7wINrSGFonN49AncVTNq9AfIngZB26spUByHW4mLB6E2Mw"  # noqa: E501
 
 
 @pytest.fixture
-def token():
+def token() -> dict:
+    """Return a dict with refresh_token, access_token, and expires_at_seconds fields."""
     return {
         "refresh_token": "MyRefreshToken",
         "access_token": "MyAccessToken",
@@ -59,13 +63,15 @@ def token():
 
 @pytest.fixture
 def mock_keystore(mocker):
+    """Mock the GardenFileAdapter in to have a ketstore for tests"""
     mock_keystore = mocker.MagicMock(GardenFileAdapter)
     mocker.patch("garden_ai.client.GardenFileAdapter").return_value = mock_keystore
     return mock_keystore
 
 
 @pytest.fixture
-def patch_backend_client_requests(mocker, garden_nested_metadata_json):
+def patch_backend_client_requests(mocker, garden_nested_metadata_json) -> None:
+    """Patches BackendClient methods that make network requests."""
     backend_client = "garden_ai.backend_client.BackendClient"
     mocker.patch(
         f"{backend_client}.get_user_info",
@@ -79,7 +85,8 @@ def patch_backend_client_requests(mocker, garden_nested_metadata_json):
 
 
 @pytest.fixture
-def patch_garden_constants(mocker, tmp_path):
+def patch_garden_constants(mocker, tmp_path) -> None:
+    """Patches fields in GardenConstants with temp values for tests."""
     with mocker.patch.object(GardenConstants, "GARDEN_DIR", tmp_path):
         with mocker.patch.object(
             GardenConstants, "GARDEN_KEY_STORE", tmp_path / "tokens.json"
@@ -95,7 +102,8 @@ def garden_client(
     token,
     identity_jwt,
     patch_garden_constants,
-):
+) -> GardenClient:
+    """Return a GardenClient with mocked auth credentials."""
 
     # mocker, mock_authorizer_tuple, token, mock_keystore
     mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
@@ -137,7 +145,8 @@ def garden_client(
 
 
 @pytest.fixture
-def logged_in_user(tmp_path):
+def logged_in_user(tmp_path) -> None:
+    """Simulates a logged-in user by creating a temporary GARDEN_KEY_STORE file."""
     with patch.object(
         GardenConstants,
         "GARDEN_KEY_STORE",
@@ -147,21 +156,24 @@ def logged_in_user(tmp_path):
 
 
 @pytest.fixture
-def mock_mint_doi(faker):
+def mock_mint_doi(faker) -> None:
+    """Patches _mint_draft_doi calls so we don't actually call out to datacite."""
     doi = f"{faker.name()}/{faker.name()}"
     with patch("garden_ai.client.GardenClient._mint_draft_doi", return_value=doi):
         yield
 
 
 @pytest.fixture
-def garden_metadata_json():
+def garden_metadata_json() -> dict:
+    """Return a dict with a valid GardenMetadata schema"""
     f = pathlib.Path(__file__).parent / "fixtures" / "garden_metadata.json"
     with open(f, "r") as f_in:
         return json.load(f_in)
 
 
 @pytest.fixture
-def garden_nested_metadata_json():
+def garden_nested_metadata_json() -> dict:
+    """Return a dict with a vaild GardenMetadata schema with nested entrypoints."""
     f = (
         pathlib.Path(__file__).parent
         / "fixtures"
@@ -172,17 +184,22 @@ def garden_nested_metadata_json():
 
 
 @pytest.fixture
-def entrypoint_metadata_json():
+def entrypoint_metadata_json() -> dict:
+    """Return a dict with a valid EntrypointMetadata schema."""
     f = pathlib.Path(__file__).parent / "fixtures" / "entrypoint_metadata.json"
     with open(f, "r") as f_in:
         return json.load(f_in)
 
 
 @pytest.fixture
-def mock_GardenMetadata(garden_nested_metadata_json):
+def mock_GardenMetadata(garden_nested_metadata_json) -> GardenMetadata:
+    """Return a GardenMetadata object populated with test data."""
     return GardenMetadata(**garden_nested_metadata_json)
 
 
 @pytest.fixture
-def mock_RegisteredEntrypointMetadata(entrypoint_metadata_json):
+def mock_RegisteredEntrypointMetadata(
+    entrypoint_metadata_json,
+) -> RegisteredEntrypointMetadata:
+    """Return a RegisteredEntrypointMetadata object populated with test data."""
     return RegisteredEntrypointMetadata(**entrypoint_metadata_json)
