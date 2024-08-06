@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 import pytest
 
 from garden_ai.containers import DockerStartFailure
@@ -48,7 +47,9 @@ def test_check_prints_success_message_when_docker_works(
 ):
     cli_args = ["docker", "check"]
 
-    mocker.patch("garden_ai.app.docker.get_docker_client", return_value=MagicMock())
+    mocker.patch(
+        "garden_ai.app.docker.get_docker_client", return_value=mocker.MagicMock()
+    )
 
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0

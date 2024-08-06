@@ -1,6 +1,5 @@
-# flake8: noqa: E841
+# flake8: noqa: F841
 import re
-from unittest.mock import patch, MagicMock
 
 import pytest
 import rich
@@ -419,7 +418,9 @@ def test_show_displays_garden_json(
         return_value=mock_gardens,
     )
 
-    mock_rich = mocker.patch("garden_ai.app.garden.rich", return_value=MagicMock())
+    mock_rich = mocker.patch(
+        "garden_ai.app.garden.rich", return_value=mocker.MagicMock()
+    )
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0
     mock_rich.print_json.assert_called_with(

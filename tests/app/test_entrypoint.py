@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 import pytest
 
 
@@ -35,7 +34,7 @@ def test_add_repository_prompts_for_contributors(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
     mock_prompt = mocker.patch(
@@ -66,7 +65,7 @@ def test_add_respository_prompts_for_missing_url(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
 
@@ -95,7 +94,7 @@ def test_add_repository_prompts_for_missing_respository_name(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
 
@@ -159,7 +158,7 @@ def test_add_paper_propmpts_for_authors_if_none(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
     mock_prompt = mocker.patch(
@@ -189,7 +188,7 @@ def test_add_paper_prompts_for_paper_doi_if_missing(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
     mock_prompt = mocker.patch(
@@ -219,7 +218,7 @@ def test_add_paper_prompts_for_citation_if_missing(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
     mock_prompt = mocker.patch(
@@ -280,9 +279,11 @@ def test_show_prints_entrypoint_json(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoints",
-        return_value=[MagicMock()],
+        return_value=[mocker.MagicMock()],
     )
-    mock_rich = mocker.patch("garden_ai.app.entrypoint.rich", return_value=MagicMock())
+    mock_rich = mocker.patch(
+        "garden_ai.app.entrypoint.rich", return_value=mocker.MagicMock()
+    )
 
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0
@@ -318,10 +319,11 @@ def test_edit_prints_doi_on_successful_edit(
 
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_entrypoint_metadata",
-        return_value=MagicMock(),
+        return_value=mocker.MagicMock(),
     )
     mocker.patch(
-        "garden_ai.app.entrypoint.gui_edit_garden_entity", return_value=MagicMock()
+        "garden_ai.app.entrypoint.gui_edit_garden_entity",
+        return_value=mocker.MagicMock(),
     )
     mocker.patch("garden_ai.backend_client.BackendClient.put_entrypoint_metadata")
 
