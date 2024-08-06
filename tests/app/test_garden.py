@@ -445,12 +445,6 @@ def test_edit_returns_failure_status_if_no_garden(
     assert result.exit_code == 1
 
 
-@pytest.mark.cli
-@pytest.mark.skip("Are we going to move away from editing metadata on the cli?")
-def test_edit_correctly_updates_garden_metadata():
-    pass
-
-
 def test_create_query_returns_empty_string_if_no_args():
     q = create_query()
     assert q == ""
