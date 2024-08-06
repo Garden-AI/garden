@@ -23,6 +23,7 @@ def test_garden_create_all_args_succeeds(
     app,
     patch_backend_client_requests,
     garden_nested_metadata_json,
+    mocker,
 ):
     garden_data = garden_nested_metadata_json
     cli_args = [
@@ -37,13 +38,13 @@ def test_garden_create_all_args_succeeds(
         f"--tag={garden_data['tags'][1]}",
     ]
 
-    with patch(
+    mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
         return_value=garden_data["doi"],
-    ):
-        result = cli_runner.invoke(app, cli_args)
-        assert result.exit_code == 0
-        assert f"created with DOI: {garden_data['doi']}" in result.stdout
+    )
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 0
+    assert f"created with DOI: {garden_data['doi']}" in result.stdout
 
 
 @pytest.mark.cli
@@ -52,6 +53,7 @@ def test_garden_create_prompts_for_missing_title(
     app,
     patch_backend_client_requests,
     garden_nested_metadata_json,
+    mocker,
 ):
     garden_data = garden_nested_metadata_json
     cli_args = [
@@ -66,13 +68,14 @@ def test_garden_create_prompts_for_missing_title(
         f"--tag={garden_data['tags'][1]}",
     ]
 
-    with patch(
+    mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
         return_value=garden_data["doi"],
-    ):
-        result = cli_runner.invoke(app, cli_args, input="Some Title\n")
-        assert result.exit_code == 0
-        assert "Please enter a title" in result.stdout
+    )
+
+    result = cli_runner.invoke(app, cli_args, input="Some Title\n")
+    assert result.exit_code == 0
+    assert "Please enter a title" in result.stdout
 
 
 @pytest.mark.cli
@@ -81,6 +84,7 @@ def test_garden_create_prompts_for_missing_author(
     app,
     patch_backend_client_requests,
     garden_nested_metadata_json,
+    mocker,
 ):
     garden_data = garden_nested_metadata_json
     cli_args = [
@@ -95,16 +99,20 @@ def test_garden_create_prompts_for_missing_author(
         f"--tag={garden_data['tags'][1]}",
     ]
 
-    with patch(
-        "garden_ai.client.GardenClient._mint_draft_doi", return_value=garden_data["doi"]
-    ):
-        with patch(
-            "garden_ai.app.garden.Prompt.ask", side_effect=["SomeAuthor", None]
-        ) as mock_prompt:
-            result = cli_runner.invoke(app, cli_args)
-            assert result.exit_code == 0
-            mock_prompt.assert_called()
-            assert garden_data["doi"] in result.stdout
+    mocker.patch(
+        "garden_ai.client.GardenClient._mint_draft_doi",
+        return_value=garden_data["doi"],
+    )
+
+    mock_prompt = mocker.patch(
+        "garden_ai.app.garden.Prompt.ask",
+        side_effect=["SomeAuthor", None],
+    )
+
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 0
+    mock_prompt.assert_called()
+    assert garden_data["doi"] in result.stdout
 
 
 @pytest.mark.cli
@@ -113,6 +121,7 @@ def test_garden_create_prompts_for_missing_contributor(
     app,
     patch_backend_client_requests,
     garden_nested_metadata_json,
+    mocker,
 ):
     garden_data = garden_nested_metadata_json
     cli_args = [
@@ -127,18 +136,19 @@ def test_garden_create_prompts_for_missing_contributor(
         f"--tag={garden_data['tags'][1]}",
     ]
 
-    with patch(
+    mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
         return_value=garden_data["doi"],
-    ):
-        with patch(
-            "garden_ai.app.garden.Prompt.ask",
-            side_effect=["SomeContributor", None],
-        ) as mock_prompt:
-            result = cli_runner.invoke(app, cli_args)
-            assert result.exit_code == 0
-            mock_prompt.assert_called()
-            assert garden_data["doi"] in result.stdout
+    )
+    mock_prompt = mocker.patch(
+        "garden_ai.app.garden.Prompt.ask",
+        side_effect=["SomeContributor", None],
+    )
+
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 0
+    mock_prompt.assert_called()
+    assert garden_data["doi"] in result.stdout
 
 
 @pytest.mark.cli
@@ -148,6 +158,7 @@ def test_garden_create_prompts_for_missing_description(
     patch_backend_client_requests,
     garden_nested_metadata_json,
     mock_mint_doi,
+    mocker,
 ):
     garden_data = garden_nested_metadata_json
     cli_args = [
@@ -162,14 +173,15 @@ def test_garden_create_prompts_for_missing_description(
         f"--tag={garden_data['tags'][1]}",
     ]
 
-    with patch(
+    mock_prompt = mocker.patch(
         "garden_ai.app.garden.Prompt.ask",
         side_effect=["SomeDescription", None],
-    ) as mock_prompt:
-        result = cli_runner.invoke(app, cli_args)
-        assert result.exit_code == 0
-        mock_prompt.assert_called()
-        assert garden_data["doi"] in result.stdout
+    )
+
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 0
+    mock_prompt.assert_called()
+    assert garden_data["doi"] in result.stdout
 
 
 @pytest.mark.cli
@@ -311,11 +323,11 @@ def test_delete_prompts_for_confirmation(
         "delete",
         "some/doi",
     ]
-    with mocker.patch("garden_ai.backend_client.BackendClient.delete_garden"):
-        result = cli_runner.invoke(app, cli_args, input="Y")
-        assert result.exit_code == 0
-        assert "Are you sure you want to proceed?" in result.stdout
-        assert "Garden some/doi has been deleted" in result.stdout
+    mocker.patch("garden_ai.backend_client.BackendClient.delete_garden")
+    result = cli_runner.invoke(app, cli_args, input="Y")
+    assert result.exit_code == 0
+    assert "Are you sure you want to proceed?" in result.stdout
+    assert "Garden some/doi has been deleted" in result.stdout
 
 
 @pytest.mark.cli
@@ -329,11 +341,11 @@ def test_delete_aborts_on_failed_confirmation(
         "delete",
         "some/doi",
     ]
-    with mocker.patch("garden_ai.backend_client.BackendClient.delete_garden"):
-        result = cli_runner.invoke(app, cli_args, input="N")
-        assert result.exit_code == 1
-        assert "Are you sure you want to proceed?" in result.stdout
-        assert "Garden some/doi has been deleted" not in result.stdout
+    mocker.patch("garden_ai.backend_client.BackendClient.delete_garden")
+    result = cli_runner.invoke(app, cli_args, input="N")
+    assert result.exit_code == 1
+    assert "Are you sure you want to proceed?" in result.stdout
+    assert "Garden some/doi has been deleted" not in result.stdout
 
 
 @pytest.mark.cli
@@ -347,10 +359,10 @@ def test_register_doi(
         "register-doi",
         "some/doi",
     ]
-    with mocker.patch("garden_ai.client.GardenClient.register_garden_doi"):
-        result = cli_runner.invoke(app, cli_args)
-        assert result.exit_code == 0
-        assert "some/doi has been moved out of draft status" in result.stdout
+    mocker.patch("garden_ai.client.GardenClient.register_garden_doi")
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 0
+    assert "some/doi has been moved out of draft status" in result.stdout
 
 
 @pytest.mark.cli
@@ -368,17 +380,18 @@ def test_list_displays_correctly(
     mocker.patch(
         "garden_ai.client.GardenClient.get_user_identity_id", return_value="some-uuid"
     )
-    with mocker.patch(
+    mocker.patch(
         "garden_ai.backend_client.BackendClient.get_gardens",
         return_value=[
             Garden._from_nested_metadata(garden_nested_metadata_json) for _ in range(5)
         ],
-    ):
-        result = cli_runner.invoke(app, cli_args)
-        assert result.exit_code == 0
+    )
 
-        dois = re.findall(rf"{garden_nested_metadata_json['doi']}", result.stdout)
-        assert len(dois) == 5
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 0
+
+    dois = re.findall(rf"{garden_nested_metadata_json['doi']}", result.stdout)
+    assert len(dois) == 5
 
 
 @pytest.mark.cli
@@ -424,12 +437,12 @@ def test_edit_returns_failure_status_if_no_garden(
         f"{garden_nested_metadata_json['doi']}",
     ]
 
-    with mocker.patch(
+    mocker.patch(
         "garden_ai.backend_client.BackendClient.get_garden_metadata",
         side_effect=None,
-    ):
-        result = cli_runner.invoke(app, cli_args)
-        assert result.exit_code == 1
+    )
+    result = cli_runner.invoke(app, cli_args)
+    assert result.exit_code == 1
 
 
 @pytest.mark.cli
