@@ -15,6 +15,34 @@ from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 
 
+def pytest_addoption(parser, pluginmanager):
+    parser.addoption(
+        "--integration",
+        action="store_true",
+        default=False,
+        help="run integration tests",
+    )
+
+
+def pytest_collection_modifyitems(session, config, items):
+    if config.getoption("--integration"):
+        # if --integration is set, don't skip integration tests
+        return
+
+    if marker := config.getoption("-m"):
+        if "integration" in marker and "not integration" not in marker:
+            # if -m "integration" is given on the cli, don't skip integration tests
+            return
+
+    # Otherwise, skip integration tests
+    skip_integration = pytest.mark.skip(
+        "need -m 'integration' or --integration option to run"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
+
+
 @pytest.fixture
 def cli_runner() -> CliRunner:
     """Return a typer.testing.CliRunner for use in tests."""
@@ -136,6 +164,10 @@ def garden_client(
     mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
     mocker.patch("globus_compute_sdk.sdk.client.LoginManager").return_value = (
         mock_login_manager
+    )
+
+    mocker.patch(
+        "garden_ai.client.GardenClient._do_login_flow", return_value=mock_token_response
     )
 
     # Call the Garden constructor
