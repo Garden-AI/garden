@@ -1,12 +1,10 @@
 import json
 import pathlib  # noqa
 from unittest.mock import patch
-from typing import Generator
 
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthLoginClient, OAuthTokenResponse, SearchClient
 import pytest
-from typer import Typer
 from typer.testing import CliRunner
 
 from garden_ai.client import GardenClient
@@ -24,7 +22,7 @@ def cli_runner() -> CliRunner:
 
 
 @pytest.fixture
-def app(garden_client, mocker) -> Generator[Typer]:
+def app(garden_client, mocker):
     """Provides an instance of the garden-ai CLI app for tests.
 
     Overrides the GardenClient that the app constructs in commands/subcommands.
@@ -37,7 +35,7 @@ def app(garden_client, mocker) -> Generator[Typer]:
 
 
 @pytest.fixture
-def mock_authorizer_tuple(mocker) -> tuple:
+def mock_authorizer_tuple(mocker):
     """Return mocks of the Globus authorizer for the GardenClient."""
     mock_authorizer = mocker.Mock()
     mock_authorizer_constructor = mocker.patch(
@@ -86,7 +84,7 @@ def patch_backend_client_requests(mocker, garden_nested_metadata_json) -> None:
 
 
 @pytest.fixture
-def patch_garden_constants(mocker, tmp_path) -> Generator[None]:
+def patch_garden_constants(mocker, tmp_path):
     """Patches fields in GardenConstants with temp values for tests."""
     with mocker.patch.object(GardenConstants, "GARDEN_DIR", tmp_path):
         with mocker.patch.object(
@@ -146,7 +144,7 @@ def garden_client(
 
 
 @pytest.fixture
-def logged_in_user(tmp_path) -> Generator[None]:
+def logged_in_user(tmp_path):
     """Simulates a logged-in user by creating a temporary GARDEN_KEY_STORE file."""
     with patch.object(
         GardenConstants,
