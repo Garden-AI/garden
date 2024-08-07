@@ -1,7 +1,8 @@
+from click.core import Context, Parameter
 from garden_ai import GardenClient
 
 
-def complete_entrypoint(incomplete: str):
+def complete_entrypoint(ctx: Context, args: Parameter, incomplete: str):
     client = GardenClient()
     user_id = client.get_user_identity_id()
     entrypoints = client.backend_client.get_entrypoints(owner_uuid=user_id)
@@ -17,7 +18,7 @@ def complete_entrypoint(incomplete: str):
     return completions
 
 
-def complete_garden(incomplete: str):
+def complete_garden(ctx: Context, args: Parameter, incomplete: str):
     client = GardenClient()
     user_id = client.get_user_identity_id()
     gardens = client.backend_client.get_gardens(owner_uuid=user_id)
