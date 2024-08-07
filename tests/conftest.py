@@ -156,22 +156,6 @@ def logged_in_user(tmp_path) -> None:
 
 
 @pytest.fixture
-def mock_mint_doi(faker) -> None:
-    """Patches _mint_draft_doi calls so we don't actually call out to datacite."""
-    doi = f"{faker.name()}/{faker.name()}"
-    with patch("garden_ai.client.GardenClient._mint_draft_doi", return_value=doi):
-        yield
-
-
-@pytest.fixture
-def garden_metadata_json() -> dict:
-    """Return a dict with a valid GardenMetadata schema"""
-    f = pathlib.Path(__file__).parent / "fixtures" / "garden_metadata.json"
-    with open(f, "r") as f_in:
-        return json.load(f_in)
-
-
-@pytest.fixture
 def garden_nested_metadata_json() -> dict:
     """Return a dict with a vaild GardenMetadata schema with nested entrypoints."""
     f = (
@@ -194,7 +178,9 @@ def entrypoint_metadata_json() -> dict:
 @pytest.fixture
 def mock_GardenMetadata(garden_nested_metadata_json) -> GardenMetadata:
     """Return a GardenMetadata object populated with test data."""
-    return GardenMetadata(**garden_nested_metadata_json)
+    return GardenMetadata(
+        **garden_nested_metadata_json,
+    )
 
 
 @pytest.fixture

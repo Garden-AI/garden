@@ -1,30 +1,35 @@
 {
-    "title": "Example Entrypoint",
-    "authors": ["John Doe", "Jane Smith"],
-    "description": "This is a detailed description of the example entrypoint.",
-    "year": "2024",
-    "short_name": "example_entry",
-    "tags": ["example", "test", "metadata"],
-    "models": [],
-    "repositories": [
-    ],
-    "papers": [
-    ],
-    "datasets": [
-    ],
-    "_test_functions": ["test_example_function"],
-    "_target_garden_doi": "10.1234/example.doi",
-    "_function_text": "def example_function(): pass",
-    "doi": "10.1234/example.doi",
-    "doi_is_draft": true,
-    "test_functions": ["test_example_function"],
-    "requirements": ["requirement1", "requirement2"],
-    "func_uuid": "550e8400-e29b-41d4-a716-446655440000",
-    "container_uuid": "660e8400-e29b-41d4-a716-446655440000",
-    "base_image_uri": "docker://example/base_image",
-    "full_image_uri": "docker://example/full_image",
-    "notebook_url": "https://example.com/notebook",
-    "function_text": "def example_function(): pass",
-    "owner_identity_id": "770e8400-e29b-41d4-a716-446655440000",
-    "id": 1
+  "doi": "10.26311/3hz8-as26",
+  "doi_is_draft": true,
+  "title": "Semiconductor defect impurity levels",
+  "description": "Input: (Type: ndarray Shape: ['None', '15']) List of 15 elemental and one-hot encoded features to evaluate model. The list includes: M_3site, M_i_3site, M_i_neut_site, M_i_5site, M_5site, charge_from, charge_to, epsilon, CovalentRadius_max_value, ElectronAffinity_composition_average, NUnfilled_difference, phi_arithmetic_average, Site1_AtomicRadii_arithmetic_average, Site1_BCCvolume_padiff_differenc, Site1_HHIr_composition_average. Output: (Type: ndarray, Shape: 'None') Predictions of semiconductor defect level energies (in eV)",
+  "year": "2020",
+  "func_uuid": "b04ac190-f692-4138-94ca-e6717a77f1e1",
+  "container_uuid": "580c7757-9449-4f46-ac3e-03fb3a86b82f",
+  "base_image_uri": "n/a - dlhub",
+  "full_image_uri": "n/a - dlhub",
+  "notebook_url": "https://www.dlhub.org/",
+  "is_archived": false,
+  "short_name": "predict_defect_level_energies",
+  "function_text": "N/A",
+  "authors": [
+    "Maciej Polak",
+    "Ryan Jacobs",
+    "Arun Mannodi-Kanakkithodi",
+    "Maria Chan",
+    "Dane Morgan"
+  ],
+  "tags": [
+    "Materials Science"
+  ],
+  "test_functions": [
+    "def test_model():\n    import numpy as np\n    # The input shape is n rows of 15 attributes - replace with real data\n    input = np.zeros((1, 15))\n    return predict_defect_level_energies(input)\n"
+  ],
+  "requirements": [],
+  "models": [],
+  "repositories": [],
+  "papers": [],
+  "datasets": [],
+  "owner_identity_id": "76024960-c68b-4fec-8cb8-b65b096f18da",
+  "id": 1
 }

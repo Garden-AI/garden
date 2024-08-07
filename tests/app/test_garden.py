@@ -21,29 +21,30 @@ def test_garden_create_all_args_succeeds(
     cli_runner,
     app,
     patch_backend_client_requests,
-    garden_nested_metadata_json,
+    mock_GardenMetadata,
     mocker,
 ):
-    garden_data = garden_nested_metadata_json
+    garden = mock_GardenMetadata
     cli_args = [
         "garden",
         "create",
-        f"--title={garden_data['title']}",
-        f"--author={garden_data['authors'][0]}",
-        f"--year={garden_data['year']}",
-        f"--contributor={garden_data['contributors'][0]}",
-        f"--description={garden_data['description']}",
-        f"--tag={garden_data['tags'][0]}",
-        f"--tag={garden_data['tags'][1]}",
+        f"--title={garden.title}",
+        f"--author={garden.authors[0]}",
+        f"--year={garden.year}",
+        f"--contributor={garden.contributors[0]}",
+        f"--contributor={garden.contributors[1]}",
+        f"--description={garden.description}",
+        f"--tag={garden.tags[0]}",
+        f"--tag={garden.tags[1]}",
     ]
 
     mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
-        return_value=garden_data["doi"],
+        return_value=garden.doi,
     )
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0
-    assert f"created with DOI: {garden_data['doi']}" in result.stdout
+    assert garden.doi in result.stdout
 
 
 @pytest.mark.cli
@@ -51,25 +52,25 @@ def test_garden_create_prompts_for_missing_title(
     cli_runner,
     app,
     patch_backend_client_requests,
-    garden_nested_metadata_json,
+    mock_GardenMetadata,
     mocker,
 ):
-    garden_data = garden_nested_metadata_json
+    garden = mock_GardenMetadata
     cli_args = [
         "garden",
         "create",
         # missing title
-        f"--author={garden_data['authors'][0]}",
-        f"--year={garden_data['year']}",
-        f"--contributor={garden_data['contributors'][0]}",
-        f"--description={garden_data['description']}",
-        f"--tag={garden_data['tags'][0]}",
-        f"--tag={garden_data['tags'][1]}",
+        f"--author={garden.authors[0]}",
+        f"--year={garden.year}",
+        f"--contributor={garden.contributors[0]}",
+        f"--description={garden.description}",
+        f"--tag={garden.tags[0]}",
+        f"--tag={garden.tags[1]}",
     ]
 
     mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
-        return_value=garden_data["doi"],
+        return_value=garden.doi,
     )
 
     result = cli_runner.invoke(app, cli_args, input="Some Title\n")
@@ -82,25 +83,25 @@ def test_garden_create_prompts_for_missing_author(
     cli_runner,
     app,
     patch_backend_client_requests,
-    garden_nested_metadata_json,
+    mock_GardenMetadata,
     mocker,
 ):
-    garden_data = garden_nested_metadata_json
+    garden = mock_GardenMetadata
     cli_args = [
         "garden",
         "create",
-        f"--title={garden_data['title']}",
+        f"--title={garden.title}",
         # missing author
-        f"--year={garden_data['year']}",
-        f"--contributor={garden_data['contributors'][0]}",
-        f"--description={garden_data['description']}",
-        f"--tag={garden_data['tags'][0]}",
-        f"--tag={garden_data['tags'][1]}",
+        f"--year={garden.year}",
+        f"--contributor={garden.contributors[0]}",
+        f"--description={garden.description}",
+        f"--tag={garden.tags[0]}",
+        f"--tag={garden.tags[1]}",
     ]
 
     mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
-        return_value=garden_data["doi"],
+        return_value=garden.doi,
     )
 
     mock_prompt = mocker.patch(
@@ -111,7 +112,7 @@ def test_garden_create_prompts_for_missing_author(
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0
     mock_prompt.assert_called()
-    assert garden_data["doi"] in result.stdout
+    assert garden.doi in result.stdout
 
 
 @pytest.mark.cli
@@ -119,25 +120,25 @@ def test_garden_create_prompts_for_missing_contributor(
     cli_runner,
     app,
     patch_backend_client_requests,
-    garden_nested_metadata_json,
+    mock_GardenMetadata,
     mocker,
 ):
-    garden_data = garden_nested_metadata_json
+    garden = mock_GardenMetadata
     cli_args = [
         "garden",
         "create",
-        f"--title={garden_data['title']}",
-        f"--author={garden_data['authors'][0]}",
-        f"--year={garden_data['year']}",
+        f"--title={garden.title}",
+        f"--author={garden.authors[0]}",
+        f"--year={garden.year}",
         # missing contributor
-        f"--description={garden_data['description']}",
-        f"--tag={garden_data['tags'][0]}",
-        f"--tag={garden_data['tags'][1]}",
+        f"--description={garden.description}",
+        f"--tag={garden.tags[0]}",
+        f"--tag={garden.tags[1]}",
     ]
 
     mocker.patch(
         "garden_ai.client.GardenClient._mint_draft_doi",
-        return_value=garden_data["doi"],
+        return_value=garden.doi,
     )
     mock_prompt = mocker.patch(
         "garden_ai.app.garden.Prompt.ask",
@@ -147,7 +148,7 @@ def test_garden_create_prompts_for_missing_contributor(
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0
     mock_prompt.assert_called()
-    assert garden_data["doi"] in result.stdout
+    assert garden.doi in result.stdout
 
 
 @pytest.mark.cli
@@ -155,22 +156,26 @@ def test_garden_create_prompts_for_missing_description(
     cli_runner,
     app,
     patch_backend_client_requests,
-    garden_nested_metadata_json,
-    mock_mint_doi,
+    mock_GardenMetadata,
     mocker,
 ):
-    garden_data = garden_nested_metadata_json
+    garden = mock_GardenMetadata
     cli_args = [
         "garden",
         "create",
-        f"--title={garden_data['title']}",
-        f"--author={garden_data['authors'][0]}",
-        f"--year={garden_data['year']}",
-        f"--contributor={garden_data['contributors'][0]}",
+        f"--title={garden.title}",
+        f"--author={garden.authors[0]}",
+        f"--year={garden.year}",
+        f"--contributor={garden.contributors[0]}",
         # missing description
-        f"--tag={garden_data['tags'][0]}",
-        f"--tag={garden_data['tags'][1]}",
+        f"--tag={garden.tags[0]}",
+        f"--tag={garden.tags[1]}",
     ]
+
+    mocker.patch(
+        "garden_ai.client.GardenClient._mint_draft_doi",
+        return_value=garden.doi,
+    )
 
     mock_prompt = mocker.patch(
         "garden_ai.app.garden.Prompt.ask",
@@ -180,7 +185,7 @@ def test_garden_create_prompts_for_missing_description(
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 0
     mock_prompt.assert_called()
-    assert garden_data["doi"] in result.stdout
+    assert garden.doi in result.stdout
 
 
 @pytest.mark.cli
