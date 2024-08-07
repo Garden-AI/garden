@@ -46,7 +46,6 @@ data:
         ],
         heartbeat_period=15,
         heartbeat_threshold=200,
-        funcx_service_address="{{ .Values.funcXServiceAddress }}/v2",
         detach_endpoint=False,
     )
 
