@@ -19,7 +19,7 @@ workerImage: python:3.10
 #   - otherwise install a patched version of globus compute v2.2.3 (the last
 #       3.7-compatible version) from github, since the one on pypi is broken.
 #       (This only applies to dlhub models; garden never supported 3.7)
-workerInit: export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/; python -c "import sys; sys.exit(0 if sys.version_info < (3, 8) else 1)" && pip install "git+https://github.com/OwenPriceSkelly/funcX.git@3.7-compatibility-hack#subdirectory=compute_endpoint" || pip install "globus-compute-endpoint>=2.0"
+workerInit: ulimit -n 1024 && export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/; python -c "import sys; sys.exit(0 if sys.version_info < (3, 8) else 1)" && pip install "git+https://github.com/OwenPriceSkelly/funcX.git@3.7-compatibility-hack#subdirectory=compute_endpoint" || pip install "globus-compute-endpoint>=2.0"
 
 # we're restricted to the dlhub namespace on river
 workerNamespace: dlhub
