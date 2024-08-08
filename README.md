@@ -5,47 +5,73 @@
 [![Tests](https://github.com/Garden-AI/garden/actions/workflows/pypi.yaml/badge.svg)](https://github.com/Garden-AI/garden/actions/workflows/pypi.yaml)
 [![tests](https://github.com/Garden-AI/garden/actions/workflows/ci.yaml/badge.svg)](https://github.com/Garden-AI/garden/actions/workflows/ci.yaml)
 
-Garden is a framework designed to make publishing and applying AI/ML models for translational research in science, engineering, education, and industry easier and more accessible. By adhering to FAIR (Findable, Accessible, Interoperable, Reusable) principles, Garden aims to enhance collaboration and reproducibility in the scientific community.
-
 ## At a Glance:
 
-- **Easy Model Publishing**: Publish your AI/ML models with just a few commands
-- **Reproducible Environments**: Use containers to ensure consistent execution across different systems (via globus compute)
-- **Remote Execution**: Run your models (or others') remotely on HPC resources seamlessly
+- **Easy Model Publishing**: Publish pre-trained AI/ML models from a notebook with just a few commands
+- **Reproducible Environments**: Use containers to ensure consistent execution across different systems
+- **Remote Execution**: Run your models (or others) remotely on HPC resources seamlessly
 - **Discoverable Collections**: Organize models into "Gardens" for easy discovery and comparison
-- **Metadata Management**: Automatically capture and manage metadata for better searchability
+- **Metadata Management**:  Capture and manage metadata of related datasets, papers, or code repositories for better searchability
+
+## Why Garden?
+
+Garden addresses key challenges faced by academic researchers in discovering, reproducing, and running AI/ML models:
+
+1. **Reproducibility**: Garden eliminates environment inconsistencies by containerizing models, ensuring they run consistently across different systems.
+
+2. **Discoverability**: With curated "Gardens" of models, researchers can easily find, compare, and curate relevant models for their work.
+
+3. **Accessibility**: Garden simplifies the process of running models on diverse computing resources, from local machines to HPC clusters, via Globus Compute integration.
+
+4. **Time-saving**: By handling environment management and system-specific quirks, Garden significantly reduces the time researchers spend on setup and configuration.
+
+5. **Collaboration**: FAIR principles (Findable, Accessible, Interoperable, Reusable) and standardized publishing make it easier for researchers to share their work and build upon others' contributions.
+
+Garden aims to let researchers focus on their science, not on the intricacies of software environments and computing infrastructure.
+
+## What's a Garden?
+
+A "Garden" is a citable collection of published pre-trained AI/ML models, called "Entrypoints".
+
+## Ok, What's an Entrypoint?
+
+An "Entrypoint" is just a python function you define in a regular jupyter notebook which typically invokes one or more of your pre-trained models.
+
+When you give us that notebook, we "freeze it in amber" by containerizing it (along with any environment dependencies) and give you a citable DOI in return.
+
+Now you (or anyone) can invoke that exact function in the exact environment on any remote compute resources you have access to (via [Globus Compute](https://www.globus.org/compute)).
+
+
 
 ## Quick Start
 
-1. Install Garden:
+1. Install the garden CLI:
 
-``` sh
-pipx install garden-ai
-```
+    ``` sh
+    pipx install garden-ai
+    ```
+
 2. Set up Docker on your system (required for local development and testing)
 
-3. Create your first Garden:
+    We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop/) for most users.
 
-``` sh
-garden-ai garden create --title "My First Garden" --author "Your Name"
-```
+3. Start a notebook in an isolated environment:
 
-4. Start a notebook in an isolated environment:
+    ``` sh
+    garden-ai notebook start my_model.ipynb --base-image=3.10-sklearn
+    ```
 
-``` sh
-garden-ai notebook start my_model.ipynb --base-image=3.10-sklearn
-```
-5. Define a function invoking your model in the notebook and publish it:
+4. Define a function invoking your model in the notebook and publish it:
 
-``` sh
-garden-ai notebook publish my_model.ipynb
-```
+    ``` sh
+    garden-ai notebook publish my_model.ipynb
+    ```
 
 For a more detailed walkthrough, check out our [15-minute tutorial](https://garden-ai.readthedocs.io/en/latest/user_guide/tutorial/).
 
 ## Documentation
 
-For more documentation, including installation instructions, tutorials, and API references, visit our [Read the Docs site](https://garden-ai.readthedocs.io/).
+For more documentation, including installation instructions, tutorials, and API references, see our [latest docs](https://garden-ai.readthedocs.io/).
 
 ## Contributing
 
