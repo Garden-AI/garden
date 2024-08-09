@@ -220,3 +220,28 @@ def mock_RegisteredEntrypointMetadata(
 ) -> RegisteredEntrypointMetadata:
     """Return a RegisteredEntrypointMetadata object populated with test data."""
     return RegisteredEntrypointMetadata(**entrypoint_metadata_json)
+
+
+@pytest.fixture
+def mock_user_info_response(faker) -> dict:
+    """Return dict of fake user info like we get from the backend /users route"""
+    return {
+        "username": faker.user_name(),
+        "name": faker.name(),
+        "email": faker.email(),
+        "phone_number": faker.phone_number(),
+        "affiliations": [
+            faker.name(),
+        ],
+        "skills": [
+            faker.first_name(),
+            faker.first_name(),
+        ],
+        "domains": [
+            faker.first_name(),
+            faker.first_name(),
+        ],
+        "profile_pic_id": 1,
+        "identity_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "saved_garden_dois": ["10.23677/fake-doi"],
+    }
