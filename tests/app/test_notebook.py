@@ -4,7 +4,7 @@ from garden_ai import GardenConstants
 
 
 @pytest.mark.cli
-def test_no_args_pints_usage(
+def test_no_args_prints_usage(
     cli_runner,
     app,
 ):

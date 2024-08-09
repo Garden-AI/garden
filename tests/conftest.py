@@ -156,7 +156,7 @@ def logged_in_user(tmp_path):
 
 @pytest.fixture
 def garden_nested_metadata_json() -> dict:
-    """Return a dict with a vaild GardenMetadata schema with nested entrypoints."""
+    """Return a dict with a valid GardenMetadata schema with nested entrypoints."""
     f = (
         pathlib.Path(__file__).parent
         / "fixtures"

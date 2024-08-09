@@ -48,7 +48,7 @@ def test_add_repository_prompts_for_contributors(
 
 
 @pytest.mark.cli
-def test_add_respository_prompts_for_missing_url(
+def test_add_repository_prompts_for_missing_url(
     cli_runner,
     app,
     faker,
@@ -141,7 +141,7 @@ def test_add_paper_requires_doi(
 
 
 @pytest.mark.cli
-def test_add_paper_propmpts_for_authors_if_none(
+def test_add_paper_prompts_for_authors_if_none(
     cli_runner,
     app,
     mocker,
