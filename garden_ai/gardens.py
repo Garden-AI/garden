@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing_extensions import Self
 
 from tabulate import tabulate
 
@@ -89,7 +88,7 @@ class Garden:
         return style + title + details + entrypoints + optional
 
     @classmethod
-    def _from_nested_metadata(cls, data: dict) -> Self:
+    def _from_nested_metadata(cls, data: dict):
         """helper: instantiate from search index-style payload with nested entrypoint metadata."""
         metadata = GardenMetadata(**data)
         entrypoints = []
