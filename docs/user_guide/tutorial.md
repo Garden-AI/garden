@@ -17,9 +17,6 @@ For this walkthrough, we will deploy a simple Scikit-Learn model that classifies
 - You need a free Globus account.
     - [Globus](https://www.globus.org/what-we-do) is a research computing platform that Garden builds on top of. Garden uses Globus to link you to academic computing clusters that you have access to.
     - [Go here to create a free Globus account.](https://app.globus.org/) If you are a researcher at a university, we recommend logging in with your institution's SSO. You can also log in with a Google or GitHub account.
-- You need to join the "Garden Users" Globus Group.
-	- This is necessary in order to run code on our demo Globus Compute endpoint.
-	- Join the group [here](https://app.globus.org/groups/53952f8a-d592-11ee-9957-193531752178/about).
 
 Confirm you have Garden and Docker installed.
 
@@ -55,17 +52,18 @@ jgs  `\//`
 
 ### Step 1: Create a Garden
 
-Gardens are collections of related machine learning models that you can curate. A chemist might create a garden of interatomic potential predictiors to compare different frameworks and architectures.
+Gardens are collections of related machine learning models that you can curate. A chemist might create a garden of interatomic potential predictors to compare different frameworks and architectures.
 
-Create a simple garden so you can add your model to it later.
+Create a simple garden so you can add your model to it later. You can either [create a garden on our website](https://thegardens.ai/#/garden/create), or by using the CLI like below:
 
 ```
 garden-ai garden create \
     --title "Tutorial Garden" \
-	--author "Your Name"
+	--author "Your Name" \
+	--tag "tutorial"
 ```
 
-This will prompt Garden to log you in with Globus if you haven't logged in from your terminal yet. You need to be logged in to create gardens. Follow the instructions and paste the authorization code in your terminal.
+This will prompt Garden to log you in with Globus if you haven't logged in from your terminal yet. You need to be logged in to create gardens or entrypoints.
 
 Then in the output of the `create` command, you should see something like:
 ```bash
@@ -73,12 +71,13 @@ Then in the output of the `create` command, you should see something like:
 Garden 'Tutorial Garden' created with DOI: 10.23677/z2b3-3p02
 ```
 
-Make note of this DOI for later.
+Make note of this DOI for later, so when we publish the entrypoint we can add it directly to this Garden. You can also link the entrypoint after it's been published.
+
+If you created your garden using the website, you can find the DOI by viewing your profile and clicking "My Gardens".
 
 !!! info
 
     You can also use `garden-ai garden list` to list all of your gardens and see their DOIs.
-
 
 ### Step 2: Start a Notebook in an Isolated Environment
 
@@ -91,7 +90,7 @@ garden-ai notebook start tutorial_notebook.ipynb --base-image=3.10-sklearn --tut
 ```
 
 !!! info
-    The `base-image` option lets you pick a premade environment, or "image" in Docker-speak. This lets you start off with the Python version and ML framework that you need. You can still install more packages within this base environment.
+    The `base-image` option lets you pick a premade environment, or "image" in Docker-speak. This lets you start off with the Python version and ML framework that you need. This is mostly for convenience, you can always install more packages within this base environment once it's running.
 
     We will be serving a Scikit-Learn model trained and serialized with Python 3.10, so we will use the `3.10-sklearn` base image. Use `garden-ai notebook list-premade-images` to see other base images you can choose from.
 
@@ -121,7 +120,7 @@ Notebook started! Opening http://127.0.0.1:9188/notebooks/tutorial_notebook.ipyn
 
 Now it's time to actually write the code that executes your model. The notebook you've opened will serve two big roles in publishing your model.
 
-1. **Defining the "entrypoint" function that runs your model.** The notebook will contain a function called an entrypoint. This is the function that will run on a remote server when someone wants to invoke your model.
+1. **Defining the "entrypoint" function that runs your model.** The notebook will contain a function called an entrypoint. This is the function that will run on a remote server when someone wants to invoke your model. For this tutorial we'll only define one, but you can decorate any number of functions to expose them as entrypoints.
 2. **Defining the context that your entrypoint function will run in.** Other code in your notebook - helper functions, import statements, etc - will be available to your entrypoint function when it is called. You can also include code that installs extra packages or edits files on the container.
 
 Because you passed the `--tutorial` flag to `garden-ai notebook start`, you should be looking at a notebook that's already populated with code and instructions on how to run the iris model. If you don't see **Garden Tutorial Notebook** near the top of the notebook, double check your shell command and try again.
@@ -155,12 +154,6 @@ Notice how Garden published your entrypoint to your tutorial garden. Now anyone 
 ### Step 5: Test Your Published Model
 
 Now that you've published your first garden and first entrypoint function, you should invoke it remotely like a user would.
-
-> [!NOTE] IMPORTANT
-> You will need to be part of the "Garden Users" Globus Group in order to run your code remotely on our demo endpoint.
->
-> Join the group [here](https://app.globus.org/groups/53952f8a-d592-11ee-9957-193531752178/about).
-
 
 **The tutorial will continue in a separate notebook.** [Click here to continue in a Google Colab notebook that walks you through running your model like an end user would](https://colab.research.google.com/drive/1VM_SjYFnY1pxxac9ILQuqBT0fl3JADu0?usp=sharing). If you don't want to use Colab, you can also start a new notebook locally with `garden-ai notebook start` and follow the steps from the Colab notebook.
 

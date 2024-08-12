@@ -1,8 +1,48 @@
 # 🌱 Welcome to Garden 🌱
 
-Docs are WIP, but in the meantime here are good places to start:
-- [Overview](architecture_overview.md) - High-level explanation of key concepts
-- [Tutorial](user_guide/tutorial.md) - A short end-to-end example using the CLI. See also: ["seedlings" repository](https://github.com/Garden-AI/seedlings)
-- [FAQs](user_guide/faqs.md) - Troubleshooting tips
-- [contributing](developer_guide/contributing.md) - Getting started as a contributor
-- [Garden's GitHub repository](https://github.com/Garden-AI/garden) - Where all the magic happens
+Garden is a framework designed to make it easier for the scientific community to benefit from FAIR (Findable, Accessible, Interoperable, Reusable) principles for AI/ML models. Garden addresses key challenges faced by academic researchers in discovering, reproducing, and running AI/ML models:
+
+1. **Reproducibility**: Garden eliminates environment inconsistencies by containerizing models, ensuring they run consistently across different systems.
+
+2. **Discoverability**: With curated "Gardens" of models, researchers can easily find, compare, and curate relevant models for their work.
+
+3. **Accessibility**: Garden simplifies the process of running models on diverse computing resources, from local machines to HPC clusters, via Globus Compute integration.
+
+4. **Time-saving**: By handling environment management and system-specific quirks, Garden significantly reduces the time researchers spend on setup and configuration.
+
+5. **Collaboration**: FAIR principles (Findable, Accessible, Interoperable, Reusable) and standardized publishing make it easier for researchers to share their work and build upon others' contributions.
+
+Garden lets researchers focus on their science, not on the intricacies of their software environments or computing infrastructure.
+
+## Getting Started
+
+New to Garden? Here are some great places to begin:
+
+- [Installation Guide](user_guide/installation.md) - Get Garden set up on your machine
+- [Overview](architecture_overview.md) - Understand Garden's key concepts and design
+- [Tutorial](user_guide/tutorial.md) - Follow our step-by-step guide to publish your first model
+
+## Explore Garden
+
+- [Gardens](Gardens.md) - Learn about curating collections of models
+- [Entrypoints](Entrypoints.md) - Discover how to create and manage model entrypoints
+
+## For Users
+
+- [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips
+- [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent environments
+- ["seedlings" repository](https://github.com/Garden-AI/seedlings) - Example gardens and entrypoints
+
+## For Developers
+
+- [Contributing Guide](developer_guide/contributing.md) - Join our community and help improve Garden
+- [Garden's GitHub Repository](https://github.com/Garden-AI/garden) - Explore our source code and contribute
+
+## Additional Resources
+
+- [thegardens.ai](https://thegardens.ai) - Our website, where you can create and explore published gardens
+- [CLI Reference](garden-ai.md) - Comprehensive guide to Garden's command-line interface
+- ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
+
+
+Happy gardening! 🌱
