@@ -245,3 +245,46 @@ def mock_user_info_response(faker) -> dict:
         "identity_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
         "saved_garden_dois": ["10.23677/fake-doi"],
     }
+
+
+@pytest.fixture
+def patch_has_lfs(mocker):
+    """Patch GitHubConnector._has_lfs_file to always return False"""
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._has_lfs_file",
+        return_value=False,
+    )
+
+    yield
+
+
+@pytest.fixture
+def patch_fetch_readme(mocker):
+    """Patch the _fetch_readme method in all ModelConnectors"""
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._fetch_readme",
+        return_value="I'm a readme!",
+    )
+
+    mocker.patch(
+        "garden_ai.model_connectors.HFConnector._fetch_readme",
+        return_value="I'm a readme!",
+    )
+
+    yield
+
+
+@pytest.fixture
+def patch_infer_revision(mocker):
+    """Patch the _infer_revision method in all ModelConnectors"""
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._infer_revision",
+        return_value=40 * "a",
+    )
+
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._infer_revision",
+        return_value=40 * "a",
+    )
+
+    yield
