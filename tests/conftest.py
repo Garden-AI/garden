@@ -7,6 +7,7 @@ from globus_sdk import AuthLoginClient, OAuthTokenResponse, SearchClient
 import pytest
 from typer.testing import CliRunner
 
+from garden_ai.backend_client import BackendClient
 from garden_ai.client import GardenClient
 from garden_ai.constants import GardenConstants
 from garden_ai.garden_file_adapter import GardenFileAdapter
@@ -288,3 +289,9 @@ def patch_infer_revision(mocker):
     )
 
     yield
+
+
+@pytest.fixture
+def backend_client(garden_client):
+    """Return a BackendClient instance"""
+    return BackendClient(garden_client.garden_authorizer)
