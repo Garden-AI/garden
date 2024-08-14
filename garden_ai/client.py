@@ -55,12 +55,10 @@ GardenScopes = ScopeBuilder(
 
 class GardenClient:
     """
-    Main class for interacting with the Garden service
-    Holds helper operations for performing common tasks
-    with the Garden service.
+    Main class for interacting with the Garden service.
 
-    Will authenticate with GlobusAuth, storing generated keys in the users .garden
-    directory
+    Provides helper methods for performing common tasks. Handles authentication
+    with GlobusAuth, storing generated keys in the users ~/.garden directory.
 
     Raises:
          AuthException: if the user cannot authenticate
@@ -222,7 +220,7 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, metadata: GardenMetadata) -> Garden:
+    def _create_garden(self, metadata: GardenMetadata) -> Garden:
         """Initialize a new Garden object from GardenMetadata"""
         return self.backend_client.put_garden(metadata)
 

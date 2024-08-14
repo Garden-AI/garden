@@ -9,11 +9,7 @@ nav:
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
   - API Reference:
-    - User-Provided Metadata: user-provided-metadata.md
-    - Model Connectors: model-connectors.md
-    - Core Classes, Decorators and Utilities: user-facing.md
-    - Entrypoints: Entrypoints.md
-    - Gardens: Gardens.md
+    - Core Classes, Decorators and Utilities: api-docs.md
   - CLI Reference:
       - garden-ai: garden-ai.md
 theme:
