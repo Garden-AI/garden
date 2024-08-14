@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 import pathlib  # noqa
 from unittest.mock import patch
@@ -45,7 +46,7 @@ def pytest_collection_modifyitems(session, config, items):
             item.add_marker(skip_integration)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def cli_runner() -> CliRunner:
     """Return a typer.testing.CliRunner for use in tests."""
     return CliRunner()
@@ -188,8 +189,8 @@ def logged_in_user(tmp_path):
         yield
 
 
-@pytest.fixture
-def garden_nested_metadata_json() -> dict:
+@pytest.fixture(scope="session")
+def garden_nested_metadata_raw() -> dict:
     """Return a dict with a valid GardenMetadata schema with nested entrypoints."""
     f = (
         pathlib.Path(__file__).parent
@@ -201,11 +202,23 @@ def garden_nested_metadata_json() -> dict:
 
 
 @pytest.fixture
-def entrypoint_metadata_json() -> dict:
+def garden_nested_metadata_json(garden_nested_metadata_raw) -> dict:
+    """Return a dict with a valid GardenMetadata schema with nested entrypoints."""
+    return deepcopy(garden_nested_metadata_raw)
+
+
+@pytest.fixture(scope="session")
+def entrypoint_metadata_raw() -> dict:
     """Return a dict with a valid EntrypointMetadata schema."""
     f = pathlib.Path(__file__).parent / "fixtures" / "entrypoint_metadata.json"
     with open(f, "r") as f_in:
         return json.load(f_in)
+
+
+@pytest.fixture
+def entrypoint_metadata_json(entrypoint_metadata_raw) -> dict:
+    """Return a dict with a valid EntrypointMetadata schema."""
+    return deepcopy(entrypoint_metadata_raw)
 
 
 @pytest.fixture
