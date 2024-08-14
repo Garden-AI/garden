@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Optional, Union
 from pydantic import BaseModel, ValidationError
 import typer
-import yaml
 import json
 import os
 import sys
@@ -63,18 +62,10 @@ def add_notebook_metadata(
     Adds metadata editor widget cell to top of the notebook if missing
     Adds empty `garden_metadata` dict to the notebook's metadata if missing
     """
-
     ntbk = _read_notebook(notebook_path)
 
-    # Find cell with 'garden_display_metadata_cell' tag
-    found_cell = False
-    for cell in ntbk.cells:
-        cell_tags = cell.get("metadata", {}).get("tags", [])
-        if METADATA_CELL_TAG in cell_tags:
-            found_cell = True
-
     # If metadata widget cell does not exist, add to top of notebook
-    if not found_cell:
+    if not _has_metadata_cell_tag(ntbk):
         new_cell = nbformat.v4.new_code_cell(NOTEBOOK_DISPLAY_METADATA_CELL)
         new_cell["metadata"] = {
             "tags": [METADATA_CELL_TAG],
@@ -92,6 +83,16 @@ def add_notebook_metadata(
 
     # Write updated notebook data to file
     nbformat.write(ntbk, notebook_path, version=nbformat.NO_CONVERT)
+
+
+def _has_metadata_cell_tag(ntbk: nbformat.NotebookNode, tag=METADATA_CELL_TAG) -> bool:
+    """Return True if cell with 'garden_display_metadata_cell' tag is found ntbk, otherwise False"""
+    found_cell = False
+    for cell in ntbk.cells:
+        cell_tags = cell.get("metadata", {}).get("tags", [])
+        if tag in cell_tags:
+            found_cell = True
+    return found_cell
 
 
 def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
@@ -149,13 +150,6 @@ def read_requirements_data(requirements_path: Path) -> Optional[RequirementsData
             file_contents = [line.replace("\n", "") for line in req_file.readlines()]
             req_file.close()
         return RequirementsData(file_format=file_format, contents=file_contents)
-    # For yaml requirements files, contents is safe_load dict of yaml file, format is conda
-    elif requirements_path.suffix in {".yml", ".yaml"}:
-        file_format = "conda"
-        with open(requirements_path, "r") as req_file:
-            file_contents = yaml.safe_load(req_file)
-            req_file.close()
-        return RequirementsData(file_format=file_format, contents=file_contents)
     else:
         typer.echo("Invalid requirements file format.")
         return None
@@ -178,14 +172,6 @@ def save_requirements_data(
             for line in contents:
                 file_contents += f"{line}\n"
             req_file.write(file_contents)
-        return requirements_path
-
-    elif file_format == "conda":
-        # requirements file is yml
-        requirements_path = requirements_dir_path / "requirements.yml"
-        with open(requirements_path, "w") as req_file:
-            # contents is dict of yaml requirements
-            yaml.dump(contents, req_file, allow_unicode=True)
         return requirements_path
     else:
         typer.echo(
@@ -452,6 +438,6 @@ def _read_notebook(notebook_path: Path) -> NotebookNode:
     try:
         ntbk = nbformat.read(notebook_path, as_version=4)
         return ntbk
-    except ValueError:
-        typer.echo(f"Unable to parse notebook: {notebook_path}")
-        raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"Unable to parse notebook: {notebook_path}, {e}")
+        raise typer.Exit(1) from e

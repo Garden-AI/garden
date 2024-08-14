@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthLoginClient, OAuthTokenResponse, SearchClient
+import nbformat
 import pytest
 from typer.testing import CliRunner
 
@@ -295,3 +296,17 @@ def patch_infer_revision(mocker):
 def backend_client(garden_client):
     """Return a BackendClient instance"""
     return BackendClient(garden_client.garden_authorizer)
+
+
+@pytest.fixture
+def tmp_notebook_empty(
+    tmp_path,
+) -> pathlib.Path:
+    """Return a pathlib.Path pointing to an empty .ipynb notebook in a tmp directory.
+
+    Tests can modify the .ipynb file without affecting others
+    """
+    notebook_path = tmp_path / "temp_notebook.ipynb"
+    notebook_data = nbformat.v4.new_notebook()
+    nbformat.write(notebook_data, notebook_path)
+    yield notebook_path

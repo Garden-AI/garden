@@ -1,7 +1,7 @@
-import nbformat
 from pathlib import Path
 
-from unittest.mock import mock_open, patch
+import nbformat
+import pytest
 
 from garden_ai.notebook_metadata import (
     add_notebook_metadata,
@@ -11,24 +11,12 @@ from garden_ai.notebook_metadata import (
     save_requirements_data,
     RequirementsData,
     NOTEBOOK_DISPLAY_METADATA_CELL,
+    _has_metadata_cell_tag,
 )
 
 
 pip_requirements_raw = "scikit-learn==1.2.2\npandas\n"
 pip_requirements = {"file_format": "pip", "contents": ["scikit-learn==1.2.2", "pandas"]}
-
-conda_requirements_raw = "name: garden-test\ndependencies:\n- python=3.9\n- pip\n- pip:\n  - scikit-learn==1.2.2\n  - pandas\n"
-conda_requirements = {
-    "file_format": "conda",
-    "contents": {
-        "name": "garden-test",
-        "dependencies": [
-            "python=3.9",
-            "pip",
-            {"pip": ["scikit-learn==1.2.2", "pandas"]},
-        ],
-    },
-}
 
 notebook_empty = {"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}
 notebook_with_empty_metadata = {
@@ -84,43 +72,76 @@ notebook_metadata_pip = {
     "notebook_requirements": pip_requirements,
     "notebook_image_uri": "A_BASE_IMAGE_URI",
 }
-notebook_metadata_conda = {
-    "global_notebook_doi": "10.23677/testdoi",
-    "notebook_image_name": "3.9-base",
-    "notebook_requirements": conda_requirements,
-    "notebook_image_uri": "A_BASE_IMAGE_URI",
-}
 
 
-def test_add_metadata(mocker):
-    ntbk = nbformat.from_dict(notebook_empty)
+@pytest.mark.integration
+def test_add_notebook_metadata_writes_metadata_cell_to_notebook(
+    tmp_notebook_empty,
+):
+    # A new notebook should not have the metadata cell
+    ntbk = nbformat.read(tmp_notebook_empty, nbformat.NO_CONVERT)
+    assert not _has_metadata_cell_tag(ntbk)
 
-    mocker.patch("garden_ai.notebook_metadata._read_notebook", return_value=ntbk)
+    # Add the metadata cell
+    add_notebook_metadata(tmp_notebook_empty)
 
-    nbformat_write_mock = mocker.patch("garden_ai.notebook_metadata.nbformat.write")
-
-    add_notebook_metadata(None)
-
-    write_arg = nbformat_write_mock.call_args.args[0]
-
-    assert write_arg == notebook_with_empty_metadata
+    # The notebook should now have the metadata cell as its first cell
+    ntbk = nbformat.read(tmp_notebook_empty, nbformat.NO_CONVERT)
+    assert _has_metadata_cell_tag(ntbk)
+    assert ntbk.cells[0].source == NOTEBOOK_DISPLAY_METADATA_CELL
 
 
-def test_get_metadata(mocker):
-    ntbk = nbformat.from_dict(notebook_with_metadata)
+@pytest.mark.integration
+def test_get_metadata_returns_empty_metadata_if_garden_metadata_not_foune(
+    tmp_notebook_empty,
+):
+    ntbk_meta = get_notebook_metadata(tmp_notebook_empty)
+    assert ntbk_meta.global_notebook_doi is None
+    assert ntbk_meta.notebook_image_name is None
+    assert ntbk_meta.notebook_image_uri is None
+    assert ntbk_meta.notebook_requirements is None
 
-    mocker.patch("garden_ai.notebook_metadata._read_notebook", return_value=ntbk)
 
-    notebook_metadata = get_notebook_metadata(None).model_dump()
+@pytest.mark.integration
+def test_get_metadata_returns_empty_metadata_if_garden_metadata_is_bad(
+    tmp_notebook_empty,
+):
+    # Set up a bad garden_metadata cell
+    ntbk = nbformat.read(tmp_notebook_empty, nbformat.NO_CONVERT)
+    ntbk["metadata"]["garden_metadata"] = {"some": "bad_data"}
+    nbformat.write(ntbk, tmp_notebook_empty, version=nbformat.NO_CONVERT)
 
-    assert notebook_metadata == notebook_metadata_pip
+    # Get the metadata
+    ntbk_meta = get_notebook_metadata(tmp_notebook_empty)
+    assert ntbk_meta.global_notebook_doi is None
+    assert ntbk_meta.notebook_image_name is None
+    assert ntbk_meta.notebook_image_uri is None
+    assert ntbk_meta.notebook_requirements is None
+
+
+@pytest.mark.integration
+def test_get_metadata_returns_metadata_if_already_present(
+    tmp_notebook_empty,
+):
+    # Set up a garden_metadata cell
+    ntbk = nbformat.read(tmp_notebook_empty, nbformat.NO_CONVERT)
+    ntbk["metadata"]["garden_metadata"] = notebook_metadata_pip
+    nbformat.write(ntbk, tmp_notebook_empty, version=nbformat.NO_CONVERT)
+
+    # Get the metadata
+    ntbk_meta = get_notebook_metadata(tmp_notebook_empty)
+    assert ntbk_meta.global_notebook_doi == notebook_metadata_pip["global_notebook_doi"]
+    assert ntbk_meta.notebook_image_name == notebook_metadata_pip["notebook_image_name"]
+    assert ntbk_meta.notebook_image_uri == notebook_metadata_pip["notebook_image_uri"]
+    assert ntbk_meta.notebook_requirements == RequirementsData(
+        **notebook_metadata_pip["notebook_requirements"]
+    )
 
 
 def test_set_metadata(mocker):
     ntbk = nbformat.from_dict(notebook_with_empty_metadata)
 
     mocker.patch("garden_ai.notebook_metadata._read_notebook", return_value=ntbk)
-
     nbformat_write_mock = mocker.patch("garden_ai.notebook_metadata.nbformat.write")
 
     set_notebook_metadata(
@@ -132,34 +153,43 @@ def test_set_metadata(mocker):
     )
 
     write_arg = nbformat_write_mock.call_args.args[0]
-
     assert write_arg == notebook_with_metadata
 
 
-def test_read_requirements(mocker):
-    # pip file
-    with patch("builtins.open", mock_open(read_data=pip_requirements_raw)):
-        requirements_data = read_requirements_data(Path("file.txt"))
-        assert requirements_data.model_dump() == pip_requirements
+@pytest.mark.integration
+def test_set_metadata_raises_if_unable_to_parse_notebook(
+    tmp_path,
+):
+    bad_notebook = tmp_path / "bad_notebook.ipynb"
+    with pytest.raises(Exception):
+        set_notebook_metadata(
+            bad_notebook,
+            "10.23677/testdoi",
+            "3.9-base",
+            "A_BASE_IMAGE_URI",
+            RequirementsData(
+                file_format="pip", contents=["scikit-learn==1.2.2", "pandas"]
+            ),
+        )
 
-    # conda file
-    with patch("builtins.open", mock_open(read_data=conda_requirements_raw)):
-        requirements_data = read_requirements_data(Path("file.yaml"))
-        assert requirements_data.model_dump() == conda_requirements
+
+def test_read_requirements_data_pip(mocker):
+    # pip file
+    mocker.patch("builtins.open", mocker.mock_open(read_data=pip_requirements_raw))
+    requirements_data = read_requirements_data(Path("file.txt"))
+    assert requirements_data.model_dump() == pip_requirements
+
+
+def test_read_requirements_data_returns_none_if_invalid_format(
+    tmp_path,
+):
+    # An invalid file format
+    file = tmp_path / "some_file.json"
+    requirements_data = read_requirements_data(file)
+    assert requirements_data is None
 
 
 def test_write_requirements(mocker):
-    with patch("builtins.open", mock_open()) as mock_file:
-        save_requirements_data(Path("file.txt"), RequirementsData(**pip_requirements))
-        mock_file().write.assert_called_with(pip_requirements_raw)
-
-    with patch("builtins.open", mock_open()) as mock_file:
-        yaml_dump_mock = mocker.patch(
-            "garden_ai.notebook_metadata.yaml.dump", return_value=True
-        )
-        save_requirements_data(
-            Path("file.yaml"), RequirementsData(**conda_requirements)
-        )
-        write_arg = yaml_dump_mock.call_args.args[0]
-
-        assert conda_requirements["contents"] == write_arg
+    mock_file = mocker.patch("builtins.open", mocker.mock_open())
+    save_requirements_data(Path("file.txt"), RequirementsData(**pip_requirements))
+    mock_file().write.assert_called_with(pip_requirements_raw)
