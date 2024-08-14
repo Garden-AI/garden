@@ -144,7 +144,7 @@ class ModelConnector(BaseModel, ABC):
     def stage(self) -> str:
         """Download the repository from repo_url to local_dir.
 
-        Should only be called within a `@garden_entrypoint` function if running
+        Should only be called within a `@entrypoint` function if running
         in a notebook.
 
         Returns: a str Path to local directory where the model was downloaded.

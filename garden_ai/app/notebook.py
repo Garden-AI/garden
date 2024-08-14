@@ -158,7 +158,7 @@ def start(
         help=(
             "DOI of a Garden you want to add all entrypoints in this notebook to. "
             "To override the global notebook DOI for a specific entrypoint, "
-            "provide the garden_entrypoint decorator with the optional garden_doi argument."
+            "provide the entrypoint decorator with the optional garden_doi argument."
         ),
     ),
     custom_image_uri: Optional[str] = typer.Option(
@@ -473,7 +473,7 @@ def publish(
         help=(
             "DOI of a Garden you want to publish all entrypoints in this notebook too. "
             "To override the global notebook DOI for a specific entrypoint, "
-            "provide the garden_entrypoint decorator with the optional garden_doi argument."
+            "provide the entrypoint decorator with the optional garden_doi argument."
         ),
     ),
     custom_image_uri: Optional[str] = typer.Option(

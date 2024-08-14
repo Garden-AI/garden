@@ -59,7 +59,7 @@ class ModelMetadata(BaseModel, protected_namespaces=()):
 
 class EntrypointMetadata(BaseModel):
     """User-provided metadata about an entrypoint prior to its registration. \
-    Passed to the `garden_entrypoint` decorator marking the entrypoint function.
+    Passed to the `entrypoint` decorator marking the entrypoint function.
 
     Attributes:
         title: A short title that describes the entrypoint.

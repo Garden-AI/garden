@@ -27,7 +27,7 @@ NOTEBOOK_DISPLAY_METADATA_CELL = (
     "Notebook metadata fields:\n"
     "   - Global Garden DOI: If specified, `garden-ai notebook publish` will add all entrypoints in this notebook to the Garden with the given DOI.\n"
     "     If you want to specify a different Garden DOI for individual entrypoints, you can provide that entrypoint's\n"
-    "     'garden_entrypoint' decorator with the optional 'garden_doi' argument. Providing the decorator with a DOI\n"
+    "     'entrypoint' decorator with the optional 'garden_doi' argument. Providing the decorator with a DOI\n"
     "     will override the Global DOI for that specific entrypoint.\n"
     "   - Base image name: The name of the garden base image you want to start this notebook with.\n"
     "     To see a list of the available Garden base images, see the dropdown menu under 'Base Image' below or \n"

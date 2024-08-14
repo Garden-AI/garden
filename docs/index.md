@@ -21,12 +21,6 @@ New to Garden? Here are some great places to begin:
 - [Installation Guide](user_guide/installation.md) - Get Garden set up on your machine
 - [Overview](architecture_overview.md) - Understand Garden's key concepts and design
 - [Tutorial](user_guide/tutorial.md) - Follow our step-by-step guide to publish your first model
-
-## Explore Garden
-
-- [Gardens](Gardens.md) - Learn about curating collections of models
-- [Entrypoints](Entrypoints.md) - Discover how to create and manage model entrypoints
-
 ## For Users
 
 - [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips

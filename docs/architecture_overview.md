@@ -31,7 +31,7 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 > The `Entrypoint`s attached to a `Garden` are callable and accessible like attributes -- for example, if I've registered `my_entrypoint` and added it to `some_garden`, executing it remotely might look like `some_garden.my_entrypoint(*args, endpoint="...")`.
 
 
-### The `@garden_entrypoint` Decorator:
+### The `@entrypoint` Decorator:
 
 - This decorator is used to designate which functions in the notebook should be registered as public/published `Entrypoint`s.
 - It distinguishes between functions meant for public use and those that are simply part of the execution context.
@@ -41,7 +41,7 @@ The Garden project is structured around two "proper noun" concepts: `Garden` and
 
 1. **Development in Jupyter Notebooks:**
 
-    - The process begins by writing a Jupyter notebook containing functions marked as entrypoints using the `@garden_entrypoint` decorator.
+    - The process begins by writing a Jupyter notebook containing functions marked as entrypoints using the `@entrypoint` decorator.
     - The `garden-ai` CLI provides a `garden-ai notebook start path/to/my.ipynb` command to open a notebook in an isolated local Docker container (conceptually similar to a Google Colab notebook, but running locally and with a choice of prebuilt base images).
 	- See [installation](user_guide/installation.md) for Docker-specific prerequisites
 
@@ -61,4 +61,4 @@ See the [tutorial](user_guide/tutorial.md) for a more detailed walkthrough of th
 1. **Garden Publishing:**
     - A `Garden` is created, manipulated, and published using the CLI, making it accessible to other users.
 2. **Entrypoint Publishing:**
-    - An `Entrypoint` is published by attaching it to a published `Garden`. This can be done either manually from the CLI, or automatically by specifying a particular `Garden` DOI in the `@garden_entrypoint` decorator.
+    - An `Entrypoint` is published by attaching it to a published `Garden`. This can be done either manually from the CLI, or automatically by specifying a particular `Garden` DOI in the `@entrypoint` decorator.

@@ -106,7 +106,7 @@ class EntrypointIdempotencyError(Exception):
     pass
 
 
-def garden_entrypoint(
+def entrypoint(
     metadata: EntrypointMetadata,
     garden_doi: str | None = None,
     model_connectors: list[ModelConnector] | None = None,
@@ -147,7 +147,7 @@ def entrypoint_test(entrypoint_func: Callable):
     Example:
 
         ```python
-        @garden_entrypoint(...)
+        @entrypoint(...)
         def my_entrypoint(*args, **kwargs):
             ...
 

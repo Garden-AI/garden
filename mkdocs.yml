@@ -3,13 +3,15 @@ nav:
   - Home: index.md
   - Overview: architecture_overview.md
   - User Guide:
-      - Introduction: user_guide/introduction.md
       - Installation: user_guide/installation.md
       - Tutorial: user_guide/tutorial.md
       - Setting up Docker: user_guide/docker.md
   - Developer Guide:
       - Contributing: developer_guide/contributing.md
   - API Reference:
+    - User-Provided Metadata: user-provided-metadata.md
+    - Model Connectors: model-connectors.md
+    - Core Classes, Decorators and Utilities: user-facing.md
     - Entrypoints: Entrypoints.md
     - Gardens: Gardens.md
   - CLI Reference:
