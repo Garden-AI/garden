@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from pydantic import BaseModel, ValidationError
 import typer
 import json
@@ -67,10 +67,10 @@ def add_notebook_metadata(
     # If metadata widget cell does not exist, add to top of notebook
     if not _has_metadata_cell_tag(ntbk):
         new_cell = nbformat.v4.new_code_cell(NOTEBOOK_DISPLAY_METADATA_CELL)
+        del new_cell["id"]
         new_cell["metadata"] = {
             "tags": [METADATA_CELL_TAG],
         }
-        del new_cell["id"]
         ntbk.cells.insert(0, new_cell)
 
     # Add empty garden_metadata dict to notebooks metadata if missing
@@ -180,50 +180,70 @@ def save_requirements_data(
         return None
 
 
-def display_metadata_widget():
+def make_html_popup_widget(message, alert_type="alert", background_color="#1cb4eb"):
+    # create html widget popup box that has info message with a close button on it
+    html_content = f"""
+    <div class="{alert_type}">
+        <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+        {message}
+    </div>
     """
-    Displays the metadata editor widget
-    When one of the widgets fields is changed, pickles and saves the updated NotebookMetadata.
-    When the notebook is saved, the post_save_hook in custom_jupyter_config will
-    go and look for the pickled NotebookMetadata and save it to the notebooks metadata.
-    When any requirements are changed, will display the button 'Install new requirements',
-    that installs the new requirements to the container and updates the users requirements
-    file if one was provided.
-    The widget does not support conda requirements since we are
-    planning on removing support for them.
+
+    css_content = f"""
+    <style>
+    .alert {{
+        padding: 20px;
+        background-color: {background_color};
+        color: white;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        position: relative;
+        width: 95%;
+    }}
+    .closebtn {{
+        margin-left: 15px;
+        color: white;
+        font-weight: bold;
+        float: right;
+        font-size: 22px;
+        line-height: 20px;
+        cursor: pointer;
+        transition: 0.3s;
+    }}
+    .closebtn:hover {{
+        color: black;
+    }}
+    </style>
     """
-    from garden_ai.app.console import console
-    from rich.status import Status
 
-    # NOTEBOOK_PATH env var set in start_container_with_notebook
-    notebook_path = Path(os.environ["NOTEBOOK_PATH"])
-    nb_meta = get_notebook_metadata(notebook_path)
+    return widgets.HTML(f"{css_content}{html_content}")
 
-    output = widgets.Output()
 
-    # Global DOI widget
-    doi_widget = widgets.Textarea(
+def _build_doi_widget(nb_meta: NotebookMetadata) -> widgets.Textarea:
+    return widgets.Textarea(
         value=nb_meta.global_notebook_doi,
         placeholder="Global Garden DOI",
         continuous_update=False,
         disabled=False,
     )
 
-    # Base image name widget
-    base_image_widget = widgets.Dropdown(
+
+def _build_base_image_widget(nb_meta: NotebookMetadata) -> widgets.Dropdown:
+    return widgets.Dropdown(
         options=GardenConstants.PREMADE_IMAGES.keys(),
         value=nb_meta.notebook_image_name,
         disabled=False,
     )
 
-    # Requirements widget
-    if nb_meta.notebook_requirements.file_format == "pip":
-        reqs_string = "\n".join([req for req in nb_meta.notebook_requirements.contents])
+
+def _build_reqs_widget(nb_meta: NotebookMetadata) -> widgets.Textarea:
+    if nb_meta.notebook_requirements.file_format == "pip":  # type: ignore
+        reqs_string = "\n".join([req for req in nb_meta.notebook_requirements.contents])  # type: ignore
     else:
         # ignoring conda requirements, since we are planning to remove support for them anyways
         reqs_string = ""
 
-    reqs_widget = widgets.Textarea(
+    return widgets.Textarea(
         value=reqs_string,
         placeholder="Requirements",
         layout=widgets.Layout(width="100%", height="80px"),
@@ -231,62 +251,59 @@ def display_metadata_widget():
         disabled=False,
     )
 
-    update_reqs_widget = widgets.Button(
-        description="Install new requirements",
+
+def _build_update_reqs_widget(description: str) -> widgets.Button:
+    return widgets.Button(
+        description=description,
         style=widgets.ButtonStyle(button_color="lightgreen", font_weight="bold"),
         layout=widgets.Layout(width="100%", height="50px"),
     )
 
-    accordion_widget = widgets.Accordion(
+
+def _build_accordion_widget(
+    children: list[widgets.Widget], titles: list[str]
+) -> widgets.Accordion:
+    return widgets.Accordion(
+        children=children,
+        titles=titles,
+    )
+
+
+def _build_metadata_widget(children: list[widgets.Widget]) -> widgets.VBox:
+    return widgets.VBox(
+        children=children,
+    )
+
+
+def _build_metadata_widgets(nb_meta: NotebookMetadata) -> list[widgets.Widget]:
+    doi_widget = _build_doi_widget(nb_meta)
+    base_image_widget = _build_base_image_widget(nb_meta)
+    reqs_widget = _build_reqs_widget(nb_meta)
+    update_reqs_widget = _build_update_reqs_widget(
+        description="Install new requirements"
+    )
+    accordion_widget = _build_accordion_widget(
         children=[doi_widget, base_image_widget, reqs_widget],
-        titles=("Global DOI", "Base Image", "Requirements"),
+        titles=["Global DOI", "Base Image", "Requirements"],
     )
+    metadata_widget = _build_metadata_widget(children=[accordion_widget])
+    return [
+        doi_widget,
+        base_image_widget,
+        reqs_widget,
+        update_reqs_widget,
+        accordion_widget,
+        metadata_widget,
+    ]
 
-    metadata_widget = widgets.VBox(
-        children=[accordion_widget],
-    )
 
-    def make_html_popup_widget(message, alert_type="alert", background_color="#1cb4eb"):
-        # create html widget popup box that has info message with a close button on it
-        html_content = f"""
-        <div class="{alert_type}">
-            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
-            {message}
-        </div>
-        """
-
-        css_content = f"""
-        <style>
-        .alert {{
-            padding: 20px;
-            background-color: {background_color};
-            color: white;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            position: relative;
-            width: 95%;
-        }}
-        .closebtn {{
-            margin-left: 15px;
-            color: white;
-            font-weight: bold;
-            float: right;
-            font-size: 22px;
-            line-height: 20px;
-            cursor: pointer;
-            transition: 0.3s;
-        }}
-        .closebtn:hover {{
-            color: black;
-        }}
-        </style>
-        """
-
-        return widgets.HTML(f"{css_content}{html_content}")
-
-    def doi_observer(change):
+def doi_observer(
+    nb_meta: NotebookMetadata,
+    metadata_widget: widgets.VBox,
+    output: widgets.Output,
+) -> Callable:
+    def _doi_observer(change):
         with output:
-            nonlocal nb_meta
             nb_meta.global_notebook_doi = change.new.strip()
             # save empty field as None
             if nb_meta.global_notebook_doi == "":
@@ -306,12 +323,16 @@ def display_metadata_widget():
                 if not isinstance(value, widgets.HTML)
             ]
 
-    doi_widget.observe(doi_observer, "value")
+    return _doi_observer
 
-    def base_image_observer(change):
+
+def base_image_observer(
+    nb_meta: NotebookMetadata,
+    metadata_widget: widgets.VBox,
+    output: widgets.Output,
+) -> Callable:
+    def _base_image_observer(change):
         with output:
-            nonlocal nb_meta
-
             nb_meta.notebook_image_name = change.new
             nb_meta.notebook_image_uri = GardenConstants.PREMADE_IMAGES[change.new]
             _save_metadata_as_json(nb_meta)
@@ -330,12 +351,17 @@ def display_metadata_widget():
                 if not isinstance(value, widgets.HTML)
             ]
 
-    base_image_widget.observe(base_image_observer, "value")
+    return _base_image_observer
 
-    def reqs_observer(change):
+
+def reqs_observer(
+    nb_meta: NotebookMetadata,
+    metadata_widget: widgets.VBox,
+    update_reqs_widget: widgets.Button,
+    output: widgets.Output,
+) -> Callable:
+    def _reqs_observer(change):
         with output:
-            nonlocal nb_meta
-
             nb_meta.notebook_requirements.contents = change.new.split("\n")
             if "" in nb_meta.notebook_requirements.contents:
                 nb_meta.notebook_requirements.contents.remove("")
@@ -363,14 +389,23 @@ def display_metadata_widget():
                 if not isinstance(value, widgets.HTML)
             ]
 
-    reqs_widget.observe(reqs_observer, "value")
+    return _reqs_observer
 
-    def update_reqs_observer(button):
+
+def update_reqs_observer(
+    nb_meta: NotebookMetadata,
+    metadata_widget: widgets.VBox,
+    update_reqs_widget: widgets.Button,
+    output: widgets.Output,
+) -> Callable:
+    from garden_ai.app.console import console
+    from rich.status import Status
+
+    def _update_reqs_observer(button):
         with output:
             # disable button so user cant start multiple installs
             button.disabled = True
 
-            nonlocal nb_meta
             # save changes to requirements file
             # REQUIREMENTS_PATH env var set to the containers requirements file path
             # in 'start_container_with_notebook' only if user provided requirements.
@@ -423,13 +458,59 @@ def display_metadata_widget():
                 if not isinstance(value, widgets.HTML)
             ]
 
-    update_reqs_widget.on_click(update_reqs_observer)
+    return _update_reqs_observer
 
+
+def display_metadata_widget():
+    """
+    Displays the metadata editor widget
+    When one of the widgets fields is changed, pickles and saves the updated NotebookMetadata.
+    When the notebook is saved, the post_save_hook in custom_jupyter_config will
+    go and look for the pickled NotebookMetadata and save it to the notebooks metadata.
+    When any requirements are changed, will display the button 'Install new requirements',
+    that installs the new requirements to the container and updates the users requirements
+    file if one was provided.
+    The widget does not support conda requirements since we are
+    planning on removing support for them.
+    """
+    # NOTEBOOK_PATH env var set in start_container_with_notebook
+    notebook_path = Path(os.environ["NOTEBOOK_PATH"])
+    nb_meta = get_notebook_metadata(notebook_path)
+
+    output = widgets.Output()
+
+    # Build the widgets
+    (
+        doi_widget,
+        base_image_widget,
+        reqs_widget,
+        update_reqs_widget,
+        accordion_widget,
+        metadata_widget,
+    ) = _build_metadata_widgets(nb_meta)
+
+    # Setup event handlers
+    doi_widget.observe(doi_observer(nb_meta, metadata_widget, output), "value")
+    base_image_widget.observe(
+        base_image_observer(nb_meta, metadata_widget, output),
+        "value",
+    )
+    reqs_widget.observe(
+        reqs_observer(nb_meta, metadata_widget, update_reqs_widget, output),
+        "value",
+    )
+    update_reqs_widget.on_click(
+        update_reqs_observer(nb_meta, metadata_widget, update_reqs_widget, output)
+    )
+
+    # Display the metadata_widget to kick things off
+    # other widgets will display based on user interaction
     display(metadata_widget, output)
 
 
 def _save_metadata_as_json(nb_meta: NotebookMetadata):
-    with open("./notebook_metadata.json", "w") as file:
+    working_dir = Path(os.environ.get("NOTEBOOK_PATH")).parent  # type: ignore
+    with open(working_dir / "notebook_metadata.json", "w") as file:
         json.dump(nb_meta.model_dump(), file)
 
 
