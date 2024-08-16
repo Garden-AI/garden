@@ -322,4 +322,4 @@ def tmp_notebook_empty(
     notebook_path = tmp_path / "temp_notebook.ipynb"
     notebook_data = nbformat.v4.new_notebook()
     nbformat.write(notebook_data, notebook_path)
-    yield notebook_path
+    return notebook_path

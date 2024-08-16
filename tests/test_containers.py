@@ -1,6 +1,6 @@
-import pathlib
 import datetime
 import json
+import pathlib
 import tarfile
 
 import docker
@@ -117,7 +117,10 @@ def mock_notebook_path(tmp_path):
 
 
 def test_build_notebook_session_image_success(
-    mock_docker_client, mock_notebook_path, mock_datetime, mocker
+    mock_docker_client,
+    mock_notebook_path,
+    mock_datetime,
+    mocker,
 ):
     base_image = "gardenai/fake-image:soonest"
 
