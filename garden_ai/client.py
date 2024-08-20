@@ -132,6 +132,9 @@ class GardenClient:
 
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
+        # get_email call ensures user info is present on the backend,
+        # which means user is member of the demo endpoint group
+        logger.info(f"logged in user: {self.get_email()}")
 
     def _get_garden_access_token(self):
         self.garden_authorizer.ensure_valid_token()
@@ -179,7 +182,7 @@ class GardenClient:
                 f"Authenticating with Globus in your default web browser: \n\n{authorize_url}"
             )
 
-        time.sleep(2)
+        time.sleep(1)
         typer.launch(authorize_url)
 
         auth_code = Prompt.ask("Please enter the code here ").strip()
