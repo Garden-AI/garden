@@ -30,6 +30,7 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
+
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint
@@ -120,6 +121,9 @@ class GardenClient:
 
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
+        # get_email call ensures user info is present on the backend,
+        # which means user is member of the demo endpoint group
+        logger.info(f"logged in user: {self.get_email()}")
 
     def _get_garden_access_token(self):
         self.garden_authorizer.ensure_valid_token()
