@@ -28,16 +28,15 @@ New to Garden? Here are some great places to begin:
 - [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent reproducible environments
 - ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
 
-## For Developers
-
-- [Contributing Guide](developer_guide/contributing.md) - Join our community and help improve Garden
-- [Garden's GitHub Repository](https://github.com/Garden-AI/garden) - Explore our source code and contribute
-
 ## Additional Resources
 
 - [thegardens.ai](https://thegardens.ai) - Our website, where you can create and explore published gardens
 - [CLI Reference](garden-ai.md) - Comprehensive guide to Garden's command-line interface
 - [SDK Reference](api-docs.md) - Documentation for user-facing classes and helper functions
 
+## For Developers
+
+- [Contributing Guide](developer_guide/contributing.md) - Join our community and help improve Garden
+- [Garden's GitHub Repository](https://github.com/Garden-AI/garden) - Explore our source code and contribute
 
 Happy gardening! 🌱
