@@ -21,11 +21,12 @@ New to Garden? Here are some great places to begin:
 - [Installation Guide](user_guide/installation.md) - Get Garden set up on your machine
 - [Overview](architecture_overview.md) - Understand Garden's key concepts and design
 - [Tutorial](user_guide/tutorial.md) - Follow our step-by-step guide to publish your first model
+
 ## For Users
 
 - [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips
-- [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent environments
-- ["seedlings" repository](https://github.com/Garden-AI/seedlings) - Example gardens and entrypoints
+- [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent reproducible environments
+- ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
 
 ## For Developers
 
@@ -36,7 +37,7 @@ New to Garden? Here are some great places to begin:
 
 - [thegardens.ai](https://thegardens.ai) - Our website, where you can create and explore published gardens
 - [CLI Reference](garden-ai.md) - Comprehensive guide to Garden's command-line interface
-- ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
+- [SDK Reference](api-docs.md) - Documentation for user-facing classes and helper functions
 
 
 Happy gardening! 🌱

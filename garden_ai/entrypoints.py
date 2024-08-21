@@ -22,29 +22,56 @@ logger = logging.getLogger()
 
 
 class Entrypoint:
+    """Represents a reproducible, remotely executable function (and its metadata) registered by the Garden service.
+
+    This class is geared towards users wishing to invoke published entrypoints. It defines a `__call__` method for convenience to invoke the function on a remote Globus Compute endpoint, defaulting to the free Garden demo endpoint.
+
+    It is typically created via the client's [get_entrypoint][garden_ai.GardenClient.get_entrypoint] method or accessed as an attribute on a [Garden][garden_ai.Garden].
+
+    Publishers describe and define their entrypoints using the [@entrypoint][garden_ai.entrypoint] decorator in a notebook.
+
+    Attributes:
+        metadata (RegisteredEntrypointMetadata): The entrypoint's full metadata. Includes citation metadata as well as information used internally by Garden, such as the Globus Compute function UUID.
+
+    Example:
+        ```python
+        # Accessed via a published garden
+        garden = client.get_garden("my_garden_doi")
+        result = garden.my_entrypoint(my_data, endpoint="endpoint_uuid")
+
+        # OR fetched directly:
+        my_entrypoint = client.get_entrypoint("my_entrypoint_doi")
+        result = my_entrypoint(my_data, endpoint="endpoint_uuid")
+        ```
+    """  # noqa: E501
+
     def __init__(self, metadata: RegisteredEntrypointMetadata):
         self.metadata = metadata
 
     def __call__(
         self,
         *args,
-        endpoint: str | UUID | None = GardenConstants.DEMO_ENDPOINT,
+        endpoint: str | UUID = GardenConstants.DEMO_ENDPOINT,
         **kwargs,
     ) -> Any:
-        """Remotely execute this entrypoint's function from its function uuid.
+        """Remotely execute this entrypoint's function on a specified Globus Compute endpoint.
+
+        This method allows the Entrypoint to be called like a regular function, but it executes the underlying function in a container on a remote endpoint.
 
         Args:
-            *args (Any):
-                Input data passed directly to the entrypoint function.
-            endpoint (UUID | str | None):
-                Where to run the entrypoint. Must be a valid Globus Compute endpoint UUID.
-                If no endpoint is specified, the default demo endpoint is used.
-            **kwargs (Any):
-                Additional keyword arguments passed directly to the entrypoint function.
+            *args: Positional arguments passed directly to the entrypoint function.
+            endpoint: The Globus Compute endpoint UUID where the function should be executed. Defaults to the free Garden demo endpoint.
+            **kwargs: Keyword arguments passed directly to the entrypoint function.
 
         Returns:
-            Results from invoking the entrypoint function with the given input data.
-        """
+            Any: The result returned by the remotely executed entrypoint function.
+
+        Raises:
+            GlobusComputeError: If there's an error in executing the function on the remote endpoint.
+
+        Note:
+            The specified remote compute endpoint must support containers in order to run the function. See also: [Globus Compute Endpoint - Containerized Environments](https://globus-compute.readthedocs.io/en/latest/endpoints/single_user.html#containerized-environments).
+        """  # noqa: E501
         # delayed import so dill doesn't try to serialize console ref
         from garden_ai.app.console import console
 
@@ -114,7 +141,40 @@ def entrypoint(
     papers: list[PaperMetadata] | None = None,
     repositories: list[RepositoryMetadata] | None = None,
 ):
-    def decorate(func):
+    """Decorator for marking and enriching functions as entrypoints for publication.
+
+    This decorator designates a function as an entrypoint in the Garden system. This prepares the function for registration and remote execution via Globus Compute, enriches it with metadata, and links user-provided metadata of related resources such as datasets or papers.
+
+    Args:
+        metadata (EntrypointMetadata): Core metadata describing the entrypoint function.
+        garden_doi (str | None): The DOI of the Garden to which this entrypoint should be added. If None, the entrypoint won't be automatically added to any Garden, unless a "notebook-global" DOI was specified (interactively in the top cell of the notebook or with the --doi CLI arg).
+        model_connectors (list[ModelConnector] | None): List of ModelConnector objects associated with this entrypoint, used for connecting to and retrieving model artifacts.
+        datasets (list[DatasetMetadata] | None): User-provided metadata about datasets used or produced by this entrypoint.
+        papers (list[PaperMetadata] | None): User-provided metadata about related research papers or publications.
+        repositories (list[RepositoryMetadata] | None): User-provided metadata about related code repositories.
+
+    Notes:
+        - This decorator is used within a Jupyter notebook, which can be published with the Garden service.
+        - This decorator can be used as many times as desired to publish multiple entrypoints from the same notebook.
+        - If garden_doi is provided, the user must be the owner of the garden.
+        - If garden_doi is provided, it overrides any "notebook-global" garden DOI for that entrypoint.
+        - If model_connectors are provided, their metadata will be extracted and added to the entrypoint's metadata (along with datasets, papers etc)
+
+    Example:
+        ```python
+        @entrypoint(
+            metadata=EntrypointMetadata(title="My Entrypoint Function", authors=["Alice"]),
+            garden_doi="10.1234/my-garden",
+            model_connectors=[my_model_connector],
+            datasets=[my_training_dataset_metatada],
+        )
+        def my_entrypoint_function(data):
+            # Function implementation
+            return result
+        ```
+    """  # noqa: E501
+
+    def decorate(func: Callable):
         entrypoint_metadata = metadata.model_copy(deep=True)
         # connect any related metadata
         if datasets:
@@ -138,34 +198,45 @@ def entrypoint(
     return decorate
 
 
-def entrypoint_test(entrypoint_func: Callable):
-    """Mark a function as a 'test function' of an entrypoint.
+def entrypoint_test(entrypoint_func: Callable) -> Callable:
+    """Decorator to mark a "test function" for a specific entrypoint.
 
-    Marked test functions won't run at publication time, so they can be safely
-    called at the top-level of a notebook without causing unintended side-effects.
+    This decorator serves two primary purposes:
+
+    1. It associates the test function with its corresponding entrypoint, providing example usage and aiding in documentation.
+    2. It prevents test functions from running during the final publication process, allowing users to test their entrypoint interactively from within its notebook without worrying about unintended side effects.
+
+    The decorator also enforces idempotency of the entrypoint function by running the test twice during publication and comparing results.
+
+    Args:
+        entrypoint_func (Callable): The entrypoint function that this test is associated with. Must be a function previously decorated with [@entrypoint][garden_ai.entrypoint].
+
+    Returns:
+        The decorated test function.
+
+    Raises:
+        EntrypointIdempotencyError: When the entrypoint function is found to be non-idempotent, i.e., it produces different results or errors when called twice with the same inputs.
+        ValueError: If the provided entrypoint_func is not a valid entrypoint function.
 
     Example:
-
         ```python
-        @entrypoint(...)
-        def my_entrypoint(*args, **kwargs):
-            ...
+        @entrypoint(metadata=some_metadata)
+        def my_entrypoint(data):
+            return process_data(data)
 
         @entrypoint_test(my_entrypoint)
         def test_my_entrypoint():
-            ...
-            results = my_entrypoint(...)
-            ...
-            return results
-
+            test_data = [1, 2, 3]
+            result = my_entrypoint(test_data)
+            assert result == [2, 4, 6]
+            return result
         ```
 
-    Raises:
-        EntrypointIdempotencyError: When entrypoint_func is found to be non-idempotent, i.e. It cannot be called twice
-            without errors.
-    """
+    Note:
+        The test function should call the entrypoint function with useful representative inputs as an example to help other users invoke it remotely.
+    """  # noqa: E501
     if not entrypoint_func or not entrypoint_func._entrypoint_metadata:  # type: ignore
-        raise ValueError("Please pass in a valid entrypoint function")
+        raise ValueError("Please pass in a valid @entrypoint-decorated function.")
 
     def decorate(test_func):
         test_function_text = inspect.getsource(test_func)

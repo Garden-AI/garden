@@ -6,12 +6,9 @@ nav:
       - Installation: user_guide/installation.md
       - Tutorial: user_guide/tutorial.md
       - Setting up Docker: user_guide/docker.md
-  - Developer Guide:
-      - Contributing: developer_guide/contributing.md
-  - API Reference:
-    - Core Classes, Decorators and Utilities: api-docs.md
-  - CLI Reference:
-      - garden-ai: garden-ai.md
+  - Developer Guide: developer_guide/contributing.md
+  - API Reference: api-docs.md
+  - CLI Reference: garden-ai.md
 theme:
   name: material
   features:
@@ -23,8 +20,18 @@ plugins:
       handlers:
         python:
           options:
+            heading_level: 3
+            docstring_section_style: table
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            line_length: 150
             group_by_category: true
-            show_category_heading: true
+            show_category_heading: false
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_object_full_path: true
             show_bases: false
 markdown_extensions:
   - toc:
