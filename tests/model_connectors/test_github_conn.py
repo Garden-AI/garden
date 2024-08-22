@@ -1,7 +1,8 @@
 import base64
+from pathlib import Path
 import pytest
 
-from garden_ai.model_connectors import GitHubConnector
+from garden_ai.model_connectors import GitHubConnector, create_connector
 from garden_ai.model_connectors.exceptions import (
     ConnectorLFSError,
     ConnectorInvalidRepoIdError,
@@ -141,3 +142,26 @@ def test_init_raises_on_non_github_url(
         GitHubConnector(
             repo_url="https://some.repo.example.com",
         )
+
+
+@pytest.mark.integration
+def test_stage_works_on_empty_local_dir(
+    tmp_path,
+):
+    """This tests calling `stage` on a GitHubConnector when the local directory is empty.
+
+    This test may fail if there is no internet access or github.com is unreachable.
+
+    This was created as part of the resolution of this issue:
+    https://github.com/Garden-AI/garden/issues/521
+    """
+    c = create_connector(
+        "https://github.com/WillEngler/model-perovskite-ASR", local_dir=tmp_path
+    )
+    assert isinstance(c, GitHubConnector)
+
+    # This might still throw errors if the network is down or github is unreachable
+    model_dir = c.stage()
+
+    git_dir = Path(model_dir) / ".git"
+    assert git_dir.exists()
