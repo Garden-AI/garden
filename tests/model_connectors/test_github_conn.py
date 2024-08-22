@@ -163,5 +163,12 @@ def test_stage_works_on_empty_local_dir(
     # This might still throw errors if the network is down or github is unreachable
     model_dir = c.stage()
 
+    # Make sure we have cloned the repo
     git_dir = Path(model_dir) / ".git"
     assert git_dir.exists()
+
+    # Ensure we have checked out the correct revision
+    head = git_dir / "HEAD"
+    with open(head, "r") as f:
+        head_rev = f.readline().strip()
+    assert head_rev == c.revision
