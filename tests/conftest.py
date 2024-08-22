@@ -15,6 +15,34 @@ from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 
 
+def pytest_addoption(parser, pluginmanager):
+    parser.addoption(
+        "--integration",
+        action="store_true",
+        default=False,
+        help="run integration tests",
+    )
+
+
+def pytest_collection_modifyitems(session, config, items):
+    if config.getoption("--integration"):
+        # if --integration is set, don't skip integration tests
+        return
+
+    if marker := config.getoption("-m"):
+        if "integration" in marker and "not integration" not in marker:
+            # if -m "integration" is given on the cli, don't skip integration tests
+            return
+
+    # Otherwise, skip integration tests
+    skip_integration = pytest.mark.skip(
+        "need -m 'integration' or --integration option to run"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
+
+
 @pytest.fixture
 def cli_runner() -> CliRunner:
     """Return a typer.testing.CliRunner for use in tests."""
@@ -138,6 +166,10 @@ def garden_client(
         mock_login_manager
     )
 
+    mocker.patch(
+        "garden_ai.client.GardenClient._do_login_flow", return_value=mock_token_response
+    )
+
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
     return gc
@@ -188,3 +220,71 @@ def mock_RegisteredEntrypointMetadata(
 ) -> RegisteredEntrypointMetadata:
     """Return a RegisteredEntrypointMetadata object populated with test data."""
     return RegisteredEntrypointMetadata(**entrypoint_metadata_json)
+
+
+@pytest.fixture
+def mock_user_info_response(faker) -> dict:
+    """Return dict of fake user info like we get from the backend /users route"""
+    return {
+        "username": faker.user_name(),
+        "name": faker.name(),
+        "email": faker.email(),
+        "phone_number": faker.phone_number(),
+        "affiliations": [
+            faker.name(),
+        ],
+        "skills": [
+            faker.first_name(),
+            faker.first_name(),
+        ],
+        "domains": [
+            faker.first_name(),
+            faker.first_name(),
+        ],
+        "profile_pic_id": 1,
+        "identity_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "saved_garden_dois": ["10.23677/fake-doi"],
+    }
+
+
+@pytest.fixture
+def patch_has_lfs(mocker):
+    """Patch GitHubConnector._has_lfs_file to always return False"""
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._has_lfs_file",
+        return_value=False,
+    )
+
+    yield
+
+
+@pytest.fixture
+def patch_fetch_readme(mocker):
+    """Patch the _fetch_readme method in all ModelConnectors"""
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._fetch_readme",
+        return_value="I'm a readme!",
+    )
+
+    mocker.patch(
+        "garden_ai.model_connectors.HFConnector._fetch_readme",
+        return_value="I'm a readme!",
+    )
+
+    yield
+
+
+@pytest.fixture
+def patch_infer_revision(mocker):
+    """Patch the _infer_revision method in all ModelConnectors"""
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._infer_revision",
+        return_value=40 * "a",
+    )
+
+    mocker.patch(
+        "garden_ai.model_connectors.GitHubConnector._infer_revision",
+        return_value=40 * "a",
+    )
+
+    yield

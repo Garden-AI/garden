@@ -108,7 +108,7 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
         )
 
     try:
-        return NotebookMetadata.parse_obj(ntbk["metadata"]["garden_metadata"])
+        return NotebookMetadata.model_validate(ntbk["metadata"]["garden_metadata"])
     except ValidationError:
         # Return empty NotebookMetadata if was unable parse the saved garden_metadata
         typer.echo("Unable to parse garden metadata cell.")

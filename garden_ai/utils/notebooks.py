@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 import random
 
@@ -17,7 +18,7 @@ def clear_cells(notebook_json: dict) -> dict:
     """
     Returns new notebook with all cell outputs cleared.
     """
-    new_nb = notebook_json.copy()
+    new_nb = deepcopy(notebook_json)
     for cell in new_nb["cells"]:
         if "outputs" in cell:
             cell["outputs"] = []

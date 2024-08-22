@@ -41,7 +41,7 @@ def create_connector(
 
     Accepts a full url:
     `con = create_connector("https://huggingface.co/Garden-AI/sklearn-iris")`
-    `con = create_connector("https://github.com/Garden-AI/garden)`
+    `con = create_connector("https://github.com/Garden-AI/garden")`
 
     Args:
         repo (Union[HttpUrl, str]): The URL of the repository.
@@ -50,6 +50,10 @@ def create_connector(
 
     Returns:
         ModelConnector: An instance of the appropriate connector class
+
+
+    Raises:
+        ValueError: When unsupported repo or invalid url is given.
     """
     matched_connector = _match_connector_type_by_url(str(repo))
     return matched_connector(repo_url=str(repo), **kwargs)  # type: ignore[misc]

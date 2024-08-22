@@ -105,7 +105,8 @@ exclude = "fixtures|scripts"
 
 [tool.pytest.ini_options]
 markers = [
-  "cli: deselect with '-m \"not cli\"' to disable CLI tests."
+  "cli: deselect with '-m \"not cli\"' to disable CLI tests.",
+  "integration: skipped by default, run `pytest --integration` to enable",
 ]
 addopts = "--random-order"
 
