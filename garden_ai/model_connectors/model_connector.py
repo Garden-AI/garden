@@ -153,15 +153,16 @@ class ModelConnector(BaseModel, ABC):
             ConnectorStagingError: when something goes wrong during staging.
         """
         try:
-            self._checkout_revision()
-
             # pull from the repo if we have already downloaded it.
             if self._pull_if_downloaded():
-                return str(self.local_dir)
+                model_dir = str(self.local_dir)
             else:
                 # otherwise download the repo
-                return self._download()
+                model_dir = self._download()
 
+            # ensure the correct commit is checked out
+            self._checkout_revision()
+            return model_dir
         except Exception as e:
             raise ConnectorStagingError(str(self.repo_url), None) from e
 
