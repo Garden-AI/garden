@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 
-import ipywidgets as widgets
+import ipywidgets as widgets  # type: ignore
 import nbformat
 import pytest
 

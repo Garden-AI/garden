@@ -3,7 +3,7 @@ import json
 import pathlib
 import tarfile
 
-import docker
+import docker  # type: ignore
 import pytest
 import io
 
