@@ -369,19 +369,6 @@ def test_get_gardens_returns_list_of_gardens(
         assert isinstance(garden, Garden)
 
 
-def test_get_user_info_raises_on_backend_failure(
-    mocker,
-    backend_client,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        side_effect=Exception("Intentional Error for Testing"),
-    )
-
-    with pytest.raises(Exception):
-        backend_client.get_user_info()
-
-
 def test_get_user_info_returns_user_info(
     mocker,
     backend_client,

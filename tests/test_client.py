@@ -24,6 +24,7 @@ def test_client_no_previous_tokens(
     token,
     mock_keystore,
     identity_jwt,
+    mock_user_info_response,
 ):
     mock_authorizer_constructor, mock_authorizer = mock_authorizer_tuple
     # Mocks for KeyStore
@@ -59,6 +60,10 @@ def test_client_no_previous_tokens(
 
     mocker.patch("garden_ai.client.time.sleep")
 
+    mocker.patch(
+        "garden_ai.backend_client.BackendClient.get_user_info",
+        return_value=mock_user_info_response,
+    )
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client)
 
@@ -93,6 +98,7 @@ def test_client_no_previous_tokens(
 def test_client_previous_tokens_stored(
     mocker,
     mock_authorizer_tuple,
+    mock_user_info_response,
     token,
     mock_keystore,
 ):
@@ -109,6 +115,10 @@ def test_client_previous_tokens_stored(
         mock_login_manager
     )
 
+    mocker.patch(
+        "garden_ai.backend_client.BackendClient.get_user_info",
+        return_value=mock_user_info_response,
+    )
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client)
 
@@ -214,7 +224,6 @@ def test_client_datacite_url_correct(
     mocker,
     garden_client,
 ):
-
     gc = garden_client
 
     # Create a mock object for PublishedGarden or RegisteredEntrypoint
@@ -260,7 +269,6 @@ def test_get_email_returns_correct_email_for_logged_in_user(
     mocker,
     mock_user_info_response,
 ):
-
     mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
         return_value=mock_user_info_response,
@@ -325,7 +333,6 @@ def test_upload_notebook_returns_notebook_url(
     garden_client,
     mock_user_info_response,
 ):
-
     notebook_contents = {}
     notebook_name = faker.first_name() + ".ipynb"
 
@@ -371,7 +378,6 @@ def test_get_garden_returns_garden_from_backend(
     mocker,
     garden_nested_metadata_json,
 ):
-
     mock_get = mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
         return_value=garden_nested_metadata_json,
@@ -390,7 +396,6 @@ def test_create_garden_posts_garden_metadata_to_backend(
     garden_nested_metadata_json,
     mock_GardenMetadata,
 ):
-
     mock_put = mocker.patch(
         "garden_ai.backend_client.BackendClient._put",
         return_value=garden_nested_metadata_json,
@@ -423,7 +428,6 @@ def test_add_entrypoint_to_garden_raises_on_duplicate_entrypoint_names(
     garden_nested_metadata_json,
     entrypoint_metadata_json,
 ):
-
     garden_doi = garden_nested_metadata_json["doi"]
     entrypoint_doi = entrypoint_metadata_json["doi"]
 
@@ -594,7 +598,6 @@ def test_register_entrypoint_doi_updates_datacite(
     mocker,
     entrypoint_metadata_json,
 ):
-
     mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
         return_value=entrypoint_metadata_json,
@@ -620,7 +623,6 @@ def test_register_entrypoint_doi_raises_on_backend_failure(
     mocker,
     entrypoint_metadata_json,
 ):
-
     mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
         return_value=entrypoint_metadata_json,
@@ -649,7 +651,6 @@ def test_register_entrypoint_doi_updates_backend(
     mocker,
     entrypoint_metadata_json,
 ):
-
     mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
         return_value=entrypoint_metadata_json,
