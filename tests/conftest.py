@@ -335,7 +335,7 @@ def pip_requirements_raw() -> str:
 
 @pytest.fixture
 def pip_requirements() -> dict:
-    """Reeturn a dict with structure of a RequirementsData object"""
+    """Return a dict with structure of a RequirementsData object"""
     return {"file_format": "pip", "contents": ["scikit-learn==1.2.2", "pandas"]}
 
 
