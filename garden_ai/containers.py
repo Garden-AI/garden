@@ -15,6 +15,15 @@ import docker  # type: ignore
 from garden_ai.constants import GardenConstants
 from garden_ai.notebook_metadata import save_requirements_data, RequirementsData
 
+# This gets rid of a warning:
+#  DeprecationWarning: Jupyter is migrating its paths to use standard platformdirs
+#      given by the platformdirs library.  To remove this warning and
+#      see the appropriate new directories, set the environment variable
+#      `JUPYTER_PLATFORM_DIRS=1` and then run `jupyter --paths`.
+#      The use of platformdirs will be the default in `jupyter_core` v6
+#      from jupyter_core.paths import jupyter_data_dir, jupyter_runtime_dir, secure_write
+os.environ["JUPYTER_PLATFORM_DIRS"] = "1"
+
 
 class DockerStartFailure(Exception):
     """
