@@ -174,7 +174,7 @@ def entrypoint(
         ```
     """  # noqa: E501
 
-    def decorate(func: Callable):
+    def decorate(func):
         entrypoint_metadata = metadata.model_copy(deep=True)
         # connect any related metadata
         if datasets:
@@ -185,6 +185,9 @@ def entrypoint(
             entrypoint_metadata.repositories += repositories
         if model_connectors:
             for connector in model_connectors:
+                assert (
+                    connector.metadata is not None
+                ), "ModelConnector failed to infer metadata"
                 model_meta: ModelMetadata = connector.metadata
                 entrypoint_metadata.models += [model_meta]
 
