@@ -13,15 +13,11 @@ cd garden
 poetry install --with=test,develop
 ```
 
-Note that installing the test and develop groups won't install specific ML libraries such as `tensorflow` or `pytorch`, which tend to cause problems -- install these with `poetry install --all-extras`, or specific flavors with `poetry install --extras "tensorflow"` etc.
-
 You also might encounter problems with the `poetry.lock` file, which we keep under version control -- feel free to generate a new one with `poetry lock --no-update` and include the changes in your PR, even if `pyproject.toml` doesn't change.
-
 
 ## Code of Conduct
 
 We believe in creating a welcoming and inclusive environment for all contributors. With that in mind, all contributors are expected to follow the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/).
-
 
 ## Contribution Guidelines
 
@@ -82,7 +78,7 @@ This also means you can do a few things inside of docstrings to add some polish 
 The [typer](https://typer.tiangolo.com/) library generates nicely formatted docs from the docstrings
 in the commands/subcommands.
 
-To genereate the docs run:
+To generate the docs run:
 
 ``` shell
 # if in a poetry shell
@@ -100,6 +96,5 @@ We use `pytest` for testing. After making changes, make sure all tests pass. You
 poetry run pytest -m "not integration"
 ```
 
-Integration tests may be useful as a reference, but at the current stage in the project's development not likely to pass for outside contributors and are not currently part of the CI build.
 
 **New contributions should include tests.** If you're adding a new feature, write tests that cover your feature. If you're fixing a bug, write a test that would have caught the bug.

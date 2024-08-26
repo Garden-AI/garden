@@ -132,7 +132,7 @@ def create(
 
     doi = client._mint_draft_doi()
 
-    garden: Garden = client.create_garden(
+    garden: Garden = client._create_garden(
         GardenMetadata(
             doi=doi,
             authors=authors,

@@ -5,6 +5,12 @@ from .exceptions import ConnectorInvalidRevisionError
 
 
 class HFConnector(ModelConnector):
+    """Connect to model weights stored on HuggingFace.
+
+    Typically constructed by passing a HuggingFace URL to [create_connector][garden_ai.create_connector].
+
+    Inherits attributes from the [ModelConnector][garden_ai.model_connectors.ModelConnector] base class.
+    """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

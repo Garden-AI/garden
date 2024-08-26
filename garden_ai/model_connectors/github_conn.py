@@ -12,7 +12,12 @@ from .model_connector import ModelConnector
 
 
 class GitHubConnector(ModelConnector):
-    """Connect to a model stored on GitHub."""
+    """Connect to model weights stored in a GitHub repository.
+
+    Typically constructed by passing a GitHub URL to [create_connector][garden_ai.create_connector].
+
+    Inherits attributes from the [ModelConnector][garden_ai.model_connectors.ModelConnector] base class.
+    """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

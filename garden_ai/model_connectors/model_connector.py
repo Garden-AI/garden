@@ -30,18 +30,19 @@ from .exceptions import (
 class ModelConnector(BaseModel, ABC):
     """Provides attributes and functionality common to models stored in remote git repos.
 
-    Intended to be sub-classed. See `GitHubConnector` and `HFConnector`
-    for example implementations.
+    **Model Connectors are not meant to be constructed directly by users.** See: the [create_connector][garden_ai.create_connector] helper function.
+
+    Intended to be subclassed. See `GitHubConnector` and `HFConnector` for example implementations.
 
     Attributes:
         repo_url: A str URL to the remote repo. e.g. https://huggingface.co/Garden-AI/sklearn-iris
         repo_id: A str identifier for the repo in the form 'owner/repo'. e.g. Garden-AI/sklearn-iris
-        branch: str optional git branch to use. Defaults to 'main'.
-        revision: str optional git commit hash to checkout. Defaults to the HEAD of 'main'.
+        branch: The git branch to use. Defaults to 'main'.
+        revision: git commit hash to checkout. Defaults to the HEAD of 'main'.
         local_dir: the local directory to download to repo. Defaults to './models/<repo_name>'
         enable_imports: enable Python package imports from local_dir.
         metadata: A `ModelMetadata` object. Will be computed from given information if not provided.
-        readme: an optional readme for the repo.
+        readme: an optional readme for the repo. Typically fetched automatically from connected repository.
         model_dir: base directory for model downloads. defaults to './models'
     """
 
@@ -101,14 +102,14 @@ class ModelConnector(BaseModel, ABC):
         raise NotImplementedError()
 
     @staticmethod
-    def parse_id_from_url(url: str) -> Optional[str]:
+    def _parse_id_from_url(url: str) -> Optional[str]:
         """Return a repo id in the form 'owner/repo" from the provided URL."""
         url_parts = str(url).split("/")
         owner, repo = url_parts[-2], url_parts[-1]
-        return ModelConnector.validate_repo_id(f"{owner}/{repo}")
+        return ModelConnector._validate_repo_id(f"{owner}/{repo}")
 
     @staticmethod
-    def validate_repo_id(repo_id: str) -> Optional[str]:
+    def _validate_repo_id(repo_id: str) -> Optional[str]:
         """Parse repo_id to make sure it is in the form 'owner/repo'
 
         Return: repo_id as a string
@@ -124,7 +125,7 @@ class ModelConnector(BaseModel, ABC):
             )
 
     @staticmethod
-    def is_valid_url(repo: Union[HttpUrl, str]) -> Optional[Union[HttpUrl, str]]:
+    def _is_valid_url(repo: Union[HttpUrl, str]) -> Optional[Union[HttpUrl, str]]:
         """Validate the given url.
 
         Returns: the URL if valid, otherwise None
@@ -142,15 +143,15 @@ class ModelConnector(BaseModel, ABC):
 
     @trackcalls
     def stage(self) -> str:
-        """Download the repository from repo_url to local_dir.
+        """Download the repository contents to local_dir.
 
-        Should only be called within a `@garden_entrypoint` function if running
-        in a notebook.
+        Should only be called within a `@entrypoint` function, not at the top-level of a notebook.
 
-        Returns: a str Path to local directory where the model was downloaded.
+        Returns:
+            Path to the local directory where the model was downloaded.
 
         Raises:
-            ConnectorStagingError: when something goes wrong during staging.
+            ConnectorStagingError: If something goes wrong during staging.
         """
         try:
             self._checkout_revision()
@@ -209,13 +210,13 @@ class ModelConnector(BaseModel, ABC):
             return self.readme
 
     @model_validator(mode="after")
-    def validate_required_fields(self):
+    def _validate_required_fields(self):
         if self.repo_url is None and self.repo_id is None:
             raise ValueError("Must provide either repo_url or repo_id")
 
         if self.repo_url and self.repo_id is None:
             # we need a repo_id
-            self.repo_id = ModelConnector.parse_id_from_url(self.repo_url)
+            self.repo_id = ModelConnector._parse_id_from_url(self.repo_url)
         elif self.repo_id and self.repo_url is None:
             # we need a url
             self.repo_url = self._build_url_from_id()
@@ -244,7 +245,7 @@ class ModelConnector(BaseModel, ABC):
             sys.path.append(self.local_dir)
 
     @field_validator("revision")
-    def validate_revision(cls, revision) -> str:
+    def _validate_revision(cls, revision) -> str:
         """Validate that revision is a valid git commit hash.
 
         Commit hashes are a 40-character hex string.

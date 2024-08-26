@@ -55,15 +55,9 @@ GardenScopes = ScopeBuilder(
 
 class GardenClient:
     """
-    Main class for interacting with the Garden service
-    Holds helper operations for performing common tasks
-    with the Garden service.
+    Main class for interacting with the Garden service.
 
-    Will authenticate with GlobusAuth, storing generated keys in the users .garden
-    directory
-
-    Raises:
-         AuthException: if the user cannot authenticate
+    Provides public `get_garden` and `get_entrypoint` methods, and handles authentication with Globus Auth.
     """
 
     scopes = GardenScopes
@@ -222,7 +216,7 @@ class GardenClient:
         )
         return authorizer
 
-    def create_garden(self, metadata: GardenMetadata) -> Garden:
+    def _create_garden(self, metadata: GardenMetadata) -> Garden:
         """Initialize a new Garden object from GardenMetadata"""
         return self.backend_client.put_garden(metadata)
 
@@ -301,7 +295,7 @@ class GardenClient:
         register_doi: bool = False,
     ) -> None:
         logger.info("Requesting update to DOI")
-        metadata = json.loads(obj.datacite_json())
+        metadata = json.loads(obj._datacite_json())
 
         # "publish" in the event field moves the DOI from draft state to findable state
         # https://support.datacite.org/docs/how-do-i-make-a-findable-doi-with-the-rest-api
@@ -317,19 +311,13 @@ class GardenClient:
         logger.info("Update request succeeded")
 
     def get_entrypoint(self, doi: str) -> Entrypoint:
-        """Return a callable ``Entrypoint`` corresponding to the given DOI.
+        """Return the callable Entrypoint associated with the given DOI.
 
-        Parameters
-        ----------
-        doi : str
-            The previously registered entrypoint's DOI. Raises an
-            exception if not found.
+        Parameters:
+            doi: The entrypoint's DOI. Raises an exception if not found.
 
-        Returns
-        -------
-        Entrypoint
-            Instance of ``Entrypoint``, which can be run on
-            a specified remote Globus Compute endpoint.
+        Returns:
+            The callable Entrypoint object. Can execute remotely on a specified Globus Compute endpoint.
 
         """
         return self.backend_client.get_entrypoint(doi)
@@ -367,18 +355,13 @@ class GardenClient:
 
     def get_garden(self, doi: str) -> Garden:
         """
-        Get the published Garden object associated with the DOI.
+        Return the published Garden associated with the given DOI.
 
-        Parameters
-        ----------
-        doi: The DOI of the garden you want.
+        Parameters:
+            doi: The DOI of the garden. Raises an exception if not found.
 
-        Returns
-        -------
-        Garden
-            Garden corresponding to the DOI. Entrypoints published to this
-            Garden can be called like methods on the object.
-
+        Returns:
+            The published Garden object. Any [entrypoints][garden_ai.Entrypoint] in the garden can be called like methods on this object.
         """
         garden = self.backend_client.get_garden(doi)
         return garden

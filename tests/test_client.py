@@ -232,7 +232,7 @@ def test_client_datacite_url_correct(
     mock_obj.doi = "10.1234/abcd.efgh"  # Set the doi attribute
 
     # Mock the datacite_json method to return a dummy JSON
-    mock_obj.datacite_json.return_value = '{"dummy": "json"}'
+    mock_obj._datacite_json.return_value = '{"dummy": "json"}'
 
     # Mock the BackendClient.update_doi_on_datacite method
     mock_update_doi_on_datacite = mocker.patch(
@@ -422,7 +422,7 @@ def test_create_garden_posts_garden_metadata_to_backend(
         return_value=garden_nested_metadata_json,
     )
 
-    garden = garden_client.create_garden(mock_GardenMetadata)
+    garden = garden_client._create_garden(mock_GardenMetadata)
 
     mock_put.assert_called_once()
     assert garden.metadata.doi == mock_GardenMetadata.doi

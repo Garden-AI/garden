@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 )
 
     if len(entrypoint_fns) == 0:
-        raise ValueError("No functions marked with garden_entrypoint decorator.")
+        raise ValueError("No functions marked with entrypoint decorator.")
 
     requirements_data = get_requirements_data()
 

@@ -1,4 +1,4 @@
-from typing import Type, Union, Optional
+from typing import Type, Union
 
 from pydantic import (
     HttpUrl,
@@ -9,7 +9,7 @@ from .hugging_face import HFConnector
 from .model_connector import ModelConnector
 
 
-def _match_connector_type_by_url(url: str) -> Optional[Type[ModelConnector]]:
+def _match_connector_type_by_url(url: str) -> Type[ModelConnector]:
     """Match url to the appropriate ModelRepository
 
     Args:
@@ -21,7 +21,7 @@ def _match_connector_type_by_url(url: str) -> Optional[Type[ModelConnector]]:
     Raises:
         ValueError: When the URL is not able to be matched with a supported repository.
     """
-    url = str(ModelConnector.is_valid_url(url))
+    url = str(ModelConnector._is_valid_url(url))
     if url:
         if "github.com" in url:
             return GitHubConnector
@@ -37,23 +37,35 @@ def create_connector(
     repo: Union[HttpUrl, str],
     **kwargs,
 ) -> ModelConnector:
-    """Create a model connector to the given repo.
+    """Create a ModelConnector instance for a given repository URL.
 
-    Accepts a full url:
-    `con = create_connector("https://huggingface.co/Garden-AI/sklearn-iris")`
-    `con = create_connector("https://github.com/Garden-AI/garden")`
+    This function automatically determines the appropriate ModelConnector subclass based on the provided repository URL and instantiates it with the given arguments.
 
     Args:
-        repo (Union[HttpUrl, str]): The URL of the repository.
-        **kwargs: any other keyword arguments are passed directly to the ModelConnector's __init__
-            see `garden_ai.model_connectors.model_connector.ModelConnector` for specifics.
+        repo (HttpUrl | str): The URL of the repository. Currently supports GitHub and Hugging Face repositories.
+        **kwargs: Additional keyword arguments passed directly to the ModelConnector's `__init__` method. These can include options like 'branch', 'revision', 'local_dir', etc. See [ModelConnector][garden_ai.model_connectors.ModelConnector] attributes for all available options.
 
     Returns:
-        ModelConnector: An instance of the appropriate connector class
-
+        ModelConnector: An instance of the appropriate ModelConnector subclass (e.g., GitHubConnector, HFConnector) for the given repository.
 
     Raises:
-        ValueError: When unsupported repo or invalid url is given.
-    """
+        ValueError: If the repository type is not supported or the URL is invalid.
+
+    Examples:
+        ```python
+            my_connector = create_connector("https://huggingface.co/my-model", branch="dev", revision="abc123")
+
+            @entrypoint(metadata=..., model_connectors=[my_connector])
+            def my_entrypoint(data):
+                # calls `.stage()` method to fetch repository contents
+                dowload_path = my_connector.stage()
+                # do something with the downloaded weights
+                ...
+                return result
+        ```
+
+    Note:
+        The function infers the connector type from the URL. Make sure to provide a valid URL for the repository you want to connect to.
+    """  # noqa: E501
     matched_connector = _match_connector_type_by_url(str(repo))
     return matched_connector(repo_url=str(repo), **kwargs)  # type: ignore[misc]

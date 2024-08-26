@@ -498,7 +498,7 @@ $ garden-ai notebook publish [OPTIONS] PATH
 
 * `--requirements PATH`: Path to a requirements.txt containing additional dependencies to install in the base image.
 * `--base-image TEXT`: A Garden base image to run your notebook inside of. This will be the foundation for the image that runs your entrypoints.For example, to run on top of the default Garden python 3.8 image, use --base-image 3.8-base. To see all the available Garden base images, use 'garden-ai notebook list-premade-images'
-* `--doi TEXT`: A DOI of a Garden that EACH entrypoint in the notebook should be added too. This is considered to be a global notebook DOI. To override the global notebook DOI for a specific entrypoint, provide the garden_entrypoint decorator with the optional garden_doi argument.
+* `--doi TEXT`: A DOI of a Garden that EACH entrypoint in the notebook should be added too. This is considered to be a global notebook DOI. To override the global notebook DOI for a specific entrypoint, provide the entrypoint decorator with the optional garden_doi argument.
 * `-v, --verbose`
 * `--keep-outputs`: By default, Garden will clear all cell outputs before publishing. If you would like to have your cell outputs visible on the UI, use this flag.
 * `--help`: Show this message and exit.
@@ -525,7 +525,7 @@ $ garden-ai notebook start [OPTIONS] [PATH]
 
 * `--base-image TEXT`: A Garden base image to boot the notebook in. For example, to boot your notebook with the default Garden python 3.8 image, use --base-image 3.8-base. To see all the available Garden base images, use 'garden-ai notebook list-premade-images'
 * `--requirements PATH`: Path to a requirements.txt containing additional dependencies to install in the base image.
-* `--doi TEXT`: A DOI of a Garden that EACH entrypoint in the notebook should be added too. This is considered to be a global notebook DOI. To override the global notebook DOI for a specific entrypoint, provide the garden_entrypoint decorator with the optional garden_doi argument.
+* `--doi TEXT`: A DOI of a Garden that EACH entrypoint in the notebook should be added too. This is considered to be a global notebook DOI. To override the global notebook DOI for a specific entrypoint, provide the entrypoint decorator with the optional garden_doi argument.
 * `--help`: Show this message and exit.
 
 ## `garden-ai whoami`

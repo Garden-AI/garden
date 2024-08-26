@@ -13,6 +13,29 @@ logger = logging.getLogger()
 
 
 class Garden:
+    """
+    Represents a collection of related [Entrypoints][garden_ai.Entrypoint], providing a way to organize and invoke machine learning models and functions.
+
+    A Garden serves as a container for multiple Entrypoints, allowing users to group related models or functions together. It provides metadata about the collection and enables easy access to the contained Entrypoints.
+
+    This class is geared towards users wishing to access a published Garden, and is meant to be instantiated by the client's [get_garden][garden_ai.GardenClient.get_garden] method.
+
+    Attributes:
+        metadata (GardenMetadata): The Garden's published metadata, including information such as title, authors, description, and DOI.
+        entrypoints (list[Entrypoint]): The callable Entrypoints associated with this Garden. Individual entrypoints are also accessible like attributes on this object.
+
+    Note:
+        When an Entrypoint is called through a Garden, it is executed remotely on the specified Globus Compute endpoint. The default is the free garden demo endpoint.
+
+    Example:
+        Entrypoints can be accessed as attributes of the Garden instance, allowing for intuitive calling of the associated functions:
+        ```python
+        client = garden_ai.GardenClient()
+        garden = client.get_garden("my_garden_doi")
+        result = garden.my_entrypoint(data, endpoint="endpoint_uuid")
+        ```
+    """  # noqa: E501
+
     def __init__(self, metadata: GardenMetadata, entrypoints: list[Entrypoint]):
         if set(metadata.entrypoint_ids) != set([ep.metadata.doi for ep in entrypoints]):
             raise ValueError(
