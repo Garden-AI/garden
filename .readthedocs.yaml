@@ -16,6 +16,10 @@ build:
       - poetry config virtualenvs.create false
     post_install:
       - poetry install --no-root --no-interaction --no-ansi --with=develop
+      # debugging CI build
+      - pip freeze
+      - mkdocs --version
+      - python -m site
 
       # Build documentation in the docs/ directory with mkdocs
 mkdocs:
