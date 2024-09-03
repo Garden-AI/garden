@@ -83,6 +83,7 @@ types-pyyaml = "^6.0.12.8"
 coverage = { extras = ["toml"], version = "^7.2.3" }
 faker = "^26.1.0"
 pytest-random-order = "^1.1.1"
+pexpect = "^4.9.0"
 
 [tool.poetry.group.develop.dependencies]
 pre-commit = "^3.1.1"
@@ -107,6 +108,8 @@ exclude = "fixtures|scripts"
 markers = [
   "cli: deselect with '-m \"not cli\"' to disable CLI tests.",
   "integration: skipped by default, run `pytest --integration` to enable",
+  "slow: mark tests that are slow to execute",
+  "e2e: mark a tests as an end-to-end test",
 ]
 addopts = "--random-order"
 
