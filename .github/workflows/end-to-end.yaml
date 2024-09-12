@@ -27,4 +27,4 @@ jobs:
               run: poetry install --with=test,develop
 
             - name: Run tutorial end-to-end test
-              run: poetry run pytest -m "ete" -k "tutorial"
+              run: poetry run pytest -s -m "ete" -k "tutorial"
