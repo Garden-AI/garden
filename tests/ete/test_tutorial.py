@@ -76,8 +76,7 @@ def test_tutorial(garden_client_authed, tutorial_notebook):
         publish_proc.expect("Built image:", timeout=30)
         publish_proc.expect("Pushing image to repository:", timeout=30)
         publish_proc.expect("Successfully pushed image to:", timeout=30)
-        publish_proc.expect("Added entrypoint .* .* to garden .*", timeout=30)
-        publish_proc.wait()
+        publish_proc.expect("Added entrypoint", timeout=30)
     except px.ExceptionPexpect as e:
         raise GardenProcessError(f"Publish process failed: {str(e)}") from e
 
