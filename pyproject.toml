@@ -108,8 +108,7 @@ exclude = "fixtures|scripts"
 markers = [
   "cli: deselect with '-m \"not cli\"' to disable CLI tests.",
   "integration: skipped by default, run `pytest --integration` to enable",
-  "slow: mark tests that are slow to execute",
-  "e2e: mark a tests as an end-to-end test",
+  "ete: mark a tests as an end-to-end test",
 ]
 addopts = "--random-order"
 

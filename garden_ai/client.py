@@ -180,7 +180,8 @@ class GardenClient:
             )
 
         time.sleep(2)
-        typer.launch(authorize_url)
+        if not os.environ.get("GARDEN_DISABLE_BROWSER"):
+            typer.launch(authorize_url)
 
         auth_code = Prompt.ask("Please enter the code here ").strip()
 
