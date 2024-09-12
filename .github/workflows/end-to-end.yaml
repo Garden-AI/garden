@@ -1,0 +1,22 @@
+name: End-to-End Test
+
+on:
+    workflow_dispatch:
+
+env:
+    GARDEN_CLIENT_ID: $${{ secrets.GARDEN_API_CLIENT_ID }}
+    GARDEN_CLIENT_SECRET: $${{ secrets.GARDEN_API_CLIENT_SECRET }}
+
+jobs:
+    tutorial-ete:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                python-version: '3.10'
+            - uses: abatilo/actions-poetry@v2
+            - run: poetry install --with=test,develop
+
+            - name: Run tutorial end-to-end test
+              run: poetry run pytest -m "ete" -k "tutorial"
