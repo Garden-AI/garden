@@ -2,6 +2,8 @@ name: End-to-End Test
 
 on:
     workflow_dispatch:
+    # need this to trigger the job once, then we can dispatch it manually
+    push:
 
 env:
     GARDEN_CLIENT_ID: $${{ secrets.GARDEN_API_CLIENT_ID }}
