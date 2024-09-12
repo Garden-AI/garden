@@ -6,8 +6,8 @@ on:
     push:
 
 env:
-    GARDEN_CLIENT_ID: $${{ secrets.GARDEN_API_CLIENT_ID }}
-    GARDEN_CLIENT_SECRET: $${{ secrets.GARDEN_API_CLIENT_SECRET }}
+    GARDEN_CLIENT_ID: ${{ secrets.GARDEN_API_CLIENT_ID }}
+    GARDEN_CLIENT_SECRET: ${{ secrets.GARDEN_API_CLIENT_SECRET }}
 
 jobs:
     tutorial-ete:
