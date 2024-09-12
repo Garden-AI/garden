@@ -104,7 +104,7 @@ def create_garden(dev_backend, authed, request) -> Callable[[str], str]:
                 "--description='A garden created during an end to end test.' "
                 "--tag='Test'"
             )
-            garden_create.wait()
+            garden_create.expect("Garden .* created with DOI:", timeout=30)
             assert (
                 garden_create.exitstatus == 0
             ), f"Garden create exited with non-zero status: {garden_create.exitstatus}"
