@@ -75,7 +75,7 @@ def garden_client_authed(dev_backend, setup_env):
 
             # Store the tokens to the disc so future garden clients can auth automatically
             tokens = auth_client.oauth2_client_credentials_tokens(
-                requested_scopes=GardenClient.scopes.action_all,
+                requested_scopes=GardenClient.scopes.test_scope,
             )
             garden_client.auth_key_store.store(tokens)
 
