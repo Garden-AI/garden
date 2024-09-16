@@ -4,6 +4,7 @@ from collections.abc import Callable
 import os
 
 import globus_sdk
+import globus_compute_sdk
 import pexpect as px
 import pytest
 import requests
@@ -72,7 +73,16 @@ def garden_client_authed(dev_backend, setup_env):
             gc = GardenClient(auth_client=auth_client)
 
             # Write the tokens to disc
-            tokens = auth_client.oauth2_client_credentials_tokens()
+            tokens = auth_client.oauth2_client_credentials_tokens(
+                requested_scopes=[
+                    globus_sdk.AuthLoginClient.scopes.openid,
+                    globus_sdk.AuthLoginClient.scopes.email,
+                    globus_sdk.GroupsClient.scopes.view_my_groups_and_memberships,
+                    globus_sdk.SearchClient.scopes.all,
+                    globus_compute_sdk.Client.FUNCX_SCOPE,
+                    GardenClient.scopes.action_all,
+                ],
+            )
             gc.auth_key_store.store(tokens)
 
             return gc
