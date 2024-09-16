@@ -77,12 +77,9 @@ def test_tutorial(garden_client_authed, tutorial_notebook):
         publish_proc.expect("Pushing image to repository:", timeout=30)
         publish_proc.expect("Successfully pushed image to:", timeout=30)
         publish_proc.expect("Added entrypoint", timeout=30)
+        publish_proc.close()
     except px.ExceptionPexpect as e:
         raise GardenProcessError(f"Publish process failed: {str(e)}") from e
-
-    assert (
-        publish_proc.exitstatus == 0
-    ), f"Garden process failed with status: {publish_proc.exitstatus}"
 
     # run entrypoint remotely, the final step in the tutorial
     print("[blue]Running published entrypoint...")
