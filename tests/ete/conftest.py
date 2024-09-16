@@ -3,7 +3,6 @@
 from collections.abc import Callable
 import os
 
-import globus_sdk
 import pexpect as px
 import pytest
 import requests
@@ -68,21 +67,7 @@ def garden_client_authed(dev_backend, setup_env):
             # Set these to auth with globus compute automatically
             os.environ["GLOBUS_COMPUTE_CLIENT_ID"] = client_id
             os.environ["GLOBUS_COMPUTE_CLIENT_SECRET"] = client_secret
-
-            # Create an authed garden client
-            auth_client = globus_sdk.ConfidentialAppAuthClient(client_id, client_secret)
-            garden_client = GardenClient(auth_client=auth_client)
-
-            # Store the tokens to the disc so future garden clients can auth automatically
-            tokens = auth_client.oauth2_client_credentials_tokens(
-                requested_scopes=GardenClient.scopes.test_scope,
-            )
-            garden_client.auth_key_store.store(tokens)
-
-            return garden_client
-    raise ValueError(
-        "GARDEN_CLIENT_ID and GARDEN_CLIENT_SECRET env vars must be set for test to run."
-    )
+    return GardenClient()
 
 
 @pytest.fixture(scope="module")
