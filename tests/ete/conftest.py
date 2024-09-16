@@ -3,6 +3,7 @@
 from collections.abc import Callable
 import os
 
+import globus_sdk
 import pexpect as px
 import pytest
 import requests
@@ -67,6 +68,12 @@ def garden_client_authed(dev_backend, setup_env):
             # Set these to auth with globus compute automatically
             os.environ["GLOBUS_COMPUTE_CLIENT_ID"] = client_id
             os.environ["GLOBUS_COMPUTE_CLIENT_SECRET"] = client_secret
+            auth_client = globus_sdk.ConfidentialAppAuthClient(client_id, client_secret)
+            gc = GardenClient(auth_client=auth_client)
+            gc.garden_authorizer = gc._create_authorizer(
+                GardenClient.scopes.resource_server
+            )
+            return gc
     return GardenClient()
 
 
