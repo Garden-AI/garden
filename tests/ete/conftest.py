@@ -118,7 +118,7 @@ def create_garden(dev_backend, authed, request) -> Callable[[str], str]:
                 "--description='A garden created during an end to end test.' "
                 "--tag='Test'"
             )
-            garden_create.expect("Garden .* created with DOI:", timeout=30)
+            garden_create.expect("Garden .* created", timeout=30)
             garden_create.wait()
             assert (
                 garden_create.exitstatus == 0
@@ -126,7 +126,8 @@ def create_garden(dev_backend, authed, request) -> Callable[[str], str]:
         except px.ExceptionPexpect as e:
             raise GardenProcessError(f"garden create process failed: {str(e)}") from e
 
-        doi = parse_doi(garden_create.read())
+        output = garden_create.read()
+        doi = parse_doi(output)
         if doi is None:
             raise ValueError("Could not find doi of created garden in output.")
 
