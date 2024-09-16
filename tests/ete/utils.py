@@ -85,3 +85,11 @@ def parse_doi(output: str) -> str:
     if match:
         return match.group(1)
     return None
+
+
+def clean_output(output: str) -> str:
+    """Clean up the escape codes from garden CLI output"""
+    # This regex matches ANSI escape codes
+    ansi_escape = re.compile(r"(?:\x1B[@-_][0-?]*[ -/]*[@-~])")
+    # Substitute ANSI escape codes with an empty string
+    return ansi_escape.sub("", output)

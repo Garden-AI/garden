@@ -12,7 +12,7 @@ from rich import print
 
 from garden_ai import GardenClient
 from garden_ai.constants import GardenConstants
-from .utils import spawn, parse_doi, NoBackendError, GardenProcessError
+from .utils import spawn, parse_doi, NoBackendError, GardenProcessError, clean_output
 
 
 @pytest.fixture(scope="module")
@@ -126,7 +126,7 @@ def create_garden(dev_backend, authed, request) -> Callable[[str], str]:
         except px.ExceptionPexpect as e:
             raise GardenProcessError(f"garden create process failed: {str(e)}") from e
 
-        output = garden_create.read()
+        output = clean_output(garden_create.read())
         doi = parse_doi(output)
         if doi is None:
             raise ValueError("Could not find doi of created garden in output.")
