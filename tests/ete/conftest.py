@@ -57,7 +57,7 @@ def dev_backend(setup_env):
 
 
 @pytest.fixture(scope="module")
-def garden_client_authed(dev_backend):
+def garden_client_authed(dev_backend, setup_env):
     """Return a garden client that has authed with globus so it can talk to the backend.
 
     Uses GARDEN_CLIENT_ID and GARDEN_CLIENT_SECRET env vars to auth with globus if present.
@@ -66,10 +66,19 @@ def garden_client_authed(dev_backend):
     print("[blue]Creating authed GardenClient...")
     if client_id := os.environ.get("GARDEN_CLIENT_ID"):
         if client_secret := os.environ.get("GARDEN_CLIENT_SECRET"):
+            # Set these to auth with globus compute automatically
             os.environ["GLOBUS_COMPUTE_CLIENT_ID"] = client_id
             os.environ["GLOBUS_COMPUTE_CLIENT_SECRET"] = client_secret
+
+            # Create an authed garden client
             auth_client = globus_sdk.ConfidentialAppAuthClient(client_id, client_secret)
-            return GardenClient(auth_client=auth_client)
+            garden_client = GardenClient(auth_client=auth_client)
+
+            # Store the tokens to the disc so future garden clients can auth automatically
+            tokens = auth_client.oauth2_client_credentials_tokens()
+            garden_client.auth_key_store.store(tokens)
+
+            return garden_client
     raise ValueError(
         "GARDEN_CLIENT_ID and GARDEN_CLIENT_SECRET env vars must be set for test to run."
     )
