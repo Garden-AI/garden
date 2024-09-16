@@ -26,6 +26,7 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
 )
+from globus_sdk.authorizers import GlobusAuthorizer
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
@@ -211,7 +212,7 @@ class GardenClient:
             tokens = self.auth_key_store.get_token_data(resource_server)
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
         try:
-            authorizer = RefreshTokenAuthorizer(
+            authorizer: GlobusAuthorizer = RefreshTokenAuthorizer(
                 tokens["refresh_token"],
                 self.auth_client,
                 access_token=tokens["access_token"],
