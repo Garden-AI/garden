@@ -1,8 +1,9 @@
 """An end to end test of the garden user tutorial."""
 
 from pathlib import Path
+from typing import Generator
 
-import pexpect as px  # type: noqa
+import pexpect as px  # type: ignore
 import pytest
 from rich import print
 
@@ -15,7 +16,9 @@ from .utils import (
 
 
 @pytest.fixture
-def tutorial_notebook(docker_check, create_garden, tmp_path) -> tuple[Path, str]:
+def tutorial_notebook(
+    docker_check, create_garden, tmp_path
+) -> Generator[tuple[Path, str], None, None]:
     """Start a container running the tutorial notebook using the cli.
 
     Creates a new garden as recommended in the tutorial.
@@ -23,6 +26,8 @@ def tutorial_notebook(docker_check, create_garden, tmp_path) -> tuple[Path, str]
 
     Yield the path to the notebook and the garden doi it can be published to.
     """
+    # Create a new garden
+    new_garden_doi = create_garden("Tutorial Test Garden")
 
     # Start the tutorial notebook
     print("[blue]Starting tutorial notebook container...")
@@ -52,8 +57,6 @@ def tutorial_notebook(docker_check, create_garden, tmp_path) -> tuple[Path, str]
     notebook_path = Path(tmp_path) / notebook_name
     assert notebook_path.exists(), f"Notebook file not found: {notebook_path}"
 
-    # Create a new garden
-    new_garden_doi = create_garden("Tutorial Test Garden")
     # Insert the doi into the notebook so it can be published
     insert_doi_into_tutorial_ntbk(new_garden_doi, notebook_path)
 
@@ -82,10 +85,13 @@ def test_tutorial(garden_client_authed, tutorial_notebook):
         raise GardenProcessError(f"Publish process failed: {str(e)}") from e
 
     # run entrypoint remotely, the final step in the tutorial
-    print("[blue]Running published entrypoint...")
+    print("[blue]Calling published entrypoint...")
     iris_data = [[5.1, 3.5, 1.4, 0.2]]
     garden = garden_client_authed.get_garden(garden_doi)
     result = garden.classify_irises(iris_data)
     assert result == [
         "setosa"
     ], "Did not get correct result from tutorial endpoint execution"
+
+    print("[green]End to End test of tutoiral successful.")
+    print("[blue]Cleaning up...")

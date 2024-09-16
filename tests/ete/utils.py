@@ -3,7 +3,7 @@ import re
 import sys
 
 import nbformat
-import pexpect as px
+import pexpect as px  # type: ignore
 
 
 class NoBackendError(Exception):
@@ -35,7 +35,10 @@ def spawn(garden_command: str, cwd: Path = Path(__file__).parent) -> px.spawn:
     Return a pexpect.spawn object.
     """
     proc = px.spawn(
-        f"{sys.executable} -m garden_ai " + garden_command, cwd=cwd, encoding="utf-8"
+        # Run the garden cli using the same python executable running pytest
+        f"{sys.executable} -m garden_ai " + garden_command,
+        cwd=cwd,
+        encoding="utf-8",
     )
 
     proc.logfile_read = sys.stdout
@@ -72,6 +75,7 @@ def insert_doi_into_tutorial_ntbk(garden_doi: str, notebook_path: Path):
             new_cell = nbformat.v4.new_code_cell(
                 source=f"my_garden_doi = '{garden_doi}'\n",
             )
+            # validation fails if we don't delete the cell id
             del new_cell["id"]
             ntbk.cells[i] = new_cell
             break
@@ -79,7 +83,7 @@ def insert_doi_into_tutorial_ntbk(garden_doi: str, notebook_path: Path):
     nbformat.write(ntbk, notebook_path, nbformat.NO_CONVERT)
 
 
-def parse_doi(output: str) -> str:
+def parse_doi(output: str) -> str | None:
     """Parse the doi from a successful 'garden-ai garden create' command output"""
     match = re.search(r"DOI:\s*(\S+)", output)
     if match:

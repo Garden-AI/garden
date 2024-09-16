@@ -5,7 +5,7 @@ import os
 
 import globus_sdk
 import globus_compute_sdk
-import pexpect as px
+import pexpect as px  # type: ignore
 import pytest
 import requests
 from rich import print
@@ -19,6 +19,7 @@ from .utils import spawn, parse_doi, NoBackendError, GardenProcessError, clean_o
 def setup_env(tmp_path_factory):
     """Setup the environment for running end-to-and and integration tests."""
     print("[blue]Setting up environment...")
+    os.environ["GARDEN_DIR"] = tmp_path_factory.mktemp("garden_ete_test")
     os.environ["GARDEN_ENV"] = os.environ.get("GARDEN_ENV", "dev")
     os.environ["GARDEN_DISABLE_BROWSER"] = os.environ.get(
         "GAREDEN_DISABLE_BROWSER", "1"
@@ -69,33 +70,29 @@ def garden_client_authed(dev_backend, setup_env):
             # Set these to auth with globus compute automatically
             os.environ["GLOBUS_COMPUTE_CLIENT_ID"] = client_id
             os.environ["GLOBUS_COMPUTE_CLIENT_SECRET"] = client_secret
+
+            # make the GardenClient
             auth_client = globus_sdk.ConfidentialAppAuthClient(client_id, client_secret)
-            gc = GardenClient(auth_client=auth_client)
+            return GardenClient(auth_client=auth_client)
 
-            # Write the tokens to disc
-            tokens = auth_client.oauth2_client_credentials_tokens(
-                requested_scopes=[
-                    globus_sdk.AuthLoginClient.scopes.openid,
-                    globus_sdk.AuthLoginClient.scopes.email,
-                    globus_sdk.GroupsClient.scopes.view_my_groups_and_memberships,
-                    globus_sdk.SearchClient.scopes.all,
-                    globus_compute_sdk.Client.FUNCX_SCOPE,
-                    GardenClient.scopes.action_all,
-                ],
-            )
-            gc.auth_key_store.store(tokens)
-
-            return gc
     return GardenClient()
 
 
 @pytest.fixture(scope="module")
 def authed(garden_client_authed):
-    """Make sure we have authed with globus.
-
-    Usefull for tests that need to be authed, but don't need a GardenClient object directly.
-    """
-    pass
+    """Make sure there are valid auth credentials available for new GardenClients."""
+    # Write the auth tokens to disc so other tests auth automatically
+    tokens = garden_client_authed.auth_client.oauth2_client_credentials_tokens(
+        requested_scopes=[
+            globus_sdk.AuthLoginClient.scopes.openid,
+            globus_sdk.AuthLoginClient.scopes.email,
+            globus_sdk.GroupsClient.scopes.view_my_groups_and_memberships,
+            globus_sdk.SearchClient.scopes.all,
+            globus_compute_sdk.Client.FUNCX_SCOPE,
+            GardenClient.scopes.action_all,
+        ],
+    )
+    garden_client_authed.auth_key_store.store(tokens)
 
 
 @pytest.fixture
@@ -134,6 +131,7 @@ def create_garden(dev_backend, authed, request) -> Callable[[str], str]:
         created_garden_dois.append(doi)
         return doi
 
+    # Delete any gardens that were created during a test after the test finishes
     request.addfinalizer(lambda: _cleanup_gardens(created_garden_dois))
 
     return _create_garden
@@ -145,4 +143,5 @@ def _cleanup_gardens(dois: list[str]):
         garden_delete = spawn(f"garden delete {doi}")
         garden_delete.expect("Are you sure you want to proceed?", timeout=30)
         garden_delete.sendline("y")
-        garden_delete.expect("Garden .* has been deleted")
+        garden_delete.expect("Garden .* has been deleted", timeout=30)
+        garden_delete.close()
