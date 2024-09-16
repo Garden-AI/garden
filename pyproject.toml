@@ -114,4 +114,4 @@ addopts = "--random-order"
 
 [tool.coverage.run]
 source = ["garden_ai/"]
-omit = ["garden_ai/notebook_templates/", "tests/", "scripts/"]
+omit = ["garden_ai/notebook_templates/*", "tests/*", "scripts/*"]
