@@ -16,11 +16,9 @@ from .utils import spawn, parse_doi, NoBackendError, GardenProcessError, clean_o
 
 
 @pytest.fixture(scope="module")
-def setup_env(tmp_path_factory):
+def setup_env():
     """Setup the environment for running end-to-and and integration tests."""
     print("[blue]Setting up environment...")
-    temp_dir = tmp_path_factory.mktemp("garden_ete_test")
-    os.environ["GARDEN_DIR"] = str(temp_dir)
     os.environ["GARDEN_ENV"] = os.environ.get("GARDEN_ENV", "dev")
     os.environ["GARDEN_DISABLE_BROWSER"] = os.environ.get(
         "GAREDEN_DISABLE_BROWSER", "1"
