@@ -71,14 +71,9 @@ def garden_client_authed(dev_backend, setup_env):
             auth_client = globus_sdk.ConfidentialAppAuthClient(client_id, client_secret)
             gc = GardenClient(auth_client=auth_client)
 
-            # Store the tokens
+            # Write the tokens to disc
             tokens = auth_client.oauth2_client_credentials_tokens()
             gc.auth_key_store.store(tokens)
-
-            # Create a new RefreshTokenAuthorizer from the stored tokens
-            gc.garden_authorizer = gc._create_authorizer(
-                GardenClient.scopes.resource_server
-            )
 
             return gc
     return GardenClient()

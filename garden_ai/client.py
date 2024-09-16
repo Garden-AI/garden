@@ -16,6 +16,7 @@ from globus_compute_sdk.sdk.login_manager import ComputeScopes
 from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
 from globus_compute_sdk.serialize.concretes import DillCodeTextInspect
 from globus_sdk import (
+    AccessTokenAuthorizer,
     AuthAPIError,
     AuthLoginClient,
     ClientCredentialsAuthorizer,
@@ -209,13 +210,17 @@ class GardenClient:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(resource_server)
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
-        authorizer = RefreshTokenAuthorizer(
-            tokens["refresh_token"],
-            self.auth_client,
-            access_token=tokens["access_token"],
-            expires_at=tokens["expires_at_seconds"],
-            on_refresh=self.auth_key_store.on_refresh,
-        )
+        try:
+            authorizer = RefreshTokenAuthorizer(
+                tokens["refresh_token"],
+                self.auth_client,
+                access_token=tokens["access_token"],
+                expires_at=tokens["expires_at_seconds"],
+                on_refresh=self.auth_key_store.on_refresh,
+            )
+        except TypeError:
+            # If there is no refresh token, try using an access token
+            authorizer = AccessTokenAuthorizer(tokens["access_token"])
         return authorizer
 
     def _create_garden(self, metadata: GardenMetadata) -> Garden:
