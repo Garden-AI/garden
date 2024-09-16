@@ -79,6 +79,12 @@ class GardenClient:
             "GARDEN_CLIENT_ID", "cf9f8938-fb72-439c-a70b-85addf1b8539"
         )
 
+        # Make a ConfidentialAppAuthClient if GARDEN_CLIENT_ID and GARDEN_CLIENT_SECRET
+        # are set in the environment
+        if client_id := os.environ.get("GARDEN_CLIENT_ID"):
+            if client_secret := os.environ.get("GARDEN_CLIENT_SECRET"):
+                auth_client = ConfidentialAppAuthClient(client_id, client_secret)
+
         # If auth_client is type AuthLoginClient or None, do an
         # Authorization Code Grant and make RefreshTokenAuthorizers.
         # If auth_client is type ConfidentialAppAuthClient, do a

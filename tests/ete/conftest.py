@@ -18,7 +18,6 @@ from .utils import spawn, parse_doi, NoBackendError, GardenProcessError
 def setup_env(tmp_path_factory):
     """Setup the environment for running end-to-and and integration tests."""
     print("[blue]Setting up environment...")
-    # os.environ["GARDEN_DIR"] = str(tmp_path_factory.mktemp("garden_ete_test"))
     os.environ["GARDEN_ENV"] = os.environ.get("GARDEN_ENV", "dev")
     os.environ["GARDEN_DISABLE_BROWSER"] = os.environ.get(
         "GAREDEN_DISABLE_BROWSER", "1"
@@ -76,7 +75,7 @@ def garden_client_authed(dev_backend, setup_env):
 
             # Store the tokens to the disc so future garden clients can auth automatically
             tokens = auth_client.oauth2_client_credentials_tokens(
-                requested_scopes=GardenClient.scopes.test_scope
+                requested_scopes=GardenClient.scopes.action_all,
             )
             garden_client.auth_key_store.store(tokens)
 
