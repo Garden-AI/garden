@@ -1,6 +1,5 @@
 # flake8: noqa: F841
 import os
-from urllib.parse import quote
 
 import pytest
 from globus_compute_sdk import Client  # type: ignore
