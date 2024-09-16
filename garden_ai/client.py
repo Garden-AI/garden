@@ -133,7 +133,8 @@ class GardenClient:
             )
             self.search_client = SearchClient(authorizer=self.search_authorizer)
             self.garden_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, GardenClient.scopes.all
+                self.auth_client,
+                GardenClient.scopes.test_scope,
             )
 
         self.compute_client = self._make_compute_client()
