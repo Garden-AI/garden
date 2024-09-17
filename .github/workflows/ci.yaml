@@ -41,19 +41,19 @@ jobs:
         run: |
           # stop the build if there are any-flake8 comments
           flake8
-      - name: Test with pytest
-        run: |
-          pytest -m "not integration" --cov=./ --cov-report=xml -r sx
       - name: Perform Type Checking With mypy
         run: |
           mypy .
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          files: ./coverage.xml
       - name: Check for vulnerable libraries with safety
         run: |
           safety check
+      - name: Test with pytest
+        run: |
+          pytest -m "not integration" --cov=./ --cov-report=xml -r sx
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4.2.0
+        env:
+            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          verbose: true
+          fail_ci_if_error: true
