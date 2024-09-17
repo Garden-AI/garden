@@ -16,6 +16,7 @@ from globus_compute_sdk.sdk.login_manager import ComputeScopes
 from globus_compute_sdk.sdk.login_manager.tokenstore import get_token_storage_adapter
 from globus_compute_sdk.serialize.concretes import DillCodeTextInspect
 from globus_sdk import (
+    AccessTokenAuthorizer,
     AuthAPIError,
     AuthLoginClient,
     ClientCredentialsAuthorizer,
@@ -25,6 +26,7 @@ from globus_sdk import (
     RefreshTokenAuthorizer,
     SearchClient,
 )
+from globus_sdk.authorizers import GlobusAuthorizer
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
@@ -127,7 +129,8 @@ class GardenClient:
             )
             self.search_client = SearchClient(authorizer=self.search_authorizer)
             self.garden_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, GardenClient.scopes.test_scope
+                self.auth_client,
+                GardenClient.scopes.test_scope,
             )
 
         self.compute_client = self._make_compute_client()
@@ -180,7 +183,8 @@ class GardenClient:
             )
 
         time.sleep(2)
-        typer.launch(authorize_url)
+        if not os.environ.get("GARDEN_DISABLE_BROWSER"):
+            typer.launch(authorize_url)
 
         auth_code = Prompt.ask("Please enter the code here ").strip()
 
@@ -207,13 +211,17 @@ class GardenClient:
             # otherwise, we already did login; load the tokens from that file
             tokens = self.auth_key_store.get_token_data(resource_server)
         # construct the RefreshTokenAuthorizer which writes back to storage on refresh
-        authorizer = RefreshTokenAuthorizer(
-            tokens["refresh_token"],
-            self.auth_client,
-            access_token=tokens["access_token"],
-            expires_at=tokens["expires_at_seconds"],
-            on_refresh=self.auth_key_store.on_refresh,
-        )
+        try:
+            authorizer: GlobusAuthorizer = RefreshTokenAuthorizer(
+                tokens["refresh_token"],
+                self.auth_client,
+                access_token=tokens["access_token"],
+                expires_at=tokens["expires_at_seconds"],
+                on_refresh=self.auth_key_store.on_refresh,
+            )
+        except TypeError:
+            # If there is no refresh token, try using an access token
+            authorizer = AccessTokenAuthorizer(tokens["access_token"])
         return authorizer
 
     def _create_garden(self, metadata: GardenMetadata) -> Garden:

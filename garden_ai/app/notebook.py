@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 import json
 import time
+import os
 
 import docker  # type: ignore
 import typer
@@ -294,9 +295,12 @@ def start(
         "in your default browser (you may need to refresh the page)"
     )
 
-    # Give the notebook server a few seconds to start up so that the user doesn't have to refresh manually
-    time.sleep(3)
-    webbrowser.open_new_tab(f"http://127.0.0.1:{port}/notebooks/{notebook_path.name}")
+    if not os.environ.get("GARDEN_DISABLE_BROWSER"):
+        # Give the notebook server a few seconds to start up so that the user doesn't have to refresh manually
+        time.sleep(3)
+        webbrowser.open_new_tab(
+            f"http://127.0.0.1:{port}/notebooks/{notebook_path.name}"
+        )
 
     # stream logs from the container
     for line in container.logs(stream=True):

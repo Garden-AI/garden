@@ -30,22 +30,32 @@ def pytest_addoption(parser, pluginmanager):
 
 
 def pytest_collection_modifyitems(session, config, items):
+    skip_integration_tests = True
+    skip_ete_tests = True
+
+    # run integration tests when pytest is called with --integration
     if config.getoption("--integration"):
-        # if --integration is set, don't skip integration tests
-        return
+        skip_integration_tests = False
 
     if marker := config.getoption("-m"):
         if "integration" in marker and "not integration" not in marker:
             # if -m "integration" is given on the cli, don't skip integration tests
-            return
+            skip_integration_tests = False
 
-    # Otherwise, skip integration tests
+        if "ete" in marker and "not e2e" not in marker:
+            skip_ete_tests = False
+
     skip_integration = pytest.mark.skip(
         "need -m 'integration' or --integration option to run"
     )
+    skip_ete = pytest.mark.skip("need -m 'ete' to run")
+
     for item in items:
-        if "integration" in item.keywords:
+        if skip_integration_tests and "integration" in item.keywords:
             item.add_marker(skip_integration)
+
+        if skip_ete_tests and "ete" in item.keywords:
+            item.add_marker(skip_ete)
 
 
 @pytest.fixture(scope="session")

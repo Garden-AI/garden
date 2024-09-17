@@ -83,6 +83,7 @@ types-pyyaml = "^6.0.12.8"
 coverage = { extras = ["toml"], version = "^7.2.3" }
 faker = "^26.1.0"
 pytest-random-order = "^1.1.1"
+pexpect = "^4.9.0"
 
 [tool.poetry.group.develop.dependencies]
 pre-commit = "^3.1.1"
@@ -107,9 +108,10 @@ exclude = "fixtures|scripts"
 markers = [
   "cli: deselect with '-m \"not cli\"' to disable CLI tests.",
   "integration: skipped by default, run `pytest --integration` to enable",
+  "ete: mark a tests as an end-to-end test",
 ]
 addopts = "--random-order"
 
 [tool.coverage.run]
 source = ["garden_ai/"]
-omit = ["garden_ai/notebook_templates/", "tests/", "scripts/"]
+omit = ["garden_ai/notebook_templates/*", "tests/*", "scripts/*"]
