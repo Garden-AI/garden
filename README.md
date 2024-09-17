@@ -4,6 +4,7 @@
 [![PyPI](https://badge.fury.io/py/garden-ai.svg)](https://badge.fury.io/py/garden-ai)
 [![Tests](https://github.com/Garden-AI/garden/actions/workflows/pypi.yaml/badge.svg)](https://github.com/Garden-AI/garden/actions/workflows/pypi.yaml)
 [![tests](https://github.com/Garden-AI/garden/actions/workflows/ci.yaml/badge.svg)](https://github.com/Garden-AI/garden/actions/workflows/ci.yaml)
+[![codecov](https://codecov.io/github/Garden-AI/garden/graph/badge.svg?token=WYINAGF0S4)](https://codecov.io/github/Garden-AI/garden)
 
 ## At a Glance:
 

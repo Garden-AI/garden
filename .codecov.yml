@@ -1,0 +1,6 @@
+coverage:
+  status:
+    project:
+      garden-ai:
+        target: auto # PRs should increase overall coverage
+        threshold: 5 # Allow a bit of wiggle room
