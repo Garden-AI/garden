@@ -127,6 +127,10 @@ class Entrypoint:
         return isinstance(other, type(self)) and self.metadata == other.metadata
 
 
+class ModalEntrypoint:
+    pass
+
+
 class EntrypointIdempotencyError(Exception):
     """Raised when an entrypoint function is found to be non-idempotent."""
 

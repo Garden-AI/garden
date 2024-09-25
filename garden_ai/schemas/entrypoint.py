@@ -219,3 +219,7 @@ class RegisteredEntrypointMetadata(EntrypointMetadata):
                 else None
             ),
         ).model_dump_json()
+
+
+class ModalEntrypointMetadata(EntrypointMetadata):
+    pass
