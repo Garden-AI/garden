@@ -53,5 +53,7 @@ def _to_b64(v) -> str:
 
 
 B64Bytes = Annotated[
-    bytes, BeforeValidator(_from_b64), PlainSerializer(_to_b64, return_type=str)
+    bytes,
+    BeforeValidator(_from_b64),
+    PlainSerializer(_to_b64, return_type=str, when_used="json"),
 ]

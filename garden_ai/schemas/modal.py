@@ -2,6 +2,12 @@ from .schema_utils import B64Bytes
 from pydantic import BaseModel
 
 
+class ModalFunctionMetadata(BaseModel):
+    app_name: str
+    function_name: str
+    # TODO other fields we'll want to persist
+
+
 class _ModalGenericResult(BaseModel):
     # duplicates key fields from modal's protobuf api_pb2.GenericResult type, so our sdk can
     # build one manually and leave the rest of the result processing to modal
