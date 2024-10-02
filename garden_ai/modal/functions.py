@@ -1,9 +1,10 @@
 import asyncio
+from typing import Any
 
 import modal
 from modal._serialization import serialize
 from modal._utils.blob_utils import MAX_OBJECT_SIZE_BYTES
-from modal_proto import api_pb2
+from modal_proto import api_grpc, api_pb2  # type: ignore
 
 from garden_ai.client import GardenClient
 from garden_ai.schemas.modal import (
@@ -54,7 +55,16 @@ class ModalFunction:
             )
 
 
-def _modal_process_result_sync(*args):
+def _modal_process_result_sync(
+    modal_result_struct: api_pb2.GenericResult,
+    modal_data_format: api_pb2.DataFormat | int,
+    modal_client_stub: api_grpc.ModalClientStub,
+) -> Any:
+    """Helper: invoke modal's result processing/deserialization code synchronously in its own event loop."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    return loop.run_until_complete(modal.functions._process_result(*args))
+    return loop.run_until_complete(
+        modal._utils.function_utils._process_result(
+            modal_result_struct, modal_data_format, modal_client_stub
+        )
+    )
