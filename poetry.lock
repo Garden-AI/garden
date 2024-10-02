@@ -905,13 +905,13 @@ crt = ["awscrt (==0.21.5)"]
 
 [[package]]
 name = "botocore-stubs"
-version = "1.35.31"
+version = "1.35.32"
 description = "Type annotations and code completion for botocore"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore_stubs-1.35.31-py3-none-any.whl", hash = "sha256:b7289c27b759dad40759c1421519cbd7ec65b79f7aa8be5dfc76004a61aef42b"},
-    {file = "botocore_stubs-1.35.31.tar.gz", hash = "sha256:b26f79253d8f2460aa8f2d49ae933c3f352fe38be72ea033651c15cd47a822a9"},
+    {file = "botocore_stubs-1.35.32-py3-none-any.whl", hash = "sha256:58db0a21dc576cef715d6bf3f8a55882dfd193919caff796b30e712e6e2658cf"},
+    {file = "botocore_stubs-1.35.32.tar.gz", hash = "sha256:ff7b2450ccba4eb0acb486ddfacf5b9c13ab7db824ca43953d38874ca94687d8"},
 ]
 
 [package.dependencies]
@@ -1750,13 +1750,13 @@ redis = ["redis (>=3.5.3,<6)"]
 
 [[package]]
 name = "globus-compute-sdk"
-version = "2.28.0"
+version = "2.27.1"
 description = "Globus Compute: High Performance Function Serving for Science"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "globus_compute_sdk-2.28.0-py3-none-any.whl", hash = "sha256:111c2550aeff94880afd19f955783065af97bcdc1d8b5f946f879fac03a40c6e"},
-    {file = "globus_compute_sdk-2.28.0.tar.gz", hash = "sha256:28b6ca4a29b89e51ff535e829391182530f7ccbdbc61c2cd9bd7161e2d3d7852"},
+    {file = "globus_compute_sdk-2.27.1-py3-none-any.whl", hash = "sha256:279d9ee23a09ac812476808ca65ed3de188abcd7d238a44246f2e7e9d9234a36"},
+    {file = "globus_compute_sdk-2.27.1.tar.gz", hash = "sha256:039ee57c18bac2eb6c1d5d66d09cf56088a8c6c371a9adb90380eddbee729290"},
 ]
 
 [package.dependencies]
@@ -1765,7 +1765,7 @@ dill = [
     {version = "0.3.6", markers = "python_version >= \"3.11\""},
 ]
 globus-compute-common = "0.4.1"
-globus-sdk = ">=3.45.0,<4"
+globus-sdk = ">=3.35.0,<4"
 packaging = ">=21.1"
 pika = ">=1.2"
 requests = ">=2.31.0,<3"
@@ -2825,12 +2825,12 @@ mkdocstrings = ">=0.25"
 
 [[package]]
 name = "modal"
-version = "0.64.163"
+version = "0.64.164"
 description = "Python client library for Modal"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "modal-0.64.163-py3-none-any.whl", hash = "sha256:225f5ceebb10eea73ef421721c3d9db54d691766bd3a4d3ca12ab3d483cbd4de"},
+    {file = "modal-0.64.164-py3-none-any.whl", hash = "sha256:2d89b60ac78038fdcdea578eb0f28292fd592c91c61b87e7127f7097850a2b0b"},
 ]
 
 [package.dependencies]
@@ -5340,4 +5340,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0f2082a8793866a07c4740905a415104440b65df227450cc127f92a58147533c"
+content-hash = "b1d758e9786bee48ba7502dbda274bcaf7be010798e253cc64aaa030523bec8b"

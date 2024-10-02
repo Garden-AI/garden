@@ -57,7 +57,7 @@ class ModalFunction:
 
 def _modal_process_result_sync(
     modal_result_struct: api_pb2.GenericResult,
-    modal_data_format: api_pb2.DataFormat | int,
+    modal_data_format: int,
     modal_client_stub: api_grpc.ModalClientStub,
 ) -> Any:
     """Helper: invoke modal's result processing/deserialization code synchronously in its own event loop."""
