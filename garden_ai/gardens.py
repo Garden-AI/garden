@@ -83,7 +83,7 @@ class Garden:
 
         for modal_function in self.modal_functions:
             if name == modal_function.metadata.function_name:
-                return name
+                return modal_function
 
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'."
