@@ -6,8 +6,11 @@ import boto3
 import requests
 
 from garden_ai.constants import GardenConstants
-from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
+from garden_ai.schemas.entrypoint import (
+    RegisteredEntrypointMetadata,
+)
 from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.schemas.modal import ModalInvocationResponse, ModalInvocationRequest
 from garden_ai.entrypoints import Entrypoint
 from garden_ai.gardens import Garden
 
@@ -194,3 +197,10 @@ class BackendClient:
 
     def get_user_info(self) -> dict:
         return self._get("/users")
+
+    def invoke_modal_function(
+        self,
+        payload: ModalInvocationRequest,
+    ) -> ModalInvocationResponse:
+        response = self._post("/modal-invocations", payload.model_dump(mode="json"))
+        return ModalInvocationResponse(**response)
