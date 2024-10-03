@@ -4,7 +4,7 @@ import pytest
 
 from garden_ai.client import GardenClient
 from garden_ai.backend_client import BackendClient
-from garden_ai.modal.functions import ModalFunction
+from garden_ai.modal.functions import ModalFunction, MaximumArgumentSizeError
 from garden_ai.schemas.modal import (
     ModalFunctionMetadata,
     ModalInvocationRequest,
@@ -79,3 +79,12 @@ def test_modal_function_call(modal_function):
 
     # Check that the result was processed correctly
     assert result == "what results! and *so* nicely processed"
+
+
+def test_modal_function_size_limit(modal_function):
+    scary_input = b"oo" * (1024 * 1024 + 1)  # just over 2MiB
+    mock_serialize = Mock(return_value=scary_input)
+
+    with patch("garden_ai.modal.functions.serialize", mock_serialize):
+        with pytest.raises(MaximumArgumentSizeError):
+            modal_function("👻")
