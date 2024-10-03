@@ -6,12 +6,7 @@ from modal._serialization import serialize
 from modal._utils.blob_utils import MAX_OBJECT_SIZE_BYTES
 from modal_proto import api_grpc, api_pb2  # type: ignore
 
-from garden_ai.client import GardenClient
-from garden_ai.schemas.modal import (
-    ModalFunctionMetadata,
-    ModalInvocationRequest,
-    ModalInvocationResponse,
-)
+import garden_ai
 
 
 class MaximumArgumentSizeError(ValueError):
@@ -22,10 +17,12 @@ class MaximumArgumentSizeError(ValueError):
 
 class ModalFunction:
     def __init__(
-        self, metadata: ModalFunctionMetadata, client: GardenClient | None = None
+        self,
+        metadata: garden_ai.schemas.ModalFunctionMetadata,
+        client: garden_ai.client.GardenClient | None = None,
     ):
         self.metadata = metadata
-        self.client = client or GardenClient()
+        self.client = client or garden_ai.client.GardenClient()
 
     def __call__(self, *args, **kwargs):
         # build request with serialized args
@@ -34,12 +31,12 @@ class ModalFunction:
             raise MaximumArgumentSizeError(
                 "Garden's modal integration does not yet support input arguments greater than 2MiB."
             )
-        request = ModalInvocationRequest(
+        request = garden_ai.schemas.ModalInvocationRequest(
             app_name=self.metadata.app_name,
             function_name=self.metadata.function_name,
             args_kwargs_serialized=args_kwargs_serialized,
         )
-        response: ModalInvocationResponse = (
+        response: garden_ai.schemas.ModalInvocationResponse = (
             self.client.backend_client.invoke_modal_function(request)
         )
         result_data: dict = response.result.model_dump(

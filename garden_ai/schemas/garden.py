@@ -55,6 +55,10 @@ class GardenMetadata(BaseModel):
     entrypoint_aliases: dict[str, str] = Field(default_factory=dict)
     entrypoint_ids: UniqueList[str] = Field(default_factory=list)
 
+    # TODO: for now a modal function ID is just the function's name, but once modal
+    # functions have DOIs this should be updated for consistency with entrypoints.
+    modal_function_ids: UniqueList[str] = Field(default_factory=list)
+
     owner_identity_id: UUID | None = None
     id: int | None = None
 
