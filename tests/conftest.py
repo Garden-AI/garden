@@ -220,6 +220,20 @@ def garden_nested_metadata_json(garden_nested_metadata_raw) -> dict:
 
 
 @pytest.fixture(scope="session")
+def modal_function_metadata_raw() -> dict:
+    """Return a dict with a valid ModalFunctionMetadata schema."""
+    f = pathlib.Path(__file__).parent / "fixtures" / "modal_function_metadata.json"
+    with open(f, "r") as f_in:
+        return json.load(f_in)
+
+
+@pytest.fixture
+def modal_function_metadata_json(modal_function_metadata_raw) -> dict:
+    """Return a dict with a valid ModalFunctionMetadata schema."""
+    return deepcopy(modal_function_metadata_raw)
+
+
+@pytest.fixture(scope="session")
 def entrypoint_metadata_raw() -> dict:
     """Return a dict with a valid EntrypointMetadata schema."""
     f = pathlib.Path(__file__).parent / "fixtures" / "entrypoint_metadata.json"

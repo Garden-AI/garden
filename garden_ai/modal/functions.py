@@ -1,13 +1,17 @@
 import asyncio
-from typing import Any
+from typing import Any, TYPE_CHECKING, TypeVar
 
 import modal
 from modal._serialization import serialize
 from modal._utils.blob_utils import MAX_OBJECT_SIZE_BYTES
 from modal_proto import api_grpc, api_pb2  # type: ignore
 
-from garden_ai.client import GardenClient
-from garden_ai.schemas.modal import (
+if TYPE_CHECKING:
+    from garden_ai.client import GardenClient
+else:
+    GardenClient = TypeVar("GardenClient")
+
+from ..schemas.modal import (
     ModalFunctionMetadata,
     ModalInvocationRequest,
     ModalInvocationResponse,
@@ -25,7 +29,11 @@ class ModalFunction:
         self, metadata: ModalFunctionMetadata, client: GardenClient | None = None
     ):
         self.metadata = metadata
-        self.client = client or GardenClient()
+        self.client = client
+        if self.client is None:
+            from garden_ai import GardenClient
+
+            self.client = GardenClient()
 
     def __call__(self, *args, **kwargs):
         # build request with serialized args
@@ -53,6 +61,9 @@ class ModalFunction:
             return _modal_process_result_sync(
                 modal_result_struct, response.data_format, modal_client.stub
             )
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.metadata == other.metadata
 
 
 def _modal_process_result_sync(
