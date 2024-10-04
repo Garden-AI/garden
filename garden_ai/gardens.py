@@ -160,10 +160,13 @@ class Garden:
             entrypoints += [Entrypoint(RegisteredEntrypointMetadata(**entrypoint_data))]
             metadata.entrypoint_ids += [entrypoint_data["doi"]]
 
-        modal_functions = []
-        for modal_fn_data in data["modal_functions"]:
-            modal_functions += [ModalFunction(ModalFunctionMetadata(**modal_fn_data))]
-            # TODO: use DOIs once modal functions have them
-            metadata.modal_function_ids += [modal_fn_data["function_name"]]
+        if "modal_functions" in data:
+            modal_functions = []
+            for modal_fn_data in data["modal_functions"]:
+                modal_functions += [
+                    ModalFunction(ModalFunctionMetadata(**modal_fn_data))
+                ]
+                # TODO: use DOIs once modal functions have them
+                metadata.modal_function_ids += [modal_fn_data["function_name"]]
 
         return cls(metadata, entrypoints)
