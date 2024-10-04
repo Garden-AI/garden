@@ -62,6 +62,9 @@ class ModalFunction:
                 modal_result_struct, response.data_format, modal_client.stub
             )
 
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and self.metadata == other.metadata
+
 
 def _modal_process_result_sync(
     modal_result_struct: api_pb2.GenericResult,

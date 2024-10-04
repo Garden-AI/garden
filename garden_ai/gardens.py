@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TypeVar, TYPE_CHECKING
 
 import logging
 
@@ -12,6 +13,11 @@ from garden_ai.modal.functions import ModalFunction
 from .entrypoints import Entrypoint
 
 logger = logging.getLogger()
+
+if TYPE_CHECKING:
+    from garden_ai.client import GardenClient
+else:
+    GardenClient = TypeVar("GardenClient")
 
 
 class Garden:
@@ -152,21 +158,24 @@ class Garden:
         return style + title + details + entrypoints + modal_functions + optional
 
     @classmethod
-    def _from_nested_metadata(cls, data: dict):
-        """helper: instantiate from search index-style payload with nested entrypoint metadata."""
+    def _from_nested_metadata(cls, data: dict, client: GardenClient | None = None):
+        """helper: instantiate from search index-style payload with nested entrypoint metadata.
+
+        Note: `client` is generally fine to omit outside of tests
+        """
         metadata = GardenMetadata(**data)
         entrypoints = []
+        modal_functions = []
         for entrypoint_data in data["entrypoints"]:
             entrypoints += [Entrypoint(RegisteredEntrypointMetadata(**entrypoint_data))]
             metadata.entrypoint_ids += [entrypoint_data["doi"]]
 
         if "modal_functions" in data:
-            modal_functions = []
             for modal_fn_data in data["modal_functions"]:
                 modal_functions += [
-                    ModalFunction(ModalFunctionMetadata(**modal_fn_data))
+                    ModalFunction(ModalFunctionMetadata(**modal_fn_data), client)
                 ]
                 # TODO: use DOIs once modal functions have them
                 metadata.modal_function_ids += [modal_fn_data["function_name"]]
 
-        return cls(metadata, entrypoints)
+        return cls(metadata, entrypoints, modal_functions)
