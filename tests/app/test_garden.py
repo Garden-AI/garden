@@ -6,7 +6,6 @@ import rich
 
 from garden_ai.client import GardenClient
 from garden_ai.gardens import Garden
-from garden_ai.app.garden import create_query
 
 
 @pytest.mark.cli
@@ -186,58 +185,6 @@ def test_garden_create_prompts_for_missing_description(
     assert result.exit_code == 0
     mock_prompt.assert_called()
     assert garden.doi in result.stdout
-
-
-@pytest.mark.cli
-def test_search_easy_query(cli_runner, app, mocker):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-    mock_rich = mocker.MagicMock(rich)
-    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
-    command = [
-        "garden",
-        "search",
-        "-d",
-        "foo",
-        "-t",
-        "bar",
-    ]
-    result = cli_runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client.search.assert_called_once()
-    mock_rich.print_json.assert_called_once()
-
-    args = mock_client.search.call_args.args
-    query = args[0]
-    assert '(title: "bar")' in query
-    assert '(description: "foo")' in query
-    assert " AND " in query
-
-
-@pytest.mark.cli
-def test_search_raw_query(cli_runner, app, mocker):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-    mock_rich = mocker.MagicMock(rich)
-    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
-    command = [
-        "garden",
-        "search",
-        "-d",
-        "foo",
-        "--raw-query",
-        "lalalala",
-    ]
-    result = cli_runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client.search.assert_called_once()
-    mock_rich.print_json.assert_called_once()
-
-    args = mock_client.search.call_args.args
-    query = args[0]
-    assert query == "lalalala"
 
 
 @pytest.mark.cli
@@ -449,39 +396,3 @@ def test_edit_returns_failure_status_if_no_garden(
     )
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 1
-
-
-def test_create_query_returns_empty_string_if_no_args():
-    q = create_query()
-    assert q == ""
-
-
-def test_create_query_ANDS_multiple_args(faker):
-    title = faker.job()
-    authors = [faker.name() for _ in range(3)]
-    year = "2024"
-    contributors = [faker.name() for _ in range(3)]
-    description = faker.text()
-    tags = [faker.word() for _ in range(5)]
-
-    q = create_query(
-        title=title,
-        authors=authors,
-        year=year,
-        contributors=contributors,
-        description=description,
-        tags=tags,
-    )
-
-    assert f'(title: "{title}")' in q
-    assert f'AND (year: "{year}")' in q
-    assert f'AND (description: "{description}")' in q
-
-    for author in authors:
-        assert f'AND (authors: "{author}")' in q
-
-    for contributor in contributors:
-        assert f'AND (contributors: "{contributor}")' in q
-
-    for tag in tags:
-        assert f'AND (tags: "{tag}")' in q

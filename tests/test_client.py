@@ -10,7 +10,6 @@ from globus_sdk import (
     ClientCredentialsAuthorizer,
     ConfidentialAppAuthClient,
     OAuthTokenResponse,
-    SearchClient,
 )
 
 from garden_ai import GardenClient, Entrypoint, Garden
@@ -39,12 +38,9 @@ def test_client_no_previous_tokens(
     mocker.patch("garden_ai.client.Prompt.ask").return_value = "my token"
     mocker.patch("garden_ai.client.typer.launch")
 
-    mock_search_client = mocker.MagicMock(SearchClient)
-
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
     mock_token_response.by_resource_server = {
         "groups.api.globus.org": token,
-        "search.api.globus.org": token,
         "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
         "funcx_service": token,
         "auth.globus.org": token,
@@ -64,7 +60,7 @@ def test_client_no_previous_tokens(
     mocker.patch("garden_ai.client.time.sleep")
 
     # Call the Garden constructor
-    gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
+    gc = GardenClient(auth_client=mock_auth_client)
 
     assert gc.auth_key_store == mock_keystore
     mock_auth_client.oauth2_exchange_code_for_tokens.assert_called_with("my token")
@@ -76,7 +72,6 @@ def test_client_no_previous_tokens(
             "email",
             "urn:globus:auth:scope:auth.globus.org:manage_projects",
             "urn:globus:auth:scope:groups.api.globus.org:all",
-            "urn:globus:auth:scope:search.api.globus.org:all",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/test_scope",
             "https://auth.globus.org/scopes/0948a6b0-a622-4078-b0a4-bfd6d77d65cf/action_all",
             "https://auth.globus.org/scopes/facd7ccc-c5f4-42aa-916b-a0e270e2c2a9/all",
@@ -194,12 +189,10 @@ def test_client_credentials_grant(
 
     assert isinstance(gc.openid_authorizer, ClientCredentialsAuthorizer)
     assert isinstance(gc.groups_authorizer, ClientCredentialsAuthorizer)
-    assert isinstance(gc.search_authorizer, ClientCredentialsAuthorizer)
     assert isinstance(gc.compute_authorizer, ClientCredentialsAuthorizer)
     assert isinstance(gc.garden_authorizer, ClientCredentialsAuthorizer)
 
     assert isinstance(gc.compute_client, Client)
-    assert isinstance(gc.search_client, SearchClient)
 
     assert isinstance(gc.auth_client, ConfidentialAppAuthClient)
 
@@ -207,9 +200,6 @@ def test_client_credentials_grant(
         "active"
     ]
     assert gc.auth_client.oauth2_validate_token(gc.groups_authorizer.access_token)[
-        "active"
-    ]
-    assert gc.auth_client.oauth2_validate_token(gc.search_authorizer.access_token)[
         "active"
     ]
     assert gc.auth_client.oauth2_validate_token(gc.compute_authorizer.access_token)[
@@ -374,22 +364,6 @@ def test_upload_notebook_raises_on_upload_failure(
     notebook_name = faker.first_name() + ".ipynb"
     with pytest.raises(Exception):
         garden_client.upload_notebook(notebook_contents, notebook_name)
-
-
-def test_search_forwards_query_to_search_index(
-    garden_client,
-    mocker,
-):
-    mock_globus_search = mocker.patch(
-        "garden_ai.globus_search.garden_search.search_gardens",
-        return_value="I am a search result!",
-    )
-
-    fake_query = "I am a search query!"
-
-    result = garden_client.search(fake_query)
-
-    assert fake_query in mock_globus_search.call_args[0]
 
 
 def test_get_garden_returns_garden_from_backend(

@@ -229,7 +229,6 @@ $ garden-ai garden [OPTIONS] COMMAND [ARGS]...
 * `list`: Lists all local Gardens.
 * `publish`: Push data about a Garden stored to Globus...
 * `register-doi`: Moves a Garden's DOI out of draft state.
-* `search`: Queries the Garden search index and prints...
 * `show`: Shows all info for some Gardens
 
 ### `garden-ai garden add-entrypoint`
@@ -353,30 +352,6 @@ $ garden-ai garden register-doi [OPTIONS] DOI
 
 **Options**:
 
-* `--help`: Show this message and exit.
-
-### `garden-ai garden search`
-
-Queries the Garden search index and prints matching results. All query components are ANDed together.
-So if you say `garden-ai garden search --description "foo" --title "bar"` you will get results
-for gardens that have "foo" in their description and "bar" in their title.
-
-**Usage**:
-
-```console
-$ garden-ai garden search [OPTIONS]
-```
-
-**Options**:
-
-* `-t, --title TEXT`: Title of a Garden
-* `-a, --author TEXT`: an author of the Garden
-* `-y, --year TEXT`: year the Garden was published
-* `-c, --contributor TEXT`: a contributor to the Garden
-* `-d, --description TEXT`: text in the description of the Garden you are searching for
-* `--tag TEXT`: A tag of the Garden
-* `--verbose / --no-verbose`: If true, print the query being passed to Globus Search.  [default: no-verbose]
-* `--raw-query TEXT`: Form your own Globus Search query directly. It will be passed to Search in advanced mode.Overrides all the other query options.See https://docs.globus.org/api/search/reference/get_query for more details.
 * `--help`: Show this message and exit.
 
 ### `garden-ai garden show`

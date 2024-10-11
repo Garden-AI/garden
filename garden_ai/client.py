@@ -24,7 +24,6 @@ from globus_sdk import (
     GroupsClient,
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
-    SearchClient,
 )
 from globus_sdk.authorizers import GlobusAuthorizer
 from globus_sdk.scopes import ScopeBuilder
@@ -36,7 +35,6 @@ from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden
-from garden_ai.globus_search import garden_search
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
@@ -67,7 +65,6 @@ class GardenClient:
     def __init__(
         self,
         auth_client: Optional[Union[AuthLoginClient, ConfidentialAppAuthClient]] = None,
-        search_client: Optional[SearchClient] = None,
     ):
         key_store_path = Path(GardenConstants.GARDEN_DIR)
         key_store_path.mkdir(exist_ok=True)
@@ -98,16 +95,8 @@ class GardenClient:
             self.groups_authorizer = self._create_authorizer(
                 GroupsClient.scopes.resource_server
             )
-            self.search_authorizer = self._create_authorizer(
-                SearchClient.scopes.resource_server
-            )
             self.compute_authorizer = self._create_authorizer(
                 ComputeScopes.resource_server
-            )
-            self.search_client = (
-                SearchClient(authorizer=self.search_authorizer)
-                if not search_client
-                else search_client
             )
             self.garden_authorizer = self._create_authorizer(
                 GardenClient.scopes.resource_server
@@ -121,13 +110,9 @@ class GardenClient:
             self.groups_authorizer = ClientCredentialsAuthorizer(
                 self.auth_client, GroupsClient.scopes.view_my_groups_and_memberships
             )
-            self.search_authorizer = ClientCredentialsAuthorizer(
-                self.auth_client, SearchClient.scopes.all
-            )
             self.compute_authorizer = ClientCredentialsAuthorizer(
                 self.auth_client, Client.FUNCX_SCOPE
             )
-            self.search_client = SearchClient(authorizer=self.search_authorizer)
             self.garden_authorizer = ClientCredentialsAuthorizer(
                 self.auth_client,
                 GardenClient.scopes.test_scope,
@@ -162,7 +147,6 @@ class GardenClient:
                 AuthLoginClient.scopes.email,
                 AuthLoginClient.scopes.manage_projects,
                 GroupsClient.scopes.all,
-                SearchClient.scopes.all,
                 GardenClient.scopes.test_scope,
                 GardenClient.scopes.action_all,
                 ComputeScopes.all,
@@ -354,12 +338,6 @@ class GardenClient:
             raise Exception(
                 f"Request to Garden backend to publish notebook failed with error: {str(e)}"
             )
-
-    def search(self, query: str) -> str:
-        """
-        Given a Globus Search advanced query, returns JSON Globus Search result string with gardens as entries.
-        """
-        return garden_search.search_gardens(query, self.search_client)
 
     def get_garden(self, doi: str) -> Garden:
         """
