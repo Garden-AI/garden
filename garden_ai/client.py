@@ -24,7 +24,6 @@ from globus_sdk import (
     GroupsClient,
     NativeAppAuthClient,
     RefreshTokenAuthorizer,
-    SearchClient,
 )
 from globus_sdk.authorizers import GlobusAuthorizer
 from globus_sdk.scopes import ScopeBuilder
@@ -148,7 +147,6 @@ class GardenClient:
                 AuthLoginClient.scopes.email,
                 AuthLoginClient.scopes.manage_projects,
                 GroupsClient.scopes.all,
-                SearchClient.scopes.all,
                 GardenClient.scopes.test_scope,
                 GardenClient.scopes.action_all,
                 ComputeScopes.all,
