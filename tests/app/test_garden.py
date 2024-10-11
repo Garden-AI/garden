@@ -6,7 +6,6 @@ import rich
 
 from garden_ai.client import GardenClient
 from garden_ai.gardens import Garden
-from garden_ai.app.garden import create_query
 
 
 @pytest.mark.cli
@@ -397,39 +396,3 @@ def test_edit_returns_failure_status_if_no_garden(
     )
     result = cli_runner.invoke(app, cli_args)
     assert result.exit_code == 1
-
-
-def test_create_query_returns_empty_string_if_no_args():
-    q = create_query()
-    assert q == ""
-
-
-def test_create_query_ANDS_multiple_args(faker):
-    title = faker.job()
-    authors = [faker.name() for _ in range(3)]
-    year = "2024"
-    contributors = [faker.name() for _ in range(3)]
-    description = faker.text()
-    tags = [faker.word() for _ in range(5)]
-
-    q = create_query(
-        title=title,
-        authors=authors,
-        year=year,
-        contributors=contributors,
-        description=description,
-        tags=tags,
-    )
-
-    assert f'(title: "{title}")' in q
-    assert f'AND (year: "{year}")' in q
-    assert f'AND (description: "{description}")' in q
-
-    for author in authors:
-        assert f'AND (authors: "{author}")' in q
-
-    for contributor in contributors:
-        assert f'AND (contributors: "{contributor}")' in q
-
-    for tag in tags:
-        assert f'AND (tags: "{tag}")' in q
