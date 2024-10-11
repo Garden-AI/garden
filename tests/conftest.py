@@ -5,7 +5,7 @@ import pathlib  # noqa
 from unittest.mock import patch
 
 from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
-from globus_sdk import AuthLoginClient, OAuthTokenResponse, SearchClient
+from globus_sdk import AuthLoginClient, OAuthTokenResponse
 import nbformat
 import pytest
 from typer.testing import CliRunner
@@ -159,13 +159,11 @@ def garden_client(
     # mocker.patch("garden_ai.client.input").return_value = "my token"
     mocker.patch("garden_ai.client.Prompt.ask").return_value = "my token"
     mocker.patch("garden_ai.client.typer.launch")
-    mock_search_client = mocker.MagicMock(SearchClient)
 
     mock_token_response = mocker.MagicMock(OAuthTokenResponse)
     mock_token_response.data = {"id_token": identity_jwt}
     mock_token_response.by_resource_server = {
         "groups.api.globus.org": token,
-        "search.api.globus.org": token,
         "0948a6b0-a622-4078-b0a4-bfd6d77d65cf": token,
         "funcx_service": token,
         "auth.globus.org": token,
@@ -186,7 +184,7 @@ def garden_client(
     )
 
     # Call the Garden constructor
-    gc = GardenClient(auth_client=mock_auth_client, search_client=mock_search_client)
+    gc = GardenClient(auth_client=mock_auth_client)
     return gc
 
 

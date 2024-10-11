@@ -189,58 +189,6 @@ def test_garden_create_prompts_for_missing_description(
 
 
 @pytest.mark.cli
-def test_search_easy_query(cli_runner, app, mocker):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-    mock_rich = mocker.MagicMock(rich)
-    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
-    command = [
-        "garden",
-        "search",
-        "-d",
-        "foo",
-        "-t",
-        "bar",
-    ]
-    result = cli_runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client.search.assert_called_once()
-    mock_rich.print_json.assert_called_once()
-
-    args = mock_client.search.call_args.args
-    query = args[0]
-    assert '(title: "bar")' in query
-    assert '(description: "foo")' in query
-    assert " AND " in query
-
-
-@pytest.mark.cli
-def test_search_raw_query(cli_runner, app, mocker):
-    mock_client = mocker.MagicMock(GardenClient)
-    mocker.patch("garden_ai.app.garden.GardenClient").return_value = mock_client
-    mock_rich = mocker.MagicMock(rich)
-    mocker.patch("garden_ai.app.garden.rich", new=mock_rich)
-    command = [
-        "garden",
-        "search",
-        "-d",
-        "foo",
-        "--raw-query",
-        "lalalala",
-    ]
-    result = cli_runner.invoke(app, command)
-    assert result.exit_code == 0
-
-    mock_client.search.assert_called_once()
-    mock_rich.print_json.assert_called_once()
-
-    args = mock_client.search.call_args.args
-    query = args[0]
-    assert query == "lalalala"
-
-
-@pytest.mark.cli
 def test_add_entrypoint_valid_args(
     cli_runner,
     app,

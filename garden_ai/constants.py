@@ -10,9 +10,6 @@ _PROD_ENDPOINT = "https://api.thegardens.ai"
 _DEV_ENDPOINT = "https://api-dev.thegardens.ai"
 _LOCAL_ENDPOINT = "http://localhost:5500"
 
-_DEV_SEARCH_INDEX = "58e4df29-4492-4e7d-9317-b27eba62a911"
-_PROD_SEARCH_INDEX = "813d4556-cbd4-4ba9-97f2-a7155f70682f"
-
 _PROD_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-prod"
 _DEV_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-dev"
 
@@ -26,11 +23,6 @@ class GardenConstants:
         _LOCAL_ENDPOINT
         if os.environ.get("GARDEN_ENV") == "local"
         else _DEV_ENDPOINT if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ENDPOINT
-    )
-    GARDEN_INDEX_UUID = (
-        _DEV_SEARCH_INDEX
-        if os.environ.get("GARDEN_ENV") in ("dev", "local")
-        else _PROD_SEARCH_INDEX
     )
     GARDEN_ECR_REPO = (
         _DEV_ECR_REPO
