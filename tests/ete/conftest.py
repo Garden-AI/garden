@@ -86,7 +86,6 @@ def authed(garden_client_authed):
             globus_sdk.AuthLoginClient.scopes.openid,
             globus_sdk.AuthLoginClient.scopes.email,
             globus_sdk.GroupsClient.scopes.view_my_groups_and_memberships,
-            globus_sdk.SearchClient.scopes.all,
             globus_compute_sdk.Client.FUNCX_SCOPE,
             GardenClient.scopes.action_all,
         ],
