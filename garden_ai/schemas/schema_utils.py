@@ -17,10 +17,9 @@ JsonStr: TypeAlias = str
 
 
 # see: https://github.com/pydantic/pydantic-core/pull/820#issuecomment-1670475909
-def _validate_unique_list(v: list[T]) -> list[T]:
-    if len(v) != len(set(v)):
-        raise PydanticCustomError("unique_list", "List must be unique")
-    return v
+def _parse_unique_list(v: list[T]) -> list[T]:
+    assert isinstance(v, list)
+    return list(set(v))
 
 
 def const_item_validator(cls, v: T, info: ValidationInfo) -> T:
@@ -34,7 +33,7 @@ def const_item_validator(cls, v: T, info: ValidationInfo) -> T:
 # Types
 UniqueList = Annotated[
     list[T],
-    AfterValidator(_validate_unique_list),
+    AfterValidator(_parse_unique_list),
     Field(json_schema_extra={"uniqueItems": True}, default_factory=list),
 ]
 Url = Annotated[HttpUrl, PlainSerializer(lambda url: str(url), return_type=type(""))]

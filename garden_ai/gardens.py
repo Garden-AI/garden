@@ -58,9 +58,8 @@ class Garden:
                 "Expected `entrypoints` DOIs to match `metadata.entrypoint_ids`. "
                 f"Got: {[ep.metadata.doi for ep in entrypoints]} != {metadata.entrypoint_ids}"
             )
-        # TODO: update to use DOIs when modal functions have them
         if set(metadata.modal_function_ids) ^ set(
-            [mf.metadata.function_name for mf in modal_functions]
+            [mf.metadata.id for mf in modal_functions]
         ):
             raise ValueError(
                 "Expected `modal_functions` to match `metadata.modal_function_ids`. "
@@ -175,7 +174,6 @@ class Garden:
                 modal_functions += [
                     ModalFunction(ModalFunctionMetadata(**modal_fn_data), client)
                 ]
-                # TODO: use DOIs once modal functions have them
-                metadata.modal_function_ids += [modal_fn_data["function_name"]]
+                metadata.modal_function_ids += [modal_fn_data["id"]]
 
         return cls(metadata, entrypoints, modal_functions)

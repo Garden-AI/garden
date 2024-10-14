@@ -43,8 +43,7 @@ class ModalFunction:
                 "Garden's modal integration does not yet support input arguments greater than 2MiB."
             )
         request = ModalInvocationRequest(
-            app_name=self.metadata.app_name,
-            function_name=self.metadata.function_name,
+            function_id=self.metadata.id,
             args_kwargs_serialized=args_kwargs_serialized,
         )
         response: ModalInvocationResponse = (
