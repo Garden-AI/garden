@@ -1,4 +1,17 @@
 {
-    "app_name": "00000000-0000-0000-0000-000000000000-test-modal-app",
-    "function_name": "test_function_name"
+    "id": 42,
+    "doi": null,
+    "title": "Test Function",
+    "description": "",
+    "year": "2024",
+    "is_archived": false,
+    "function_name": "test_function_name",
+    "function_text": "@app.function(image=iris_image)\ndef predict_iris_type(input_array):\n    import joblib\n    from garden_ai.model_connectors import create_connector\n\n    hf_iris_connector = create_connector(\n        \"https://huggingface.co/Garden-AI/sklearn-iris\"\n    )\n    download_path = hf_iris_connector.stage()\n    model = joblib.load(f\"{download_path}/model.joblib\")\n\n    predictions = model.predict(input_array)\n    as_strings = [\n        [\"setosa\", \"versicolor\", \"virginica\"][prediction] for prediction in predictions\n    ]\n\n    return as_strings\n\n\n",
+    "authors": ["owen :)"],
+    "tags": ["you're", "it"],
+    "test_functions": [],
+    "models": [],
+    "repositories": [],
+    "papers": [],
+    "datasets": []
 }

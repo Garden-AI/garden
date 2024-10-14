@@ -1,10 +1,9 @@
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-
-from garden_ai.client import GardenClient
 from garden_ai.backend_client import BackendClient
-from garden_ai.modal.functions import ModalFunction, MaximumArgumentSizeError
+from garden_ai.client import GardenClient
+from garden_ai.modal.functions import MaximumArgumentSizeError, ModalFunction
 from garden_ai.schemas.modal import (
     ModalFunctionMetadata,
     ModalInvocationRequest,
@@ -13,8 +12,8 @@ from garden_ai.schemas.modal import (
 
 
 @pytest.fixture
-def modal_function_meta():
-    return ModalFunctionMetadata(app_name="test_app", function_name="test_function")
+def modal_function_meta(modal_function_metadata_json):
+    return ModalFunctionMetadata(**modal_function_metadata_json)
 
 
 @pytest.fixture
@@ -65,8 +64,7 @@ def test_modal_function_call(modal_function):
     # Check that the backend client's method was called with the correct request payload
     modal_function.client.backend_client.invoke_modal_function.assert_called_once_with(
         ModalInvocationRequest(
-            app_name="test_app",
-            function_name="test_function",
+            function_id=42,
             args_kwargs_serialized=mock_args_kwargs_serialized,
         )
     )
