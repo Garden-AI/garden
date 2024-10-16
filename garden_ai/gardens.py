@@ -1,14 +1,14 @@
 from __future__ import annotations
-from typing import TypeVar, TYPE_CHECKING
 
 import logging
+from typing import TYPE_CHECKING, TypeVar
 
 from tabulate import tabulate
 
+from garden_ai.modal.functions import ModalFunction
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.modal import ModalFunctionMetadata
-from garden_ai.modal.functions import ModalFunction
 
 from .entrypoints import Entrypoint
 
@@ -137,7 +137,7 @@ class Garden:
             [
                 {
                     key.title(): str(entrypoint[key])
-                    for key in ("short_name", "title", "authors", "doi")
+                    for key in ("function_name", "title", "authors", "doi")
                 }
                 for entrypoint in data["modal_functions"]
             ],

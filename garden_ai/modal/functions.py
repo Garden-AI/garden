@@ -1,9 +1,11 @@
 import asyncio
-from typing import Any, TYPE_CHECKING, TypeVar
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import modal
 from modal._serialization import serialize
 from modal._utils.blob_utils import MAX_OBJECT_SIZE_BYTES
+from modal._utils.function_utils import _process_result
 from modal_proto import api_grpc, api_pb2  # type: ignore
 
 if TYPE_CHECKING:
@@ -70,11 +72,20 @@ def _modal_process_result_sync(
     modal_data_format: int,
     modal_client_stub: api_grpc.ModalClientStub,
 ) -> Any:
-    """Helper: invoke modal's result processing/deserialization code synchronously in its own event loop."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop.run_until_complete(
-        modal._utils.function_utils._process_result(
-            modal_result_struct, modal_data_format, modal_client_stub
-        )
-    )
+    """Helper: invoke modal's result processing/deserialization code synchronously."""
+
+    def _process_result_task():
+        """helper: run _process_result in its own event loop"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(
+                _process_result(
+                    modal_result_struct, modal_data_format, modal_client_stub
+                )
+            )
+        finally:
+            loop.close()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(_process_result_task).result()
