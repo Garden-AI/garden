@@ -237,11 +237,12 @@ def _build_base_image_widget(nb_meta: NotebookMetadata) -> widgets.Dropdown:
 
 
 def _build_reqs_widget(nb_meta: NotebookMetadata) -> widgets.Textarea:
-    if nb_meta.notebook_requirements.file_format == "pip":  # type: ignore
-        reqs_string = "\n".join([req for req in nb_meta.notebook_requirements.contents])  # type: ignore
-    else:
-        # ignoring conda requirements, since we are planning to remove support for them anyways
-        reqs_string = ""
+    reqs_string = ""
+    if nb_meta.notebook_requirements is not None:
+        if nb_meta.notebook_requirements.file_format == "pip":  # type: ignore
+            reqs_string = "\n".join(
+                [req for req in nb_meta.notebook_requirements.contents]
+            )  # type: ignore
 
     return widgets.Textarea(
         value=reqs_string,
