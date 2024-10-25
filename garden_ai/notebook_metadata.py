@@ -102,7 +102,6 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
             global_notebook_doi=None,
             notebook_image_name=None,
             notebook_image_uri=None,
-            notebook_requirements=None,
         )
 
     try:
@@ -114,7 +113,6 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
             global_notebook_doi=None,
             notebook_image_name=None,
             notebook_image_uri=None,
-            notebook_requirements=None,
         )
 
 
