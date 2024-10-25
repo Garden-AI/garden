@@ -5,18 +5,17 @@ from pathlib import Path
 import ipywidgets as widgets  # type: ignore
 import nbformat
 import pytest
-
 from garden_ai.constants import GardenConstants
 from garden_ai.notebook_metadata import (
+    NOTEBOOK_DISPLAY_METADATA_CELL,
+    RequirementsData,
+    _has_metadata_cell_tag,
     add_notebook_metadata,
-    set_notebook_metadata,
+    display_metadata_widget,
     get_notebook_metadata,
     read_requirements_data,
     save_requirements_data,
-    RequirementsData,
-    NOTEBOOK_DISPLAY_METADATA_CELL,
-    _has_metadata_cell_tag,
-    display_metadata_widget,
+    set_notebook_metadata,
 )
 
 
@@ -119,14 +118,16 @@ def test_add_notebook_metadata_writes_metadata_cell_to_notebook(
     assert ntbk.cells[0].source == NOTEBOOK_DISPLAY_METADATA_CELL
 
 
-def test_get_metadata_returns_empty_metadata_if_garden_metadata_not_foune(
+def test_get_metadata_returns_empty_metadata_if_garden_metadata_not_found(
     tmp_notebook_empty,
 ):
     ntbk_meta = get_notebook_metadata(tmp_notebook_empty)
     assert ntbk_meta.global_notebook_doi is None
     assert ntbk_meta.notebook_image_name is None
     assert ntbk_meta.notebook_image_uri is None
-    assert ntbk_meta.notebook_requirements is None
+    assert ntbk_meta.notebook_requirements == RequirementsData(
+        file_format="pip", contents=[]
+    )
 
 
 def test_get_metadata_returns_empty_metadata_if_garden_metadata_is_bad(
@@ -142,7 +143,9 @@ def test_get_metadata_returns_empty_metadata_if_garden_metadata_is_bad(
     assert ntbk_meta.global_notebook_doi is None
     assert ntbk_meta.notebook_image_name is None
     assert ntbk_meta.notebook_image_uri is None
-    assert ntbk_meta.notebook_requirements is None
+    assert ntbk_meta.notebook_requirements == RequirementsData(
+        file_format="pip", contents=[]
+    )
 
 
 def test_get_metadata_returns_metadata_if_already_present(
