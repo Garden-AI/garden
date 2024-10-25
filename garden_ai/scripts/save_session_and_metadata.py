@@ -9,8 +9,8 @@ def assert_compatible_dill_version():
     This is factored out into its own function because `sys.version_info` does
     something spooky that breaks dill if it picks up the reference.
     """
-    from importlib.metadata import version
     import sys
+    from importlib.metadata import version
 
     # this should be exactly the same as globus compute requirements
     python_version = sys.version_info
@@ -52,10 +52,10 @@ def get_requirements_data():
 
     path = get_requirements_file()
     if not path:
-        return None
+        return []
 
     reqs = read_requirements_data(path)
-    return reqs.contents if reqs else None
+    return reqs.contents if reqs else []
 
 
 if __name__ == "__main__":

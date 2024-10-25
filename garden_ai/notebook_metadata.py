@@ -1,22 +1,19 @@
-from pathlib import Path
-from typing import Optional, Union, Callable
-from pydantic import BaseModel, ValidationError
-import typer
 import json
 import os
-import sys
 import subprocess
+import sys
+from pathlib import Path
 from subprocess import SubprocessError
+from typing import Callable, Optional, Union
 
 import ipywidgets as widgets  # type: ignore
-from IPython.display import display
-
 import nbformat
-
+import typer
+from IPython.display import display
 from nbformat.notebooknode import NotebookNode  # type: ignore
+from pydantic import BaseModel, Field, ValidationError
 
 from garden_ai import GardenConstants
-
 
 NOTEBOOK_DISPLAY_METADATA_CELL = (
     '"""\n'
@@ -44,15 +41,15 @@ METADATA_CELL_TAG = "garden_display_metadata_cell"
 
 
 class RequirementsData(BaseModel):
-    file_format: str
-    contents: Union[dict, list]
+    file_format: str = "pip"
+    contents: Union[dict, list] = Field(default_factory=list)
 
 
 class NotebookMetadata(BaseModel):
     global_notebook_doi: Optional[str]
     notebook_image_name: Optional[str]
     notebook_image_uri: Optional[str]
-    notebook_requirements: Optional[RequirementsData]
+    notebook_requirements: RequirementsData = Field(default_factory=RequirementsData)
 
 
 def add_notebook_metadata(
@@ -105,7 +102,6 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
             global_notebook_doi=None,
             notebook_image_name=None,
             notebook_image_uri=None,
-            notebook_requirements=None,
         )
 
     try:
@@ -117,7 +113,6 @@ def get_notebook_metadata(notebook_path: Path) -> NotebookMetadata:
             global_notebook_doi=None,
             notebook_image_name=None,
             notebook_image_uri=None,
-            notebook_requirements=None,
         )
 
 
@@ -237,11 +232,9 @@ def _build_base_image_widget(nb_meta: NotebookMetadata) -> widgets.Dropdown:
 
 
 def _build_reqs_widget(nb_meta: NotebookMetadata) -> widgets.Textarea:
-    if nb_meta.notebook_requirements.file_format == "pip":  # type: ignore
-        reqs_string = "\n".join([req for req in nb_meta.notebook_requirements.contents])  # type: ignore
-    else:
-        # ignoring conda requirements, since we are planning to remove support for them anyways
-        reqs_string = ""
+    reqs_string = ""
+    if nb_meta.notebook_requirements.file_format == "pip":
+        reqs_string = "\n".join([req for req in nb_meta.notebook_requirements.contents])
 
     return widgets.Textarea(
         value=reqs_string,
@@ -398,8 +391,9 @@ def update_reqs_observer(
     update_reqs_widget: widgets.Button,
     output: widgets.Output,
 ) -> Callable:
-    from garden_ai.app.console import console
     from rich.status import Status
+
+    from garden_ai.app.console import console
 
     def _update_reqs_observer(button):
         with output:
