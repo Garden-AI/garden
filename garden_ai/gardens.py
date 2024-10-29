@@ -42,6 +42,13 @@ class Garden:
         garden = client.get_garden("my_garden_doi")
         result = garden.my_entrypoint(data, endpoint="endpoint_uuid")
         ```
+
+        Entrypoints can also be accessed like dict values where the DOI of the entrypoint is the key:
+        ```
+        garden = client.get_garden("my_garden_doi")
+        ep_func = garden["my_entrypoint_doi"]
+        result = ep_func(data)
+        ```
     """  # noqa: E501
 
     def __init__(
