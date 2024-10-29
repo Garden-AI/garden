@@ -95,6 +95,45 @@ def test_can_call_modal_functions_like_methods(
         garden.does_not_exist()
 
 
+def test_can_access_entrypoints_like_dict_by_doi(
+    garden_nested_metadata_json,
+    entrypoint_metadata_json,
+    mocker,
+):
+    data = deepcopy(garden_nested_metadata_json)
+    del data["modal_function_ids"]
+    garden_meta = GardenMetadata(**data)
+    entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
+    entrypoint = Entrypoint(entrypoint_meta)
+
+    mock_call = mocker.patch.object(Entrypoint, "__call__")
+
+    garden = Garden(garden_meta, [entrypoint])
+
+    ep = garden[f"{entrypoint.metadata.doi}"]
+    assert ep == entrypoint
+
+    ep()
+    mock_call.assert_called()
+
+
+def test_accessing_entrypoint_like_dict_raises_if_bad_doi(
+    garden_nested_metadata_json,
+    entrypoint_metadata_json,
+    mocker,
+):
+    data = deepcopy(garden_nested_metadata_json)
+    del data["modal_function_ids"]
+    garden_meta = GardenMetadata(**data)
+    entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
+    entrypoint = Entrypoint(entrypoint_meta)
+
+    garden = Garden(garden_meta, [entrypoint])
+
+    with pytest.raises(KeyError):
+        garden["some-bad-doi"]
+
+
 def test_repr_html_contains_garden_doi_and_entrypoint_dois(
     garden_nested_metadata_json,
     entrypoint_metadata_json,

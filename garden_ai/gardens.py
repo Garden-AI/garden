@@ -156,6 +156,12 @@ class Garden:
         )
         return style + title + details + entrypoints + modal_functions + optional
 
+    def __getitem__(self, doi: str):
+        for ep in self.entrypoints:
+            if ep.metadata.doi == doi:
+                return ep
+        raise KeyError(f"Garden does not have an entrypoint with doi: {doi}.")
+
     @classmethod
     def _from_nested_metadata(cls, data: dict, client: GardenClient | None = None):
         """helper: instantiate from search index-style payload with nested entrypoint metadata.
