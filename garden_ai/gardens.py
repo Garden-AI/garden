@@ -42,6 +42,13 @@ class Garden:
         garden = client.get_garden("my_garden_doi")
         result = garden.my_entrypoint(data, endpoint="endpoint_uuid")
         ```
+
+        Entrypoints can also be accessed like dict values where the DOI of the entrypoint is the key:
+        ```
+        garden = client.get_garden("my_garden_doi")
+        ep_func = garden["my_entrypoint_doi"]
+        result = ep_func(data)
+        ```
     """  # noqa: E501
 
     def __init__(
@@ -155,6 +162,12 @@ class Garden:
             tablefmt="html",
         )
         return style + title + details + entrypoints + modal_functions + optional
+
+    def __getitem__(self, doi: str):
+        for ep in self.entrypoints:
+            if ep.metadata.doi == doi:
+                return ep
+        raise KeyError(f"Garden does not have an entrypoint with doi: {doi}.")
 
     @classmethod
     def _from_nested_metadata(cls, data: dict, client: GardenClient | None = None):
