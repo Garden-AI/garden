@@ -1,8 +1,10 @@
 ## 1. Create a Modal Account
 
-**NOTE:** This step requires a free [GitHub](https://github.com) account to authenticate with Modal.
+**Prerequisite:** This step requires a free [GitHub](https://github.com/join) account to authenticate with Modal.
 
-Create a free Modal account: [signup](https://modal.com/signup)
+Create a free Modal account by linking your GitHub: [signup](https://modal.com/signup). 
+
+**NOTE:** You'll also get $30/month of free compute credit for your personal account. It's totally safe to spend those credits developing and debugging your modal functions before you publish them with garden -- modal functions run through garden won't charge your personal account. 
 
 ## 2. Author a Modal App
 
@@ -14,6 +16,7 @@ Modal files are regular python scripts. Create a new python file in your project
 $ touch my_app.py
 ```
 
+You can also use modal's [interactive playground](https://modal.com/playground/get_started) to develop your modal function.
 ### Imports
 
 ```python
@@ -25,8 +28,8 @@ import modal
 
 ### Define the Modal App
 
-Create a `modal.App` obeject where your custom functions will be registered.
-Modal apps need to be assigned to a variable named `app` and in the global scope.
+Create a `modal.App` object where your custom functions will be registered.
+Modal apps need to be assigned to a variable named `app` and at the top-level (global) scope.
 
 ```
 app = modal.App("my-cool-app")
