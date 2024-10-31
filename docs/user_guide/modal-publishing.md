@@ -36,11 +36,23 @@ Modal apps need to be assigned to a variable named `app` and at the top-level (g
 app = modal.App("my-cool-app")
 ```
 
+### Customize the container your code will run in (optional)
+
+To make python packages available to your Modal functions, declare a `modal.Image` with your requirements.
+
+Check out this [playground](https://modal.com/playground/custom_container) to see how it works.
+
+```python
+image = modal.Image.debian_slim().pip_install("numpy", "pandas")
+```
+
+See Modal's [Image docs](https://modal.com/docs/reference/modal.Image) for more information.
+
 ### Define Modal functions
 
 Modal functions are regular python functions that have been decorated with `@app.function()`.
 The `@app.function()` decorator registers the function with the `modal.App` created above.
-Like Modal Apps, Modal functions need to be defined in the global scope.
+Like Modal Apps, Modal functions need to be defined in the top-level (global) scope.
 
 ```python
 # Define a function and register it with the app
@@ -52,8 +64,13 @@ def my_awesome_function(data):
 
 
 # You can register multiple functions to the same app
-@app.function()
+@app.function(image=image)
 def my_other_cool_function(data):
+  # import from custom image inside the modal function
+  import numpy as np
+  import pandas as pd
+
+  data = np.array(data)
   result = max(sum(data), 42)
   return result
 
@@ -82,8 +99,13 @@ def my_awesome_function(data):
   return result
 
 # You can register multiple functions to the same app
-@app.function()
+@app.function(image=image)
 def my_other_cool_function(data):
+  # import from custom image inside the modal function
+  import numpy as np
+  import pandas as pd
+
+  data = np.array(data)
   result = max(sum(data), 42)
   return result
 ```
@@ -126,7 +148,7 @@ When the information is correct click 'Create Garden'!
 
 It may take a few minutes for the deployment process to finish.
 
-Check the 'My Gardens' tab on your [Profile](https://thegardens.ai/#/user) page for the new Garden and note the DOI for the next step.
+Check the 'My Gardens' tab on your [Profile](https://thegardens.ai/#/user) page for the new Garden. Note the DOI for the next step.
 
 ## 4. Run your functions using Garden
 
