@@ -1,3 +1,7 @@
+**NOTE:** This is an experimental feature that is in early development.
+
+Please [contact](mailto:thegardens@uchicago.edu) the Garden Team if you are interested in using this feature.
+
 ## 1. Create a Modal Account
 
 **Prerequisite:** This step requires a free [GitHub](https://github.com/join) account to authenticate with Modal.
