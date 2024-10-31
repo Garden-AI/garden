@@ -2,9 +2,9 @@
 
 **Prerequisite:** This step requires a free [GitHub](https://github.com/join) account to authenticate with Modal.
 
-Create a free Modal account by linking your GitHub: [signup](https://modal.com/signup). 
+Create a free Modal account by linking your GitHub: [signup](https://modal.com/signup).
 
-**NOTE:** You'll also get $30/month of free compute credit for your personal account. It's totally safe to spend those credits developing and debugging your modal functions before you publish them with garden -- modal functions run through garden won't charge your personal account. 
+**NOTE:** You'll also get $30/month of free compute credit for your personal account. It's totally safe to spend those credits developing and debugging your modal functions before you publish them with garden -- modal functions run through garden won't charge your personal account.
 
 ## 2. Author a Modal App
 
@@ -17,6 +17,7 @@ $ touch my_app.py
 ```
 
 You can also use modal's [interactive playground](https://modal.com/playground/get_started) to develop your modal function.
+
 ### Imports
 
 ```python
@@ -53,9 +54,7 @@ def my_awesome_function(data):
 # You can register multiple functions to the same app
 @app.function()
 def my_other_cool_function(data):
-  # you can call modal functions from within other modal functions
-  inital_results = my_awesome_function.remote(data)
-  result = inital_results + 42
+  result = max(sum(data), 42)
   return result
 
 ```
@@ -85,9 +84,7 @@ def my_awesome_function(data):
 # You can register multiple functions to the same app
 @app.function()
 def my_other_cool_function(data):
-  # you can call modal functions from within other modal functions
-  inital_results = my_awesome_function.remote(data)
-  result = inital_results + 42
+  result = max(sum(data), 42)
   return result
 ```
 
