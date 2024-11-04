@@ -27,6 +27,7 @@ New to Garden? Here are some great places to begin:
 - [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips
 - [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent reproducible environments
 - ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
+- [Publishing via Modal](user_guide/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
 
 ## Additional Resources
 

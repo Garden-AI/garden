@@ -6,6 +6,7 @@ nav:
       - Installation: user_guide/installation.md
       - Tutorial: user_guide/tutorial.md
       - Setting up Docker: user_guide/docker.md
+      - Publishing via Modal: user_guide/modal-publishing.md
       - FAQs: user_guide/faqs.md
   - Developer Guide: developer_guide/contributing.md
   - API Reference: api-docs.md
@@ -36,7 +37,7 @@ plugins:
             show_bases: false
 markdown_extensions:
   - toc:
-        permalink: 
+      permalink: 
   - nl2br
   - admonition
   - pymdownx.details
