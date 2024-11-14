@@ -144,6 +144,7 @@ def garden_client(
     token,
     identity_jwt,
     patch_garden_constants,
+    mock_user_info_response,
 ) -> GardenClient:
     """Return a GardenClient with mocked auth credentials."""
 
@@ -183,6 +184,10 @@ def garden_client(
         "garden_ai.client.GardenClient._do_login_flow", return_value=mock_token_response
     )
 
+    mocker.patch(
+        "garden_ai.backend_client.BackendClient.get_user_info",
+        return_value=mock_user_info_response,
+    )
     # Call the Garden constructor
     gc = GardenClient(auth_client=mock_auth_client)
     return gc
