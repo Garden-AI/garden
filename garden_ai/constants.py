@@ -36,6 +36,10 @@ class GardenConstants:
     DEFAULT_JUPYTER_PORT = 9188
     MAX_JUPYTER_PORTS_TO_ATTEMPT = 10
 
+    BACKEND_POLL_INTERVAL_SECONDS: float = float(
+        os.environ.get("BACKEND_POLL_INTERVAL_SECONDS", 0.1)
+    )
+
     # The DOIs of entrypoints migrated from DLHub.
     DLHUB_DOIS = set(
         [

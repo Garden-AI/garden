@@ -49,7 +49,7 @@ class ModalFunction:
             args_kwargs_serialized=args_kwargs_serialized,
         )
         response: ModalInvocationResponse = (
-            self.client.backend_client.invoke_modal_function(request)
+            self.client.backend_client.invoke_modal_function_async(request)
         )
         result_data: dict = response.result.model_dump(
             mode="python", exclude_defaults=True

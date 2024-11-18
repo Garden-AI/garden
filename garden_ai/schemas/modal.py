@@ -54,3 +54,8 @@ class ModalInvocationRequest(BaseModel):
 class ModalInvocationResponse(BaseModel):
     result: _ModalGenericResult
     data_format: int
+
+
+class AsyncModalInvocationResponse(BaseModel):
+    id: int
+    status: str
