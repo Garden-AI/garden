@@ -227,4 +227,8 @@ class BackendClient:
                     data_format=1, result=output_response["result"]
                 )
             case _:
-                raise ValueError(f"Something went wrong: {output_response['error']}")
+                raise Exception(
+                    f"Error invoking Modal function with id: {invocation_response['id']}:\n\t"
+                    f"Invocation Status: {output_response['status']}\n\t"
+                    f"Error: {output_response['error']}"
+                )

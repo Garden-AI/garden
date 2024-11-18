@@ -42,7 +42,7 @@ def test_modal_function_call(modal_function):
     )
 
     # Mock the backend client's invoke_modal_function method
-    modal_function.client.backend_client.invoke_modal_function.return_value = (
+    modal_function.client.backend_client.invoke_modal_function_async.return_value = (
         ModalInvocationResponse(
             result=dict(status=0, data=b"mock unprocessed data"), data_format=1
         )
@@ -62,7 +62,7 @@ def test_modal_function_call(modal_function):
     # Check that serialize was called with the correct arguments
     mock_serialize.assert_called_once_with(mock_args_kwargs)
     # Check that the backend client's method was called with the correct request payload
-    modal_function.client.backend_client.invoke_modal_function.assert_called_once_with(
+    modal_function.client.backend_client.invoke_modal_function_async.assert_called_once_with(
         ModalInvocationRequest(
             function_id=42,
             args_kwargs_serialized=mock_args_kwargs_serialized,
