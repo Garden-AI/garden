@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Callable
 
 import boto3
@@ -204,3 +205,26 @@ class BackendClient:
     ) -> ModalInvocationResponse:
         response = self._post("/modal-invocations", payload.model_dump(mode="json"))
         return ModalInvocationResponse(**response)
+
+    def invoke_modal_function_async(
+        self,
+        payload: ModalInvocationRequest,
+    ) -> ModalInvocationResponse:
+        invocation_response = self._post(
+            "/modal-invocations/async", payload.model_dump(mode="json")
+        )
+        output_response = self._get(f"/modal-invocations/{invocation_response['id']}")
+
+        while output_response["status"] == "pending":
+            time.sleep(GardenConstants.BACKEND_POLL_INTERVAL_SECONDS)
+            output_response = self._get(
+                f"/modal-invocations/{invocation_response['id']}"
+            )
+
+        match output_response["status"]:
+            case "done":
+                return ModalInvocationResponse(
+                    data_format=1, result=output_response["result"]
+                )
+            case _:
+                raise ValueError(f"Something went wrong: {output_response['error']}")
