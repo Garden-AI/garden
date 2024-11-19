@@ -256,11 +256,4 @@ class Garden:
             for class_name, methods in class_methods.items()
         ]
 
-        # if "modal_functions" in data:
-        #     for modal_fn_data in data["modal_functions"]:
-        #         modal_functions += [
-        #             ModalFunction(ModalFunctionMetadata(**modal_fn_data), client)
-        #         ]
-        #         metadata.modal_function_ids += [modal_fn_data["id"]]
-
         return cls(metadata, entrypoints, modal_functions, modal_classes)
