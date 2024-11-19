@@ -1,0 +1,17 @@
+{
+    "id": 44,
+    "doi": null,
+    "title": "Test method",
+    "description": "This is a method on a class",
+    "year": "2024",
+    "is_archived": false,
+    "function_name": "ClassName.method_name",
+    "function_text": "foo bar",
+    "authors": ["Will ;)"],
+    "tags": ["you're", "it"],
+    "test_functions": [],
+    "models": [],
+    "repositories": [],
+    "papers": [],
+    "datasets": []
+}

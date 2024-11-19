@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, TypeVar
 from tabulate import tabulate
 
 from garden_ai.modal.functions import ModalFunction
+from garden_ai.modal.classes import ModalClassWrapper
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.modal import ModalFunctionMetadata
@@ -56,26 +57,35 @@ class Garden:
         metadata: GardenMetadata,
         entrypoints: list[Entrypoint] | None = None,
         modal_functions: list[ModalFunction] | None = None,
+        modal_classes: list[ModalClassWrapper] | None = None,
     ):
         entrypoints = entrypoints or []
         modal_functions = modal_functions or []
+        modal_classes = modal_classes or []
 
         if set(metadata.entrypoint_ids) ^ set([ep.metadata.doi for ep in entrypoints]):
             raise ValueError(
                 "Expected `entrypoints` DOIs to match `metadata.entrypoint_ids`. "
                 f"Got: {[ep.metadata.doi for ep in entrypoints]} != {metadata.entrypoint_ids}"
             )
-        if set(metadata.modal_function_ids) ^ set(
-            [mf.metadata.id for mf in modal_functions]
-        ):
+
+        expected_modal_ids = set(metadata.modal_function_ids)
+        actual_modal_ids = set(mf.metadata.id for mf in modal_functions)
+        for modal_class in modal_classes:
+            actual_modal_ids.update(
+                method.metadata.id for method in modal_class._methods.values()
+            )
+
+        if expected_modal_ids ^ actual_modal_ids:
             raise ValueError(
                 "Expected `modal_functions` to match `metadata.modal_function_ids`. "
-                f"Got: {[mf.metadata.function_name for mf in modal_functions]} != {metadata.modal_function_ids}"
+                f"Got: {actual_modal_ids} != {expected_modal_ids}"
             )
+
         self.metadata = metadata
         self.entrypoints = entrypoints
         self.modal_functions = modal_functions
-        return
+        self.modal_classes = modal_classes
 
     def __getattr__(self, name):
         # enables method-like syntax for calling entrypoints from this garden.
@@ -97,6 +107,10 @@ class Garden:
             if name == modal_function.metadata.function_name:
                 return modal_function
 
+        for modal_class in self.modal_classes:
+            if name == modal_class.class_name:
+                return modal_class
+
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'."
             + message_extra
@@ -115,7 +129,14 @@ class Garden:
             mf.metadata.function_name for mf in self.modal_functions
         ]
 
-        return list(super().__dir__()) + entrypoint_names + modal_function_names
+        modal_class_names = [mc.class_name for mc in self.modal_classes]
+
+        return (
+            list(super().__dir__())
+            + entrypoint_names
+            + modal_function_names
+            + modal_class_names
+        )
 
     def _repr_html_(self) -> str:
         data = self.metadata.model_dump(
@@ -151,6 +172,28 @@ class Garden:
             headers="keys",
             tablefmt="html",
         )
+
+        modal_classes = ""
+        if self.modal_classes:
+            classes_data = []
+            for cls in self.modal_classes:
+                for method in cls._methods.values():
+                    classes_data.append(
+                        {
+                            "Class": cls.class_name,
+                            "Method": method.metadata.function_name.split(".")[-1],
+                            "Title": str(method.metadata.title),
+                            "Authors": ", ".join(method.metadata.authors),
+                            "DOI": str(method.metadata.doi or ""),
+                        }
+                    )
+
+            modal_classes = "<h3>Modal Classes</h3>" + tabulate(
+                classes_data,
+                headers="keys",
+                tablefmt="html",
+            )
+
         optional = "<h3>Additional data</h3>" + tabulate(
             [
                 (field, str(val))
@@ -161,7 +204,15 @@ class Garden:
             ],
             tablefmt="html",
         )
-        return style + title + details + entrypoints + modal_functions + optional
+        return (
+            style
+            + title
+            + details
+            + entrypoints
+            + modal_functions
+            + modal_classes
+            + optional
+        )
 
     def __getitem__(self, doi: str):
         for ep in self.entrypoints:
@@ -178,15 +229,38 @@ class Garden:
         metadata = GardenMetadata(**data)
         entrypoints = []
         modal_functions = []
+        class_methods: dict[str, list[ModalFunctionMetadata]] = {}
+
+        # Process entrypoints
         for entrypoint_data in data["entrypoints"]:
             entrypoints += [Entrypoint(RegisteredEntrypointMetadata(**entrypoint_data))]
             metadata.entrypoint_ids += [entrypoint_data["doi"]]
 
+        # Process modal functions and organize into classes
         if "modal_functions" in data:
             for modal_fn_data in data["modal_functions"]:
-                modal_functions += [
-                    ModalFunction(ModalFunctionMetadata(**modal_fn_data), client)
-                ]
-                metadata.modal_function_ids += [modal_fn_data["id"]]
+                fn_metadata = ModalFunctionMetadata(**modal_fn_data)
+                metadata.modal_function_ids += [fn_metadata.id]
 
-        return cls(metadata, entrypoints, modal_functions)
+                # Check if this is a class method
+                if "." in fn_metadata.function_name:
+                    class_name, _ = fn_metadata.function_name.split(".", 1)
+                    if class_name not in class_methods:
+                        class_methods[class_name] = []
+                    class_methods[class_name].append(fn_metadata)
+                else:
+                    modal_functions.append(ModalFunction(fn_metadata, client))
+
+        modal_classes = [
+            ModalClassWrapper.from_metadata(class_name, methods, client)
+            for class_name, methods in class_methods.items()
+        ]
+
+        # if "modal_functions" in data:
+        #     for modal_fn_data in data["modal_functions"]:
+        #         modal_functions += [
+        #             ModalFunction(ModalFunctionMetadata(**modal_fn_data), client)
+        #         ]
+        #         metadata.modal_function_ids += [modal_fn_data["id"]]
+
+        return cls(metadata, entrypoints, modal_functions, modal_classes)
