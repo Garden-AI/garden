@@ -188,7 +188,7 @@ class Garden:
                         }
                     )
 
-            modal_classes = "<h3>Modal Classes</h3>" + tabulate(
+            modal_classes = "<h3>Modal Class Methods</h3>" + tabulate(
                 classes_data,
                 headers="keys",
                 tablefmt="html",

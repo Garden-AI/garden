@@ -34,6 +34,12 @@ class ModalClassWrapper:
             return self._methods[method_name]
         raise AttributeError(f"'{self.class_name}' has no method '{method_name}'")
 
+    def __dir__(self) -> list[str]:
+        """Return list of valid attributes for tab completion."""
+        return list(super().__dir__()) + list(  # Get standard attributes
+            self._methods.keys()
+        )  # Add all method names
+
     @classmethod
     def from_metadata(
         cls,
