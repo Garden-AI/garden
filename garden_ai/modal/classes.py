@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, TypeVar, Any
 from garden_ai.modal.functions import ModalFunction
 
@@ -19,14 +21,12 @@ class ModalClassWrapper:
         self,
         class_name: str,
         methods: list[ModalFunction],
-        client: GardenClient | None = None,
     ):
         self.class_name = class_name
         # Create method lookup internally
         self._methods = {
             method.metadata.function_name.split(".")[-1]: method for method in methods
         }
-        self.client = client
 
     def __getattr__(self, method_name: str) -> Any:
         """Allow accessing methods as attributes of the class wrapper."""
@@ -46,7 +46,7 @@ class ModalClassWrapper:
         class_name: str,
         methods_metadata: list[ModalFunctionMetadata],
         client: GardenClient | None = None,
-    ) -> "ModalClassWrapper":
+    ) -> ModalClassWrapper:
         """Create a ModalClassWrapper from metadata"""
         methods = [ModalFunction(metadata, client) for metadata in methods_metadata]
         return cls(class_name, methods, client)
