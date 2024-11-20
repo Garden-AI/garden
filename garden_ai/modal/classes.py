@@ -49,7 +49,7 @@ class ModalClassWrapper:
     ) -> ModalClassWrapper:
         """Create a ModalClassWrapper from metadata"""
         methods = [ModalFunction(metadata, client) for metadata in methods_metadata]
-        return cls(class_name, methods, client)
+        return cls(class_name, methods)
 
     def __repr__(self) -> str:
         method_list = ", ".join(self._methods.keys())
