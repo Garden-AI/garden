@@ -223,6 +223,26 @@ def garden_nested_metadata_json(garden_nested_metadata_raw) -> dict:
 
 
 @pytest.fixture(scope="session")
+def garden_nested_metadata_raw_with_modal_class() -> dict:
+    """Return a dict with a valid GardenMetadata schema with nested entrypoints."""
+    f = (
+        pathlib.Path(__file__).parent
+        / "fixtures"
+        / "garden_nested_metadata_with_modal_class.json"
+    )
+    with open(f, "r") as f_in:
+        return json.load(f_in)
+
+
+@pytest.fixture
+def garden_nested_metadata_json_with_modal_class(
+    garden_nested_metadata_raw_with_modal_class,
+) -> dict:
+    """Return a dict with a valid GardenMetadata schema with nested entrypoints."""
+    return deepcopy(garden_nested_metadata_raw_with_modal_class)
+
+
+@pytest.fixture(scope="session")
 def modal_function_metadata_raw() -> dict:
     """Return a dict with a valid ModalFunctionMetadata schema."""
     f = pathlib.Path(__file__).parent / "fixtures" / "modal_function_metadata.json"
@@ -234,6 +254,21 @@ def modal_function_metadata_raw() -> dict:
 def modal_function_metadata_json(modal_function_metadata_raw) -> dict:
     """Return a dict with a valid ModalFunctionMetadata schema."""
     return deepcopy(modal_function_metadata_raw)
+
+
+@pytest.fixture(scope="session")
+def modal_method_metadata_raw() -> dict:
+    """Return a dict with a valid ModalFunctionMetadata schema,
+    where the function in question is a class method."""
+    f = pathlib.Path(__file__).parent / "fixtures" / "modal_class_metadata.json"
+    with open(f, "r") as f_in:
+        return json.load(f_in)
+
+
+@pytest.fixture
+def modal_method_metadata_json(modal_method_metadata_raw) -> dict:
+    """Return a dict with a valid ModalFunctionMetadata schema."""
+    return deepcopy(modal_method_metadata_raw)
 
 
 @pytest.fixture(scope="session")

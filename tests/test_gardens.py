@@ -4,6 +4,7 @@ from garden_ai import Garden
 from garden_ai.gardens import GardenMetadata
 from garden_ai.entrypoints import Entrypoint, RegisteredEntrypointMetadata
 from garden_ai.modal.functions import ModalFunctionMetadata, ModalFunction
+from garden_ai.modal.classes import ModalClassWrapper
 from copy import deepcopy
 
 
@@ -93,6 +94,27 @@ def test_can_call_modal_functions_like_methods(
     with pytest.raises(AttributeError):
         # but calling some other attribute should still fail
         garden.does_not_exist()
+
+
+def test_can_call_modal_methods(
+    garden_nested_metadata_json_with_modal_class,
+    modal_method_metadata_json,
+    garden_client,
+    mocker,
+):
+    data = deepcopy(garden_nested_metadata_json_with_modal_class)
+    del data["entrypoint_ids"]
+    garden_meta = GardenMetadata(**data)
+    modal_function_meta = ModalFunctionMetadata(**modal_method_metadata_json)
+    modal_function = ModalFunction(modal_function_meta, garden_client)
+    modal_class = ModalClassWrapper("ClassName", [modal_function])
+
+    mock_call = mocker.patch.object(ModalFunction, "__call__")
+
+    garden = Garden(garden_meta, [], [], [modal_class])
+    # Call the method on the class wrapper
+    garden.ClassName.method_name()
+    mock_call.assert_called()
 
 
 def test_can_access_entrypoints_like_dict_by_doi(
