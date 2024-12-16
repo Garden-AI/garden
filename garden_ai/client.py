@@ -8,6 +8,7 @@ import urllib
 from pathlib import Path
 from typing import Optional, Union
 from uuid import UUID
+from functools import partial
 
 import rich
 import typer
@@ -30,6 +31,7 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
+from mixpanel import Mixpanel
 
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
@@ -121,9 +123,17 @@ class GardenClient:
 
         self.compute_client = self._make_compute_client()
         self.backend_client = BackendClient(self.garden_authorizer)
-        # get_email call ensures user info is present on the backend,
+        # get_email_and_user_identity_id call ensures user info is present on the backend,
         # which means user is member of the demo endpoint group
+        email, user_id = self.get_email_and_user_identity_id()
         logger.info(f"logged in user: {self.get_email()}")
+
+        if os.environ.get("GARDEN_ENV") in ("dev", "local"):
+            self._mixpanel_track = None
+        else:
+            mp = Mixpanel(GardenConstants.MIXPANEL_TOKEN)
+            mp.people_set(user_id, {"$email": email})
+            self._mixpanel_track = partial(mp.track, user_id)
 
     def _get_garden_access_token(self):
         self.garden_authorizer.ensure_valid_token()
@@ -319,14 +329,20 @@ class GardenClient:
         return self.backend_client.get_entrypoint(doi)
 
     def get_email(self) -> str:
+        _, user_id = self.get_email_and_user_identity_id()
+        return user_id
+
+    def get_user_identity_id(self) -> str:
+        user_email, _ = self.get_email_and_user_identity_id()
+        return user_email
+
+    def get_email_and_user_identity_id(self) -> tuple[str, str]:
         user_data = self.backend_client.get_user_info()
         user_email = user_data.get("email") or user_data.get("username")
         assert user_email is not None, "Failed to find user email"
-        return user_email
-
-    def get_user_identity_id(self) -> str:
-        user_data = self.backend_client.get_user_info()
-        return user_data["identity_id"]
+        user_identity_id = user_data["identity_id"]
+        assert user_identity_id is not None, "Failed to find user identity"
+        return user_email, user_identity_id
 
     def upload_notebook(self, notebook_contents: dict, notebook_name: str) -> str:
         """
