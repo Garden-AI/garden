@@ -221,11 +221,8 @@ class Garden:
         raise KeyError(f"Garden does not have an entrypoint with doi: {doi}.")
 
     @classmethod
-    def _from_nested_metadata(cls, data: dict, client: GardenClient | None = None):
-        """helper: instantiate from search index-style payload with nested entrypoint metadata.
-
-        Note: `client` is generally fine to omit outside of tests
-        """
+    def _from_nested_metadata(cls, data: dict, client: GardenClient):
+        """helper: instantiate from search index-style payload with nested entrypoint metadata."""
         metadata = GardenMetadata(**data)
         entrypoints = []
         modal_functions = []
@@ -233,11 +230,18 @@ class Garden:
 
         # Process entrypoints
         for entrypoint_data in data["entrypoints"]:
-            entrypoints += [Entrypoint(RegisteredEntrypointMetadata(**entrypoint_data))]
+            entrypoints += [
+                Entrypoint(
+                    RegisteredEntrypointMetadata(**entrypoint_data),
+                    mixpanel_track=client._mixpanel_track,
+                )
+            ]
             metadata.entrypoint_ids += [entrypoint_data["doi"]]
 
         # Process modal functions and organize into classes
         if "modal_functions" in data:
+            print("Assembling from ._from_nested_metadata")
+            print(client)
             for modal_fn_data in data["modal_functions"]:
                 fn_metadata = ModalFunctionMetadata(**modal_fn_data)
                 metadata.modal_function_ids += [fn_metadata.id]

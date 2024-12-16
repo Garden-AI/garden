@@ -321,6 +321,7 @@ def test_list_displays_correctly(
     cli_runner,
     app,
     garden_nested_metadata_json,
+    garden_client,
     mocker,
 ):
     cli_args = [
@@ -334,7 +335,8 @@ def test_list_displays_correctly(
     mocker.patch(
         "garden_ai.backend_client.BackendClient.get_gardens",
         return_value=[
-            Garden._from_nested_metadata(garden_nested_metadata_json) for _ in range(5)
+            Garden._from_nested_metadata(garden_nested_metadata_json, garden_client)
+            for _ in range(5)
         ],
     )
 
@@ -350,6 +352,7 @@ def test_show_displays_garden_json(
     cli_runner,
     app,
     garden_nested_metadata_json,
+    garden_client,
     mocker,
 ):
     cli_args = [
@@ -361,7 +364,8 @@ def test_show_displays_garden_json(
 
     # Create a mock return value for get_gardens
     mock_gardens = [
-        Garden._from_nested_metadata(garden_nested_metadata_json) for _ in range(5)
+        Garden._from_nested_metadata(garden_nested_metadata_json, garden_client)
+        for _ in range(5)
     ]
 
     # Mock the get_gardens method

@@ -112,17 +112,21 @@ def mock_keystore(mocker):
 
 
 @pytest.fixture
-def patch_backend_client_requests(mocker, garden_nested_metadata_json) -> None:
+def patch_backend_client_requests(
+    mocker, garden_nested_metadata_json, garden_client
+) -> None:
     """Patches BackendClient methods that make network requests."""
     backend_client = "garden_ai.backend_client.BackendClient"
     mocker.patch(
         f"{backend_client}.get_user_info",
-        return_value={"email": "fake@email.com"},
+        return_value={"email": "fake@email.com", "identity_id": "ugvhbkjn"},
     )
 
     mocker.patch(
         f"{backend_client}.put_garden",
-        return_value=Garden._from_nested_metadata(garden_nested_metadata_json),
+        return_value=Garden._from_nested_metadata(
+            garden_nested_metadata_json, garden_client
+        ),
     )
 
 

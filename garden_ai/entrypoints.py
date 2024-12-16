@@ -45,8 +45,13 @@ class Entrypoint:
         ```
     """  # noqa: E501
 
-    def __init__(self, metadata: RegisteredEntrypointMetadata):
+    def __init__(
+        self,
+        metadata: RegisteredEntrypointMetadata,
+        mixpanel_track: Callable | None = None,
+    ):
         self.metadata = metadata
+        self._mixpanel_track = mixpanel_track
 
     def __call__(
         self,
@@ -86,13 +91,13 @@ class Entrypoint:
                     function_id=str(self.metadata.func_uuid), args=args, kwargs=kwargs
                 )
                 # If we're in prod, track this invocation
-                if self.client._mixpanel_track:
+                if self._mixpanel_track:
                     event_properties = {
                         "compute_type": "globus_compute",
                         "function_id": self.metadata.doi,
                         "function_name": self.metadata.short_name,
                     }
-                    self.client._mixpanel_track("model_invocation", event_properties)
+                    self._mixpanel_track("model_invocation", event_properties)
                 result = future.result()
                 if self._is_dlhub_entrypoint():
                     inner_result = result[0]

@@ -123,6 +123,7 @@ def test_get_docker_push_session_returns_boto3_session(
 def test_get_garden_returns_garden(
     mocker,
     backend_client,
+    garden_client,
     garden_nested_metadata_json,
 ):
     mocker.patch(
@@ -130,13 +131,14 @@ def test_get_garden_returns_garden(
         return_value=garden_nested_metadata_json,
     )
 
-    garden = backend_client.get_garden("some/doi")
+    garden = backend_client.get_garden("some/doi", garden_client)
     assert isinstance(garden, Garden)
 
 
 def test_get_garden_raises_on_backend_failure(
     mocker,
     backend_client,
+    garden_client,
 ):
     mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
@@ -144,12 +146,13 @@ def test_get_garden_raises_on_backend_failure(
     )
 
     with pytest.raises(Exception):
-        garden = backend_client.get_garden("some/doi")
+        garden = backend_client.get_garden("some/doi", garden_client)
 
 
 def test_put_garden_raises_on_backend_failure(
     mocker,
     backend_client,
+    garden_client,
     mock_GardenMetadata,
 ):
     mocker.patch(
@@ -158,12 +161,13 @@ def test_put_garden_raises_on_backend_failure(
     )
 
     with pytest.raises(Exception):
-        backend_client.put_garden(mock_GardenMetadata)
+        backend_client.put_garden(mock_GardenMetadata, garden_client)
 
 
 def test_put_garden_returns_garden_on_success(
     mocker,
     backend_client,
+    garden_client,
     mock_GardenMetadata,
     garden_nested_metadata_json,
 ):
@@ -172,7 +176,7 @@ def test_put_garden_returns_garden_on_success(
         return_value=garden_nested_metadata_json,
     )
 
-    updated_garden = backend_client.put_garden(mock_GardenMetadata)
+    updated_garden = backend_client.put_garden(mock_GardenMetadata, garden_client)
 
     assert isinstance(updated_garden, Garden)
 
@@ -250,6 +254,7 @@ def test_get_entrypoint_metadata_raises_on_backend_failure(
 def test_get_entrypoint_returns_entrypoint(
     mocker,
     backend_client,
+    garden_client,
     entrypoint_metadata_json,
 ):
     mocker.patch(
@@ -257,13 +262,14 @@ def test_get_entrypoint_returns_entrypoint(
         return_value=entrypoint_metadata_json,
     )
 
-    entrypoint = backend_client.get_entrypoint("some/doi")
+    entrypoint = backend_client.get_entrypoint("some/doi", garden_client)
     assert isinstance(entrypoint, Entrypoint)
 
 
 def test_get_entrypoint_raises_on_backend_failure(
     mocker,
     backend_client,
+    garden_client,
 ):
     mocker.patch(
         "garden_ai.backend_client.BackendClient._get",
@@ -271,7 +277,7 @@ def test_get_entrypoint_raises_on_backend_failure(
     )
 
     with pytest.raises(Exception):
-        entrypoint = backend_client.get_entrypoint("some/doi")
+        entrypoint = backend_client.get_entrypoint("some/doi", garden_client)
 
 
 def test_delete_entrypoint_raises_on_backend_failure(
@@ -353,6 +359,7 @@ def test_get_gardens_raises_on_backend_failure(
 def test_get_gardens_returns_list_of_gardens(
     mocker,
     backend_client,
+    garden_client,
     garden_nested_metadata_json,
 ):
     mocker.patch(
@@ -361,6 +368,7 @@ def test_get_gardens_returns_list_of_gardens(
     )
 
     gardens = backend_client.get_gardens(
+        garden_client,
         # args don't matter for this test
         dois=["some/doi"],
     )

@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import Callable
+from typing import Callable, TYPE_CHECKING, TypeVar
 
 import boto3
 import requests
@@ -16,6 +16,11 @@ from garden_ai.entrypoints import Entrypoint
 from garden_ai.gardens import Garden
 
 logger = logging.getLogger()
+
+if TYPE_CHECKING:
+    from garden_ai.client import GardenClient
+else:
+    GardenClient = TypeVar("GardenClient")
 
 
 # Client for the Garden backend API. The name "GardenClient" was taken :)
@@ -98,14 +103,16 @@ class BackendClient:
             region_name="us-east-1",
         )
 
-    def get_garden(self, doi: str) -> Garden:
+    def get_garden(self, doi: str, garden_client: GardenClient) -> Garden:
         response = self._get(f"/gardens/{doi}")
-        return Garden._from_nested_metadata(response)
+        return Garden._from_nested_metadata(response, garden_client)
 
-    def put_garden(self, garden_meta: GardenMetadata) -> Garden:
+    def put_garden(
+        self, garden_meta: GardenMetadata, garden_client: GardenClient
+    ) -> Garden:
         doi = garden_meta.doi
         response = self._put(f"/gardens/{doi}", garden_meta.model_dump(mode="json"))
-        return Garden._from_nested_metadata(response)
+        return Garden._from_nested_metadata(response, garden_client)
 
     def get_garden_metadata(self, doi: str) -> GardenMetadata:
         # like get_garden but returns metadata only
@@ -129,10 +136,12 @@ class BackendClient:
         updated_entrypoint = RegisteredEntrypointMetadata(**response)
         return updated_entrypoint
 
-    def get_entrypoint(self, doi: str) -> Entrypoint:
+    def get_entrypoint(self, doi: str, garden_client: GardenClient) -> Entrypoint:
         # like get_entrypoint_metadata, but returns the callable object
         result = self._get(f"/entrypoints/{doi}")
-        return Entrypoint(RegisteredEntrypointMetadata(**result))
+        return Entrypoint(
+            RegisteredEntrypointMetadata(**result), garden_client._mixpanel_track
+        )
 
     def delete_entrypoint(self, doi: str):
         self._delete(f"/entrypoints/{doi}", {})
@@ -168,6 +177,7 @@ class BackendClient:
 
     def get_gardens(
         self,
+        garden_client: GardenClient,
         dois: list[str] | None = None,
         tags: list[str] | None = None,
         draft: bool | None = None,
@@ -193,7 +203,7 @@ class BackendClient:
 
         gardens = []
         for data in result:
-            gardens += [Garden._from_nested_metadata(data)]
+            gardens += [Garden._from_nested_metadata(data, garden_client)]
         return gardens
 
     def get_user_info(self) -> dict:

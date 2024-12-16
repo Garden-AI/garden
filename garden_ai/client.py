@@ -64,6 +64,7 @@ class GardenClient:
     """
 
     scopes = GardenScopes
+    _mixpanel_track = None
 
     def __init__(
         self,
@@ -224,7 +225,7 @@ class GardenClient:
 
     def _create_garden(self, metadata: GardenMetadata) -> Garden:
         """Initialize a new Garden object from GardenMetadata"""
-        return self.backend_client.put_garden(metadata)
+        return self.backend_client.put_garden(metadata, self)
 
     def add_entrypoint_to_garden(
         self, entrypoint_doi: str, garden_doi: str, alias: str | None = None
@@ -269,13 +270,13 @@ class GardenClient:
         else:
             garden_meta.entrypoint_aliases[entrypoint_doi] = entrypoint_meta.short_name
 
-        return self.backend_client.put_garden(garden_meta)
+        return self.backend_client.put_garden(garden_meta, self)
 
     def register_garden_doi(self, garden_doi: str) -> None:
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)
         self._update_datacite(garden_meta, register_doi=True)
         garden_meta.doi_is_draft = False
-        self.backend_client.put_garden(garden_meta)
+        self.backend_client.put_garden(garden_meta, self)
 
     def register_entrypoint_doi(self, entrypoint_doi: str) -> None:
         """
@@ -326,15 +327,15 @@ class GardenClient:
             The callable Entrypoint object. Can execute remotely on a specified Globus Compute endpoint.
 
         """
-        return self.backend_client.get_entrypoint(doi)
+        return self.backend_client.get_entrypoint(doi, self)
 
     def get_email(self) -> str:
-        _, user_id = self.get_email_and_user_identity_id()
-        return user_id
-
-    def get_user_identity_id(self) -> str:
         user_email, _ = self.get_email_and_user_identity_id()
         return user_email
+
+    def get_user_identity_id(self) -> str:
+        _, user_id = self.get_email_and_user_identity_id()
+        return user_id
 
     def get_email_and_user_identity_id(self) -> tuple[str, str]:
         user_data = self.backend_client.get_user_info()
@@ -369,7 +370,7 @@ class GardenClient:
         Returns:
             The published Garden object. Any [entrypoints][garden_ai.Entrypoint] in the garden can be called like methods on this object.
         """
-        garden = self.backend_client.get_garden(doi)
+        garden = self.backend_client.get_garden(doi, self)
         return garden
 
     def _get_auth_config_for_ecr_push(self) -> dict:
