@@ -37,7 +37,7 @@ def get_owned_gardens_rich_table(
     client: GardenClient, resource_table_cols: list[str], table_name: str
 ):
     owner_uuid = client.get_user_identity_id()
-    owned_gardens = client.backend_client.get_gardens(owner_uuid=owner_uuid)
+    owned_gardens = client.backend_client.get_gardens(client, owner_uuid=owner_uuid)
     return _get_rich_resource_table(
         resource_objs=owned_gardens,
         resource_table_cols=resource_table_cols,

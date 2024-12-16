@@ -262,7 +262,7 @@ def show(
 ):
     """Shows all info for some Gardens"""
     client = GardenClient()
-    gardens = client.backend_client.get_gardens(dois=garden_ids)
+    gardens = client.backend_client.get_gardens(client, dois=garden_ids)
     for garden in gardens:
         rich.print(f"Garden {garden.metadata.doi} data:")
         rich.print_json(json=garden.metadata.model_dump_json())
@@ -289,5 +289,5 @@ def edit(
     list_fields = ["authors", "contributors", "tags"]
 
     edited_garden_meta = gui_edit_garden_entity(garden_meta, string_fields, list_fields)
-    client.backend_client.put_garden(edited_garden_meta)
+    client.backend_client.put_garden(edited_garden_meta, client)
     console.print(f"Updated garden {doi}.")
