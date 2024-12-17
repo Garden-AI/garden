@@ -251,24 +251,6 @@ def list():
     console.print(table)
 
 
-@garden_app.command(no_args_is_help=True)
-def show(
-    garden_ids: List[str] = typer.Argument(
-        ...,
-        help="The DOIs of the Gardens you want to show the data for. "
-        "e.g. ``garden show garden1_doi garden2_doi`` will show the data for both Gardens listed.",
-        shell_complete=complete_garden,
-    ),
-):
-    """Shows all info for some Gardens"""
-    client = GardenClient()
-    gardens = client.backend_client.get_gardens(client, dois=garden_ids)
-    for garden in gardens:
-        rich.print(f"Garden {garden.metadata.doi} data:")
-        rich.print_json(json=garden.metadata.model_dump_json())
-        rich.print("\n")
-
-
 @garden_app.command()
 def edit(
     doi: str = typer.Argument(
@@ -289,5 +271,5 @@ def edit(
     list_fields = ["authors", "contributors", "tags"]
 
     edited_garden_meta = gui_edit_garden_entity(garden_meta, string_fields, list_fields)
-    client.backend_client.put_garden(edited_garden_meta, client)
+    client._create_garden(edited_garden_meta)
     console.print(f"Updated garden {doi}.")

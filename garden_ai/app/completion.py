@@ -21,7 +21,7 @@ def complete_entrypoint(ctx: Context, args: Parameter, incomplete: str):
 def complete_garden(ctx: Context, args: Parameter, incomplete: str):
     client = GardenClient()
     user_id = client.get_user_identity_id()
-    gardens = client.backend_client.get_gardens(client, owner_uuid=user_id)
+    gardens = client.get_gardens(user_id)
     completions = [
         (garden.metadata.doi, garden.metadata.title)
         for garden in gardens

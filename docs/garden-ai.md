@@ -354,24 +354,6 @@ $ garden-ai garden register-doi [OPTIONS] DOI
 
 * `--help`: Show this message and exit.
 
-### `garden-ai garden show`
-
-Shows all info for some Gardens
-
-**Usage**:
-
-```console
-$ garden-ai garden show [OPTIONS] GARDEN_IDS...
-```
-
-**Arguments**:
-
-* `GARDEN_IDS...`: The DOIs of the Gardens you want to show the local data for. e.g. ``garden show garden1_doi garden2_doi`` will show the local data for both Gardens listed.  [required]
-
-**Options**:
-
-* `--help`: Show this message and exit.
-
 ## `garden-ai login`
 
 Attempts to login if the user is currently logged out.

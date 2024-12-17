@@ -8,7 +8,6 @@ import urllib
 from pathlib import Path
 from typing import Optional, Union
 from uuid import UUID
-from functools import partial
 
 import rich
 import typer
@@ -31,7 +30,7 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
-from mixpanel import Mixpanel
+import mixpanel
 
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
@@ -127,14 +126,12 @@ class GardenClient:
         # get_email_and_user_identity_id call ensures user info is present on the backend,
         # which means user is member of the demo endpoint group
         email, user_id = self.get_email_and_user_identity_id()
-        logger.info(f"logged in user: {self.get_email()}")
+        logger.info(f"logged in user: {email}")
 
         if os.environ.get("GARDEN_ENV") in ("dev", "local"):
             self._mixpanel_track = None
         else:
-            mp = Mixpanel(GardenConstants.MIXPANEL_TOKEN)
-            mp.people_set(user_id, {"$email": email})
-            self._mixpanel_track = partial(mp.track, user_id)
+            self._mixpanel_track = self._make_mixpanel_track_fn(user_id, email)
 
     def _get_garden_access_token(self):
         self.garden_authorizer.ensure_valid_token()
@@ -145,6 +142,29 @@ class GardenClient:
             do_version_check=False,
             code_serialization_strategy=DillCodeTextInspect(),
         )
+
+    def _make_mixpanel_track_fn(self, user_id, user_email) -> Optional[callable]:
+        try:
+            mp = mixpanel.Mixpanel(
+                GardenConstants.MIXPANEL_TOKEN,
+                consumer=mixpanel.Consumer(retry_limit=1),
+            )
+            mp.people_set(user_id, {"$email": user_email})
+        except Exception as e:
+            # Swallow the error and keep going - don't let mixpanel errors crash the app
+            logger.debug(f"Failed to initialize Mixpanel with error: {e}")
+            return None
+
+        def _track(event_name, event_properties):
+            try:
+                mp.track(user_id, event_name, event_properties)
+            except Exception as e:
+                # Swallow the error and keep going - don't let mixpanel errors crash the app
+                logger.debug(
+                    f"Failed to track event {event_name} with properties {event_properties} due to error: {e}"
+                )
+
+        return _track
 
     def _display_notebook_link(self, link):
         from IPython.display import HTML, display
@@ -271,6 +291,9 @@ class GardenClient:
             garden_meta.entrypoint_aliases[entrypoint_doi] = entrypoint_meta.short_name
 
         return self.backend_client.put_garden(garden_meta, self)
+
+    def get_gardens(self, owner_uuid: str) -> list[Garden]:
+        return self.backend_client.get_gardens(self, owner_uuid)
 
     def register_garden_doi(self, garden_doi: str) -> None:
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)

@@ -348,43 +348,6 @@ def test_list_displays_correctly(
 
 
 @pytest.mark.cli
-def test_show_displays_garden_json(
-    cli_runner,
-    app,
-    garden_nested_metadata_json,
-    garden_client,
-    mocker,
-):
-    cli_args = [
-        "garden",
-        "show",
-    ]
-    dois = [f"{garden_nested_metadata_json['doi']}" for _ in range(5)]
-    cli_args.extend(dois)
-
-    # Create a mock return value for get_gardens
-    mock_gardens = [
-        Garden._from_nested_metadata(garden_nested_metadata_json, garden_client)
-        for _ in range(5)
-    ]
-
-    # Mock the get_gardens method
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient.get_gardens",
-        return_value=mock_gardens,
-    )
-
-    mock_rich = mocker.patch(
-        "garden_ai.app.garden.rich", return_value=mocker.MagicMock()
-    )
-    result = cli_runner.invoke(app, cli_args)
-    assert result.exit_code == 0
-    mock_rich.print_json.assert_called_with(
-        json=mock_gardens[0].metadata.model_dump_json()
-    )
-
-
-@pytest.mark.cli
 def test_edit_returns_failure_status_if_no_garden(
     cli_runner, app, garden_nested_metadata_json, mocker
 ):
