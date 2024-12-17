@@ -240,8 +240,6 @@ class Garden:
 
         # Process modal functions and organize into classes
         if "modal_functions" in data:
-            print("Assembling from ._from_nested_metadata")
-            print(client)
             for modal_fn_data in data["modal_functions"]:
                 fn_metadata = ModalFunctionMetadata(**modal_fn_data)
                 metadata.modal_function_ids += [fn_metadata.id]
