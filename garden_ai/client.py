@@ -6,7 +6,7 @@ import os
 import time
 import urllib
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from uuid import UUID
 
 import rich
@@ -143,7 +143,7 @@ class GardenClient:
             code_serialization_strategy=DillCodeTextInspect(),
         )
 
-    def _make_mixpanel_track_fn(self, user_id, user_email) -> Optional[callable]:
+    def _make_mixpanel_track_fn(self, user_id, user_email) -> Optional[Callable]:
         try:
             mp = mixpanel.Mixpanel(
                 GardenConstants.MIXPANEL_TOKEN,
@@ -293,7 +293,7 @@ class GardenClient:
         return self.backend_client.put_garden(garden_meta, self)
 
     def get_gardens(self, owner_uuid: str) -> list[Garden]:
-        return self.backend_client.get_gardens(self, owner_uuid)
+        return self.backend_client.get_gardens(self, owner_uuid=owner_uuid)
 
     def register_garden_doi(self, garden_doi: str) -> None:
         garden_meta = self.backend_client.get_garden_metadata(garden_doi)
