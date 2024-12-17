@@ -60,10 +60,10 @@ class ModalFunction:
         if self.client._mixpanel_track:
             event_properties = {
                 "compute_type": "modal",
-                "function_id": self.metadata.id,
+                "function_identifier": str(self.metadata.id),
                 "function_name": self.metadata.function_name,
             }
-            self.client._mixpanel_track("model_invocation", event_properties)
+            self.client._mixpanel_track("function_call", event_properties)
 
         # HACK: need a client to deserialize, but can't assume the user has a modal account/creds
         # (also can't import from modal.config to get the url - let's hope they don't rebrand)

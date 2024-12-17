@@ -94,10 +94,10 @@ class Entrypoint:
                 if self._mixpanel_track:
                     event_properties = {
                         "compute_type": "globus_compute",
-                        "function_id": self.metadata.doi,
+                        "function_identifier": self.metadata.doi,
                         "function_name": self.metadata.short_name,
                     }
-                    self._mixpanel_track("model_invocation", event_properties)
+                    self._mixpanel_track("function_call", event_properties)
                 result = future.result()
                 if self._is_dlhub_entrypoint():
                     inner_result = result[0]
