@@ -21,6 +21,7 @@ def modal_function(modal_function_meta):
     mock_garden_client = Mock(spec=GardenClient)
     mock_backend_client = Mock(spec=BackendClient)
     mock_garden_client.backend_client = mock_backend_client
+    mock_garden_client._mixpanel_track = Mock()
     return ModalFunction(metadata=modal_function_meta, client=mock_garden_client)
 
 
@@ -74,6 +75,9 @@ def test_modal_function_call(modal_function):
 
     # Check that _modal_process_result_sync was called
     mock_modal_process_result_helper.assert_called_once()
+
+    # Check that the function invocation tracker was called
+    modal_function.client._mixpanel_track.assert_called_once()
 
     # Check that the result was processed correctly
     assert result == "what results! and *so* nicely processed"

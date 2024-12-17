@@ -80,7 +80,10 @@ def test_normal_entrypoint(
         function_text=faker.text(),
     )
 
-    normal_entrypoint = Entrypoint(metadata=normal_entrypoint_metadata)
+    mock_mixpanel_function = mocker.Mock()
+    normal_entrypoint = Entrypoint(
+        metadata=normal_entrypoint_metadata, mixpanel_track=mock_mixpanel_function
+    )
 
     mock_executor_instance = mocker.MagicMock()
     mock_executor.return_value.__enter__.return_value = mock_executor_instance
@@ -94,6 +97,7 @@ def test_normal_entrypoint(
         result == "mocked result"
     ), "Should return the direct result for an entrypoint with DOI not in list"
     mock_executor_instance.submit_to_registered_function.assert_called_once()
+    mock_mixpanel_function.assert_called_once()
 
 
 def test_entrypoint_test_raises_on_non_idempotent_entrypoint(mocker):
