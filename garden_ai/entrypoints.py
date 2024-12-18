@@ -99,7 +99,7 @@ class Entrypoint:
                 )
 
                 # If we're in prod, track this invocation
-                if self.client._mixpanel_track:
+                if self.client and self.client._mixpanel_track:
                     event_properties = {
                         "compute_type": "globus_compute",
                         "function_identifier": self.metadata.doi,
