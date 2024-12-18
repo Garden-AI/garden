@@ -30,6 +30,7 @@ class GardenConstants:
         else _PROD_ECR_REPO
     )
 
+    MIXPANEL_TOKEN = "db71da1b071c8acd33af84921ce88084"
     DEMO_ENDPOINT = "6ed5d749-abc3-4c83-bcad-80837b3d126f"
 
     # Constants for picking a port to start a Jupyter notebook on

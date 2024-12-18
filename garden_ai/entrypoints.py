@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, TYPE_CHECKING, TypeVar
 from uuid import UUID
 
 import globus_compute_sdk  # type: ignore
@@ -19,6 +19,11 @@ from garden_ai.schemas.entrypoint import (
 )
 
 logger = logging.getLogger()
+
+if TYPE_CHECKING:
+    from garden_ai.client import GardenClient
+else:
+    GardenClient = TypeVar("GardenClient")
 
 
 class Entrypoint:
@@ -45,8 +50,15 @@ class Entrypoint:
         ```
     """  # noqa: E501
 
-    def __init__(self, metadata: RegisteredEntrypointMetadata):
+    def __init__(
+        self, metadata: RegisteredEntrypointMetadata, client: GardenClient | None = None
+    ):
         self.metadata = metadata
+        self.client = client
+        if self.client is None:
+            from garden_ai import GardenClient
+
+            self.client = GardenClient()
 
     def __call__(
         self,
@@ -85,6 +97,16 @@ class Entrypoint:
                 future = gce.submit_to_registered_function(
                     function_id=str(self.metadata.func_uuid), args=args, kwargs=kwargs
                 )
+
+                # If we're in prod, track this invocation
+                if self.client._mixpanel_track:
+                    event_properties = {
+                        "compute_type": "globus_compute",
+                        "function_identifier": self.metadata.doi,
+                        "function_name": self.metadata.short_name,
+                    }
+                    self.client._mixpanel_track("function_call", event_properties)
+
                 result = future.result()
                 if self._is_dlhub_entrypoint():
                     inner_result = result[0]
