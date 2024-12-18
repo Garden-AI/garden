@@ -117,7 +117,7 @@ def patch_backend_client_requests(mocker, garden_nested_metadata_json) -> None:
     backend_client = "garden_ai.backend_client.BackendClient"
     mocker.patch(
         f"{backend_client}.get_user_info",
-        return_value={"email": "fake@email.com"},
+        return_value={"email": "fake@email.com", "identity_id": "ugvhbkjn"},
     )
 
     mocker.patch(

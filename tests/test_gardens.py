@@ -52,13 +52,14 @@ def test_garden_init(
 def test_can_call_entrypoints_like_methods(
     garden_nested_metadata_json,
     entrypoint_metadata_json,
+    garden_client,
     mocker,
 ):
     data = deepcopy(garden_nested_metadata_json)
     del data["modal_function_ids"]
     garden_meta = GardenMetadata(**data)
     entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
-    entrypoint = Entrypoint(entrypoint_meta)
+    entrypoint = Entrypoint(entrypoint_meta, garden_client)
 
     mock_call = mocker.patch.object(Entrypoint, "__call__")
 
@@ -120,13 +121,14 @@ def test_can_call_modal_methods(
 def test_can_access_entrypoints_like_dict_by_doi(
     garden_nested_metadata_json,
     entrypoint_metadata_json,
+    garden_client,
     mocker,
 ):
     data = deepcopy(garden_nested_metadata_json)
     del data["modal_function_ids"]
     garden_meta = GardenMetadata(**data)
     entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
-    entrypoint = Entrypoint(entrypoint_meta)
+    entrypoint = Entrypoint(entrypoint_meta, garden_client)
 
     mock_call = mocker.patch.object(Entrypoint, "__call__")
 
@@ -142,13 +144,14 @@ def test_can_access_entrypoints_like_dict_by_doi(
 def test_accessing_entrypoint_like_dict_raises_if_bad_doi(
     garden_nested_metadata_json,
     entrypoint_metadata_json,
+    garden_client,
     mocker,
 ):
     data = deepcopy(garden_nested_metadata_json)
     del data["modal_function_ids"]
     garden_meta = GardenMetadata(**data)
     entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
-    entrypoint = Entrypoint(entrypoint_meta)
+    entrypoint = Entrypoint(entrypoint_meta, garden_client)
 
     garden = Garden(garden_meta, [entrypoint])
 
@@ -157,14 +160,13 @@ def test_accessing_entrypoint_like_dict_raises_if_bad_doi(
 
 
 def test_repr_html_contains_garden_doi_and_entrypoint_dois(
-    garden_nested_metadata_json,
-    entrypoint_metadata_json,
+    garden_nested_metadata_json, entrypoint_metadata_json, garden_client
 ):
     data = deepcopy(garden_nested_metadata_json)
     del data["modal_function_ids"]
     garden_meta = GardenMetadata(**data)
     entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
-    entrypoint = Entrypoint(entrypoint_meta)
+    entrypoint = Entrypoint(entrypoint_meta, garden_client)
 
     garden = Garden(garden_meta, [entrypoint])
     html = garden._repr_html_()
@@ -175,14 +177,13 @@ def test_repr_html_contains_garden_doi_and_entrypoint_dois(
 
 
 def test_entrypoint_names_in_dir(
-    garden_nested_metadata_json,
-    entrypoint_metadata_json,
+    garden_nested_metadata_json, entrypoint_metadata_json, garden_client
 ):
     data = deepcopy(garden_nested_metadata_json)
     del data["modal_function_ids"]
     garden_meta = GardenMetadata(**data)
     entrypoint_meta = RegisteredEntrypointMetadata(**entrypoint_metadata_json)
-    entrypoint = Entrypoint(entrypoint_meta)
+    entrypoint = Entrypoint(entrypoint_meta, garden_client)
 
     garden = Garden(garden_meta, [entrypoint])
 

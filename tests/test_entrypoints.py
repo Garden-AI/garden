@@ -18,6 +18,7 @@ container_uuid = "123e4567-e89b-12d3-a456-426614174001"
 def test_dlhub_entrypoint(
     mocker,
     faker,
+    garden_client,
 ):
     mock_executor = mocker.patch("garden_ai.entrypoints.globus_compute_sdk.Executor")
     dlhub_entrypoint_metadata = RegisteredEntrypointMetadata(
@@ -33,7 +34,9 @@ def test_dlhub_entrypoint(
         function_text=faker.text(),
     )
 
-    dlhub_entrypoint = Entrypoint(metadata=dlhub_entrypoint_metadata)
+    dlhub_entrypoint = Entrypoint(
+        metadata=dlhub_entrypoint_metadata, client=garden_client
+    )
 
     dlhub_wrapped_result = (("answer", {"stdout": None, "success": True}), 3452354)
 
@@ -65,6 +68,7 @@ def test_dlhub_entrypoint(
 def test_normal_entrypoint(
     mocker,
     faker,
+    garden_client,
 ):
     mock_executor = mocker.patch("garden_ai.entrypoints.globus_compute_sdk.Executor")
     normal_entrypoint_metadata = RegisteredEntrypointMetadata(
@@ -80,7 +84,9 @@ def test_normal_entrypoint(
         function_text=faker.text(),
     )
 
-    normal_entrypoint = Entrypoint(metadata=normal_entrypoint_metadata)
+    normal_entrypoint = Entrypoint(
+        metadata=normal_entrypoint_metadata, client=garden_client
+    )
 
     mock_executor_instance = mocker.MagicMock()
     mock_executor.return_value.__enter__.return_value = mock_executor_instance
