@@ -1,4 +1,3 @@
-# mypy: disable-error-code="import"
 import base64
 import json
 import logging
@@ -41,7 +40,10 @@ from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
 
+import rich.traceback
+
 logger = logging.getLogger()
+
 rich.traceback.install()
 
 
