@@ -42,7 +42,7 @@ METADATA_CELL_TAG = "garden_display_metadata_cell"
 
 class RequirementsData(BaseModel):
     file_format: str = "pip"
-    contents: Union[dict, list] = Field(default_factory=list)
+    contents: Union[dict, list] = Field(default_factory=list)  # type: ignore
 
 
 class NotebookMetadata(BaseModel):
