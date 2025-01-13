@@ -1,5 +1,6 @@
 # flake8: noqa: F841
 import os
+from unittest.mock import Mock, patch
 
 import pytest
 from globus_compute_sdk import Client  # type: ignore
@@ -250,18 +251,16 @@ def test_client_datacite_url_correct(
 
 def test_get_entrypoint_get_entrypoint_data_from_backend(
     garden_client,
-    mocker,
     mock_RegisteredEntrypointMetadata,
 ):
-    mock_get = mocker.patch(
+    with patch(
         "garden_ai.backend_client.BackendClient._get",
-        return_value=mock_RegisteredEntrypointMetadata.model_dump(mode="json"),
-    )
+        Mock(return_value=mock_RegisteredEntrypointMetadata.model_dump(mode="json")),
+    ) as mock_get:
+        ep = garden_client.get_entrypoint(mock_RegisteredEntrypointMetadata.doi)
 
-    ep = garden_client.get_entrypoint(mock_RegisteredEntrypointMetadata.doi)
-
-    mock_get.assert_called_once()
-    assert ep == Entrypoint(mock_RegisteredEntrypointMetadata)
+        mock_get.assert_called_once()
+        assert ep == Entrypoint(mock_RegisteredEntrypointMetadata)
 
 
 def test_get_email_returns_correct_email_for_logged_in_user(
