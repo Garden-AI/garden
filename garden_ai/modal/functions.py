@@ -14,8 +14,7 @@ from modal._utils.blob_utils import (
 )
 from modal._utils.function_utils import _process_result
 from modal._utils.hash_utils import get_upload_hashes
-from modal_proto import api_pb2
-
+from modal_proto import api_pb2  # type: ignore
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient

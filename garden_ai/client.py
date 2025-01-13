@@ -5,10 +5,12 @@ import os
 import time
 import urllib
 from pathlib import Path
-from typing import Optional, Union, Callable
+from typing import Callable, Optional, Union
 from uuid import UUID
 
+import mixpanel  # type: ignore
 import rich
+import rich.traceback
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.sdk.login_manager import ComputeScopes
@@ -29,7 +31,6 @@ from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
 from rich import print
 from rich.prompt import Prompt
-import mixpanel
 
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
@@ -39,8 +40,6 @@ from garden_ai.gardens import Garden
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
-
-import rich.traceback
 
 logger = logging.getLogger()
 
