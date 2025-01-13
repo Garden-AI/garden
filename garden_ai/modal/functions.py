@@ -36,6 +36,9 @@ class _ModalFunction:
         self._metadata = metadata
         self._client = client
 
+    # NOTE: read-only `@property` attributes had less surprising
+    # behavior on a synchronize_api-wrapped class than regular init attributes.
+    # No other reason for these to be properties.
     @property
     def metadata(self) -> ModalFunctionMetadata:
         return self._metadata
