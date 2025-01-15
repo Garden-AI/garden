@@ -5,21 +5,22 @@
 funcXServiceAddress: https://compute.api.globus.org
 image:
   repository: funcx/kube-endpoint
-  tag: main-3.10
+  tag: main-3.11
   pullPolicy: Always
 
 workerDebug: false
-workerImage: python:3.10
+workerImage: python:3.11
 
 # workerInit paraphrased for compatibility with legacy dlhub models from
 # https://github.com/funcx-faas/funcX/blob/dlhub_deployment_version_0.3/helm/dlhub_values.yaml.
 # does the following:
 #   - modifies PYTHONPATH for backwards compatibility with dlhub
-#   - installs globus-compute-endpoint>=2.0 when running python 3.8 or above
-#   - otherwise install a patched version of globus compute v2.2.3 (the last
+#   - when running python 3.8 or above, installs globus-compute-endpoint>=2.0
+#     - note: capped at globus-compute-endpoint<=2.30, since the manager image (`funcx/kube-endpoint:main-3.11`) no longer seems to be receiving updates past mid-2024 (v2.16.0) and 2.31 is broken for us.
+#   - otherwise, install a patched version of globus compute v2.2.3 (the last
 #       3.7-compatible version) from github, since the one on pypi is broken.
 #       (This only applies to dlhub models; garden never supported 3.7)
-workerInit: ulimit -n 1024 && export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/; python -c "import sys; sys.exit(0 if sys.version_info < (3, 8) else 1)" && pip install "git+https://github.com/OwenPriceSkelly/funcX.git@3.7-compatibility-hack#subdirectory=compute_endpoint" || pip install "globus-compute-endpoint>=2.0"
+workerInit: ulimit -n 1024 && export PYTHONPATH="$PYTHONPATH:/app:/home/ubuntu"; mkdir -p /home/ubuntu/; python -c "import sys; sys.exit(0 if sys.version_info < (3, 8) else 1)" && pip install "git+https://github.com/OwenPriceSkelly/funcX.git@3.7-compatibility-hack#subdirectory=compute_endpoint" || pip install "globus-compute-endpoint<2.31"
 
 # we're restricted to the dlhub namespace on river
 workerNamespace: dlhub
