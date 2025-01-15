@@ -1,6 +1,8 @@
-**NOTE:** This is an experimental feature that is in early development.
-
 Please [contact](mailto:thegardens@uchicago.edu) the Garden Team if you are interested in using this feature.
+
+## 0. Quick Start
+
+Skip the details and see the [complete modal file](#the-complete-modal-file).
 
 ## 1. Create a Modal Account
 
@@ -154,7 +156,7 @@ It may take a few minutes for the deployment process to finish.
 
 Check the 'My Gardens' tab on your [Profile](https://thegardens.ai/#/user) page for the new Garden. Note the DOI for the next step.
 
-## 4. Run your functions using Garden
+## 4. Invoke your published functions using Garden
 
 After uploading your Modal App to Garden, you should have a new DOI referencing the Garden you created.
 
