@@ -1,20 +1,35 @@
-Please [contact](mailto:thegardens@uchicago.edu) the Garden Team if you are interested in using this feature.
+# Publishing a Garden with Modal
 
-## 0. Quick Start
+!!! Warning
+    Use of this feature requires that your Globus account is authorized by the Garden Team. Please [contact](mailto:thegardens@uchicago.edu) us if you are interested in using this feature.
+    For another publishing flow that doesn't require special authorization, see: [Publishing with Docker](tutorial_docker.md).
 
-Skip the details and see the [complete modal file](#the-complete-modal-file).
+## Introduction
 
-## 1. Create a Modal Account
+In this tutorial we walk through the basic process of publishing a Garden from a Modal App.
 
-**Prerequisite:** This step requires a free [GitHub](https://github.com/join) account to authenticate with Modal.
+## Prerequisites
+
+### Create a GitHub account
+
+Modal uses GitHub for authentication.
+
+If you already have a GitHub account, you're good to move to the next step. Otherwise, create a free [GitHub](https://github.com/) account before continuing.
+
+### Create a Modal Account
 
 Create a free Modal account by linking your GitHub: [signup](https://modal.com/signup).
 
-**NOTE:** You'll also get $30/month of free compute credit for your personal account. It's totally safe to spend those credits developing and debugging your modal functions before you publish them with garden -- modal functions run through garden won't charge your personal account.
+!!! Note
+    You'll get $30/month of free compute credit for your personal Modal account. It's totally safe to spend those credits developing and debugging your modal functions before you publish them with garden -- modal functions published through garden won't charge your personal account.
 
-## 2. Author a Modal App
+## 1. Author the Modal App
 
-### Create a Modal file
+!!! Tip
+    Skip the details and see the [complete modal file](#the-complete-modal-file).
+
+
+### Create a python file for your Modal App
 
 Modal files are regular python scripts. Create a new python file in your project:
 
@@ -24,7 +39,7 @@ $ touch my_app.py
 
 You can also use modal's [interactive playground](https://modal.com/playground/get_started) to develop your modal function.
 
-### Imports
+### Add Imports
 
 ```python
 # my_app.py
@@ -84,8 +99,7 @@ def my_other_cool_function(data):
 
 ### The Complete Modal File
 
-That is all we need to do to define a Modal App that can be published with Garden! See the complete modal file below:
-See the [Modal docs](https://modal.com/docs/guide) for more details on defining Modal Apps and functions.
+This is all we need to do to define a Modal App that can be published with Garden! See the complete modal file below:
 
 ```python
 # my_app.py
@@ -116,7 +130,9 @@ def my_other_cool_function(data):
   return result
 ```
 
-## 3. Upload your App to Garden
+See the [Modal docs](https://modal.com/docs/guide) for more details on defining Modal Apps and functions.
+
+## 2. Upload your App to Garden
 
 ### Create a new Garden
 
@@ -148,7 +164,7 @@ Fill in information about the authors and any contributors to the Garden.
 
 ![Add Contributors](./images/modal_publishing/garden_contributors_and_submit.png)
 
-### Submit
+### Submit the form
 
 When the information is correct click 'Create Garden'!
 
@@ -156,7 +172,7 @@ It may take a few minutes for the deployment process to finish.
 
 Check the 'My Gardens' tab on your [Profile](https://thegardens.ai/#/user) page for the new Garden. Note the DOI for the next step.
 
-## 4. Invoke your published functions using Garden
+## 3. Invoke your published functions using Garden
 
 After uploading your Modal App to Garden, you should have a new DOI referencing the Garden you created.
 
