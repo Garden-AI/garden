@@ -11,7 +11,12 @@ from garden_ai.schemas.entrypoint import (
     RegisteredEntrypointMetadata,
 )
 from garden_ai.schemas.garden import GardenMetadata
-from garden_ai.schemas.modal import ModalInvocationResponse, ModalInvocationRequest
+from garden_ai.schemas.modal import (
+    ModalInvocationResponse,
+    ModalInvocationRequest,
+    ModalBlobUploadURLRequest,
+    ModalBlobUploadURLResponse,
+)
 from garden_ai.entrypoints import Entrypoint
 from garden_ai.gardens import Garden
 
@@ -232,3 +237,11 @@ class BackendClient:
                     f"Invocation Status: {output_response['status']}\n\t"
                     f"Error: {output_response['error']}"
                 )
+
+    def get_blob_upload_url(
+        self, payload: ModalBlobUploadURLRequest
+    ) -> ModalBlobUploadURLResponse:
+        response = self._post(
+            "/modal-invocations/blob-uploads", payload.model_dump(mode="json")
+        )
+        return ModalBlobUploadURLResponse(**response)

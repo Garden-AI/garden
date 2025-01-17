@@ -29,6 +29,7 @@ New to Garden? Here are some great places to begin:
 - [Concept Overview](user_guide/concepts.md) - Understand Garden's key concepts and design
 - [Tutorial](user_guide/publishing/modal-publishing.md) - Follow our step-by-step guide to publish your first model
 
+
 ## For Users
 
 - [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips
