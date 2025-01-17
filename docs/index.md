@@ -1,4 +1,11 @@
-# 🌱 Welcome to Garden 🌱
+---
+hide:
+  - navigation
+---
+# 🌱 Garden-AI Documentation 🌱
+
+!!! Tip
+    This is the documentation website for the Garden-AI SDK. To search for published Gardens visit [thegardens.ai](https://thegardens.ai)
 
 Garden is a framework designed to make it easier for the scientific community to benefit from FAIR (Findable, Accessible, Interoperable, Reusable) principles for AI/ML models. Garden addresses key challenges faced by academic researchers in discovering, reproducing, and running AI/ML models:
 
@@ -19,15 +26,16 @@ Garden lets researchers focus on their science, not on the intricacies of their 
 New to Garden? Here are some great places to begin:
 
 - [Installation Guide](user_guide/installation.md) - Get Garden set up on your machine
-- [Overview](architecture_overview.md) - Understand Garden's key concepts and design
-- [Tutorial](user_guide/tutorial.md) - Follow our step-by-step guide to publish your first model
+- [Concept Overview](architecture_overview.md) - Understand Garden's key concepts and design
+- [Tutorial](user_guide/modal-publishing.md) - Follow our step-by-step guide to publish your first model
 
 ## For Users
 
 - [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips
-- [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent reproducible environments
+- [Publishing with Modal](user_guide/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
 - ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
-- [Publishing via Modal](user_guide/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
+- [Docker Guide](user_guide/docker.md) - Learn about Garden's use of Docker for consistent reproducible environments
+- [Publishing with Docker](user_guide/tutorial_docker.md) - Learn how to publish a Garden using Docker
 
 ## Additional Resources
 

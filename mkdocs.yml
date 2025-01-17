@@ -1,20 +1,58 @@
-site_name: Garden-AI
+site_name: Garden-AI Docs
+repo_url: https://github.com/Garden-AI/garden
+edit_uri: edit/main/docs/
 nav:
-  - Home: index.md
-  - Overview: architecture_overview.md
+  - Overview: index.md
   - User Guide:
+      - Concepts: user_guide/concepts.md
       - Installation: user_guide/installation.md
-      - Tutorial: user_guide/tutorial.md
-      - Setting up Docker: user_guide/docker.md
-      - Publishing via Modal: user_guide/modal-publishing.md
+      - Publishing:
+          - Modal: user_guide/publishing/modal-publishing.md
+          - Docker: user_guide/publishing/tutorial_docker.md
+      - Guides:
+        - Setting up Docker: user_guide/guides/docker.md
       - FAQs: user_guide/faqs.md
+  - Reference:
+    - API Reference: api-docs.md
+    - CLI Reference: garden-ai.md
   - Developer Guide: developer_guide/contributing.md
-  - API Reference: api-docs.md
-  - CLI Reference: garden-ai.md
 theme:
   name: material
+  palette:
+    - media: "(prefers-color-scheme)"
+      primary: green
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+  favicon: assets/favicon.ico
+  logo: assets/favicon.ico
+  icon:
+    repo: fontawesome/brands/github
   features:
     - content.code.copy
+    - navigation.expand
+    - navigation.paths
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - search.suggest
+    - search.highlight
 plugins:
   - search
   - callouts
@@ -42,7 +80,6 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
-  - codehilite
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
