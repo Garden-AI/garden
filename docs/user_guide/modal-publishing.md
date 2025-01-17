@@ -6,7 +6,7 @@
 
 ## Introduction
 
-In this tutorial we walk through the basic process of publishing a Garden from a Modal App.
+This guide will walk you through the process of publishing a Garden from a Modal App.
 
 ## Prerequisites
 
@@ -110,6 +110,9 @@ import modal
 # Define your App -- this is the top-level entity that holds references to functions
 # It must be assigned to a variable named 'app' for Garden to extact it properly
 app = modal.App("my-cool-app")
+
+# Define a custom container for your functions
+image = modal.Image.debian_slim().pip_install("numpy", "pandas")
 
 # Define a function and register it with the app
 # Functions can be named anything you like
