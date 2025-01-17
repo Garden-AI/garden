@@ -4,13 +4,13 @@ edit_uri: edit/main/docs/
 nav:
   - Overview: index.md
   - User Guide:
-      - Concepts: user_guide/architecture_overview.md
+      - Concepts: user_guide/concepts.md
       - Installation: user_guide/installation.md
       - Publishing:
-          - Modal: user_guide/modal-publishing.md
-          - Docker: user_guide/tutorial_docker.md
+          - Modal: user_guide/publishing/modal-publishing.md
+          - Docker: user_guide/publishing/tutorial_docker.md
       - Guides:
-        - Setting up Docker: user_guide/docker.md
+        - Setting up Docker: user_guide/guides/docker.md
       - FAQs: user_guide/faqs.md
   - Reference:
     - API Reference: api-docs.md
