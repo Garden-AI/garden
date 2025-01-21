@@ -17,8 +17,8 @@ from modal._utils.blob_utils import (
 )
 from modal._utils.hash_utils import get_upload_hashes
 from modal.exception import DeserializationError, ExecutionError, RemoteError
-from modal_proto import api_pb2
-from synchronicity.exceptions import UserCodeException
+from modal_proto import api_pb2  # type: ignore
+from synchronicity.exceptions import UserCodeException  # type: ignore
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient

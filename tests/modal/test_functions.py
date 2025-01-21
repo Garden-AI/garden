@@ -36,19 +36,19 @@ def test_modal_function_call_direct(modal_function):
     mock_result_deserialized = "what results! and *so* nicely processed"
 
     mock_serialize = Mock(return_value=mock_args_kwargs_serialized)
-    mock_deserialize = AsyncMock(return_value=mock_result_deserialized)
+    mock_deserialize = Mock(return_value=mock_result_deserialized)
 
     # Mock the backend client's invoke_modal_function_async method
     modal_function.client.backend_client.invoke_modal_function_async = Mock(
         return_value=ModalInvocationResponse(
-            result=_ModalGenericResult(status=0, data=mock_result_serialized),
+            result=_ModalGenericResult(status=1, data=mock_result_serialized),
             data_format=1,
         )
     )
 
     with (
         patch("garden_ai.modal.functions.serialize", mock_serialize),
-        patch("garden_ai.modal.functions._process_result", mock_deserialize),
+        patch("garden_ai.modal.functions._modal_deserialize", mock_deserialize),
     ):
         # call the modal function object
         result = modal_function("fake input data", hello="world")
@@ -96,7 +96,7 @@ def test_modal_function_call_large_args(modal_function):
     # Mock response from function invocation
     modal_function.client.backend_client.invoke_modal_function_async = Mock(
         return_value=ModalInvocationResponse(
-            result=_ModalGenericResult(status=0, data=mock_result_serialized),
+            result=_ModalGenericResult(status=1, data=mock_result_serialized),
             data_format=1,
         )
     )
@@ -109,8 +109,8 @@ def test_modal_function_call_large_args(modal_function):
         patch("garden_ai.modal.functions.get_content_length", mock_get_content_length),
         patch("garden_ai.modal.functions._upload_to_s3_url", mock_upload_to_s3),
         patch(
-            "garden_ai.modal.functions._process_result",
-            AsyncMock(return_value=mock_result_deserialized),
+            "garden_ai.modal.functions._modal_deserialize",
+            Mock(return_value=mock_result_deserialized),
         ),
     ):
         result = modal_function("large fake input data", hello="world")
@@ -157,7 +157,7 @@ def test_modal_function_call_large_args_multipart(modal_function):
     # Mock response from function invocation
     modal_function.client.backend_client.invoke_modal_function_async = Mock(
         return_value=ModalInvocationResponse(
-            result=_ModalGenericResult(status=0, data=mock_result_serialized),
+            result=_ModalGenericResult(status=1, data=mock_result_serialized),
             data_format=1,
         )
     )
@@ -172,8 +172,8 @@ def test_modal_function_call_large_args_multipart(modal_function):
             "garden_ai.modal.functions.perform_multipart_upload", mock_perform_multipart
         ),
         patch(
-            "garden_ai.modal.functions._process_result",
-            AsyncMock(return_value=mock_result_deserialized),
+            "garden_ai.modal.functions._modal_deserialize",
+            Mock(return_value=mock_result_deserialized),
         ),
     ):
         result = modal_function("very large fake input data", hello="world")
@@ -206,7 +206,7 @@ def test_modal_function_call_blob_response(modal_function):
     modal_function.client.backend_client.invoke_modal_function_async = Mock(
         return_value=ModalInvocationResponse(
             result=_ModalGenericResult(
-                status=0,
+                status=1,
                 data_blob_url=mock_download_url,
             ),
             data_format=1,
@@ -220,8 +220,8 @@ def test_modal_function_call_blob_response(modal_function):
         ),
         patch("garden_ai.modal.functions._download_from_url", mock_download),
         patch(
-            "garden_ai.modal.functions._process_result",
-            AsyncMock(return_value=mock_result_deserialized),
+            "garden_ai.modal.functions._modal_deserialize",
+            Mock(return_value=mock_result_deserialized),
         ),
     ):
         result = modal_function("input data")
