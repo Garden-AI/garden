@@ -1,12 +1,10 @@
 import io
-from typing import TYPE_CHECKING, TypeVar, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import modal
 import rich
-from modal.exception import DeserializationError, ExecutionError
-from synchronicity.exceptions import UserCodeException
+from modal._serialization import deserialize, deserialize_data_format, serialize
 from modal._traceback import append_modal_tb
-from modal._serialization import serialize, deserialize, deserialize_data_format
 from modal._utils.async_utils import synchronize_api
 from modal._utils.blob_utils import (
     DEFAULT_SEGMENT_CHUNK_SIZE,
@@ -18,7 +16,9 @@ from modal._utils.blob_utils import (
     perform_multipart_upload,
 )
 from modal._utils.hash_utils import get_upload_hashes
+from modal.exception import DeserializationError, ExecutionError, RemoteError
 from modal_proto import api_pb2
+from synchronicity.exceptions import UserCodeException
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
@@ -34,14 +34,14 @@ from ..schemas.modal import (
 )
 
 
-def modal_deserialize(data: bytes, data_format: int | None = None) -> Any:
+def _modal_deserialize(data: bytes, data_format: int | None = None) -> Any:
     """Deserialize data using Modal's deserialization functions."""
-    if data_format:
+    if data_format is not None:
         return deserialize_data_format(data, data_format, None)
     return deserialize(data, None)
 
 
-def clean_and_raise_remote_exception(modal_result: api_pb2.GenericResult) -> None:
+def _clean_and_raise_remote_exception(modal_result: api_pb2.GenericResult) -> None:
     """Handle remote exceptions from Modal, with proper traceback handling."""
     if modal_result.traceback:
         rich.print(f"[red]{modal_result.traceback}[/red]")
@@ -49,7 +49,7 @@ def clean_and_raise_remote_exception(modal_result: api_pb2.GenericResult) -> Non
     if modal_result.data:
         try:
             # In these cases the data field contains an exception, not a real result
-            exc = modal_deserialize(modal_result.data)
+            exc = _modal_deserialize(modal_result.data)
         except DeserializationError as deser_exc:
             raise ExecutionError(
                 "Could not deserialize remote exception due to local error:\n"
@@ -71,15 +71,16 @@ def clean_and_raise_remote_exception(modal_result: api_pb2.GenericResult) -> Non
 
         if modal_result.serialized_tb:
             try:
-                tb_info: dict = modal_deserialize(modal_result.serialized_tb)
-                line_cache = modal_deserialize(modal_result.tb_line_cache)
+                tb_info: dict = _modal_deserialize(modal_result.serialized_tb)
+                line_cache = _modal_deserialize(modal_result.tb_line_cache)
                 append_modal_tb(exc, tb_info, line_cache)
             except:  # noqa
                 # deliberately suppress exceptions -- if we can't deserialize the traceback, we still raise the original exc
                 pass
+        # raise synchronicity-provided exception type
         raise UserCodeException(exc)
     else:
-        raise modal.exception.RemoteError(modal_result.exception)
+        raise RemoteError(modal_result.exception)
 
 
 class _ModalFunction:
@@ -112,12 +113,12 @@ class _ModalFunction:
 
         match modal_result.status:
             case api_pb2.GenericResult.GENERIC_STATUS_SUCCESS:
-                return modal_deserialize(modal_result.data)
+                return _modal_deserialize(modal_result.data)
             case api_pb2.GenericResult.GENERIC_STATUS_TIMEOUT:
                 raise modal.exception.FunctionTimeoutError(modal_result.exception)
             case _:
                 # Not a timeout or success, but a secret third thing
-                clean_and_raise_remote_exception(modal_result)
+                _clean_and_raise_remote_exception(modal_result)
 
     async def _upload_blob(self, data) -> str:
         """
