@@ -1,7 +1,10 @@
 import io
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from modal._serialization import serialize
+import modal
+import rich
+from modal._serialization import deserialize, deserialize_data_format, serialize
+from modal._traceback import append_modal_tb
 from modal._utils.async_utils import synchronize_api
 from modal._utils.blob_utils import (
     DEFAULT_SEGMENT_CHUNK_SIZE,
@@ -12,9 +15,10 @@ from modal._utils.blob_utils import (
     get_content_length,
     perform_multipart_upload,
 )
-from modal._utils.function_utils import _process_result
 from modal._utils.hash_utils import get_upload_hashes
+from modal.exception import DeserializationError, ExecutionError, RemoteError
 from modal_proto import api_pb2  # type: ignore
+from synchronicity.exceptions import UserCodeException  # type: ignore
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
@@ -26,7 +30,57 @@ from ..schemas.modal import (
     ModalFunctionMetadata,
     ModalInvocationRequest,
     ModalInvocationResponse,
+    _ModalGenericResult,
 )
+
+
+def _modal_deserialize(data: bytes, data_format: int | None = None) -> Any:
+    """Deserialize data using Modal's deserialization functions."""
+    if data_format is not None:
+        return deserialize_data_format(data, data_format, None)
+    return deserialize(data, None)
+
+
+def _clean_and_raise_remote_exception(modal_result: api_pb2.GenericResult) -> None:
+    """Handle remote exceptions from Modal, with proper traceback handling."""
+    if modal_result.traceback:
+        rich.print(f"[red]{modal_result.traceback}[/red]")
+
+    if modal_result.data:
+        try:
+            # In these cases the data field contains an exception, not a real result
+            exc = _modal_deserialize(modal_result.data)
+        except DeserializationError as deser_exc:
+            raise ExecutionError(
+                "Could not deserialize remote exception due to local error:\n"
+                + f"{deser_exc}\n"
+                + "This can happen if your local environment does not have the remote exception definitions.\n"
+                + "Here is the remote traceback:\n"
+                + f"{modal_result.traceback}"
+            ) from deser_exc.__cause__
+        except Exception as deser_exc:
+            raise ExecutionError(
+                "Could not deserialize remote exception due to local error:\n"
+                + f"{deser_exc}\n"
+                + "Here is the remote traceback:\n"
+                + f"{modal_result.traceback}"
+            ) from deser_exc
+
+        if not isinstance(exc, BaseException):
+            raise ExecutionError(f"Got remote exception of incorrect type {type(exc)}")
+
+        if modal_result.serialized_tb:
+            try:
+                tb_info: dict = _modal_deserialize(modal_result.serialized_tb)
+                line_cache = _modal_deserialize(modal_result.tb_line_cache)
+                append_modal_tb(exc, tb_info, line_cache)
+            except:  # noqa
+                # deliberately suppress exceptions -- if we can't deserialize the traceback, we still raise the original exc
+                pass
+        # raise synchronicity-provided exception type
+        raise UserCodeException(exc)
+    else:
+        raise RemoteError(modal_result.exception)
 
 
 class _ModalFunction:
@@ -36,9 +90,6 @@ class _ModalFunction:
         self._metadata = metadata
         self._client = client
 
-    # NOTE: read-only `@property` attributes had less surprising
-    # behavior on a synchronize_api-wrapped class than regular init attributes.
-    # No other reason for these to be properties.
     @property
     def metadata(self) -> ModalFunctionMetadata:
         return self._metadata
@@ -51,6 +102,23 @@ class _ModalFunction:
         from garden_ai import GardenClient
 
         return GardenClient()
+
+    async def __call__(self, *args, **kwargs) -> Any:
+        response: ModalInvocationResponse = await self._request_invocation(
+            *args, **kwargs
+        )
+        modal_result = api_pb2.GenericResult(
+            **response.result.model_dump(mode="python", exclude_defaults=True)
+        )
+
+        match modal_result.status:
+            case api_pb2.GenericResult.GENERIC_STATUS_SUCCESS:
+                return _modal_deserialize(modal_result.data)
+            case api_pb2.GenericResult.GENERIC_STATUS_TIMEOUT:
+                raise modal.exception.FunctionTimeoutError(modal_result.exception)
+            case _:
+                # Not a timeout or success, but a secret third thing
+                _clean_and_raise_remote_exception(modal_result)
 
     async def _upload_blob(self, data) -> str:
         """
@@ -96,7 +164,7 @@ class _ModalFunction:
             )
         return blob_id
 
-    async def __call__(self, *args, **kwargs):
+    async def _request_invocation(self, *args, **kwargs) -> ModalInvocationResponse:
         args_kwargs_serialized = serialize((args, kwargs))
 
         # Handle large arguments via blob storage if needed
@@ -111,6 +179,7 @@ class _ModalFunction:
                 function_id=self.metadata.id,
                 args_kwargs_serialized=args_kwargs_serialized,
             )
+
         # If we're in prod, track this invocation
         if self.client._mixpanel_track:
             event_properties = {
@@ -124,25 +193,18 @@ class _ModalFunction:
         response: ModalInvocationResponse = (
             self.client.backend_client.invoke_modal_function_async(request)
         )
-        result_data: dict = response.result.model_dump(
-            mode="python", exclude_defaults=True
-        )
-
-        if url := result_data.get("data_blob_url"):
+        if (url := response.result.data_blob_url) is not None:
             # hack: make large result data look like a regular modal payload.
-
-            # this lets us omit a modal client altogether in the
-            # `_process_result` helper (as opposed to needing an "anonymous
-            # client" just for deserializing)
             blob = await _download_from_url(url)  # type: ignore
-            result_data["data"] = blob
-            del result_data["data_blob_url"]
+            downloaded_result = _ModalGenericResult(
+                data=blob,
+                **response.result.model_dump(
+                    mode="python", exclude={"data", "data_blob_url"}
+                ),
+            )
+            response.result = downloaded_result
 
-        modal_result_struct = api_pb2.GenericResult(**result_data)
-
-        return await _process_result(
-            modal_result_struct, response.data_format, stub=None, client=None
-        )
+        return response
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and self.metadata == other.metadata

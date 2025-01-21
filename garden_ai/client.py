@@ -40,10 +40,11 @@ from garden_ai.gardens import Garden
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
+from modal.cli._traceback import setup_rich_traceback
 
 logger = logging.getLogger()
-
-rich.traceback.install()
+# modal helper replacement for rich.traceback.install
+setup_rich_traceback()
 
 
 class AuthException(Exception):
