@@ -145,11 +145,6 @@ class Entrypoint:
         )
         return style + title + details + optional
 
-    def __eq__(self, other):
-        if not isinstance(other, Entrypoint):
-            return False
-        return self.metadata == other.metadata
-
 
 class EntrypointIdempotencyError(Exception):
     """Raised when an entrypoint function is found to be non-idempotent."""
