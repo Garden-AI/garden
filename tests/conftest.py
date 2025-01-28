@@ -362,7 +362,7 @@ def patch_infer_revision(mocker):
     )
 
     mocker.patch(
-        "garden_ai.model_connectors.GitHubConnector._infer_revision",
+        "garden_ai.model_connectors.HFConnector._infer_revision",
         return_value=40 * "a",
     )
 
