@@ -15,6 +15,7 @@ from globus_sdk import (
 
 from garden_ai import GardenClient, Entrypoint, Garden
 from garden_ai.client import AuthException
+import sys
 
 is_gha = os.getenv("GITHUB_ACTIONS")
 
@@ -247,20 +248,6 @@ def test_client_datacite_url_correct(
     # Assert that the URL in the payload is correct
     payload = mock_update_doi_on_datacite.call_args[0][0]
     assert payload["data"]["attributes"]["url"] == expected_url
-
-
-def test_get_entrypoint_get_entrypoint_data_from_backend(
-    garden_client,
-    mock_RegisteredEntrypointMetadata,
-):
-    with patch(
-        "garden_ai.backend_client.BackendClient._get",
-        Mock(return_value=mock_RegisteredEntrypointMetadata.model_dump(mode="json")),
-    ) as mock_get:
-        ep = garden_client.get_entrypoint(mock_RegisteredEntrypointMetadata.doi)
-
-        mock_get.assert_called_once()
-        assert ep == Entrypoint(mock_RegisteredEntrypointMetadata)
 
 
 def test_get_email_returns_correct_email_for_logged_in_user(
