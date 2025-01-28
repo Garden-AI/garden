@@ -146,7 +146,9 @@ class Entrypoint:
         return style + title + details + optional
 
     def __eq__(self, other):
-        return isinstance(other, type(self)) and self.metadata == other.metadata
+        if not isinstance(other, Entrypoint):
+            return False
+        return self.metadata == other.metadata
 
 
 class EntrypointIdempotencyError(Exception):
