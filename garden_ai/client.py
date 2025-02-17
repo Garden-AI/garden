@@ -36,7 +36,7 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden
+from garden_ai.gardens import Garden, CustomEndpointGarden
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
@@ -383,15 +383,23 @@ class GardenClient:
             )
 
     def get_garden(self, doi: str) -> Garden:
-        """
-        Return the published Garden associated with the given DOI.
+        """Get a Garden instance for a specific model.
 
-        Parameters:
-            doi: The DOI of the garden. Raises an exception if not found.
+        Args:
+            doi: The DOI or special identifier for the model
 
         Returns:
-            The published Garden object. Any [entrypoints][garden_ai.Entrypoint] in the garden can be called like methods on this object.
+            Garden: A Garden instance configured for the specified model
         """
+        if doi.lower() == "alphafold2":
+            # Custom endpoint for AlphaFold2
+            endpoint_id = "b1be97db-6d56-4ba7-8ef3-d5f77581e87c"
+            function_id = "2a84ee6a-ab11-433c-95f5-37c583704605"  # You'll need to specify the correct function name
+
+            return CustomEndpointGarden(
+                client=self, doi=doi, endpoint_id=endpoint_id, function_id=function_id
+            )
+
         garden = self.backend_client.get_garden(doi)
         return garden
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, TypeVar
-
+from uuid import UUID
 from tabulate import tabulate
 
 from garden_ai.modal.functions import ModalFunction
@@ -257,3 +257,48 @@ class Garden:
         ]
 
         return cls(metadata, entrypoints, modal_functions, modal_classes)
+
+
+class CustomEndpointGarden(Garden):
+    """A Garden that uses a specific endpoint and function."""
+
+    def __init__(self, client, doi: str, endpoint_id: str, function_id: str):
+        self.client = client
+
+        # Create the entrypoint first so we can use its DOI
+        entrypoint_metadata = RegisteredEntrypointMetadata(
+            doi=f"{doi}/predict",
+            title="AlphaFold2 Prediction",
+            description="Predict protein structure using AlphaFold2",
+            short_name="predict",
+            func_uuid=function_id,
+            container_uuid=UUID(
+                "00000000-0000-0000-0000-000000000000"
+            ),  # Placeholder UUID
+            base_image_uri="N/A",  # Custom endpoint doesn't use container
+            full_image_uri="N/A",  # Custom endpoint doesn't use container
+            notebook_url="https://thegardens.ai/",  # No associated notebook
+            function_text="",  # No function text needed for custom endpoint
+            entrypoint_ids=[],
+            doi_is_draft=False,
+        )
+        predict_entrypoint = Entrypoint(entrypoint_metadata)
+
+        # Now create garden metadata with the correct entrypoint_ids
+        metadata = GardenMetadata(
+            doi=doi,
+            title="AlphaFold2",
+            description="AlphaFold2 protein structure prediction",
+            entrypoint_ids=[entrypoint_metadata.doi],  # Include the entrypoint's DOI
+            entrypoint_aliases={},
+            doi_is_draft=False,
+        )
+
+        super().__init__(metadata=metadata, entrypoints=[predict_entrypoint])
+        self.endpoint_id = endpoint_id
+
+    def predict(self, *args, **kwargs):
+        """Main prediction method that invokes the custom endpoint."""
+        # Set the endpoint on the entrypoint itself
+        self.entrypoints[0].endpoint_id = self.endpoint_id
+        return self.entrypoints[0](*args, **kwargs)
