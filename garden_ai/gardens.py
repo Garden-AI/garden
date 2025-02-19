@@ -272,24 +272,21 @@ class CustomEndpointGarden(Garden):
             description="Predict protein structure using AlphaFold2",
             short_name="predict",
             func_uuid=function_id,
-            container_uuid=UUID(
-                "00000000-0000-0000-0000-000000000000"
-            ),  # Placeholder UUID
-            base_image_uri="N/A",  # Custom endpoint doesn't use container
-            full_image_uri="N/A",  # Custom endpoint doesn't use container
-            notebook_url="https://thegardens.ai/",  # No associated notebook
-            function_text="",  # No function text needed for custom endpoint
+            container_uuid=UUID("00000000-0000-0000-0000-000000000000"),
+            base_image_uri="N/A",
+            full_image_uri="N/A",
+            notebook_url="https://thegardens.ai/",
+            function_text="",
             entrypoint_ids=[],
             doi_is_draft=False,
         )
         predict_entrypoint = Entrypoint(entrypoint_metadata)
 
-        # Now create garden metadata with the correct entrypoint_ids
         metadata = GardenMetadata(
             doi=doi,
             title="AlphaFold2",
             description="AlphaFold2 protein structure prediction",
-            entrypoint_ids=[entrypoint_metadata.doi],  # Include the entrypoint's DOI
+            entrypoint_ids=[entrypoint_metadata.doi],
             entrypoint_aliases={},
             doi_is_draft=False,
         )
@@ -297,8 +294,38 @@ class CustomEndpointGarden(Garden):
         super().__init__(metadata=metadata, entrypoints=[predict_entrypoint])
         self.endpoint_id = endpoint_id
 
+    def submit(self, *args, **kwargs):
+        """Submit the job to the endpoint and return the task ID immediately."""
+        self.entrypoints[0].endpoint_id = self.endpoint_id
+        # Use the client's compute_client directly
+        return self.client.compute_client.run(
+            endpoint_id=self.endpoint_id,
+            function_id=str(self.entrypoints[0].metadata.func_uuid),
+            *args,  # Pass args directly
+            **kwargs,  # Pass kwargs directly
+        )
+
+    def retrieve(self, task_id: str):
+        """Check the status of a submitted task and return results if complete.
+
+        Args:
+            task_id: The task ID returned by submit()
+
+        Returns:
+            The task result if complete, or a status update if still running
+        """
+        try:
+            return self.client.compute_client.get_result(task_id)
+        except Exception as e:
+            # Return the status if task hasn't completed
+            print(e)
+            status = self.client.compute_client.get_task(task_id)
+            return status
+
     def predict(self, *args, **kwargs):
         """Main prediction method that invokes the custom endpoint."""
         # Set the endpoint on the entrypoint itself
         self.entrypoints[0].endpoint_id = self.endpoint_id
+        # Pass the endpoint parameter correctly
+        kwargs["endpoint"] = self.endpoint_id
         return self.entrypoints[0](*args, **kwargs)

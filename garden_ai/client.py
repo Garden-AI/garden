@@ -394,10 +394,14 @@ class GardenClient:
         if doi.lower() == "alphafold2":
             # Custom endpoint for AlphaFold2
             endpoint_id = "b1be97db-6d56-4ba7-8ef3-d5f77581e87c"
-            function_id = "2a84ee6a-ab11-433c-95f5-37c583704605"  # You'll need to specify the correct function name
+            # fn_id = "2a84ee6a-ab11-433c-95f5-37c583704605"  # Hello sayer
+            # fn_id = "8125a4c9-b55b-4fd4-aac4-f834066b0df2"  # AlphaFold2
+            # fn_id = "66d9c324-af8b-4f9c-8d16-b88605e895a2" # error reporter
+            # fn_id = "c4d363e7-e746-4d97-980d-7275c57326b5" # all context
+            fn_id = "0b692898-5da9-4fdd-b4e4-a8415fa9b0f4"  # diagnostics
 
             return CustomEndpointGarden(
-                client=self, doi=doi, endpoint_id=endpoint_id, function_id=function_id
+                client=self, doi=doi, endpoint_id=endpoint_id, function_id=fn_id
             )
 
         garden = self.backend_client.get_garden(doi)
