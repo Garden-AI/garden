@@ -36,7 +36,7 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden, CustomEndpointGarden
+from garden_ai.gardens import Garden, AlphaFoldGarden
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.utils._meta import make_function_to_register
@@ -392,16 +392,17 @@ class GardenClient:
             Garden: A Garden instance configured for the specified model
         """
         if doi.lower() == "alphafold2":
-            # Custom endpoint for AlphaFold2
+            # TODO: just consolidate this into the AlphaFoldGarden class
             endpoint_id = "b1be97db-6d56-4ba7-8ef3-d5f77581e87c"
-            # fn_id = "2a84ee6a-ab11-433c-95f5-37c583704605"  # Hello sayer
-            # fn_id = "8125a4c9-b55b-4fd4-aac4-f834066b0df2"  # AlphaFold2
-            # fn_id = "66d9c324-af8b-4f9c-8d16-b88605e895a2" # error reporter
-            # fn_id = "c4d363e7-e746-4d97-980d-7275c57326b5" # all context
-            fn_id = "0b692898-5da9-4fdd-b4e4-a8415fa9b0f4"  # diagnostics
-
-            return CustomEndpointGarden(
-                client=self, doi=doi, endpoint_id=endpoint_id, function_id=fn_id
+            return AlphaFoldGarden(
+                client=self,
+                doi=doi,
+                endpoint_id=endpoint_id,
+                function_ids=[
+                    "e7f4fb4a-9b4c-4479-8431-f01f0860fc3b",
+                    "156cba39-441d-45eb-b1bd-b4cb8858153c",
+                    "4230fbd4-f918-49f0-b948-4b408dbfd3de",
+                ],
             )
 
         garden = self.backend_client.get_garden(doi)

@@ -259,73 +259,59 @@ class Garden:
         return cls(metadata, entrypoints, modal_functions, modal_classes)
 
 
-class CustomEndpointGarden(Garden):
+class AlphaFoldGarden(Garden):
     """A Garden that uses a specific endpoint and function."""
 
-    def __init__(self, client, doi: str, endpoint_id: str, function_id: str):
+    def __init__(self, client, doi: str, endpoint_id: str, function_ids: list[str]):
         self.client = client
 
-        # Create the entrypoint first so we can use its DOI
-        entrypoint_metadata = RegisteredEntrypointMetadata(
-            doi=f"{doi}/predict",
-            title="AlphaFold2 Prediction",
-            description="Predict protein structure using AlphaFold2",
-            short_name="predict",
-            func_uuid=function_id,
-            container_uuid=UUID("00000000-0000-0000-0000-000000000000"),
-            base_image_uri="N/A",
-            full_image_uri="N/A",
-            notebook_url="https://thegardens.ai/",
-            function_text="",
-            entrypoint_ids=[],
-            doi_is_draft=False,
-        )
-        predict_entrypoint = Entrypoint(entrypoint_metadata)
+        # function_ids = ['bfc5557c-a1ff-4503-b276-8a8f6a4a4df1', '320aa08a-114e-4181-a393-98e3fcd02b0d']
+        function_names = ["predict", "check_prediction_status", "retrieve_results"]
+
+        stub_entrypoints = []
+        for function_id, function_name in zip(function_ids, function_names):
+            # Create the entrypoint first so we can use its DOI
+            entrypoint_metadata = RegisteredEntrypointMetadata(
+                doi=f"{doi}/{function_name}",
+                title="AlphaFold2 Prediction",
+                description="Predict protein structure using AlphaFold2",
+                short_name=function_name,
+                func_uuid=function_id,
+                container_uuid=UUID("00000000-0000-0000-0000-000000000000"),
+                base_image_uri="N/A",
+                full_image_uri="N/A",
+                notebook_url="https://thegardens.ai/",
+                function_text="",
+                entrypoint_ids=[],
+                doi_is_draft=False,
+            )
+            stub_entrypoints.append(Entrypoint(entrypoint_metadata))
 
         metadata = GardenMetadata(
             doi=doi,
             title="AlphaFold2",
             description="AlphaFold2 protein structure prediction",
-            entrypoint_ids=[entrypoint_metadata.doi],
+            entrypoint_ids=[ep.metadata.doi for ep in stub_entrypoints],
             entrypoint_aliases={},
             doi_is_draft=False,
         )
 
-        super().__init__(metadata=metadata, entrypoints=[predict_entrypoint])
+        super().__init__(metadata=metadata, entrypoints=stub_entrypoints)
         self.endpoint_id = endpoint_id
 
-    def submit(self, *args, **kwargs):
-        """Submit the job to the endpoint and return the task ID immediately."""
-        self.entrypoints[0].endpoint_id = self.endpoint_id
-        # Use the client's compute_client directly
-        return self.client.compute_client.run(
-            endpoint_id=self.endpoint_id,
-            function_id=str(self.entrypoints[0].metadata.func_uuid),
-            *args,  # Pass args directly
-            **kwargs,  # Pass kwargs directly
-        )
-
-    def retrieve(self, task_id: str):
-        """Check the status of a submitted task and return results if complete.
-
-        Args:
-            task_id: The task ID returned by submit()
-
-        Returns:
-            The task result if complete, or a status update if still running
-        """
-        try:
-            return self.client.compute_client.get_result(task_id)
-        except Exception as e:
-            # Return the status if task hasn't completed
-            print(e)
-            status = self.client.compute_client.get_task(task_id)
-            return status
-
-    def predict(self, *args, **kwargs):
+    # We'll call this 'submit' instead
+    def submit(self, fasta_string: str):
         """Main prediction method that invokes the custom endpoint."""
-        # Set the endpoint on the entrypoint itself
-        self.entrypoints[0].endpoint_id = self.endpoint_id
-        # Pass the endpoint parameter correctly
-        kwargs["endpoint"] = self.endpoint_id
-        return self.entrypoints[0](*args, **kwargs)
+        print(f"Submitting HPC job to predict structure of {fasta_string}")
+        resp = self.entrypoints[0](endpoint=self.endpoint_id)
+        if type(resp) is dict:
+            return resp
+        raise ValueError(resp)
+
+    def check_prediction_status(self, task_id: str):
+        """Check the status of a submitted task."""
+        return self.entrypoints[1](task_id, endpoint=self.endpoint_id)
+
+    def retrieve_results(self, pdb_id: str):
+        """Retrieve the results of a submitted task."""
+        return self.entrypoints[2](pdb_id, endpoint=self.endpoint_id)
