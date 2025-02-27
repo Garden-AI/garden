@@ -303,7 +303,7 @@ class AlphaFoldGarden(Garden):
     def submit(self, fasta_string: str):
         """Main prediction method that invokes the custom endpoint."""
         print(f"Submitting HPC job to predict structure of {fasta_string}")
-        resp = self.entrypoints[0](endpoint=self.endpoint_id)
+        resp = self.entrypoints[0](fasta_string, endpoint=self.endpoint_id)
         if type(resp) is dict:
             return resp
         raise ValueError(resp)
