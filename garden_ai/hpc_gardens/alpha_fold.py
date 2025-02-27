@@ -1,10 +1,9 @@
 from uuid import UUID
 
-from gardens import Garden
+from ..gardens import Garden
+from ..entrypoints import Entrypoint
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
-
-from ..entrypoints import Entrypoint
 
 
 class AlphaFoldGarden(Garden):
