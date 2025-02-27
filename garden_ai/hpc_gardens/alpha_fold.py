@@ -24,6 +24,7 @@ class AlphaFoldGarden(Garden):
         for function_id, function_name in zip(function_ids, function_names):
             entrypoint_metadata = RegisteredEntrypointMetadata(
                 doi=f"{doi}/{function_name}",
+                authors=["DeepMind"],
                 title="AlphaFold2 Prediction",
                 description="Predict protein structure using AlphaFold2",
                 short_name=function_name,
@@ -40,6 +41,7 @@ class AlphaFoldGarden(Garden):
 
         metadata = GardenMetadata(
             doi=doi,
+            authors=["DeepMind"],
             title="AlphaFold2",
             description="AlphaFold2 protein structure prediction",
             entrypoint_ids=[ep.metadata.doi for ep in stub_entrypoints],
