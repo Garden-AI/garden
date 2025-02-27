@@ -36,9 +36,10 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.entrypoints import Entrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden, AlphaFoldGarden
+from garden_ai.gardens import Garden
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.hpc_gardens.alpha_fold import AlphaFoldGarden
 from garden_ai.utils._meta import make_function_to_register
 from modal.cli._traceback import setup_rich_traceback
 
@@ -392,18 +393,7 @@ class GardenClient:
             Garden: A Garden instance configured for the specified model
         """
         if doi.lower() == "alphafold2":
-            # TODO: just consolidate this into the AlphaFoldGarden class
-            endpoint_id = "b1be97db-6d56-4ba7-8ef3-d5f77581e87c"
-            return AlphaFoldGarden(
-                client=self,
-                doi=doi,
-                endpoint_id=endpoint_id,
-                function_ids=[
-                    "e7f4fb4a-9b4c-4479-8431-f01f0860fc3b",
-                    "156cba39-441d-45eb-b1bd-b4cb8858153c",
-                    "4230fbd4-f918-49f0-b948-4b408dbfd3de",
-                ],
-            )
+            return AlphaFoldGarden(client=self, doi=doi)
 
         garden = self.backend_client.get_garden(doi)
         return garden
