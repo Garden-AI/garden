@@ -384,13 +384,12 @@ class GardenClient:
             )
 
     def get_garden(self, doi: str) -> Garden:
-        """Get a Garden instance for a specific model.
-
-        Args:
-            doi: The DOI or special identifier for the model
-
+        """
+        Return the published Garden associated with the given DOI.
+        Parameters:
+            doi: The DOI of the garden. Raises an exception if not found.
         Returns:
-            Garden: A Garden instance configured for the specified model
+            The published Garden object. Any [entrypoints][garden_ai.Entrypoint] in the garden can be called like methods on this object.
         """
         if doi.lower() == "alphafold2":
             return AlphaFoldGarden(client=self, doi=doi)

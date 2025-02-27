@@ -22,7 +22,6 @@ class AlphaFoldGarden(Garden):
 
         stub_entrypoints = []
         for function_id, function_name in zip(function_ids, function_names):
-            # Create the entrypoint first so we can use its DOI
             entrypoint_metadata = RegisteredEntrypointMetadata(
                 doi=f"{doi}/{function_name}",
                 title="AlphaFold2 Prediction",
@@ -51,7 +50,6 @@ class AlphaFoldGarden(Garden):
         super().__init__(metadata=metadata, entrypoints=stub_entrypoints)
         self.endpoint_id = endpoint_id
 
-    # We'll call this 'submit' instead
     def submit(self, fasta_string: str):
         """Main prediction method that invokes the custom endpoint."""
         print(f"Submitting HPC job to predict structure of {fasta_string}")
