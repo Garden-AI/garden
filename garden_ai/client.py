@@ -39,6 +39,7 @@ from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.hpc_gardens.alpha_fold import AlphaFoldGarden
 from garden_ai.utils._meta import make_function_to_register
 from modal.cli._traceback import setup_rich_traceback
 
@@ -385,13 +386,14 @@ class GardenClient:
     def get_garden(self, doi: str) -> Garden:
         """
         Return the published Garden associated with the given DOI.
-
         Parameters:
             doi: The DOI of the garden. Raises an exception if not found.
-
         Returns:
             The published Garden object. Any [entrypoints][garden_ai.Entrypoint] in the garden can be called like methods on this object.
         """
+        if doi.lower() == "alphafold2":
+            return AlphaFoldGarden(client=self, doi=doi)
+
         garden = self.backend_client.get_garden(doi)
         return garden
 
