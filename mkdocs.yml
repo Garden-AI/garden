@@ -3,18 +3,8 @@ repo_url: https://github.com/Garden-AI/garden
 edit_uri: edit/main/docs/
 nav:
   - Overview: index.md
-  - User Guide:
-      - Concepts: user_guide/concepts.md
-      - Installation: user_guide/installation.md
-      - Publishing:
-          - Modal: user_guide/publishing/modal-publishing.md
-          - Docker: user_guide/publishing/tutorial_docker.md
-      - Guides:
-        - Setting up Docker: user_guide/guides/docker.md
-      - FAQs: user_guide/faqs.md
-  - Reference:
-    - API Reference: api-docs.md
-    - CLI Reference: garden-ai.md
+  - Publishing with Modal: user_guide/publishing/modal-publishing.md
+  - API Reference: api-docs.md
   - Developer Guide: developer_guide/contributing.md
 theme:
   name: material
