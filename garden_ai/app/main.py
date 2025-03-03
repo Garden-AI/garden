@@ -8,23 +8,10 @@ import typer
 
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
-from garden_ai.app.docker import docker_app
-from garden_ai.app.entrypoint import entrypoint_app
-from garden_ai.app.garden import garden_app
-from garden_ai.app.hpc_notebook import hpc_notebook_app
-from garden_ai.app.notebook import notebook_app
 
 logger = logging.getLogger()
 
 app = typer.Typer(no_args_is_help=True)
-
-
-# nb: subcommands are mini typer apps in their own right
-app.add_typer(garden_app)
-app.add_typer(entrypoint_app)
-app.add_typer(notebook_app)
-app.add_typer(docker_app)
-app.add_typer(hpc_notebook_app, hidden=True)
 
 
 def show_version(show: bool):

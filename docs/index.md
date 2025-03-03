@@ -25,23 +25,13 @@ Garden lets researchers focus on their science, not on the intricacies of their 
 
 New to Garden? Here are some great places to begin:
 
-- [Installation Guide](user_guide/installation.md) - Get Garden set up on your machine
-- [Concept Overview](user_guide/concepts.md) - Understand Garden's key concepts and design
-- [Tutorial](user_guide/publishing/modal-publishing.md) - Follow our step-by-step guide to publish your first model
-
-
 ## For Users
 
-- [FAQs](user_guide/faqs.md) - Find answers to common questions and troubleshooting tips
 - [Publishing with Modal](user_guide/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
-- ["Seedlings" Repository](https://github.com/Garden-AI/seedlings) - Example projects to help you get started
-- [Docker Guide](user_guide/guides/docker.md) - Learn about Garden's use of Docker for consistent reproducible environments
-- [Publishing with Docker](user_guide/publishing/tutorial_docker.md) - Learn how to publish a Garden using Docker
 
 ## Additional Resources
 
 - [thegardens.ai](https://thegardens.ai) - Our website, where you can create and explore published gardens
-- [CLI Reference](garden-ai.md) - Comprehensive guide to Garden's command-line interface
 - [SDK Reference](api-docs.md) - Documentation for user-facing classes and helper functions
 
 ## For Developers
