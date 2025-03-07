@@ -4,22 +4,23 @@ hide:
 ---
 # 🌱 Garden-AI Documentation 🌱
 
-!!! Tip
-    This is the documentation website for the Garden-AI SDK. To search for published Gardens visit [thegardens.ai](https://thegardens.ai)
+Garden helps researchers find, share, and **run** scientific AI models for materials science, structural biology, astrophysics, and more. If a model is on Garden, you can run it, right now.
 
-Garden is a framework designed to make it easier for the scientific community to benefit from FAIR (Findable, Accessible, Interoperable, Reusable) principles for AI/ML models. Garden addresses key challenges faced by academic researchers in discovering, reproducing, and running AI/ML models:
+## Using Existing Models
 
-1. **Reproducibility**: Garden eliminates environment inconsistencies by containerizing models, ensuring they run consistently across different systems.
+<div style="text-align: center;">
+  <img src="assets/garden_consumer_flow.png" alt="Garden Consumer Flow" width="600" />
+</div>
 
-2. **Discoverability**: With curated "Gardens" of models, researchers can easily find, compare, and curate relevant models for their work.
+Garden lets you browse collections ("gardens") of AI models  on [thegardens.ai](https://thegardens.ai). These model gardens might be grouped by task, like a collection of materials property predictors that have the same input/output shape but use different architectures. They can also be grouped by theme, like a collection of biology models that perform different tasks but were chained together in a protein generation pipeline.
 
-3. **Accessibility**: Garden simplifies the process of running models on diverse computing resources, from local machines to HPC clusters, via Globus Compute integration.
+Model gardens bring together serialized models ("weights"), code to invoke the model, training datasets, and papers. Most importantly, models on Garden are _runnable_. You can use the Garden Python SDK to run a model on your own data. When you call a model, Garden spins up a remote environment on demand using [Modal](https://modal.com/), runs the model remotely, and returns the output to your local environment. This lets you quickly "shop" for the right model for your research without setting up a different environment for every model you want to evaluate.
 
-4. **Time-saving**: By handling environment management and system-specific quirks, Garden significantly reduces the time researchers spend on setup and configuration.
+## Adding Models to Garden
 
-5. **Collaboration**: FAIR principles (Findable, Accessible, Interoperable, Reusable) and standardized publishing make it easier for researchers to share their work and build upon others' contributions.
+It's easy to get new models running in Garden. If you are a model developer, Garden is a great way to make your work accessible to other researchers in your field and get more citations. But you can also use Garden to share working versions of models you didn't develop yourself, cultivate a collection of models useful in your field, develop living benchmarks, and more.
 
-Garden lets researchers focus on their science, not on the intricacies of their software environments or computing infrastructure.
+If you are interested in making models available on Garden, reach out to us at [gardens@teams.uchicago.edu](mailto:garden@teams.uchicago.edu) - we just need to make sure you're not a spambot. Then you can find instructions on how to publish with Garden [here](user_guide/modal-publishing.md).
 
 ## Getting Started
 
