@@ -2,7 +2,7 @@
 
 !!! Warning
     Use of this feature requires that your Globus account is authorized by the Garden Team. Please [contact](mailto:thegardens@uchicago.edu) us if you are interested in using this feature.
-    For another publishing flow that doesn't require special authorization, see: [Publishing with Docker](tutorial_docker.md).
+
 
 ## 1. Introduction
 
@@ -27,7 +27,7 @@ Create a free Modal account by linking your GitHub: [signup](https://modal.com/s
 ### Install the Modal CLI
 Create a python virtual env and install the current modal CLI and SDK along
 with the Garden CLI and SDK:
-    
+
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
@@ -45,7 +45,7 @@ modal setup
 
 ### Create a python file for your Modal App
 
-Modal files are regular python scripts that define a modal app and decorate one 
+Modal files are regular python scripts that define a modal app and decorate one
 or more functions. Create a new python file in your project:
 
 ```bash
@@ -150,7 +150,7 @@ def my_other_cool_function(data):
 
 ## 3. Testing and Debugging
 Garden provides a citable, findable, wrapper around the modal function. Before we
-register the function with Garden it can be useful to test it with the raw modal 
+register the function with Garden it can be useful to test it with the raw modal
 runtime tools. This makes for a faster feedback loop when developing and debugging.
 
 To enable this, we have to add a `local_entrypoint` to our python script. This is only
@@ -166,13 +166,13 @@ def main():
 ```
 
 Ask modal to run this with:
-    
+
 ```bash
 modal run my_app.py
 ```
 
 ## 4. Specify Dependencies and Cache Model
-Modal allows you to define an _image_ in which the function will run. See the modal 
+Modal allows you to define an _image_ in which the function will run. See the modal
 docs on [images](https://modal.com/docs/guide/images) for full information. Here's
 an example of how to define an image that includes some pip dependencies, installs
 wget into the debian image, and downloads a model from figshare:
@@ -191,7 +191,7 @@ image = modal.Image.debian_slim(python_version="3.12").apt_install("wget") \
 In this example, the model will be available to the function in the container at `/model.pth`.
 
 ### Caching Hugging Face Models
-If you are using one of HuggingFace's published transformers, you can take advantage 
+If you are using one of HuggingFace's published transformers, you can take advantage
 of the library's caching strategy. You need to call the python functions to load the models
 during the `run_commands` phase of the image build. Here is an example of how to cache
 the `distilbert-base-uncased` model:
