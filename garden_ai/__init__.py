@@ -26,3 +26,13 @@ __all__ = [
     "entrypoint_test",
     "create_connector",
 ]
+
+
+def get_garden(doi: str) -> Garden:
+    gc = GardenClient()
+    return gc.get_garden(doi)
+
+
+def get_function(doi: str) -> Entrypoint:
+    gc = GardenClient()
+    return gc.get_entrypoint(doi)
