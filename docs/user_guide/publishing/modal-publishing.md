@@ -1,7 +1,7 @@
 # Publishing a Garden with Modal
 
 !!! Warning
-    Use of this feature requires that your Globus account is authorized by the Garden Team. Please [contact](mailto:thegardens@uchicago.edu) us if you are interested in using this feature.
+    Use of this feature requires that your Globus account is authorized by the Garden Team. Please [email us](mailto:thegardens@uchicago.edu) or [fill out this form](https://forms.gle/59F8JKktdEvph6Jg6) if you are interested in creating gardens.
 
 
 ## 1. Introduction
@@ -229,29 +229,25 @@ Create a Garden and upload your Modal App on the [Create Garden](https://thegard
 
 Or Click 'Create a Garden' from the [Garden Home Page](https://thegardens.ai)
 
-![Create a Garden](./images/modal_publishing/create_a_garden.png)
-
-Then click 'Get Started' on the option to create a garden from a Modal App.
-
-![Create a Garden from Modal App](./images/modal_publishing/create_garden_from_modal_app.png)
+![Create a Garden](../images/modal_publishing/create_a_garden.png)
 
 ### Fill in Garden Details
 
 Fill in the general details about your garden including a title, description of the Garden, and any tags you want to add.
 
-![Fill in Garden Details](./images/modal_publishing/garden_general_info.png)
+![Fill in Garden Details](../images/modal_publishing/garden_general_info.png)
 
 ### Upload the Modal App
 
 Upload the Modal App by clicking 'Browse' and selecting the python file defining your Modal App.
 
-![Upload Modal App](./images/modal_publishing/garden_modal_app.png)
+![Upload Modal App](../images/modal_publishing/garden_modal_app.png)
 
 ### Add Contributors
 
 Fill in information about the authors and any contributors to the Garden.
 
-![Add Contributors](./images/modal_publishing/garden_contributors_and_submit.png)
+![Add Contributors](../images/modal_publishing/garden_contributors_and_submit.png)
 
 ### Submit the form
 

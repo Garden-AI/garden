@@ -20,7 +20,7 @@ Model gardens bring together serialized models ("weights"), code to invoke the m
 
 It's easy to get new models running in Garden. If you are a model developer, Garden is a great way to make your work accessible to other researchers in your field and get more citations. But you can also use Garden to share working versions of models you didn't develop yourself, cultivate a collection of models useful in your field, develop living benchmarks, and more.
 
-If you are interested in making models available on Garden, reach out to us at [gardens@teams.uchicago.edu](mailto:garden@teams.uchicago.edu) - we just need to make sure you're not a spambot. Then you can find instructions on how to publish with Garden [here](user_guide/modal-publishing.md).
+If you are interested in making models available on Garden, reach out to us at [gardens@teams.uchicago.edu](mailto:garden@teams.uchicago.edu) - we just need to make sure you're not a spambot. Then you can find instructions on how to publish with Garden [here](user_guide/publishing/modal-publishing.md).
 
 ## Getting Started
 
@@ -28,7 +28,7 @@ New to Garden? Here are some great places to begin:
 
 ## For Users
 
-- [Publishing with Modal](user_guide/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
+- [Publishing with Modal](user_guide/publishing/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
 
 ## Additional Resources
 
