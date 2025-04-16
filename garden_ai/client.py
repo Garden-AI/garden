@@ -9,8 +9,6 @@ from typing import Callable, Optional, Union
 from uuid import UUID
 
 import mixpanel  # type: ignore
-import rich
-import rich.traceback
 import typer
 from globus_compute_sdk import Client
 from globus_compute_sdk.sdk.login_manager import ComputeScopes
@@ -246,61 +244,6 @@ class GardenClient:
             authorizer = AccessTokenAuthorizer(tokens["access_token"])
         return authorizer
 
-    def _create_garden(self, metadata: GardenMetadata) -> Garden:
-        """Initialize a new Garden object from GardenMetadata"""
-        return self.backend_client.put_garden(metadata)
-
-    def add_entrypoint_to_garden(
-        self, entrypoint_doi: str, garden_doi: str, alias: str | None = None
-    ) -> Garden:
-        """Add an entrypoint to a garden via the backend.
-
-        Parameters
-        ----------
-        entrypoint_doi:
-            The DOI of the entrypoint you want to attach. User does not need to
-            own this entrypoint.
-        garden_doi:
-            The DOI of the target garden. User must own this garden or request
-            will fail.
-        alias:
-            If provided, an alternative name this garden should use when
-            accessing the entrypoint as an attribute.
-
-        Returns
-        -------
-        Garden
-            Rehydrated ``Garden`` with the entrypoint attached.
-        """
-        garden_meta = self.backend_client.get_garden_metadata(garden_doi)
-        entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
-
-        entrypoint_name = alias or entrypoint_meta.short_name
-        if entrypoint_name in garden_meta.entrypoint_aliases.values():
-            raise ValueError(
-                f"Failed to add entrypoint {entrypoint_meta.doi} ({entrypoint_name}) to garden {garden_meta.doi}: "
-                "garden already has another entrypoint under that name."
-            )
-
-        if entrypoint_doi not in garden_meta.entrypoint_ids:
-            garden_meta.entrypoint_ids += [entrypoint_doi]
-
-        if alias:
-            assert (
-                alias.isidentifier()
-            ), "entrypoint alias must be a valid python identifier."
-            garden_meta.entrypoint_aliases[entrypoint_doi] = alias
-        else:
-            garden_meta.entrypoint_aliases[entrypoint_doi] = entrypoint_meta.short_name
-
-        return self.backend_client.put_garden(garden_meta)
-
-    def register_garden_doi(self, garden_doi: str) -> None:
-        garden_meta = self.backend_client.get_garden_metadata(garden_doi)
-        self._update_datacite(garden_meta, register_doi=True)
-        garden_meta.doi_is_draft = False
-        self.backend_client.put_garden(garden_meta)
-
     def register_entrypoint_doi(self, entrypoint_doi: str) -> None:
         """
         Makes an entrypoint's DOI registered and findable with DataCite via the Garden backend.
@@ -461,21 +404,3 @@ class GardenClient:
             self._update_datacite(registered_meta)
 
             self.backend_client.put_entrypoint_metadata(registered_meta)
-
-            # attach entrypoint to garden (if one was specified)
-            if garden_doi := record.get("target_garden_doi"):
-                try:
-                    garden = self.add_entrypoint_to_garden(
-                        registered_meta.doi, garden_doi
-                    )
-                except ValueError as e:
-                    suggested_command = f"garden-ai garden add-entrypoint --garden {garden_doi} --entrypoint {registered_meta.doi} --alias <new_name>"
-                    message = f"--------------------------------\n{e}\n"
-                    message += "Entrypoint was registered successfully; you can still add the entrypoint to this garden under an alternative name "
-                    message += "with the following CLI command: \n"
-                    message += f"[bold green]  {suggested_command}[/bold green]"
-                    rich.print(message)
-                else:
-                    rich.print(
-                        f"[b g]Added entrypoint {doi} ({registered_meta.short_name}) to garden {garden_doi} ({garden.metadata.title})![/b g]"
-                    )

@@ -147,36 +147,6 @@ def test_get_garden_raises_on_backend_failure(
         garden = backend_client.get_garden("some/doi")
 
 
-def test_put_garden_raises_on_backend_failure(
-    mocker,
-    backend_client,
-    mock_GardenMetadata,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        side_effect=Exception("Intentional Error for Testing"),
-    )
-
-    with pytest.raises(Exception):
-        backend_client.put_garden(mock_GardenMetadata)
-
-
-def test_put_garden_returns_garden_on_success(
-    mocker,
-    backend_client,
-    mock_GardenMetadata,
-    garden_nested_metadata_json,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        return_value=garden_nested_metadata_json,
-    )
-
-    updated_garden = backend_client.put_garden(mock_GardenMetadata)
-
-    assert isinstance(updated_garden, Garden)
-
-
 def test_get_garden_metadata_raises_on_backend_failure(
     mocker,
     backend_client,

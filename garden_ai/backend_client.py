@@ -107,11 +107,6 @@ class BackendClient:
         response = self._get(f"/gardens/{doi}")
         return Garden._from_nested_metadata(response)
 
-    def put_garden(self, garden_meta: GardenMetadata) -> Garden:
-        doi = garden_meta.doi
-        response = self._put(f"/gardens/{doi}", garden_meta.model_dump(mode="json"))
-        return Garden._from_nested_metadata(response)
-
     def get_garden_metadata(self, doi: str) -> GardenMetadata:
         # like get_garden but returns metadata only
         result = self._get(f"/gardens/{doi}")

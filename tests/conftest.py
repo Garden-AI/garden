@@ -14,7 +14,6 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.client import GardenClient
 from garden_ai.constants import GardenConstants
 from garden_ai.garden_file_adapter import GardenFileAdapter
-from garden_ai.gardens import Garden
 from garden_ai.notebook_metadata import NotebookMetadata, NOTEBOOK_DISPLAY_METADATA_CELL
 from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
@@ -118,11 +117,6 @@ def patch_backend_client_requests(mocker, garden_nested_metadata_json) -> None:
     mocker.patch(
         f"{backend_client}.get_user_info",
         return_value={"email": "fake@email.com", "identity_id": "ugvhbkjn"},
-    )
-
-    mocker.patch(
-        f"{backend_client}.put_garden",
-        return_value=Garden._from_nested_metadata(garden_nested_metadata_json),
     )
 
 
