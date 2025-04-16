@@ -203,10 +203,10 @@ def put_entrypoint(client: GardenClient, entrypoint: EntrypointCreateRequest) ->
     return client.backend_client._put(url, payload)
 
 
-def put_garden(client: GardenClient, garden: GardenCreateRequest):
-    url = f"/gardens/{quote(garden.doi, safe='')}"
-    payload = garden.model_dump(mode="json")
-    return client.backend_client._put(url, payload)
+# def put_garden(client: GardenClient, garden: GardenCreateRequest):
+#     url = f"/gardens/{quote(garden.doi, safe='')}"
+#     payload = garden.model_dump(mode="json")
+#     return client.backend_client._put(url, payload)
 
 
 if __name__ == "__main__":
@@ -221,6 +221,6 @@ if __name__ == "__main__":
     for entrypoint in entrypoints:
         put_entrypoint(client, entrypoint)
 
-    print(f"creating/updating {len(gardens)} gardens")
-    for garden in gardens:
-        put_garden(client, garden)
+    # print(f"creating/updating {len(gardens)} gardens")
+    # for garden in gardens:
+    #     put_garden(client, garden)

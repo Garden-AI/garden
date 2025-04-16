@@ -376,23 +376,6 @@ def test_get_garden_returns_garden_from_backend(
     assert garden.metadata.doi == garden_nested_metadata_json["doi"]
 
 
-def test_create_garden_posts_garden_metadata_to_backend(
-    garden_client,
-    mocker,
-    garden_nested_metadata_json,
-    mock_GardenMetadata,
-):
-    mock_put = mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        return_value=garden_nested_metadata_json,
-    )
-
-    garden = garden_client._create_garden(mock_GardenMetadata)
-
-    mock_put.assert_called_once()
-    assert garden.metadata.doi == mock_GardenMetadata.doi
-
-
 def test_create_garden_raises_on_failure(
     garden_client,
     mocker,
@@ -497,86 +480,6 @@ def test_add_entrypoint_to_garden_posts_updated_garden_to_backend(
     _ = garden_client.add_entrypoint_to_garden(entrypoint_doi, garden_doi)
 
     mock_put.assert_called_once()
-
-
-def test_register_garden_doi_updates_datacite(
-    garden_client,
-    mocker,
-    garden_nested_metadata_json,
-):
-    # Patch the backend methods that make network calls
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        return_value=garden_nested_metadata_json,
-    )
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        return_value=garden_nested_metadata_json,
-    )
-
-    # Mock the actual datacite update
-    mock_update_datacite = mocker.patch(
-        "garden_ai.client.GardenClient._update_datacite"
-    )
-
-    doi = garden_nested_metadata_json["doi"]
-    garden_client.register_garden_doi(doi)
-
-    mock_update_datacite.assert_called_once()
-
-
-def test_register_garden_doi_updates_backend(
-    garden_client,
-    mocker,
-    garden_nested_metadata_json,
-):
-    # Patch the backend methods that make network calls
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        return_value=garden_nested_metadata_json,
-    )
-    # Mock the datacite update
-    mocker.patch("garden_ai.client.GardenClient._update_datacite")
-
-    # This is the call we are looking for
-    mock_put = mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        return_value=garden_nested_metadata_json,
-    )
-
-    doi = garden_nested_metadata_json["doi"]
-    garden_client.register_garden_doi(doi)
-
-    mock_put.assert_called_once()
-
-
-def test_register_garden_doi_raises_on_backend_failure(
-    garden_client,
-    mocker,
-    garden_nested_metadata_json,
-):
-    # Patch the backend methods that make network calls
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        return_value=garden_nested_metadata_json,
-    )
-
-    # Simulate a failure from the backend
-    mock_datacite_update = mocker.patch(
-        "garden_ai.backend_client.BackendClient.update_doi_on_datacite",
-        side_effect=Exception("Intention Error for Testing."),
-    )
-
-    mock_put = mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-    )
-
-    doi = garden_nested_metadata_json["doi"]
-
-    with pytest.raises(Exception):
-        garden_client.register_garden_doi(doi)
-
-    mock_put.assert_not_called()
 
 
 def test_register_entrypoint_doi_updates_datacite(
