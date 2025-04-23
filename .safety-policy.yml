@@ -23,6 +23,8 @@ security: # configuration for the `safety check` command
       reason: the CVE-2024-35195 vulnerability affects the use of "verify=False" in requests, but our project does not use this parameter in any API calls, so this risk can be ignored. If this version fixes our bug, we will find another solution.
     73725:
       reason: We aren't using starlette directly. It is pulled in as a transitive dependency from the Modal SDK
+    75976:
+      reason: the vulnerability only affects dynamic jinja2 templates, which we don't use
 
   continue-on-vulnerability-error: False # Suppress non-zero exit codes when vulnerabilities are found. Enable this in pipelines and CI/CD processes if you want to pass builds that have vulnerabilities. We recommend you set this to False.
 alert: # configuration for the `safety alert` command
