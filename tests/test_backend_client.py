@@ -383,3 +383,16 @@ def test_put_entrypoint_metadata_returns_entrypoint_metadata_on_success(
     )
 
     assert isinstance(entrypoint_meta, RegisteredEntrypointMetadata)
+
+
+def test_get_garden_raises_on_archived_garden(
+    mocker,
+    backend_client,
+):
+    mocker.patch(
+        "garden_ai.backend_client.BackendClient._get",
+        return_value={"is_archived": True},
+    )
+
+    with pytest.raises(Exception):
+        backend_client.get_garden("some/doi")

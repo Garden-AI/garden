@@ -123,11 +123,9 @@ def patch_backend_client_requests(mocker, garden_nested_metadata_json) -> None:
 @pytest.fixture
 def patch_garden_constants(mocker, tmp_path):
     """Patches fields in GardenConstants with temp values for tests."""
-    with mocker.patch.object(GardenConstants, "GARDEN_DIR", tmp_path):
-        with mocker.patch.object(
-            GardenConstants, "GARDEN_KEY_STORE", tmp_path / "tokens.json"
-        ):
-            yield
+    mocker.patch.object(GardenConstants, "GARDEN_DIR", tmp_path)
+    mocker.patch.object(GardenConstants, "GARDEN_KEY_STORE", tmp_path / "tokens.json")
+    yield
 
 
 @pytest.fixture
