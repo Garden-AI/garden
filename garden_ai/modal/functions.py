@@ -9,12 +9,12 @@ from modal._utils.async_utils import synchronize_api
 from modal._utils.blob_utils import (
     DEFAULT_SEGMENT_CHUNK_SIZE,
     MAX_OBJECT_SIZE_BYTES,
-    BytesIOSegmentPayload,
     _download_from_url,
     _upload_to_s3_url,
     get_content_length,
     perform_multipart_upload,
 )
+from modal._utils.bytes_io_segment_payload import BytesIOSegmentPayload
 from modal._utils.hash_utils import get_upload_hashes
 from modal.exception import DeserializationError, ExecutionError, RemoteError
 from modal_proto import api_pb2  # type: ignore
