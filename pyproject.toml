@@ -4,21 +4,17 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "garden-ai"
-version = "0.0.0" # placeholder
+version = "0.0.0"                                                           # placeholder
 description = "Garden: tools to simplify access to scientific AI advances."
 # note to contributors: feel free to add yourselves to this list 🌱
 maintainers = [
   "Globus Labs <labs@globus.org>",
   "Owen Price Skelly",
   "Will Engler",
+  "Hayden Holbrook",
   "Ben Blaiszik",
-  "Ben Galewsky",
-  "Eric Blau",
-  "Steve Barnard"
 ]
-authors = [
-  "Garden Team <labs@globus.org>",
-]
+authors = ["Garden Team <labs@globus.org>"]
 license = "MIT"
 readme = "README.md"
 include = ["templates"]
@@ -33,7 +29,7 @@ dill = [ # same constraints as globus compute
   { version = "0.3.5.1", python = "<3.11" },
   { version = "0.3.6", python = ">=3.11" },
 ]
-cryptography = "^42.0.0"
+cryptography = "^44.0.0"
 requests = ">=2.20.0"
 gitpython = "^3.1.35"
 globus-sdk = "^3.34.0"
