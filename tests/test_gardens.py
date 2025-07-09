@@ -7,23 +7,14 @@ from garden_ai.modal.classes import ModalClassWrapper
 from copy import deepcopy
 
 
-# TODO: Will: check this test
-def test_garden_init_raises_if_metadata_entrypoints_dont_match(
+def test_garden_init_raises_if_metadata_functions_dont_match(
     garden_nested_metadata_json,
 ):
+    # Giving an empty list of Modal functions should cause an error
+    # Because there is at least one modal fn ID in the metadata
     data = deepcopy(garden_nested_metadata_json)
+    garden_meta = GardenMetadata(**data)
     modal_functions = []
-    del data["modal_function_ids"]
-    garden_meta = GardenMetadata(**data)
-
-    with pytest.raises(ValueError):
-        # Giving an empty list of entrypoint should cause an error
-        # garden_meta has an entrypoint_id so there is a mismatch
-        garden = Garden(garden_meta, modal_functions)  # noqa: F841
-
-    # ditto for modal functions
-    data = deepcopy(garden_nested_metadata_json)
-    garden_meta = GardenMetadata(**data)
     with pytest.raises(ValueError):
         garden = Garden(garden_meta, modal_functions)  # noqa: F841
 
@@ -56,7 +47,7 @@ def test_can_call_modal_functions_like_methods(
 
     mock_call = mocker.patch.object(ModalFunction, "__call__")
 
-    garden = Garden(garden_meta, [], [modal_function])
+    garden = Garden(garden_meta, [modal_function])
     # Call the function like a method
     garden.test_function_name()
     mock_call.assert_called()
@@ -80,7 +71,7 @@ def test_can_call_modal_methods(
 
     mock_call = mocker.patch.object(ModalFunction, "__call__")
 
-    garden = Garden(garden_meta, [], [], [modal_class])
+    garden = Garden(garden_meta, [], [modal_class])
     # Call the method on the class wrapper
     garden.ClassName.method_name()
     mock_call.assert_called()
