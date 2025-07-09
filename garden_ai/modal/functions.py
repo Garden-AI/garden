@@ -20,6 +20,8 @@ from modal.exception import DeserializationError, ExecutionError, RemoteError
 from modal_proto import api_pb2  # type: ignore
 from synchronicity.exceptions import UserCodeException  # type: ignore
 
+from ..hpc_executors.edith_executor import EdithExecutor
+
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
 else:
@@ -32,6 +34,20 @@ from ..schemas.modal import (
     ModalInvocationResponse,
     _ModalGenericResult,
 )
+
+from enum import Enum
+
+
+class ComputeBackend:
+    pass
+
+
+class GCMUBackend(ComputeBackend, Enum):
+    Edith = "a01b9350-e57d-4c8e-ad95-b4cb3c4cd1bb"
+
+
+class CloudBackend(ComputeBackend, Enum):
+    Modal = "modal"
 
 
 def _modal_deserialize(data: bytes, data_format: int | None = None) -> Any:
@@ -103,7 +119,18 @@ class _ModalFunction:
 
         return GardenClient()
 
-    async def __call__(self, *args, **kwargs) -> Any:
+    async def __call__(
+        self, *args, compute_backend: ComputeBackend = CloudBackend.Modal, **kwargs
+    ) -> Any:
+        match compute_backend:
+            case GCMUBackend.Edith:
+                print(
+                    f"DEBUG: Executing function on Edith: {self.metadata.function_name}"
+                )
+                executor = EdithExecutor()
+                return executor.submit(self.metadata.function_text, *args, **kwargs)
+
+        # Default to modal
         response: ModalInvocationResponse = await self._request_invocation(
             *args, **kwargs
         )
