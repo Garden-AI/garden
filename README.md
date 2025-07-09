@@ -32,17 +32,8 @@ Garden aims to let researchers focus on their science, not on the intricacies of
 
 ### What's a Garden?
 
-A "Garden" is a citable collection of published pre-trained AI/ML models, called "Entrypoints".
+A "Garden" is a citable collection of published pre-trained AI/ML models.
 
-### Ok, What's an Entrypoint?
-
-An "Entrypoint" is just a python function you define in a regular jupyter notebook which typically invokes one or more of your pre-trained models.
-
-When you give us that notebook, we "freeze it in amber" by containerizing it (along with any environment dependencies) and give you a citable DOI in return.
-
-Now, anyone with the DOI can easily invoke that exact function, in the exact same environment, on any remote compute resources they have access to (via [Globus Compute](https://www.globus.org/compute)):
-
-<img width="916" alt="remote-inference-screenshot" src="https://github.com/user-attachments/assets/3cdae3bf-9add-4523-84c8-5a227cb3c0f8">
 
 ## Quick Start
 
@@ -51,24 +42,6 @@ Now, anyone with the DOI can easily invoke that exact function, in the exact sam
     ``` sh
     pipx install garden-ai
     ```
-
-2. Set up Docker on your system (required for local development and testing)
-
-    We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop/) for most users.
-
-3. Start a notebook in an isolated environment:
-
-    ``` sh
-    garden-ai notebook start my_model.ipynb --base-image=3.10-sklearn
-    ```
-
-4. Define a function invoking your model in the notebook and publish it:
-
-    ``` sh
-    garden-ai notebook publish my_model.ipynb
-    ```
-
-For a more detailed walkthrough, check out our [15-minute tutorial](https://garden-ai.readthedocs.io/en/latest/user_guide/tutorial/).
 
 ## Documentation
 

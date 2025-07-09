@@ -45,6 +45,7 @@ theme:
     - search.highlight
 plugins:
   - search
+  - autorefs
   - callouts
   - mkdocstrings:
       handlers:

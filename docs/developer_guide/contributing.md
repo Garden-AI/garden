@@ -43,18 +43,7 @@ Garden uses standard Python coding style and conventions. We use pre-commit hook
 We use [mkdocs](https://www.mkdocs.org/user-guide/configuration/) to build this documentation, which should have been installed as a dependency if you ran `poetry install --with=develop`. To preview the docs locally, `poetry run mkdocs serve` (or just `mkdocs serve` in an active `poetry shell`). A documentation preview will also be linked automatically whenever you open a new PR.
 
 ### Docstrings / API documentation
-We use the mkdocs extension `mkdocstrings` to parse google-style python docstrings and build some API docs automatically. The actual contents of the generated docs page is configured in the corresponding `.md` file, e.g.:
-
-```
-<!--- docs/Entrypoints.md --->
-::: garden_ai.entrypoints
-    options:
-        show_root_heading: True
-        show_object_full_path: True
-        members:
-            - Entrypoint
-            - RegisteredEntrypoint
-```
+We use the mkdocs extension `mkdocstrings` to parse google-style python docstrings and build some API docs automatically. The actual contents of the generated docs page is configured in the corresponding `.md` file.
 The mkdocstrings options are documented [here](https://mkdocstrings.github.io/python/usage/configuration/general/).
 
 This also means you can do a few things inside of docstrings to add some polish to the auto-generated docs:
