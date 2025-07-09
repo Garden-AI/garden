@@ -59,7 +59,6 @@ class Garden:
             )
 
         self.metadata = metadata
-        self.entrypoints = []
         self.modal_functions = modal_functions
         self.modal_classes = modal_classes
 

@@ -1,4 +1,4 @@
-from typing import List, TypeVar, Union
+from typing import List, Union
 
 import typer
 from prompt_toolkit.shortcuts import radiolist_dialog
@@ -6,12 +6,10 @@ from prompt_toolkit import prompt
 
 from garden_ai.schemas.garden import GardenMetadata
 
-T = TypeVar("T", GardenMetadata)
-
 
 def gui_edit_garden_entity(
-    entity: T, string_fields: List[str], list_fields: List[str]
-) -> T:
+    entity: GardenMetadata, string_fields: List[str], list_fields: List[str]
+) -> GardenMetadata:
     choices = [
         (field, f"{field}: {getattr(entity, field)}")
         for field in string_fields + list_fields
