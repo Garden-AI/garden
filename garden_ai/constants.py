@@ -10,9 +10,6 @@ _PROD_ENDPOINT = "https://api.thegardens.ai"
 _DEV_ENDPOINT = "https://api-dev.thegardens.ai"
 _LOCAL_ENDPOINT = "http://localhost:5500"
 
-# _PROD_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-prod"
-# _DEV_ECR_REPO = "public.ecr.aws/x2v7f8j4/garden-containers-dev"
-
 
 class GardenConstants:
     GARDEN_TEST_EMAIL = "garden-test-runner@email.com"
