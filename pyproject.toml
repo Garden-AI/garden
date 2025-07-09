@@ -24,11 +24,6 @@ documentation = "https://garden-ai.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-dill = [ # same constraints as globus compute
-  # https://github.com/funcx-faas/funcX/blob/369807addb855e1964d55bada67c0a374ba44896/compute_sdk/setup.py#L17
-  { version = "0.3.5.1", python = "<3.11" },
-  { version = "0.3.6", python = ">=3.11" },
-]
 cryptography = "^44.0.0"
 requests = ">=2.20.0"
 gitpython = "^3.1.35"
@@ -39,7 +34,7 @@ jinja2 = "^3.1.2"
 huggingface-hub = "0.18.0"
 pyyaml = "^6.0"
 packaging = "^23.0"
-globus-compute-sdk = "<2.28.0"
+globus-compute-sdk = "^3.9.0"
 tabulate = "^0.9.0"
 types-tabulate = "^0.9.0.3"
 nbformat = "^5.9.2"
