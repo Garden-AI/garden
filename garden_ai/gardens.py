@@ -6,11 +6,8 @@ from tabulate import tabulate
 
 from garden_ai.modal.functions import ModalFunction
 from garden_ai.modal.classes import ModalClassWrapper
-from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.modal import ModalFunctionMetadata
-
-from .entrypoints import Entrypoint
 
 logger = logging.getLogger()
 
@@ -22,51 +19,31 @@ else:
 
 class Garden:
     """
-    Represents a collection of related [Entrypoints][garden_ai.Entrypoint], providing a way to organize and invoke machine learning models and functions.
-
-    A Garden serves as a container for multiple Entrypoints, allowing users to group related models or functions together. It provides metadata about the collection and enables easy access to the contained Entrypoints.
+    Represents a collection of related functions, providing a way to organize and invoke machine learning models.
 
     This class is geared towards users wishing to access a published Garden, and is meant to be instantiated by the client's [get_garden][garden_ai.GardenClient.get_garden] method.
 
     Attributes:
         metadata (GardenMetadata): The Garden's published metadata, including information such as title, authors, description, and DOI.
-        entrypoints (list[Entrypoint]): The callable Entrypoints associated with this Garden. Individual entrypoints are also accessible like attributes on this object.
-
-    Note:
-        When an Entrypoint is called through a Garden, it is executed remotely on the specified Globus Compute endpoint. The default is the free garden demo endpoint.
+        modal_functions (list[ModalFunction]): The callable functions associated with this Garden. Individual functions are also accessible like attributes on this object.
 
     Example:
-        Entrypoints can be accessed as attributes of the Garden instance, allowing for intuitive calling of the associated functions:
+        Functions can be accessed as attributes of the Garden instance, allowing for intuitive calling of the associated functions:
         ```python
         client = garden_ai.GardenClient()
         garden = client.get_garden("my_garden_doi")
-        result = garden.my_entrypoint(data, endpoint="endpoint_uuid")
-        ```
-
-        Entrypoints can also be accessed like dict values where the DOI of the entrypoint is the key:
-        ```
-        garden = client.get_garden("my_garden_doi")
-        ep_func = garden["my_entrypoint_doi"]
-        result = ep_func(data)
+        result = garden.my_function(data)
         ```
     """  # noqa: E501
 
     def __init__(
         self,
         metadata: GardenMetadata,
-        entrypoints: list[Entrypoint] | None = None,
         modal_functions: list[ModalFunction] | None = None,
         modal_classes: list[ModalClassWrapper] | None = None,
     ):
-        entrypoints = entrypoints or []
         modal_functions = modal_functions or []
         modal_classes = modal_classes or []
-
-        if set(metadata.entrypoint_ids) ^ set([ep.metadata.doi for ep in entrypoints]):
-            raise ValueError(
-                "Expected `entrypoints` DOIs to match `metadata.entrypoint_ids`. "
-                f"Got: {[ep.metadata.doi for ep in entrypoints]} != {metadata.entrypoint_ids}"
-            )
 
         expected_modal_ids = set(metadata.modal_function_ids)
         actual_modal_ids = set(mf.metadata.id for mf in modal_functions)
@@ -82,25 +59,15 @@ class Garden:
             )
 
         self.metadata = metadata
-        self.entrypoints = entrypoints
+        self.entrypoints = []
         self.modal_functions = modal_functions
         self.modal_classes = modal_classes
 
     def __getattr__(self, name):
-        # enables method-like syntax for calling entrypoints from this garden.
+        # enables method-like syntax for calling Modal functions from this garden.
         # note: this is only called as a fallback when __getattribute__ raises an exception,
         # existing attributes are not affected by overriding this
         message_extra = ""
-        for entrypoint in self.entrypoints:
-            short_name = entrypoint.metadata.short_name
-            alias = (
-                self.metadata.entrypoint_aliases.get(entrypoint.metadata.doi)
-                or short_name
-            )
-            if name == alias:
-                return entrypoint
-            elif name == short_name:
-                message_extra = f" Did you mean {alias}?"
 
         for modal_function in self.modal_functions:
             if name == modal_function.metadata.function_name:
@@ -116,32 +83,19 @@ class Garden:
         )
 
     def __dir__(self):
-        # this gets us jupyter/ipython/repl tab-completion of entrypoint names
-        entrypoint_names = []
-        for entrypoint in self.entrypoints:
-            name = self.metadata.entrypoint_aliases.get(entrypoint.metadata.doi)
-            if name is None:
-                name = entrypoint.metadata.short_name
-            entrypoint_names += [name]
-
+        # this gets us jupyter/ipython/repl tab-completion of function names
         modal_function_names = [
             mf.metadata.function_name for mf in self.modal_functions
         ]
 
         modal_class_names = [mc.class_name for mc in self.modal_classes]
 
-        return (
-            list(super().__dir__())
-            + entrypoint_names
-            + modal_function_names
-            + modal_class_names
-        )
+        return list(super().__dir__()) + modal_function_names + modal_class_names
 
     def _repr_html_(self) -> str:
         data = self.metadata.model_dump(
             exclude={"owner_identity_id", "id", "language", "publisher"}
         )
-        data["entrypoints"] = [ep.metadata.model_dump() for ep in self.entrypoints]
         data["modal_functions"] = [
             mf.metadata.model_dump() for mf in self.modal_functions
         ]
@@ -149,24 +103,13 @@ class Garden:
         style = "<style>th {text-align: left;}</style>"
         title = f"<h2>{data['title']}</h2>"
         details = f"<p>Authors: {', '.join(data['authors'])}<br>DOI: {data['doi']}</p>"
-        entrypoints = "<h3>Entrypoints</h3>" + tabulate(
-            [
-                {
-                    key.title(): str(entrypoint[key])
-                    for key in ("short_name", "title", "authors", "doi")
-                }
-                for entrypoint in data["entrypoints"]
-            ],
-            headers="keys",
-            tablefmt="html",
-        )
         modal_functions = "<h3>Modal Functions</h3>" + tabulate(
             [
                 {
-                    key.title(): str(entrypoint[key])
+                    key.title(): str(modal_function[key])
                     for key in ("function_name", "title", "authors", "doi")
                 }
-                for entrypoint in data["modal_functions"]
+                for modal_function in data["modal_functions"]
             ],
             headers="keys",
             tablefmt="html",
@@ -203,37 +146,17 @@ class Garden:
             ],
             tablefmt="html",
         )
-        return (
-            style
-            + title
-            + details
-            + entrypoints
-            + modal_functions
-            + modal_classes
-            + optional
-        )
-
-    def __getitem__(self, doi: str):
-        for ep in self.entrypoints:
-            if ep.metadata.doi == doi:
-                return ep
-        raise KeyError(f"Garden does not have an entrypoint with doi: {doi}.")
+        return style + title + details + modal_functions + modal_classes + optional
 
     @classmethod
     def _from_nested_metadata(cls, data: dict, client: GardenClient | None = None):
-        """helper: instantiate from search index-style payload with nested entrypoint metadata.
+        """helper: instantiate from search index-style payload with nested function metadata.
 
         Note: `client` is generally fine to omit outside of tests
         """
         metadata = GardenMetadata(**data)
-        entrypoints = []
         modal_functions = []
         class_methods: dict[str, list[ModalFunctionMetadata]] = {}
-
-        # Process entrypoints
-        for entrypoint_data in data["entrypoints"]:
-            entrypoints += [Entrypoint(RegisteredEntrypointMetadata(**entrypoint_data))]
-            metadata.entrypoint_ids += [entrypoint_data["doi"]]
 
         # Process modal functions and organize into classes
         if "modal_functions" in data:
@@ -255,4 +178,4 @@ class Garden:
             for class_name, methods in class_methods.items()
         ]
 
-        return cls(metadata, entrypoints, modal_functions, modal_classes)
+        return cls(metadata, modal_functions, modal_classes)

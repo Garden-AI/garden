@@ -1,24 +1,12 @@
 from datetime import datetime
 from uuid import UUID
-from typing_extensions import Self
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
-from .datacite import (
-    Contributor,
-    Creator,
-    DataciteSchema,
-    Description,
-    Identifier,
-    RelatedIdentifier,
-    Subject,
-    Title,
-    Types,
-)
-from .schema_utils import JsonStr, UniqueList
+from .schema_utils import UniqueList
 
 
 class GardenMetadata(BaseModel):
-    """Represents the metadata defining a Garden, including the DOIs of its collected entrypoints.
+    """Represents the metadata defining a Garden.
 
     **Not meant to be instantiated directly by users.** Instead, new Gardens should be created via the CLI or [web UI](https://thegardens.ai/#/garden/create)
 
@@ -34,8 +22,6 @@ class GardenMetadata(BaseModel):
         language (str): The primary language of the Garden. Defaults to "en" (English).
         tags (UniqueList[str]): A list of tags associated with the Garden. Defaults to an empty list.
         version (str): The version of the Garden. Defaults to "0.0.1".
-        entrypoint_aliases (dict[str, str]): A dictionary mapping entrypoint DOIs to their aliases. Defaults to an empty dict.
-        entrypoint_ids (UniqueList[str]): A list of entrypoint DOIs associated with this Garden. Defaults to an empty list.
         owner_identity_id (UUID | None): The UUID of the Garden's owner. Defaults to None.
         id (int | None): An internal identifier for the Garden. Defaults to None.
     """  # noqa: E501
@@ -52,51 +38,9 @@ class GardenMetadata(BaseModel):
     language: str = "en"
     tags: UniqueList[str] = Field(default_factory=list)
     version: str = "0.0.1"
-    entrypoint_aliases: dict[str, str] = Field(default_factory=dict)
-    entrypoint_ids: UniqueList[str] = Field(default_factory=list)
 
     # these are DB ids (unlike entrypoint_ids which are dois)
     modal_function_ids: UniqueList[int] = Field(default_factory=list)
 
     owner_identity_id: UUID | None = None
     id: int | None = None
-
-    @model_validator(mode="after")
-    def _validate_aliases(self) -> Self:
-        """Ensure aliases only refer to entrypoints actually in the garden."""
-        known_dois = set(self.entrypoint_ids)
-        aliased_dois = set(self.entrypoint_aliases.keys())
-        for unknown_doi in aliased_dois - known_dois:
-            del self.entrypoint_aliases[unknown_doi]
-        return self
-
-    def _datacite_json(self) -> JsonStr:
-        """Convert metadata into a DataCite-schema-compliant JSON string."""
-        return DataciteSchema(  # type: ignore
-            identifiers=[Identifier(identifier=self.doi, identifierType="DOI")],
-            types=Types(resourceType="AI/ML Garden", resourceTypeGeneral="Software"),
-            creators=[Creator(name=name) for name in self.authors],
-            titles=[Title(title=self.title)],
-            publisher="thegardens.ai",
-            publicationYear=self.year,
-            subjects=[Subject(subject=tag) for tag in self.tags],
-            contributors=[
-                Contributor(name=name, contributorType="Other")
-                for name in self.contributors
-            ],
-            language=self.language,
-            relatedIdentifiers=[
-                RelatedIdentifier(
-                    relatedIdentifier=doi,
-                    relatedIdentifierType="DOI",
-                    relationType="HasPart",
-                )
-                for doi in self.entrypoint_ids
-            ],
-            version=self.version,
-            descriptions=(
-                [Description(description=self.description, descriptionType="Other")]
-                if self.description
-                else None
-            ),
-        ).model_dump_json()

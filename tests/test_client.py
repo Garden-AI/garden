@@ -13,9 +13,8 @@ from globus_sdk import (
     OAuthTokenResponse,
 )
 
-from garden_ai import GardenClient, Entrypoint, Garden
+from garden_ai import GardenClient, Garden
 from garden_ai.client import AuthException
-import sys
 
 is_gha = os.getenv("GITHUB_ACTIONS")
 
@@ -222,34 +221,6 @@ def test_client_credentials_grant(
     ]
 
 
-def test_client_datacite_url_correct(
-    mocker,
-    garden_client,
-):
-    gc = garden_client
-
-    # Create a mock object for PublishedGarden or RegisteredEntrypoint
-    mock_obj = mocker.MagicMock()
-    mock_obj.doi = "10.1234/abcd.efgh"  # Set the doi attribute
-
-    # Mock the datacite_json method to return a dummy JSON
-    mock_obj._datacite_json.return_value = '{"dummy": "json"}'
-
-    # Mock the BackendClient.update_doi_on_datacite method
-    mock_update_doi_on_datacite = mocker.patch(
-        "garden_ai.backend_client.BackendClient.update_doi_on_datacite"
-    )
-
-    # Call _update_datacite with the mock and tell it to register the doi
-    gc._update_datacite(mock_obj, register_doi=True)
-
-    expected_url = f"https://thegardens.ai/#/garden/{mock_obj.doi.replace('/', '%2F')}"
-
-    # Assert that the URL in the payload is correct
-    payload = mock_update_doi_on_datacite.call_args[0][0]
-    assert payload["data"]["attributes"]["url"] == expected_url
-
-
 def test_get_email_returns_correct_email_for_logged_in_user(
     garden_client,
     mocker,
@@ -313,52 +284,6 @@ def test_get_user_identity_id_returns_correct_id(
     assert identity_id == mock_user_info_response["identity_id"]
 
 
-def test_upload_notebook_returns_notebook_url(
-    mocker,
-    faker,
-    garden_client,
-    mock_user_info_response,
-):
-    notebook_contents = {}
-    notebook_name = faker.first_name() + ".ipynb"
-
-    fake_url = faker.url()
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._post",
-        return_value={"notebook_url": fake_url},
-    )
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient.get_user_info",
-        return_value=mock_user_info_response,
-    )
-
-    url = garden_client.upload_notebook(notebook_contents, notebook_name)
-    assert url == fake_url
-
-
-def test_upload_notebook_raises_on_upload_failure(
-    garden_client,
-    mocker,
-    faker,
-    mock_user_info_response,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient.get_user_info",
-        return_value=mock_user_info_response,
-    )
-
-    # Simulate an error response from the backend
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._post",
-        side_effect=Exception("Intentional Error for Testing"),
-    )
-
-    notebook_contents = {}
-    notebook_name = faker.first_name() + ".ipynb"
-    with pytest.raises(Exception):
-        garden_client.upload_notebook(notebook_contents, notebook_name)
-
-
 def test_get_garden_returns_garden_from_backend(
     garden_client,
     mocker,
@@ -389,84 +314,6 @@ def test_create_garden_raises_on_failure(
 
     with pytest.raises(Exception):
         garden = garden_client.create_garden(mock_GardenMetadata)
-
-
-def test_register_entrypoint_doi_updates_datacite(
-    garden_client,
-    mocker,
-    entrypoint_metadata_json,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        return_value=entrypoint_metadata_json,
-    )
-
-    mock_datacite_update = mocker.patch(
-        "garden_ai.client.GardenClient._update_datacite",
-    )
-
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        return_value=entrypoint_metadata_json,
-    )
-
-    doi = entrypoint_metadata_json["doi"]
-    garden_client.register_entrypoint_doi(doi)
-
-    mock_datacite_update.assert_called_once()
-
-
-def test_register_entrypoint_doi_raises_on_backend_failure(
-    garden_client,
-    mocker,
-    entrypoint_metadata_json,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        return_value=entrypoint_metadata_json,
-    )
-
-    mock_put = mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-    )
-
-    mock_update_on_datacite = mocker.patch(
-        "garden_ai.backend_client.BackendClient.update_doi_on_datacite",
-        side_effect=Exception("Intentional Error for Testing"),
-    )
-
-    doi = entrypoint_metadata_json["doi"]
-
-    with pytest.raises(Exception):
-        garden_client.register_entrypoint_doi(doi)
-
-    mock_update_on_datacite.assert_called_once()
-    mock_put.assert_not_called()
-
-
-def test_register_entrypoint_doi_updates_backend(
-    garden_client,
-    mocker,
-    entrypoint_metadata_json,
-):
-    mocker.patch(
-        "garden_ai.backend_client.BackendClient._get",
-        return_value=entrypoint_metadata_json,
-    )
-
-    mocker.patch(
-        "garden_ai.client.GardenClient._update_datacite",
-    )
-
-    mock_put = mocker.patch(
-        "garden_ai.backend_client.BackendClient._put",
-        return_value=entrypoint_metadata_json,
-    )
-
-    doi = entrypoint_metadata_json["doi"]
-    garden_client.register_entrypoint_doi(doi)
-
-    mock_put.assert_called_once()
 
 
 def test_init_fails_if_auth_fails(

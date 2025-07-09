@@ -1,15 +1,10 @@
-import json
 import logging
 import time
 from typing import Callable
 
-import boto3
 import requests
 
 from garden_ai.constants import GardenConstants
-from garden_ai.schemas.entrypoint import (
-    RegisteredEntrypointMetadata,
-)
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.modal import (
     ModalInvocationResponse,
@@ -17,7 +12,6 @@ from garden_ai.schemas.modal import (
     ModalBlobUploadURLRequest,
     ModalBlobUploadURLResponse,
 )
-from garden_ai.entrypoints import Entrypoint
 from garden_ai.gardens import Garden
 
 logger = logging.getLogger()
@@ -65,44 +59,6 @@ class BackendClient:
     def _get(self, resource: str, params: dict | None = None) -> dict:
         return self._call(requests.get, resource, None, params=params)
 
-    def mint_doi_on_datacite(self, payload: dict) -> str:
-        response_dict = self._post("/doi", payload)
-        doi = response_dict.get("doi", None)
-        if not doi:
-            raise ValueError("Failed to mint DOI. Response was missing doi field.")
-        return doi
-
-    def update_doi_on_datacite(self, payload: dict):
-        self._put("/doi", payload)
-
-    def upload_notebook(
-        self, notebook_contents: dict, username: str, notebook_name: str
-    ):
-        payload = {
-            "notebook_json": json.dumps(notebook_contents),
-            "notebook_name": notebook_name,
-            "folder": username,
-        }
-        resp = self._post("/notebook", payload)
-        return resp["notebook_url"]
-
-    def get_docker_push_session(self) -> boto3.Session:
-        resp = self._get("/docker-push-token")
-
-        # Make sure the response has the expected fields
-        for field in ["AccessKeyId", "SecretAccessKey", "SessionToken", "ECRRepo"]:
-            if field not in resp or not resp[field]:
-                raise ValueError(
-                    f"/docker-push-token response missing field {field}. Full response: {resp}"
-                )
-
-        return boto3.Session(
-            aws_access_key_id=resp["AccessKeyId"],
-            aws_secret_access_key=resp["SecretAccessKey"],
-            aws_session_token=resp["SessionToken"],
-            region_name="us-east-1",
-        )
-
     def get_garden(self, doi: str) -> Garden:
         response = self._get(f"/gardens/{doi}")
         if response.get("is_archived", True):
@@ -116,57 +72,6 @@ class BackendClient:
 
     def delete_garden(self, doi: str):
         self._delete(f"/gardens/{doi}", {})
-
-    def get_entrypoint_metadata(self, doi: str) -> RegisteredEntrypointMetadata:
-        result = self._get(f"/entrypoints/{doi}")
-        return RegisteredEntrypointMetadata(**result)
-
-    def put_entrypoint_metadata(
-        self, entrypoint_meta: RegisteredEntrypointMetadata
-    ) -> RegisteredEntrypointMetadata:
-        doi = entrypoint_meta.doi
-        response = self._put(
-            f"/entrypoints/{doi}", entrypoint_meta.model_dump(mode="json")
-        )
-        updated_entrypoint = RegisteredEntrypointMetadata(**response)
-        return updated_entrypoint
-
-    def get_entrypoint(self, doi: str) -> Entrypoint:
-        # like get_entrypoint_metadata, but returns the callable object
-        result = self._get(f"/entrypoints/{doi}")
-        return Entrypoint(RegisteredEntrypointMetadata(**result))
-
-    def delete_entrypoint(self, doi: str):
-        self._delete(f"/entrypoints/{doi}", {})
-
-    def get_entrypoints(
-        self,
-        dois: list[str] | None = None,
-        tags: list[str] | None = None,
-        authors: list[str] | None = None,
-        draft: bool | None = None,
-        year: str | None = None,
-        owner_uuid: str | None = None,
-        limit: int = 50,
-    ) -> list[Entrypoint]:
-        params = {
-            "doi": dois,
-            "tags": tags,
-            "authors": authors,
-            "owner_uuid": owner_uuid,
-            "draft": draft,
-            "year": year,
-            "limit": limit,
-        }
-        # skip unspecified values
-        params = {k: v for k, v in params.items() if v is not None}
-
-        response: list[dict] = self._get("/entrypoints", params=params)  # type: ignore
-
-        entrypoints = [
-            Entrypoint(RegisteredEntrypointMetadata(**data)) for data in response
-        ]
-        return entrypoints
 
     def get_gardens(
         self,

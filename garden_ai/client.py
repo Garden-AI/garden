@@ -1,12 +1,8 @@
-import base64
-import json
 import logging
 import os
 import time
-import urllib
 from pathlib import Path
 from typing import Callable, Optional, Union
-from uuid import UUID
 
 import mixpanel  # type: ignore
 import typer
@@ -32,13 +28,8 @@ from rich.prompt import Prompt
 
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
-from garden_ai.entrypoints import Entrypoint
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden
-from garden_ai.schemas.entrypoint import RegisteredEntrypointMetadata
-from garden_ai.schemas.garden import GardenMetadata
-from garden_ai.hpc_gardens.alpha_fold import AlphaFoldGarden
-from garden_ai.utils._meta import make_function_to_register
 from modal.cli._traceback import setup_rich_traceback
 
 logger = logging.getLogger()
@@ -60,7 +51,7 @@ class GardenClient:
     """
     Main class for interacting with the Garden service.
 
-    Provides public `get_garden` and `get_entrypoint` methods, and handles authentication with Globus Auth.
+    Provides public `get_garden` method, and handles authentication with Globus Auth.
     """
 
     scopes = GardenScopes
@@ -244,57 +235,6 @@ class GardenClient:
             authorizer = AccessTokenAuthorizer(tokens["access_token"])
         return authorizer
 
-    def register_entrypoint_doi(self, entrypoint_doi: str) -> None:
-        """
-        Makes an entrypoint's DOI registered and findable with DataCite via the Garden backend.
-        """
-        entrypoint_meta = self.backend_client.get_entrypoint_metadata(entrypoint_doi)
-        self._update_datacite(entrypoint_meta, register_doi=True)
-        entrypoint_meta.doi_is_draft = False
-        self.backend_client.put_entrypoint_metadata(entrypoint_meta)
-
-    def _mint_draft_doi(self) -> str:
-        """Register a new draft DOI with DataCite via Garden backend."""
-
-        logger.info("Requesting draft DOI")
-        payload = {
-            "data": {"type": "dois", "attributes": {}}
-        }  # required data is filled in on the backend
-        return self.backend_client.mint_doi_on_datacite(payload)
-
-    def _update_datacite(
-        self,
-        obj: GardenMetadata | RegisteredEntrypointMetadata,
-        register_doi: bool = False,
-    ) -> None:
-        logger.info("Requesting update to DOI")
-        metadata = json.loads(obj._datacite_json())
-
-        # "publish" in the event field moves the DOI from draft state to findable state
-        # https://support.datacite.org/docs/how-do-i-make-a-findable-doi-with-the-rest-api
-        if register_doi:
-            doi = urllib.parse.quote(obj.doi, safe="")
-            metadata.update(
-                event="publish",
-                url=f"https://thegardens.ai/#/garden/{doi}",
-            )
-
-        payload = {"data": {"type": "dois", "attributes": metadata}}
-        self.backend_client.update_doi_on_datacite(payload)
-        logger.info("Update request succeeded")
-
-    def get_entrypoint(self, doi: str) -> Entrypoint:
-        """Return the callable Entrypoint associated with the given DOI.
-
-        Parameters:
-            doi: The entrypoint's DOI. Raises an exception if not found.
-
-        Returns:
-            The callable Entrypoint object. Can execute remotely on a specified Globus Compute endpoint.
-
-        """
-        return self.backend_client.get_entrypoint(doi)
-
     def get_email(self) -> str:
         user_email, _ = self.get_email_and_user_identity_id()
         return user_email
@@ -311,96 +251,13 @@ class GardenClient:
         assert user_identity_id is not None, "Failed to find user identity"
         return user_email, user_identity_id
 
-    def upload_notebook(self, notebook_contents: dict, notebook_name: str) -> str:
-        """
-        POSTs a notebook's contents to the backend /notebook route
-        so that we can store a link to the full notebook contents in the entrypoint metadata.
-        """
-        username = self.get_email()
-        try:
-            return self.backend_client.upload_notebook(
-                notebook_contents, username, notebook_name
-            )
-        except Exception as e:
-            raise Exception(
-                f"Request to Garden backend to publish notebook failed with error: {str(e)}"
-            )
-
     def get_garden(self, doi: str) -> Garden:
         """
         Return the published Garden associated with the given DOI.
         Parameters:
             doi: The DOI of the garden. Raises an exception if not found.
         Returns:
-            The published Garden object. Any [entrypoints][garden_ai.Entrypoint] in the garden can be called like methods on this object.
+            The published Garden object. Any Modal functions in the garden can be called like methods on this object.
         """
-        if doi.lower() == "alphafold2":
-            return AlphaFoldGarden(client=self, doi=doi)
-
         garden = self.backend_client.get_garden(doi)
         return garden
-
-    def _get_auth_config_for_ecr_push(self) -> dict:
-        """
-        Calls the Garden backend to get a short-lived boto3 session with ECR permissions.
-        Uses that session to get an authorization token from AWS for ECR Public.
-        Uses the authorization token to construct an auth_config dict we can pass to the Docker client.
-        """
-        session = self.backend_client.get_docker_push_session()
-        ecr_client = session.client("ecr-public")
-        response = ecr_client.get_authorization_token()
-        auth_data = response["authorizationData"]
-        if isinstance(auth_data, list):
-            auth_data = auth_data[0]
-        password = (
-            base64.b64decode(auth_data["authorizationToken"]).decode().split(":")[1]
-        )
-        auth_config = {"username": "AWS", "password": password}
-        return auth_config
-
-    def _register_and_publish_from_user_image(
-        self,
-        base_image_uri: str,
-        full_image_uri: str,
-        notebook_url: str,
-        metadata: dict,
-    ):
-        """Register entrypoints update affected gardens from a user's finished notebook session image.
-
-        Parameters:
-        - base_image_uri: str
-            The public location of the base image that the user image was built on top of.
-        - full_image_uri: str
-            The public location of the full user image built by running the
-            notebook. This is the image we register with globus compute.
-        - notebook_url: str
-            URL that points to the full contents of the notebook.
-        - metadata: dict
-            metadata for entrypoints defined in the full image (i.e. the
-            contents of the metadata.json extracted from the image)
-        """
-
-        container_uuid = UUID(
-            self.compute_client.register_container(full_image_uri, "docker")
-        )
-
-        for function_name, record in metadata.items():
-            # register function & populate remaining metadata fields
-            to_register = make_function_to_register(function_name)
-            func_uuid = self.compute_client.register_function(
-                to_register, container_uuid=str(container_uuid), public=True
-            )
-            doi = self._mint_draft_doi()
-            registered_meta = RegisteredEntrypointMetadata(
-                doi=doi,
-                doi_is_draft=True,
-                func_uuid=func_uuid,
-                container_uuid=container_uuid,
-                base_image_uri=base_image_uri,
-                full_image_uri=full_image_uri,
-                notebook_url=notebook_url,
-                **record,
-            )
-            self._update_datacite(registered_meta)
-
-            self.backend_client.put_entrypoint_metadata(registered_meta)

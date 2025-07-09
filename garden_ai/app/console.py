@@ -45,19 +45,5 @@ def get_owned_gardens_rich_table(
     )
 
 
-def get_owned_entrypoints_rich_table(
-    client: GardenClient, resource_table_cols: list[str], table_name: str, limit=100
-):
-    owner_uuid = client.get_user_identity_id()
-    owned_entrypoints = client.backend_client.get_entrypoints(
-        owner_uuid=owner_uuid, limit=limit
-    )
-    return _get_rich_resource_table(
-        resource_objs=owned_entrypoints,
-        resource_table_cols=resource_table_cols,
-        table_name=table_name,
-    )
-
-
 def print_err(message: str):
     console.print(message, style="bold red")
