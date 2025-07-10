@@ -30,6 +30,7 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden
+from garden_ai.hpc_gardens.mlip_garden import MLIPGarden
 from modal.cli._traceback import setup_rich_traceback
 
 logger = logging.getLogger()
@@ -259,5 +260,7 @@ class GardenClient:
         Returns:
             The published Garden object. Any Modal functions in the garden can be called like methods on this object.
         """
+        if doi.lower() == "mlip-garden":
+            return MLIPGarden(self, doi)
         garden = self.backend_client.get_garden(doi)
         return garden

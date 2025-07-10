@@ -1,7 +1,9 @@
 import pickle
 import base64
+import uuid
 from typing import Any
-
+from pathlib import Path
+import inspect
 from globus_compute_sdk import Executor
 from globus_compute_sdk.serialize import ComputeSerializer, CombinedCode
 
@@ -13,6 +15,8 @@ class EdithExecutor:
         self.endpoint_id = endpoint_id
         self.endpoint_config = {
             "worker_init": """
+                OUT=$HOME/worker-init
+                echo user: $USER > $OUT
                 # need to load openmpi to avoid 'no non PBS mpiexec available' error
                 module load openmpi
                 # path where globus-compute-endpoint lives
@@ -30,7 +34,7 @@ class EdithExecutor:
         )
         self.executor.serializer = ComputeSerializer(strategy_code=CombinedCode())
 
-    def submit(self, func_source: str, *args, **kwargs) -> Any:
+    def submit(self, func, *args, **kwargs) -> Any:
         """
         Execute a function on a Globus Compute endpoint using subprocess with conda environment.
 
@@ -40,14 +44,90 @@ class EdithExecutor:
             **kwargs: Keyword arguments for the function
 
         Returns:
-            The result of the function execution
+            the task id of the function
         """
-        cleaned_source = self._cleanup_modal_decorators(func_source)
-
         # submit the function the to gcmu exector
-        fut = self.executor.submit(_subproc_wrapper, cleaned_source, *args, **kwargs)
-        result = fut.result()
+        func_source = inspect.getsource(func)
+        fut = self.executor.submit(_subproc_wrapper, func_source, *args, **kwargs)
+        return fut
 
+    def submit_with_data_staging(
+        self, func_source: str, data_files: dict[str, Path], *args, **kwargs
+    ) -> Any:
+        """
+        Execute a function with large data files staged via chunked upload.
+
+        Args:
+            func_source: The function to execute
+            data_files: Dictionary mapping remote filename to local file path
+            *args: Positional arguments for the function
+            **kwargs: Keyword arguments for the function
+
+        Returns:
+            the task id of the function
+        """
+        # Stage all data files first
+        staged_paths = {}
+        for remote_name, local_path in data_files.items():
+            staged_path = self._stage_file(local_path, remote_name)
+            staged_paths[remote_name] = staged_path
+
+        # Submit main function with staged file paths
+        return self.submit(func_source, staged_paths, *args, **kwargs)
+
+    def _stage_file(self, local_path: Path, remote_name: str) -> str:
+        """
+        Stage a local file to the HPC by chunked upload.
+
+        Args:
+            local_path: Local file path
+            remote_name: Desired filename on HPC
+
+        Returns:
+            Remote file path where the file was staged
+        """
+        # Read file data
+        with open(local_path, "rb") as f:
+            file_data = f.read()
+
+        # Generate unique staging path
+        staging_id = uuid.uuid4().hex[:8]
+        remote_path = f"/tmp/garden_staging/{staging_id}_{remote_name}"
+
+        # Split into chunks
+        chunk_size = 4_000_000  # 4MB chunks for safety
+        chunks = self._split_into_chunks(file_data, chunk_size)
+
+        print(f"Staging {local_path} to {remote_path} in {len(chunks)} chunks...")
+
+        # Submit chunks sequentially through subprocess wrapper
+        for i, chunk in enumerate(chunks):
+            print(f"  Uploading chunk {i+1}/{len(chunks)}")
+            # Get the source code of _write_chunk function
+            import inspect  # noqa:
+
+            chunk_func_source = inspect.getsource(_write_chunk)
+
+            # Submit through subprocess wrapper
+            future = self.executor.submit(
+                _subproc_wrapper, chunk_func_source, remote_path, i, chunk, len(chunks)
+            )
+            # Wait for each chunk to complete before sending next
+            result = future.result()
+            if "error" in result:
+                raise RuntimeError(f"Failed to upload chunk {i}: {result['error']}")
+
+        print(f"  File staging complete: {remote_path}")
+        return remote_path
+
+    def _split_into_chunks(self, data: bytes, chunk_size: int) -> list[bytes]:
+        """Split data into chunks of specified size."""
+        chunks = []
+        for i in range(0, len(data), chunk_size):
+            chunks.append(data[i : i + chunk_size])
+        return chunks
+
+    def _parse_results(self, result):
         # If we got raw data back, try to unpickle it locally
         if "raw_data" in result:
             try:
@@ -60,20 +140,6 @@ class EdithExecutor:
                     "stdout": result.get("stdout", ""),
                     "stderr": result.get("stderr", ""),
                 }
-
-        return result
-
-    def _cleanup_modal_decorators(self, func_source):
-        # Clean the function source by removing modal decorators
-        lines = func_source.split("\n")
-        cleaned_lines = []
-        for line in lines:
-            # Skip lines that are modal decorators
-            if line.strip().startswith("@app.") or line.strip().startswith("@modal."):
-                continue
-            cleaned_lines.append(line)
-        cleaned_source = "\n".join(cleaned_lines)
-        return cleaned_source
 
     def decode_result_data(self, raw_data: str):
         """
@@ -178,3 +244,151 @@ print("RESULT_DATA:", result_data)
         "stdout": result.stdout,
         "stderr": result.stderr,
     }
+
+
+def _write_chunk(
+    remote_path: str, chunk_index: int, chunk_data: bytes, total_chunks: int
+):
+    """
+    Write a chunk of data to the staging area on HPC.
+
+    Args:
+        remote_path: Final path where the complete file should be assembled
+        chunk_index: Index of this chunk (0-based)
+        chunk_data: Raw bytes for this chunk
+        total_chunks: Total number of chunks expected
+    """
+    import os
+    from pathlib import Path
+    import time
+
+    def assemble_chunks(remote_path: str, total_chunks: int):
+        """Assemble all chunks into the final file."""
+        try:
+            # Wait for all chunks to be written (up to 60 seconds)
+            timeout = 60
+            start_time = time.time()
+
+            while time.time() - start_time < timeout:
+                chunk_files = [
+                    f"{remote_path}.chunk_{i:04d}" for i in range(total_chunks)
+                ]
+                if all(os.path.exists(f) for f in chunk_files):
+                    break
+                time.sleep(0.5)
+            else:
+                missing_chunks = [
+                    i
+                    for i in range(total_chunks)
+                    if not os.path.exists(f"{remote_path}.chunk_{i:04d}")
+                ]
+                return {
+                    "error": f"Timeout waiting for chunks. Missing: {missing_chunks}"
+                }
+
+            # Assemble chunks into final file
+            with open(remote_path, "wb") as outfile:
+                for i in range(total_chunks):
+                    chunk_file = f"{remote_path}.chunk_{i:04d}"
+                    with open(chunk_file, "rb") as infile:
+                        outfile.write(infile.read())
+                    # Clean up chunk file
+                    os.remove(chunk_file)
+
+            file_size = os.path.getsize(remote_path)
+            return {
+                "success": f"File assembled successfully at {remote_path} ({file_size} bytes)"
+            }
+
+        except Exception as e:
+            return {"error": f"Failed to assemble chunks: {str(e)}"}
+
+    # Create staging directory if it doesn't exist
+    staging_dir = Path(remote_path).parent
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write this chunk to a temporary file
+    chunk_file = f"{remote_path}.chunk_{chunk_index:04d}"
+
+    try:
+        with open(chunk_file, "wb") as f:
+            f.write(chunk_data)
+
+        # If this is the last chunk, assemble the complete file
+        if chunk_index == total_chunks - 1:
+            return assemble_chunks(remote_path, total_chunks)
+        else:
+            return {"success": f"Chunk {chunk_index} written successfully"}
+
+    except Exception as e:
+        return {"error": f"Failed to write chunk {chunk_index}: {str(e)}"}
+
+
+def _assemble_chunks(remote_path: str, total_chunks: int):
+    """
+    Assemble all chunks into the final file.
+
+    Args:
+        remote_path: Final path where the complete file should be assembled
+        total_chunks: Total number of chunks expected
+    """
+    import os
+    import time
+
+    try:
+        # Wait for all chunks to be written (up to 60 seconds)
+        timeout = 60
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            chunk_files = [f"{remote_path}.chunk_{i:04d}" for i in range(total_chunks)]
+            if all(os.path.exists(f) for f in chunk_files):
+                break
+            time.sleep(0.5)
+        else:
+            missing_chunks = [
+                i
+                for i in range(total_chunks)
+                if not os.path.exists(f"{remote_path}.chunk_{i:04d}")
+            ]
+            return {"error": f"Timeout waiting for chunks. Missing: {missing_chunks}"}
+
+        # Assemble chunks into final file
+        with open(remote_path, "wb") as outfile:
+            for i in range(total_chunks):
+                chunk_file = f"{remote_path}.chunk_{i:04d}"
+                with open(chunk_file, "rb") as infile:
+                    outfile.write(infile.read())
+                # Clean up chunk file
+                os.remove(chunk_file)
+
+        file_size = os.path.getsize(remote_path)
+        return {
+            "success": f"File assembled successfully at {remote_path} ({file_size} bytes)"
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to assemble chunks: {str(e)}"}
+
+
+def _cleanup_staged_files(*file_paths):
+    """
+    Clean up staged files after job completion.
+
+    Args:
+        *file_paths: Paths to files that should be cleaned up
+    """
+    import os
+
+    cleaned = []
+    errors = []
+
+    for file_path in file_paths:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                cleaned.append(file_path)
+        except Exception as e:
+            errors.append(f"Failed to remove {file_path}: {str(e)}")
+
+    return {"cleaned": cleaned, "errors": errors, "success": len(errors) == 0}
