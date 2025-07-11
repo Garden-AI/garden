@@ -14,12 +14,11 @@ class EdithExecutor:
     def __init__(self, endpoint_id=EDITH_EP_ID):
         self.endpoint_id = endpoint_id
         self.endpoint_config = {
+            # some key details about the worker init script:
+            # for multiple commands it must be a multi-line string, no "command 1; command2 2;"
+            # file IO seems to break it sometimes, but not always?
             "worker_init": """
-                OUT=$HOME/worker-init
-                echo user: $USER > $OUT
-                # need to load openmpi to avoid 'no non PBS mpiexec available' error
                 module load openmpi
-                # path where globus-compute-endpoint lives
                 export PATH=$PATH:/usr/sbin
             """,
             # TODO: figure out a more optimal job config
@@ -39,7 +38,7 @@ class EdithExecutor:
         Execute a function on a Globus Compute endpoint using subprocess with conda environment.
 
         Args:
-            func_source: The function to execute
+            func: The function to execute
             *args: Positional arguments for the function
             **kwargs: Keyword arguments for the function
 
@@ -164,6 +163,12 @@ class EdithExecutor:
 
 
 def _subproc_wrapper(func_source, *args, **kwargs):
+    """Wrapper around a function to execute in a subprorcess using a conda env on the remote endpoint.
+
+    This is designed to be serializable by globus-compute and get around python version
+    mismatches and import errors that arise when the globus-compute endpoint is using
+    a different python version and environment than the caller.
+    """
     import subprocess
     import pickle
     import base64
@@ -214,8 +219,15 @@ print("RESULT_DATA:", result_data)
         script_path = f.name
 
     try:
-        # Run in conda environment
-        cmd = ["conda", "run", "-n", "torch-sim-edith", "python", script_path]
+        # Run in template script in conda env
+        cmd = [
+            "conda",
+            "run",
+            "-p",
+            "/home/hholb/.conda/envs/torch-sim-edith",
+            "python",
+            script_path,
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     finally:
         # Clean up temporary file

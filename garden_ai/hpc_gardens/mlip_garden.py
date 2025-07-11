@@ -1,12 +1,13 @@
 from pathlib import Path
+from typing import Any
+
+import ase
+import numpy as np
+from ase.io import read
 
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EdithExecutor
 from garden_ai.schemas.garden import GardenMetadata
-
-import ase
-from ase.io import read
-import numpy as np
 
 
 class MLIPGarden(Garden):
@@ -14,7 +15,7 @@ class MLIPGarden(Garden):
 
     def __init__(self, client, doi: str):
         self.client = client
-        self.jobs: dict[str, str] = {}
+        self.jobs: dict[str, dict[str, Any]] = {}
 
         metadata = GardenMetadata(
             doi=doi,
@@ -25,17 +26,22 @@ class MLIPGarden(Garden):
         )
         super().__init__(metadata=metadata)
 
-    def run_relaxation(self, atoms):
+    def run_relaxation(
+        self, atoms, model: str = "mace-mp-0", cluster_id: str | None = None
+    ):
         """
-        Run relaxation on a single ASE atoms object using EdithExecutor.
+        Run relaxation on-demand. This is intended for small inputs and testing.
+        For large inputs use the batch_relax flow.
 
         Args:
             atoms: ASE Atoms object to relax
+            model: Model to use for relaxation (any torch-sim supported model)
+            cluster_id: HPC endpoint ID to use for computation
 
         Returns:
             Future object from the executor
         """
-        ex = EdithExecutor()
+        ex = EdithExecutor(endpoint_id=cluster_id)
 
         # Convert atoms to serializable dict
         atoms_dict = {
@@ -44,16 +50,17 @@ class MLIPGarden(Garden):
         }
 
         # Submit the function
-        fut = ex.submit(_run_single_relaxation, atoms_dict)
+        fut = ex.submit(_run_single_relaxation, atoms_dict, model)
         raw_result = fut.result()
         decoded = ex.decode_result_data(raw_result.get("raw_data"))
         return ase.Atoms.fromdict(decoded)
 
-    def batch_relax_simple(
+    def batch_relax(
         self,
         xyz_file_path: str | Path,
         model: str = "mace-mp-0",
         max_batch_size: int = 10,
+        cluster_id: str | None = None,
         options: dict[str, str] | None = None,
     ) -> str:
         """
@@ -61,15 +68,16 @@ class MLIPGarden(Garden):
 
         Args:
             xyz_file_path: Path to XYZ file containing structures
-            model: MACE model to use
+            model: Model to use for relaxation (any torch-sim supported model)
             max_batch_size: Maximum structures per batch
+            cluster_id: HPC endpoint ID to use for computation
             options: Additional options
 
         Returns:
             Job ID for tracking
         """
-        from pathlib import Path
         import uuid
+        from pathlib import Path
 
         # Read structures locally
         xyz_path = Path(xyz_file_path)
@@ -94,7 +102,7 @@ class MLIPGarden(Garden):
             atoms_dicts.append(atoms_dict)
 
         # Submit batch job
-        executor = EdithExecutor()
+        executor = EdithExecutor(endpoint_id=cluster_id)
         print(f"🚀 Submitting batch job {job_id} to HPC...")
         future = executor.submit(
             _run_batch_relaxation, atoms_dicts, model, max_batch_size
@@ -111,91 +119,6 @@ class MLIPGarden(Garden):
         }
 
         print(f"✅ Batch job {job_id} submitted successfully!")
-        return job_id
-
-    def batch_relax(
-        self,
-        xyz_file_path: str | Path,
-        model: str = "mace-mp-0",
-        cluster_id: str | None = None,
-        options: dict[str, str] | None = None,
-    ) -> str:
-        """
-        Submit a batch relaxation job to HPC using EdithExecutor with data staging.
-
-        Args:
-            xyz_file_path: Path to the XYZ file containing structures
-            model: MACE model to use for relaxation
-            cluster_id: Cluster ID to submit to (optional)
-            options: Additional options for the job
-
-        Returns:
-            Job ID string for tracking the submitted job
-        """
-        from pathlib import Path
-        from ase.io import read, write
-        import uuid
-        import tempfile
-        import inspect
-
-        # Convert to Path object and validate
-        xyz_path = Path(xyz_file_path)
-        if not xyz_path.exists():
-            raise FileNotFoundError(f"XYZ file not found: {xyz_path}")
-
-        print(f"📖 Reading structures from {xyz_path}")
-        atoms_list = read(xyz_path, index=":")
-        print(f"  - Found {len(atoms_list)} structures")
-
-        # Generate unique job ID
-        job_id = f"mlip_relax_{uuid.uuid4().hex[:8]}"
-
-        # Create temporary trajectory file for staging
-        with tempfile.NamedTemporaryFile(suffix=".traj", delete=False) as temp_file:
-            temp_traj_path = Path(temp_file.name)
-
-        # Write atoms to trajectory file
-        print("💾 Creating trajectory file for staging...")
-        write(temp_traj_path, atoms_list)
-
-        # Get function source for staging
-        func_source = inspect.getsource(run_chunk_size_binned)
-
-        # Use EdithExecutor with data staging
-        executor = EdithExecutor()
-
-        print(f"🚀 Submitting job {job_id} to HPC with data staging...")
-
-        # Submit job with data staging
-        future = executor.submit_with_data_staging(
-            func_source,
-            data_files={"atoms.traj": temp_traj_path},
-            chunk_index=0,
-            chunk_dir_name=".",  # Use current directory
-            mace_model=model,
-            device="cuda" if options and options.get("use_gpu") else "cpu",
-            base_dir="/tmp",
-        )
-
-        # Store job info for tracking
-        self.jobs[job_id] = {
-            "future": future,
-            "model": model,
-            "num_structures": len(atoms_list),
-            "input_file": str(xyz_path),
-            "cluster_id": cluster_id,
-            "options": options or {},
-            "status": "submitted",
-        }
-
-        # Clean up temporary file
-        temp_traj_path.unlink()
-
-        print(f"✅ Job {job_id} submitted successfully!")
-        print(f"  - Task ID: {future}")
-        print(f"  - Model: {model}")
-        print(f"  - Structures: {len(atoms_list)}")
-
         return job_id
 
     def get_job_status(self, job_id: str) -> str:
@@ -320,6 +243,9 @@ def run_chunk_size_binned(
     """
     Runs the relaxation workflow with simple size-based batching.
 
+    Shamelessly pulled from:
+    https://github.com/Garden-AI/uploadathon/blob/main/matbench/matbench_mace.py
+
     Batching strategy:
     - Materials with <10 atoms: 80 per batch
     - Materials with 10-19 atoms: 40 per batch
@@ -332,14 +258,15 @@ def run_chunk_size_binned(
         device: Device to run computations on
         base_dir: Base directory for data (defaults to user home)
     """
-    import numpy as np
     import json
+    from os.path import expanduser
+    from pathlib import Path
+
+    import numpy as np
     import pandas as pd
     import torch
     import torch_sim as ts
-    from pathlib import Path
     from ase.io import read
-    from os.path import expanduser
 
     class NumpyEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -496,12 +423,13 @@ def run_chunk_size_binned(
     print("  - Save complete!")
 
 
-def _run_single_relaxation(atoms_dict):
+def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
     """
     Standalone function to run relaxation on a single structure.
 
     Args:
         atoms_dict: Dictionary representation of ASE atoms object
+        model: Model to use for relaxation
 
     Returns:
         Dictionary representation of relaxed atoms
@@ -510,8 +438,6 @@ def _run_single_relaxation(atoms_dict):
     import numpy as np
     import torch
     import torch_sim as ts
-    from mace.calculators.foundations_models import mace_mp
-    from torch_sim.models.mace import MaceModel, MaceUrls
 
     # Convert dict back to atoms
     atoms = ase.Atoms.fromdict(atoms_dict)
@@ -520,26 +446,98 @@ def _run_single_relaxation(atoms_dict):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float32
 
-    print(f"🔧 Loading MACE model on {device}...")
-    loaded_model = mace_mp(
-        model=MaceUrls.mace_mpa_medium,
-        return_raw_model=True,
-        default_dtype=dtype,
-        device=device,
-    )
+    # Load the specified model - inline function for remote execution
+    def load_torch_sim_model(model_name: str, device: str = "cpu", dtype=None):
+        """Load a torch-sim model by name."""
+        if dtype is None:
+            dtype = torch.float32
 
-    model = MaceModel(
-        model=loaded_model,
-        device=device,
-        compute_forces=True,
-        compute_stress=True,
-        dtype=dtype,
-    )
+        print(f"🔧 Loading {model_name} model on {device}...")
+
+        # MACE models
+        if model_name.startswith("mace"):
+            from mace.calculators.foundations_models import mace_mp, mace_off
+            from torch_sim.models.mace import MaceModel, MaceUrls  # noqa:
+
+            if "off" in model_name:
+                # MACE-OFF models for organic molecules
+                size = model_name.split("-")[-1] if "-" in model_name else "medium"
+                loaded_model = mace_off(
+                    model=size,
+                    return_raw_model=True,
+                    default_dtype=dtype,
+                    device=device,
+                )
+            else:
+                # MACE-MP models
+                variant = model_name.replace("mace-", "").replace("mp-", "")
+                if variant == "0":
+                    variant = "medium"
+
+                loaded_model = mace_mp(
+                    model=variant if variant else "medium",
+                    return_raw_model=True,
+                    default_dtype=dtype,
+                    device=device,
+                )
+
+            return MaceModel(
+                model=loaded_model,
+                device=device,
+                compute_forces=True,
+                compute_stress=True,
+                dtype=dtype,
+            )
+
+        # Classical potentials
+        elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
+            if model_name == "soft-sphere":
+                from torch_sim.models.soft_sphere import SoftSphereModel
+
+                return SoftSphereModel(device=device, dtype=dtype)
+            elif model_name == "lennard-jones":
+                from torch_sim.models.lennard_jones import LennardJonesModel
+
+                return LennardJonesModel(
+                    sigma=2.0,  # Å, interaction distance
+                    epsilon=0.1,  # eV, interaction strength
+                    device=device,
+                    dtype=dtype,
+                )
+            elif model_name == "morse":
+                from torch_sim.models.morse import MorseModel
+
+                return MorseModel(device=device, dtype=dtype)
+
+        # FairChem models (example - would need actual implementation)
+        elif model_name.startswith("fairchem"):
+            raise NotImplementedError(
+                f"FairChem models not yet implemented: {model_name}"
+            )
+
+        # SevenNet models (example - would need actual implementation)
+        elif model_name.startswith("sevennet"):
+            raise NotImplementedError(
+                f"SevenNet models not yet implemented: {model_name}"
+            )
+
+        # ORB models (example - would need actual implementation)
+        elif model_name.startswith("orb"):
+            raise NotImplementedError(f"ORB models not yet implemented: {model_name}")
+
+        else:
+            raise ValueError(
+                f"Unknown model: {model_name}. Supported models: mace-*, mace-off-*, soft-sphere, lennard-jones, morse"
+            )
+
+    torch_sim_model = load_torch_sim_model(model, device, dtype)
 
     print(f"🚀 Running relaxation on {len(atoms)} atoms...")
 
     # Run relaxation
-    final_state = ts.optimize(system=atoms, model=model, optimizer=ts.unit_cell_fire)
+    final_state = ts.optimize(
+        system=atoms, model=torch_sim_model, optimizer=ts.unit_cell_fire
+    )
 
     # Convert result back to dict
     result_atoms = final_state.to_atoms()
@@ -562,12 +560,12 @@ def _run_single_relaxation(atoms_dict):
 
 def _run_batch_relaxation(atoms_dicts, model="mace-mp-0", max_batch_size=10):
     """
-    Standalone function to run batch relaxation on multiple structures.
+    Run batch relaxation on multiple structures using torch-sim's autobatcher.
 
     Args:
         atoms_dicts: List of dictionary representations of ASE atoms objects
-        model: MACE model to use
-        max_batch_size: Maximum structures to process at once
+        model: Model to use for relaxation (any torch-sim supported model)
+        max_batch_size: Maximum structures to process at once (legacy parameter, autobatcher handles this)
 
     Returns:
         List of relaxed atoms dictionaries
@@ -576,96 +574,156 @@ def _run_batch_relaxation(atoms_dicts, model="mace-mp-0", max_batch_size=10):
     import numpy as np
     import torch
     import torch_sim as ts
-    from mace.calculators.foundations_models import mace_mp
-    from torch_sim.models.mace import MaceModel, MaceUrls
 
-    print(f"🚀 Starting batch relaxation of {len(atoms_dicts)} structures...")
+    print(
+        f"🚀 Starting batch relaxation of {len(atoms_dicts)} structures using torch-sim autobatcher..."
+    )
 
     # Set up device and model
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float32
+    dtype = torch.float64  # Use float64 for better numerical stability
 
-    print(f"🔧 Loading MACE model on {device}...")
-    loaded_model = mace_mp(
-        model=MaceUrls.mace_mpa_medium,
-        return_raw_model=True,
-        default_dtype=dtype,
-        device=device,
-    )
+    # Load the specified model - inline function for remote execution
+    def load_torch_sim_model(model_name: str, device: str = "cpu", dtype=None):
+        """Load a torch-sim model by name."""
+        if dtype is None:
+            dtype = torch.float32
 
-    mace_model = MaceModel(
-        model=loaded_model,
-        device=device,
-        compute_forces=True,
-        compute_stress=True,
-        dtype=dtype,
-    )
+        print(f"🔧 Loading {model_name} model on {device}...")
 
-    all_results = []
+        # MACE models
+        if model_name.startswith("mace"):
+            from mace.calculators.foundations_models import mace_mp, mace_off
+            from torch_sim.models.mace import MaceModel, MaceUrls  # noqa:
 
-    # Process in batches
-    for batch_start in range(0, len(atoms_dicts), max_batch_size):
-        batch_end = min(batch_start + max_batch_size, len(atoms_dicts))
-        batch_atoms_dicts = atoms_dicts[batch_start:batch_end]
+            if "off" in model_name:
+                # MACE-OFF models for organic molecules
+                size = model_name.split("-")[-1] if "-" in model_name else "medium"
+                loaded_model = mace_off(
+                    model=size,
+                    return_raw_model=True,
+                    default_dtype=dtype,
+                    device=device,
+                )
+            else:
+                # MACE-MP models
+                variant = model_name.replace("mace-", "").replace("mp-", "")
+                if variant == "0":
+                    variant = "medium"
 
-        print(
-            f"📦 Processing batch {batch_start//max_batch_size + 1}: structures {batch_start}-{batch_end-1}"
-        )
-
-        # Convert dicts back to atoms
-        batch_atoms = []
-        for atoms_dict in batch_atoms_dicts:
-            atoms_dict_copy = atoms_dict.copy()
-            original_index = atoms_dict_copy.pop("_index", None)
-            atoms = ase.Atoms.fromdict(atoms_dict_copy)
-            atoms.info["_original_index"] = original_index
-            batch_atoms.append(atoms)
-
-        # Run batch relaxation - process each structure individually like the working single version
-        print(f"  🔄 Relaxing {len(batch_atoms)} structures individually...")
-
-        batch_results = []
-        for i, atoms in enumerate(batch_atoms):
-            print(
-                f"    Processing structure {i+1}/{len(batch_atoms)}: {len(atoms)} atoms"
-            )
-
-            try:
-                # Print initial positions for debugging
-                print(f"    Initial position of first atom: {atoms.positions[0]}")
-
-                # Use the same approach as the working single relaxation
-                final_state = ts.optimize(
-                    system=atoms,
-                    model=mace_model,
-                    optimizer=ts.unit_cell_fire,
-                    max_steps=100,  # Add explicit max_steps
+                loaded_model = mace_mp(
+                    model=variant if variant else "medium",
+                    return_raw_model=True,
+                    default_dtype=dtype,
+                    device=device,
                 )
 
-                # Convert result back to atoms
-                result_atoms = final_state.to_atoms()
+            return MaceModel(
+                model=loaded_model,
+                device=device,
+                compute_forces=True,
+                compute_stress=True,
+                dtype=dtype,
+            )
 
-                # Print final positions for debugging
-                if isinstance(result_atoms, list):
-                    print(
-                        f"    Final position of first atom: {result_atoms[0].positions[0]}"
-                    )
-                    batch_results.extend(result_atoms)
-                else:
-                    print(
-                        f"    Final position of first atom: {result_atoms.positions[0]}"
-                    )
-                    batch_results.append(result_atoms)
+        # Classical potentials
+        elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
+            if model_name == "soft-sphere":
+                from torch_sim.models.soft_sphere import SoftSphereModel
 
-            except Exception as e:
-                print(f"    ⚠️  Failed to relax structure {i+1}: {e}")
-                # If relaxation fails, return the original structure
-                batch_results.append(atoms)
+                return SoftSphereModel(device=device, dtype=dtype)
+            elif model_name == "lennard-jones":
+                from torch_sim.models.lennard_jones import LennardJonesModel
 
-        result_atoms_list = batch_results
+                return LennardJonesModel(
+                    sigma=2.0,  # Å, interaction distance
+                    epsilon=0.1,  # eV, interaction strength
+                    device=device,
+                    dtype=dtype,
+                )
+            elif model_name == "morse":
+                from torch_sim.models.morse import MorseModel
+
+                return MorseModel(device=device, dtype=dtype)
+
+        # FairChem models (example - would need actual implementation)
+        elif model_name.startswith("fairchem"):
+            raise NotImplementedError(
+                f"FairChem models not yet implemented: {model_name}"
+            )
+
+        # SevenNet models (example - would need actual implementation)
+        elif model_name.startswith("sevennet"):
+            raise NotImplementedError(
+                f"SevenNet models not yet implemented: {model_name}"
+            )
+
+        # ORB models (example - would need actual implementation)
+        elif model_name.startswith("orb"):
+            raise NotImplementedError(f"ORB models not yet implemented: {model_name}")
+
+        else:
+            raise ValueError(
+                f"Unknown model: {model_name}. Supported models: mace-*, mace-off-*, soft-sphere, lennard-jones, morse"
+            )
+
+    torch_sim_model = load_torch_sim_model(model, device, dtype)
+
+    # Convert dicts back to atoms - autobatcher handles all size optimization
+    all_atoms = []
+    for atoms_dict in atoms_dicts:
+        atoms_dict_copy = atoms_dict.copy()
+        original_index = atoms_dict_copy.pop("_index", None)
+        atoms = ase.Atoms.fromdict(atoms_dict_copy)
+        atoms.info["_original_index"] = original_index
+        all_atoms.append(atoms)
+
+    # Show structure statistics for debugging
+    atom_counts = [len(atoms) for atoms in all_atoms]
+    print(f"📊 Processing {len(all_atoms)} structures:")
+    print(f"  - Atom count range: {min(atom_counts)} - {max(atom_counts)}")
+    print(f"  - Average atoms per structure: {np.mean(atom_counts):.1f}")
+
+    def generate_force_convergence_fn(force_tol=0.05):
+        """Generate a convergence function based on force tolerance."""
+
+        def convergence_fn(state):
+            forces = state.force
+            max_force = torch.max(torch.norm(forces, dim=-1))
+            return max_force < force_tol
+
+        return convergence_fn
+
+    try:
+        # Use torch-sim's autobatcher - it handles all memory management and batching automatically
+        print("🚀 Running torch-sim batch optimization with autobatcher...")
+
+        # Initialize state for all structures at once
+        initial_state = ts.initialize_state(all_atoms, device=device, dtype=dtype)
+
+        # Optimize entire batch using autobatcher
+        relaxed_state = ts.optimize(
+            system=initial_state,
+            model=torch_sim_model,
+            optimizer=ts.unit_cell_fire,
+            max_steps=200,
+            convergence_fn=generate_force_convergence_fn(force_tol=0.05),
+            autobatcher=True,  # This handles all memory management automatically
+        )
+
+        # Extract results from batch - autobatcher preserves original ordering
+        relaxed_atoms_list = relaxed_state.to_atoms()
+        final_energies = relaxed_state.energy.cpu().tolist()
+
+        print("✅ Autobatch optimization successful!")
+        print(f"  - Average energy: {np.mean(final_energies):.3f} eV")
+        print(
+            f"  - Energy range: {min(final_energies):.3f} to {max(final_energies):.3f} eV"
+        )
 
         # Process results
-        for atoms in result_atoms_list:
+        all_results = []
+        for atoms, energy in zip(relaxed_atoms_list, final_energies):
             result_dict = atoms.todict()
 
             # Convert numpy arrays to lists for serialization
@@ -673,11 +731,68 @@ def _run_batch_relaxation(atoms_dicts, model="mace-mp-0", max_batch_size=10):
                 if isinstance(v, np.ndarray):
                     result_dict[k] = v.tolist()
 
-            # Restore original index
+            # Store final energy in info
+            if "info" not in result_dict:
+                result_dict["info"] = {}
+            result_dict["info"]["final_energy"] = energy
+
+            # Restore original index for sorting
             if "_original_index" in atoms.info:
                 result_dict["_original_index"] = atoms.info["_original_index"]
 
             all_results.append(result_dict)
+
+    except Exception as e:
+        print(f"⚠️  Autobatch optimization failed: {e}")
+        print("🔄 Falling back to individual processing...")
+
+        # Fallback: process structures individually
+        all_results = []
+        for i, atoms in enumerate(all_atoms):
+            try:
+                final_state = ts.optimize(
+                    system=atoms,
+                    model=torch_sim_model,
+                    optimizer=ts.unit_cell_fire,
+                    max_steps=100,
+                )
+
+                result_atoms = final_state.to_atoms()
+                if isinstance(result_atoms, list):
+                    result_atoms = result_atoms[0]
+
+                result_dict = result_atoms.todict()
+
+                # Convert numpy arrays to lists for serialization
+                for k, v in result_dict.items():
+                    if isinstance(v, np.ndarray):
+                        result_dict[k] = v.tolist()
+
+                # Store energy if available
+                try:
+                    energy = final_state.energy.cpu().item()
+                    if "info" not in result_dict:
+                        result_dict["info"] = {}
+                    result_dict["info"]["final_energy"] = energy
+                except Exception:
+                    pass
+
+                # Restore original index
+                if "_original_index" in atoms.info:
+                    result_dict["_original_index"] = atoms.info["_original_index"]
+
+                all_results.append(result_dict)
+
+            except Exception as e2:
+                print(f"  ⚠️  Individual processing failed for structure {i+1}: {e2}")
+                # Use original structure as final fallback
+                result_dict = atoms.todict()
+                for k, v in result_dict.items():
+                    if isinstance(v, np.ndarray):
+                        result_dict[k] = v.tolist()
+                if "_original_index" in atoms.info:
+                    result_dict["_original_index"] = atoms.info["_original_index"]
+                all_results.append(result_dict)
 
     # Sort results back to original order
     all_results.sort(key=lambda x: x.get("_original_index", 0))
