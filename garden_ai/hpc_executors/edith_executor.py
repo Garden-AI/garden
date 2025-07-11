@@ -228,7 +228,7 @@ print("RESULT_DATA:", result_data)
             "python",
             script_path,
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(cmd, capture_output=True, text=True)
     finally:
         # Clean up temporary file
         os.unlink(script_path)
