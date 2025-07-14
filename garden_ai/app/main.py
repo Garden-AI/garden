@@ -49,11 +49,24 @@ def logout():
     Path.unlink(Path(GardenConstants.GARDEN_KEY_STORE), missing_ok=True)
 
 
+@app.command()
+def mcp():
+    """Start the Garden MCP server."""
+    try:
+        from garden_ai.mcp.server import main as mcp_main
+
+        mcp_main()
+    except ImportError:
+        rich.print("[red]Error:[/red] MCP extra not installed.")
+        rich.print("Install with: [cyan]pip install garden-ai[mcp][/cyan]")
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main_info(
     version: Optional[bool] = typer.Option(
         None, "--version", callback=show_version, is_eager=True
-    )
+    ),
 ):
     """
     🌱 Hello, Garden 🌱
