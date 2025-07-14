@@ -98,7 +98,13 @@ profile = "black"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
-exclude = "fixtures|scripts"
+exclude = [
+    "fixtures/",
+    "scripts/",
+    "garden_ai/hpc_executors/",
+    "garden_ai/hpc_gardens/",
+]
+
 
 [tool.pytest.ini_options]
 markers = [
