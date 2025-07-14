@@ -1,10 +1,8 @@
 # flake8: noqa: F841
 import os
-from unittest.mock import Mock, patch
 
 import pytest
 from globus_compute_sdk import Client  # type: ignore
-from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import (
     AuthAPIError,
     AuthLoginClient,

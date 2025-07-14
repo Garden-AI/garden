@@ -470,7 +470,7 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
         # MACE models
         if model_name.startswith("mace"):
             from mace.calculators.foundations_models import mace_mp, mace_off
-            from torch_sim.models.mace import MaceModel, MaceUrls  # noqa:
+            from torch_sim.models.mace import MaceModel  # noqa:
 
             if "off" in model_name:
                 # MACE-OFF models for organic molecules
@@ -607,7 +607,7 @@ def _run_batch_relaxation(atoms_dicts, model="mace-mp-0", max_batch_size=10):
         # MACE models
         if model_name.startswith("mace"):
             from mace.calculators.foundations_models import mace_mp, mace_off
-            from torch_sim.models.mace import MaceModel, MaceUrls  # noqa:
+            from torch_sim.models.mace import MaceModel  # noqa:
 
             if "off" in model_name:
                 # MACE-OFF models for organic molecules
