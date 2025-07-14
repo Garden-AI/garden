@@ -259,5 +259,18 @@ class GardenClient:
         Returns:
             The published Garden object. Any Modal functions in the garden can be called like methods on this object.
         """
+        if doi.lower() == "mlip-garden":
+            try:
+                from garden_ai.hpc_gardens.mlip_garden import MLIPGarden
+
+                return MLIPGarden(self, doi)
+            except ImportError as e:
+                if "ase" in str(e):
+                    raise ImportError(
+                        "To use MLIP Garden functionality, install garden-ai with the 'mlip' extra: "
+                        "pip install garden-ai[mlip]"
+                    ) from e
+                else:
+                    raise
         garden = self.backend_client.get_garden(doi)
         return garden

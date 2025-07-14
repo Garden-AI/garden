@@ -3,7 +3,6 @@ import json
 import pathlib  # noqa
 from unittest.mock import patch
 
-from globus_compute_sdk.sdk.login_manager.manager import LoginManager  # type: ignore
 from globus_sdk import AuthLoginClient, OAuthTokenResponse
 import pytest
 from typer.testing import CliRunner
@@ -162,12 +161,6 @@ def garden_client(
     )
 
     # Mocks compute client login
-    mock_login_manager = mocker.MagicMock(LoginManager)
-    mock_login_manager.ensure_logged_in = mocker.Mock(return_value=True)
-    mocker.patch("globus_compute_sdk.sdk.client.LoginManager").return_value = (
-        mock_login_manager
-    )
-
     mocker.patch(
         "garden_ai.client.GardenClient._do_login_flow", return_value=mock_token_response
     )
