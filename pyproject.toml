@@ -115,4 +115,5 @@ omit = [
   "tests/*",
   "scripts/*",
   "garden_ai/hpc_gardens/*",
+  "garden_ai/hpc_executors/*",
 ]
