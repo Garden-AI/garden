@@ -30,9 +30,9 @@ jobs:
           poetry-version: 1.2.2
       - name: Install dependencies
         run: |
-         pip install --upgrade pip && \
-         poetry config virtualenvs.create false && \
-         poetry install --no-interaction --no-ansi --with=test
+          pip install --upgrade pip && \
+          poetry config virtualenvs.create false && \
+          poetry install --no-interaction --no-ansi --with=test --extras=mcp
       - name: black lint
         uses: psf/black@stable
         with:
@@ -53,7 +53,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v4.2.0
         env:
-            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           verbose: true
           fail_ci_if_error: true

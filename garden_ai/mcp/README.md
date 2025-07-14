@@ -9,11 +9,12 @@ It exposes the following tools (TODO):
 - [ ] search_gardens
 - [ ] search_functions
 - [ ] call_function
+- [ ] MLIP-demo-related tools
 
-# Prerequisites
+## Prerequisites
 
 - uv
-- `uvx garden-ai login` for auth
+- `uvx garden-ai login` to set up auth
 
 ## claude desktop config
 
