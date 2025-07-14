@@ -1,9 +1,17 @@
 from pathlib import Path
 from typing import Any
 
-import ase
-import numpy as np
-from ase.io import read
+try:
+    import ase
+    import numpy as np
+    from ase.io import read
+
+    ASE_AVAILABLE = True
+except ImportError:
+    ASE_AVAILABLE = False
+    ase = None
+    np = None
+    read = None
 
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EdithExecutor
@@ -14,6 +22,11 @@ class MLIPGarden(Garden):
     """A Garden that uses EdithExecutor for MLIP computations."""
 
     def __init__(self, client, doi: str):
+        if not ASE_AVAILABLE:
+            raise ImportError(
+                "To use MLIP Garden functionality, install garden-ai with the 'mlip' extra: "
+                "pip install garden-ai[mlip]"
+            )
         self.client = client
         self.jobs: dict[str, dict[str, Any]] = {}
 
