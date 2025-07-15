@@ -1,15 +1,16 @@
 import logging
+import requests
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from garden_ai import GardenClient
+from garden_ai.constants import GardenConstants
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("garden-mcp-server")
-
 
 @mcp.tool()
 def echo(message: str) -> str:
@@ -83,6 +84,28 @@ try:
 
 except ImportError:
     pass
+
+@mcp.tool()
+def search_gardens(
+    doi: str | None = None,
+    tags: list[str] | None = None,
+    limit: int = 1
+) -> str:
+    params = {}
+
+    if doi is not None:
+        params['doi'] = doi
+    if tags is not None:
+
+        params['tags'] = tags
+    params['limit'] = limit
+
+    try:
+        response = requests.get(GardenConstants.GARDEN_ENDPOINT, params=params)
+
+        return response.text
+    except Exception as e:
+        return f"error: {e}"
 
 
 def main():
