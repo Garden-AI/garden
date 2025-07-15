@@ -39,6 +39,14 @@ class MLIPGarden(Garden):
         )
         super().__init__(metadata=metadata)
 
+    def relax(
+        xyz_file_path: str | Path | None = None,
+        xyz_string: str | None = None,
+        model: str = "mace-mp-0",
+        options: dict = {},
+    ):
+        pass
+
     def run_relaxation(
         self, atoms, model: str = "mace-mp-0", cluster_id: str | None = None
     ):
