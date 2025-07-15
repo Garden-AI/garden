@@ -76,7 +76,7 @@ def check_job_status(job_id: str):
         raise ToolError(f"Failed to check job status for {job_id}: {e}")
 
 
-def get_job_results(job_id: str, output_file_path: str = None):
+def get_job_results(job_id: str, output_file_path: str | None = None):
     """
     Retrieve the results of a completed relaxation job and optionally save to file.
 
