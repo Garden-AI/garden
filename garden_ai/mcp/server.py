@@ -44,11 +44,18 @@ def get_functions(doi: str):
     data = garden.metadata.model_dump(
         exclude={"owner_identity_id", "id", "language", "publisher"}
     )
-    data["entrypoints"] = [ep.metadata.model_dump() for ep in garden.entrypoints]
-    data["modal_functions"] = [
-        mf.metadata.model_dump() for mf in garden.modal_functions
-    ]
-    return [f["function_name"] for f in data["modal_functions"]]
+
+    if garden.modal_functions:
+        data["modal_functions"] = [
+            mf.metadata.model_dump() for mf in garden.modal_functions
+        ]
+    elif garden.modal_classes:
+        data["modal_functions"] = []
+        for modal_class in garden.modal_classes:
+            for method in modal_class._methods.values():
+                data["modal_functions"].append(method.metadata.model_dump())
+
+    return data["modal_functions"]
 
 
 @mcp.tool()
@@ -61,7 +68,14 @@ def run_function(
     Load the Garden by DOI, locate the named function, and invoke it with the provided args.
     """
     garden = GardenClient().get_garden(doi)
-    entrypoint = getattr(garden, func_name, None)
+
+    if garden.modal_functions:
+        entrypoint = getattr(garden, func_name, None)
+    if garden.modal_classes:
+        class_name, class_method = func_name.split(".")
+        modal_class = getattr(garden, class_name)
+        entrypoint = getattr(modal_class, class_method)
+
     if entrypoint is None:
         raise ToolError(f"No such function '{func_name}' in garden '{doi}'")
     try:
