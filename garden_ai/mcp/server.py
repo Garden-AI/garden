@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP("garden-mcp-server")
 
+
 @mcp.tool()
 def echo(message: str) -> str:
     """
@@ -84,6 +85,7 @@ try:
 except ImportError:
     pass
 
+
 @mcp.tool()
 def search_gardens(
     dois: list[str] | None = None,
@@ -107,9 +109,9 @@ def search_gardens(
             contributors=contributors,
             year=year,
             owner_uuid=owner_uuid,
-            limit=limit
+            limit=limit,
         )
-        result = [garden.metadata.model_dump(mode='json') for garden in response]
+        result = [garden.metadata.model_dump(mode="json") for garden in response]
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"error: {e}"
