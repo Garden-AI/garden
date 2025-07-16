@@ -1,11 +1,10 @@
 import logging
-import requests
+import json
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from garden_ai import GardenClient
-from garden_ai.constants import GardenConstants
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -87,23 +86,31 @@ except ImportError:
 
 @mcp.tool()
 def search_gardens(
-    doi: str | None = None,
+    dois: list[str] | None = None,
     tags: list[str] | None = None,
-    limit: int = 1
+    draft: bool | None = None,
+    authors: list[str] | None = None,
+    contributors: list[str] | None = None,
+    year: str | None = None,
+    owner_uuid: str | None = None,
+    limit: int = 1,
 ) -> str:
-    params = {}
-
-    if doi is not None:
-        params['doi'] = doi
-    if tags is not None:
-
-        params['tags'] = tags
-    params['limit'] = limit
-
+    """
+    Search for gardens by doi and/or tags, returns at most limit gardens.
+    """
     try:
-        response = requests.get(GardenConstants.GARDEN_ENDPOINT, params=params)
-
-        return response.text
+        response = GardenClient().backend_client.get_gardens(
+            dois=dois,
+            tags=tags,
+            draft=draft,
+            authors=authors,
+            contributors=contributors,
+            year=year,
+            owner_uuid=owner_uuid,
+            limit=limit
+        )
+        result = [garden.metadata.model_dump(mode='json') for garden in response]
+        return json.dumps(result, indent=2)
     except Exception as e:
         return f"error: {e}"
 
