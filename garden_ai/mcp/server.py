@@ -109,7 +109,7 @@ def search_gardens(
     contributors: list[str] | None = None,
     year: str | None = None,
     owner_uuid: str | None = None,
-    limit: int = 1,
+    limit: int = 20,
 ) -> str:
     """
     Search for gardens by doi and/or tags, returns at most limit gardens.
@@ -125,7 +125,25 @@ def search_gardens(
             owner_uuid=owner_uuid,
             limit=limit,
         )
-        result = [garden.metadata.model_dump(mode="json") for garden in response]
+        result = [
+            garden.metadata.model_dump(
+                mode="json", include={"doi", "title", "description", "tags"}
+            )
+            for garden in response
+        ]
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"error: {e}"
+
+
+@mcp.tool()
+def summarize_garden(doi: str) -> str:
+    """
+    Fully summarize garden by doi
+    """
+    try:
+        response = GardenClient().backend_client.get_garden(doi)
+        result = response.metadata.model_dump(mode="json")
         return json.dumps(result, indent=2)
     except Exception as e:
         return f"error: {e}"
