@@ -1,13 +1,15 @@
 from pathlib import Path
 from typing import Any
 
-import ase
-import numpy as np
-from ase.io import read
-
 from garden_ai.gardens import Garden
-from garden_ai.hpc_executors.edith_executor import EdithExecutor
+from garden_ai.hpc_executors.edith_executor import (
+    EdithExecutor,
+    _send_chunk_to_endpoint,
+    _collate_file_chunks,
+)
+from garden_ai.hpc_gardens.utils import generate_xyz_str_chunks
 from garden_ai.schemas.garden import GardenMetadata
+from globus_compute_sdk import Client
 
 
 class MLIPGarden(Garden):
@@ -27,7 +29,7 @@ class MLIPGarden(Garden):
         super().__init__(metadata=metadata)
 
     def run_relaxation(
-        self, atoms, model: str = "mace-mp-0", cluster_id: str | None = None
+        self, atoms_dict, model: str = "mace-mp-0", cluster_id: str | None = None
     ):
         """
         Run relaxation on-demand. This is intended for small inputs and testing.
@@ -39,21 +41,15 @@ class MLIPGarden(Garden):
             cluster_id: HPC endpoint ID to use for computation
 
         Returns:
-            Future object from the executor
+            relaxed atoms dict
         """
-        ex = EdithExecutor(endpoint_id=cluster_id)
-
-        # Convert atoms to serializable dict
-        atoms_dict = {
-            k: v.tolist() if isinstance(v, np.ndarray) else v
-            for k, v in atoms.todict().items()
-        }
+        ex = EdithExecutor(endpoint_id=cluster_id if cluster_id else None)
 
         # Submit the function
         fut = ex.submit(_run_single_relaxation, atoms_dict, model)
         raw_result = fut.result()
         decoded = ex.decode_result_data(raw_result.get("raw_data"))
-        return ase.Atoms.fromdict(decoded)
+        return decoded
 
     def batch_relax(
         self,
@@ -76,7 +72,7 @@ class MLIPGarden(Garden):
         Returns:
             Job ID for tracking
         """
-        import uuid
+        import uuid  # noqa:
         from pathlib import Path
 
         # Read structures locally
@@ -84,42 +80,22 @@ class MLIPGarden(Garden):
         if not xyz_path.exists():
             raise FileNotFoundError(f"XYZ file not found: {xyz_path}")
 
-        print(f"📖 Reading structures from {xyz_path}")
-        atoms_list = read(xyz_path, index=":")
-        print(f"  - Found {len(atoms_list)} structures")
+        ex = EdithExecutor(endpoint_id=cluster_id)
+        chunks = []
+        for chunk in generate_xyz_str_chunks(xyz_path):
+            f = ex.submit(_send_chunk_to_endpoint, chunk)
+            # wait for each chunk
+            chunks.append(f.result())
+        f = ex.submit(_collate_file_chunks, chunks)
+        input_file = f.result()
+        future = ex.submit(_run_batch_relaxation, input_file, model, max_batch_size)
+        task_id = future.task_id
 
-        # Generate job ID
-        job_id = f"batch_relax_{uuid.uuid4().hex[:8]}"
+        # TODO: this could be an infinite loop if we never get the task id
+        while task_id is None:
+            task_id = future.task_id
 
-        # Convert atoms to serializable format
-        atoms_dicts = []
-        for i, atoms in enumerate(atoms_list):
-            atoms_dict = {
-                k: v.tolist() if isinstance(v, np.ndarray) else v
-                for k, v in atoms.todict().items()
-            }
-            atoms_dict["_index"] = i  # Keep track of original order
-            atoms_dicts.append(atoms_dict)
-
-        # Submit batch job
-        executor = EdithExecutor(endpoint_id=cluster_id)
-        print(f"🚀 Submitting batch job {job_id} to HPC...")
-        future = executor.submit(
-            _run_batch_relaxation, atoms_dicts, model, max_batch_size
-        )
-
-        # Store job info
-        self.jobs[job_id] = {
-            "future": future,
-            "model": model,
-            "num_structures": len(atoms_list),
-            "input_file": str(xyz_path),
-            "options": options or {},
-            "status": "submitted",
-        }
-
-        print(f"✅ Batch job {job_id} submitted successfully!")
-        return job_id
+        return task_id
 
     def get_job_status(self, job_id: str) -> str:
         """
@@ -131,36 +107,8 @@ class MLIPGarden(Garden):
         Returns:
             Job status string: "submitted", "running", "completed", "failed", or "unknown"
         """
-        if job_id not in self.jobs:
-            return "unknown"
-
-        job_info = self.jobs[job_id]
-        future = job_info["future"]
-
-        try:
-            # Check if the future is done
-            if future.done():
-                # Try to get the result to check for errors
-                try:
-                    result = future.result()
-                    if "error" in result:
-                        job_info["status"] = "failed"
-                        job_info["error"] = result["error"]
-                    else:
-                        job_info["status"] = "completed"
-                        job_info["result"] = result
-                except Exception as e:
-                    job_info["status"] = "failed"
-                    job_info["error"] = str(e)
-            else:
-                # Job is still running
-                job_info["status"] = "running"
-
-        except Exception as e:
-            job_info["status"] = "failed"
-            job_info["error"] = f"Status check failed: {str(e)}"
-
-        return job_info["status"]
+        client = Client()
+        return client.get_task(job_id)
 
     def get_results(self, job_id: str):
         """
@@ -172,65 +120,8 @@ class MLIPGarden(Garden):
         Returns:
             Dictionary containing relaxed structures and energies, or None if job not complete
         """
-        if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
-
-        job_info = self.jobs[job_id]
-
-        # Check if job is complete
-        status = self.get_job_status(job_id)
-        if status != "completed":
-            if status == "failed":
-                error_msg = job_info.get("error", "Unknown error")
-                raise RuntimeError(f"Job {job_id} failed: {error_msg}")
-            else:
-                return None  # Job not complete yet
-
-        # Get the result from the future
-        try:
-            result = job_info["future"].result()
-
-            # Parse the result if it contains ASE data
-            if "raw_data" in result:
-                executor = EdithExecutor()
-                parsed_result = executor.decode_result_data(result["raw_data"])
-                atoms = [ase.Atoms.fromdict(d) for d in parsed_result]
-                return atoms
-            else:
-                # Return raw result if no ASE data
-                return result
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to retrieve results for job {job_id}: {str(e)}")
-
-    def cleanup_job(self, job_id: str):
-        """
-        Clean up resources associated with a completed job.
-
-        Args:
-            job_id: Job ID to clean up
-        """
-        if job_id in self.jobs:
-            # Could add cleanup of staged files here if needed
-            del self.jobs[job_id]
-            print(f"🧹 Cleaned up job {job_id}")
-
-    def list_jobs(self) -> dict[str, dict]:
-        """
-        List all tracked jobs and their current status.
-
-        Returns:
-            Dictionary mapping job IDs to job info
-        """
-        job_statuses = {}
-        for job_id in self.jobs:
-            job_info = self.jobs[job_id].copy()
-            job_info["current_status"] = self.get_job_status(job_id)
-            # Don't include the future object in the output
-            job_info.pop("future", None)
-            job_statuses[job_id] = job_info
-
-        return job_statuses
+        client = Client()
+        return client.get_result(job_id)
 
 
 def run_chunk_size_binned(
