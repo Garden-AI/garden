@@ -1,4 +1,5 @@
 import logging
+import json
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
@@ -43,11 +44,18 @@ def get_functions(doi: str):
     data = garden.metadata.model_dump(
         exclude={"owner_identity_id", "id", "language", "publisher"}
     )
-    data["entrypoints"] = [ep.metadata.model_dump() for ep in garden.entrypoints]
-    data["modal_functions"] = [
-        mf.metadata.model_dump() for mf in garden.modal_functions
-    ]
-    return [f["function_name"] for f in data["modal_functions"]]
+
+    if garden.modal_functions:
+        data["modal_functions"] = [
+            mf.metadata.model_dump() for mf in garden.modal_functions
+        ]
+    elif garden.modal_classes:
+        data["modal_functions"] = []
+        for modal_class in garden.modal_classes:
+            for method in modal_class._methods.values():
+                data["modal_functions"].append(method.metadata.model_dump())
+
+    return data["modal_functions"]
 
 
 @mcp.tool()
@@ -60,7 +68,14 @@ def run_function(
     Load the Garden by DOI, locate the named function, and invoke it with the provided args.
     """
     garden = GardenClient().get_garden(doi)
-    entrypoint = getattr(garden, func_name, None)
+
+    if garden.modal_functions:
+        entrypoint = getattr(garden, func_name, None)
+    if garden.modal_classes:
+        class_name, class_method = func_name.split(".")
+        modal_class = getattr(garden, class_name)
+        entrypoint = getattr(modal_class, class_method)
+
     if entrypoint is None:
         raise ToolError(f"No such function '{func_name}' in garden '{doi}'")
     try:
@@ -83,6 +98,55 @@ try:
 
 except ImportError:
     pass
+
+
+@mcp.tool()
+def search_gardens(
+    dois: list[str] | None = None,
+    tags: list[str] | None = None,
+    draft: bool | None = None,
+    authors: list[str] | None = None,
+    contributors: list[str] | None = None,
+    year: str | None = None,
+    owner_uuid: str | None = None,
+    limit: int = 20,
+) -> str:
+    """
+    Search for gardens by doi and/or tags, returns at most limit gardens.
+    """
+    try:
+        response = GardenClient().backend_client.get_gardens(
+            dois=dois,
+            tags=tags,
+            draft=draft,
+            authors=authors,
+            contributors=contributors,
+            year=year,
+            owner_uuid=owner_uuid,
+            limit=limit,
+        )
+        result = [
+            garden.metadata.model_dump(
+                mode="json", include={"doi", "title", "description", "tags"}
+            )
+            for garden in response
+        ]
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"error: {e}"
+
+
+@mcp.tool()
+def summarize_garden(doi: str) -> str:
+    """
+    Fully summarize garden by doi
+    """
+    try:
+        response = GardenClient().backend_client.get_garden(doi)
+        result = response.metadata.model_dump(mode="json")
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return f"error: {e}"
 
 
 def main():
