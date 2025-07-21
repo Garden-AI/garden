@@ -133,7 +133,7 @@ def search_gardens(
 
             if garden.modal_functions:
                 data["modal_functions"] = [
-                    mf.metadata.funciton_name for mf in garden.modal_functions
+                    mf.metadata.function_name for mf in garden.modal_functions
                 ]
             elif garden.modal_classes:
                 data["modal_functions"] = []
