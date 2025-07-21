@@ -85,9 +85,37 @@ class MLIPGarden(Garden):
         for chunk in generate_xyz_str_chunks(xyz_path):
             f = ex.submit(_send_chunk_to_endpoint, chunk)
             # wait for each chunk
-            chunks.append(f.result())
-        f = ex.submit(_collate_file_chunks, chunks)
-        input_file = f.result()
+            chunk_result = f.result()
+
+            # Check if chunk creation failed
+            if isinstance(chunk_result, dict) and "error" in chunk_result:
+                raise RuntimeError(
+                    f"Failed to send chunk to endpoint: {chunk_result['error']}"
+                )
+
+            # Extract the actual filename from the result
+            if isinstance(chunk_result, dict) and "raw_data" in chunk_result:
+                chunk_filename = ex.decode_result_data(chunk_result["raw_data"])
+                chunks.append(chunk_filename)
+            else:
+                chunks.append(chunk_result)
+
+        # Use the same filename as the input file on the remote endpoint
+        master_filename = xyz_path.name
+        f = ex.submit(_collate_file_chunks, master_filename, chunks)
+        collate_result = f.result()
+
+        # Check if file collation failed
+        if isinstance(collate_result, dict) and "error" in collate_result:
+            raise RuntimeError(
+                f"Failed to collate file chunks: {collate_result['error']}"
+            )
+
+        # Extract the actual filename from the collate result
+        if isinstance(collate_result, dict) and "raw_data" in collate_result:
+            input_file = ex.decode_result_data(collate_result["raw_data"])
+        else:
+            input_file = collate_result
         future = ex.submit(_run_batch_relaxation, input_file, model, max_batch_size)
         task_id = future.task_id
 
@@ -449,25 +477,30 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
     return result_dicts[0] if len(result_dicts) == 1 else result_dicts
 
 
-def _run_batch_relaxation(atoms_dicts, model="mace-mp-0", max_batch_size=10):
+def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
     """
     Run batch relaxation on multiple structures using torch-sim's autobatcher.
 
     Args:
-        atoms_dicts: List of dictionary representations of ASE atoms objects
+        xyz_filename: Path to xyz file containing structures on remote endpoint
         model: Model to use for relaxation (any torch-sim supported model)
         max_batch_size: Maximum structures to process at once (legacy parameter, autobatcher handles this)
 
     Returns:
         List of relaxed atoms dictionaries
     """
-    import ase
+    import ase  # noqa:
     import numpy as np
     import torch
     import torch_sim as ts
+    from ase.io import read
+
+    # Read structures from xyz file
+    print(f"📖 Reading structures from {xyz_filename}...")
+    all_atoms = read(xyz_filename, index=":")
 
     print(
-        f"🚀 Starting batch relaxation of {len(atoms_dicts)} structures using torch-sim autobatcher..."
+        f"🚀 Starting batch relaxation of {len(all_atoms)} structures using torch-sim autobatcher..."
     )
 
     # Set up device and model
@@ -560,14 +593,9 @@ def _run_batch_relaxation(atoms_dicts, model="mace-mp-0", max_batch_size=10):
 
     torch_sim_model = load_torch_sim_model(model, device, dtype)
 
-    # Convert dicts back to atoms - autobatcher handles all size optimization
-    all_atoms = []
-    for atoms_dict in atoms_dicts:
-        atoms_dict_copy = atoms_dict.copy()
-        original_index = atoms_dict_copy.pop("_index", None)
-        atoms = ase.Atoms.fromdict(atoms_dict_copy)
-        atoms.info["_original_index"] = original_index
-        all_atoms.append(atoms)
+    # Add original index to track structure order
+    for i, atoms in enumerate(all_atoms):
+        atoms.info["_original_index"] = i
 
     # Show structure statistics for debugging
     atom_counts = [len(atoms) for atoms in all_atoms]

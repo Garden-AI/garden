@@ -215,4 +215,4 @@ def _collate_file_chunks(master_file: str, chunk_file_names: list[str]) -> str:
             assert file.exists()
             with open(file, "r") as chunk_f:
                 f.writelines(chunk_f.readlines())
-    return master_file.name
+    return str(master_file)
