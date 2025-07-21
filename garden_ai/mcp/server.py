@@ -159,7 +159,7 @@ def get_garden_metadata(doi: str) -> str:
 
         if response.modal_functions:
             metadata["modal_functions"] = [
-                mf.metadata.function_name.model_dump()
+                mf.metadata.function_name
                 for mf in response.modal_functions
             ]
         elif response.modal_classes:
