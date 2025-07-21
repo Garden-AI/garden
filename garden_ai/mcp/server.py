@@ -1,12 +1,13 @@
-import logging
 import json
+import logging
+from pathlib import Path
 
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
-from garden_ai import GardenClient
+from garden_ai import GardenClient, get_garden
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -84,6 +85,57 @@ def run_function(
     except Exception as e:
         raise ToolError(f"Error running '{func_name}(...)': {e}")
     return result
+
+
+@mcp.tool()
+def invoke_function(
+    garden_doi: str,
+    function_name: str,
+    input_data_or_path: str,
+):
+    garden = get_garden(garden_doi)
+    # verify function exists on this garden
+    try:
+        if "." in function_name:
+            cls_name, fn_name = function_name.split(".")
+            modal_cls = getattr(garden, cls_name)
+            modal_fn = getattr(modal_cls, fn_name)
+        else:
+            modal_fn = getattr(garden, function_name)
+    except AttributeError:
+        existing_names = [fn.metadata.function_name for fn in garden.modal_functions]
+        existing_names += [
+            fn.metadata.function_name
+            for cls in garden.modal_classes
+            for fn in cls._methods.values()
+        ]
+        if existing_names:
+            msg_extra = f"\nDid you mean: {', '.join(set(existing_names))}?"
+        else:
+            msg_extra = ""
+        raise ToolError(
+            f"Garden {garden_doi} does not have a function {function_name}." + msg_extra
+        )
+
+    # try parsing input str as path to file
+    if (path := Path(input_data_or_path).resolve()).exists():
+        input_data = path.read_text()
+    else:
+        input_data = input_data_or_path
+
+    # try parsing input str (or file contents) as json
+    try:
+        input_data = json.loads(input_data)
+        results = modal_fn(input_data)
+    except json.JSONDecodeError:
+        # not json, try as a plain str
+        results = modal_fn(input_data)
+    except Exception as e:
+        raise ToolError(
+            "Function invocation failed. Try generating sample code with the "
+            "`generate_code` tool and invoking manually to troubleshoot."
+        ) from e
+    return results
 
 
 # MLIP-specific tools
