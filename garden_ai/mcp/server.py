@@ -61,33 +61,6 @@ def get_functions(doi: str):
 
 
 @mcp.tool()
-def run_function(
-    doi: str,
-    func_name: str,
-    func_args: list[str],
-):
-    """
-    Load the Garden by DOI, locate the named function, and invoke it with the provided args.
-    """
-    garden = GardenClient().get_garden(doi)
-
-    if garden.modal_functions:
-        function = getattr(garden, func_name, None)
-    if garden.modal_classes:
-        class_name, class_method = func_name.split(".")
-        modal_class = getattr(garden, class_name)
-        function = getattr(modal_class, class_method)
-
-    if function is None:
-        raise ToolError(f"No such function '{func_name}' in garden '{doi}'")
-    try:
-        result = function(func_args)
-    except Exception as e:
-        raise ToolError(f"Error running '{func_name}(...)': {e}")
-    return result
-
-
-@mcp.tool()
 def invoke_function(
     garden_doi: str,
     function_name: str,
@@ -132,10 +105,27 @@ def invoke_function(
         results = modal_fn(input_data)
     except Exception as e:
         raise ToolError(
-            "Function invocation failed. Try generating sample code with the "
-            "`generate_code` tool and invoking manually to troubleshoot."
+            "Function invocation failed. "
+            "Try generating sample code with the "
+            "`generate_code` tool and invoking manually to troubleshoot. "
+            f"Error: {e}"
         ) from e
-    return results
+    # if the result object is not a jsonable type we need to handle it here or
+    # it just crashes the MCP server without an error message
+    try:
+        _ = json.dumps(results)
+        return results
+    except TypeError as e:
+        if "JSON" in str(e):
+            import sys
+
+            print(f"Error: could not serialize results to JSON: {e}", file=sys.stderr)
+            raise ToolError(
+                f"Error: {e}\n"
+                "Try generating sample code with the `generate_code` tool and invoking the function manually. "
+            ) from e
+        else:
+            raise
 
 
 # MLIP-specific tools
