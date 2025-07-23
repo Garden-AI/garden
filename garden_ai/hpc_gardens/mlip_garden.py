@@ -5,9 +5,9 @@ from typing import Any
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import (
     EdithExecutor,
-    _send_chunk_to_endpoint,
-    _collate_file_chunks,
-    _stream_result_chunk_from_file,
+    send_chunk_to_endpoint,
+    collate_file_chunks,
+    stream_result_chunk_from_file,
 )
 from garden_ai.hpc_gardens.utils import generate_xyz_str_chunks
 from garden_ai.schemas.garden import GardenMetadata
@@ -96,7 +96,7 @@ class MLIPGarden(Garden):
         ex = EdithExecutor(endpoint_id=cluster_id)
         chunks = []
         for chunk in generate_xyz_str_chunks(xyz_path):
-            f = ex.submit(_send_chunk_to_endpoint, chunk)
+            f = ex.submit(send_chunk_to_endpoint, chunk)
             # wait for each chunk
             chunk_result = f.result()
 
@@ -115,7 +115,7 @@ class MLIPGarden(Garden):
 
         # Use the same filename as the input file on the remote endpoint
         master_filename = xyz_path.name
-        f = ex.submit(_collate_file_chunks, master_filename, chunks)
+        f = ex.submit(collate_file_chunks, master_filename, chunks)
         collate_result = f.result()
 
         # Check if file collation failed
@@ -248,7 +248,7 @@ class MLIPGarden(Garden):
 
         while True:
             # Get next chunk from remote file
-            f = ex.submit(_stream_result_chunk_from_file, remote_file_path, chunk_index)
+            f = ex.submit(stream_result_chunk_from_file, remote_file_path, chunk_index)
             chunk_result = f.result()
 
             # Handle result decoding if needed
