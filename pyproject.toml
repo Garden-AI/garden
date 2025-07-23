@@ -8,11 +8,11 @@ version = "0.0.0"                                                           # pl
 description = "Garden: tools to simplify access to scientific AI advances."
 # note to contributors: feel free to add yourselves to this list 🌱
 maintainers = [
-  "Globus Labs <labs@globus.org>",
-  "Owen Price Skelly",
-  "Will Engler",
-  "Hayden Holbrook",
-  "Ben Blaiszik",
+    "Globus Labs <labs@globus.org>",
+    "Owen Price Skelly",
+    "Will Engler",
+    "Hayden Holbrook",
+    "Ben Blaiszik",
 ]
 authors = ["Garden Team <labs@globus.org>"]
 license = "MIT"
@@ -43,13 +43,18 @@ ipywidgets = "^8.1.3"
 boto3 = "^1.29"
 boto3-stubs = "^1.29"
 urllib3 = [
-  { version = "<2", python = "<3.10" },
-  { version = "^2.2.1", python = ">=3.10" },
+    { version = "<2", python = "<3.10" },
+    { version = "^2.2.1", python = ">=3.10" },
 ]
 python-dotenv = "^1.0.1"
 pydantic-core = "^2.18.4"
 modal = "^1.0.0"
 mixpanel = "^4.10.1"
+mcp = { version = "^1.0.0", optional = true }
+
+[tool.poetry.extras]
+mlip = ["ase"]
+mcp = ["mcp"]
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
@@ -65,8 +70,8 @@ flake8 = "^5.0.4"
 mypy = "1.14.1"
 numpy = "^1.24.0"
 pandas = [
-  { version = "2.0.3", python = "<3.9" },
-  { version = "^2", python = ">=3.9" },
+    { version = "2.0.3", python = "<3.9" },
+    { version = "^2", python = ">=3.9" },
 ]
 types-requests = "^2.20.0"
 safety = "^2.3.1"
@@ -94,21 +99,28 @@ profile = "black"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
-exclude = "fixtures|scripts"
+exclude = [
+    "fixtures/",
+    "scripts/",
+    "garden_ai/hpc_executors/",
+    "garden_ai/hpc_gardens/",
+]
+
 
 [tool.pytest.ini_options]
 markers = [
-  "cli: deselect with '-m \"not cli\"' to disable CLI tests.",
-  "integration: skipped by default, run `pytest --integration` to enable",
-  "ete: mark a tests as an end-to-end test",
+    "cli: deselect with '-m \"not cli\"' to disable CLI tests.",
+    "integration: skipped by default, run `pytest --integration` to enable",
+    "ete: mark a tests as an end-to-end test",
 ]
 addopts = "--random-order"
 
 [tool.coverage.run]
 source = ["garden_ai/"]
 omit = [
-  "garden_ai/notebook_templates/*",
-  "tests/*",
-  "scripts/*",
-  "garden_ai/hpc_gardens/*",
+    "garden_ai/notebook_templates/*",
+    "tests/*",
+    "scripts/*",
+    "garden_ai/hpc_gardens/*",
+    "garden_ai/hpc_executors/*",
 ]
