@@ -191,7 +191,7 @@ class MLIPGarden(Garden):
             )
 
     def get_results(
-        self, job_id: str, output_path: str | Path = None, cluster_id: str | None = None
+        self, job_id: str, output_path: str | Path = None, cluster_id: str | None = None  # type: ignore[assignment]
     ) -> Path:
         """
         Download the results of a completed batch job to local machine.
@@ -295,10 +295,10 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
     Returns:
         Dictionary representation of relaxed atoms
     """
-    import ase
+    import ase  # type: ignore[import-not-found]
     import numpy as np
-    import torch
-    import torch_sim as ts
+    import torch  # type: ignore[import-not-found]
+    import torch_sim as ts  # type: ignore[import-not-found]
 
     # Convert dict back to atoms
     atoms = ase.Atoms.fromdict(atoms_dict)
@@ -308,8 +308,8 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
     dtype = torch.float32
 
     # For single relaxation, use a simple MACE model loading
-    from mace.calculators.foundations_models import mace_mp
-    from torch_sim.models.mace import MaceModel
+    from mace.calculators.foundations_models import mace_mp  # type: ignore[import-not-found]
+    from torch_sim.models.mace import MaceModel  # type: ignore[import-not-found]
 
     print(f"🔧 Loading {model} model on {device}...")
     loaded_model = mace_mp(
@@ -366,7 +366,7 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
     import numpy as np  # noqa:
     import torch
     import torch_sim as ts
-    from ase.io import read, write
+    from ase.io import read, write  # type: ignore[import-not-found]
     from pathlib import Path
     import uuid
 
@@ -432,11 +432,11 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
         # Classical potentials
         elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
             if model_name == "soft-sphere":
-                from torch_sim.models.soft_sphere import SoftSphereModel
+                from torch_sim.models.soft_sphere import SoftSphereModel  # type: ignore[import-not-found]
 
                 return SoftSphereModel(device=device, dtype=dtype)
             elif model_name == "lennard-jones":
-                from torch_sim.models.lennard_jones import LennardJonesModel
+                from torch_sim.models.lennard_jones import LennardJonesModel  # type: ignore[import-not-found]
 
                 return LennardJonesModel(
                     sigma=2.0,  # Å, interaction distance
@@ -445,7 +445,7 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
                     dtype=dtype,
                 )
             elif model_name == "morse":
-                from torch_sim.models.morse import MorseModel
+                from torch_sim.models.morse import MorseModel  # type: ignore[import-not-found]
 
                 return MorseModel(device=device, dtype=dtype)
 

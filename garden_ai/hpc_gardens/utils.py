@@ -156,7 +156,7 @@ def send_chunk_to_endpoint(chunk: str) -> str:
 def collate_file_chunks(master_file: str, chunk_file_names: list[str]) -> str:
     from pathlib import Path
 
-    master_file = Path.home().joinpath(master_file)
+    master_file = Path.home().joinpath(master_file)  # type: ignore[assignment]
     with open(master_file, "a") as f:
         for name in chunk_file_names:
             file = Path(name)

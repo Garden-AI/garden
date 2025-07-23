@@ -40,7 +40,7 @@ class EdithExecutor(Executor):
         )
         self.serializer = ComputeSerializer(strategy_code=CombinedCode())
 
-    def submit(self, func, *args, **kwargs) -> Any:
+    def submit(self, func, *args, **kwargs) -> Any:  # type: ignore[override]
         """
         Execute a function on a Globus Compute endpoint using subprocess with conda environment.
 
