@@ -51,7 +51,6 @@ pydantic-core = "^2.18.4"
 modal = "^1.0.0"
 mixpanel = "^4.10.1"
 mcp = { version = "^1.0.0", optional = true }
-ase = "^3.25.0"
 
 [tool.poetry.extras]
 mlip = ["ase"]
