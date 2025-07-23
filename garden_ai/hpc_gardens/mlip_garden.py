@@ -2,16 +2,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from garden_ai.gardens import Garden
-from garden_ai.hpc_executors.edith_executor import (
-    EdithExecutor,
-    send_chunk_to_endpoint,
-    collate_file_chunks,
-    stream_result_chunk_from_file,
-)
-from garden_ai.hpc_gardens.utils import generate_xyz_str_chunks
-from garden_ai.schemas.garden import GardenMetadata
 from globus_compute_sdk import Client
+
+from garden_ai.gardens import Garden
+from garden_ai.hpc_executors.edith_executor import EdithExecutor
+from garden_ai.hpc_gardens.utils import check_file_size_and_read
+from garden_ai.schemas.garden import GardenMetadata
 
 
 @dataclass
@@ -19,7 +15,7 @@ class JobStatus:
     """Status information for a batch job."""
 
     status: str  # "pending" | "running" | "completed" | "failed" | "unknown"
-    remote_output_file_path: str | None = None
+    results_available: bool = False
     error: str | None = None
     stdout: str = ""
     stderr: str = ""
@@ -85,51 +81,21 @@ class MLIPGarden(Garden):
         Returns:
             Job ID for tracking
         """
-        import uuid  # noqa:
         from pathlib import Path
 
-        # Read structures locally
+        # Check file size and read content locally
         xyz_path = Path(xyz_file_path)
-        if not xyz_path.exists():
-            raise FileNotFoundError(f"XYZ file not found: {xyz_path}")
+        try:
+            file_content = check_file_size_and_read(xyz_path)
+        except (FileNotFoundError, ValueError) as e:
+            raise RuntimeError(f"Failed to read XYZ file: {e}")
 
         ex = EdithExecutor(endpoint_id=cluster_id)
-        chunks = []
-        for chunk in generate_xyz_str_chunks(xyz_path):
-            f = ex.submit(send_chunk_to_endpoint, chunk)
-            # wait for each chunk
-            chunk_result = f.result()
 
-            # Check if chunk creation failed
-            if isinstance(chunk_result, dict) and "error" in chunk_result:
-                raise RuntimeError(
-                    f"Failed to send chunk to endpoint: {chunk_result['error']}"
-                )
-
-            # Extract the actual filename from the result
-            if isinstance(chunk_result, dict) and "raw_data" in chunk_result:
-                chunk_filename = ex.decode_result_data(chunk_result["raw_data"])
-                chunks.append(chunk_filename)
-            else:
-                chunks.append(chunk_result)
-
-        # Use the same filename as the input file on the remote endpoint
-        master_filename = xyz_path.name
-        f = ex.submit(collate_file_chunks, master_filename, chunks)
-        collate_result = f.result()
-
-        # Check if file collation failed
-        if isinstance(collate_result, dict) and "error" in collate_result:
-            raise RuntimeError(
-                f"Failed to collate file chunks: {collate_result['error']}"
-            )
-
-        # Extract the actual filename from the collate result
-        if isinstance(collate_result, dict) and "raw_data" in collate_result:
-            input_file = ex.decode_result_data(collate_result["raw_data"])
-        else:
-            input_file = collate_result
-        future = ex.submit(_run_batch_relaxation, input_file, model, max_batch_size)
+        # Pass file content and filename directly to the batch relaxation function
+        future = ex.submit(
+            _run_batch_relaxation, file_content, xyz_path.name, model, max_batch_size
+        )
         task_id = future.task_id
 
         # TODO: this could be an infinite loop if we never get the task id
@@ -167,15 +133,10 @@ class MLIPGarden(Garden):
                     stderr=job_result.get("stderr", ""),
                 )
 
-            # Successful completion - decode remote file path
-            remote_file_path = None
-            if isinstance(job_result, dict) and "raw_data" in job_result:
-                ex = EdithExecutor()
-                remote_file_path = ex.decode_result_data(job_result["raw_data"])
-
+            # Successful completion - results are stored in globus-compute
             return JobStatus(
                 status="completed",
-                remote_output_file_path=remote_file_path,
+                results_available=True,
                 stdout=(
                     job_result.get("stdout", "") if isinstance(job_result, dict) else ""
                 ),
@@ -221,9 +182,8 @@ class MLIPGarden(Garden):
         elif status_info.status != "completed":
             raise RuntimeError(f"Job {job_id} has unknown status: {status_info.status}")
 
-        remote_file_path = status_info.remote_output_file_path
-        if not remote_file_path:
-            raise RuntimeError(f"No results file found for completed job {job_id}")
+        if not status_info.results_available:
+            raise RuntimeError(f"No results available for completed job {job_id}")
 
         # Set up output path
         if output_path is None:
@@ -231,56 +191,30 @@ class MLIPGarden(Garden):
         else:
             output_path = Path(output_path)
 
-        # Set up executor for streaming - use provided cluster_id or default to EDITH endpoint
-        from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID
-
-        endpoint_id = cluster_id if cluster_id else EDITH_EP_ID
-        ex = EdithExecutor(endpoint_id=endpoint_id)
-
-        # Stream results in chunks
+        # Set up output path and ensure directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        print(f"📥 Downloading results from remote: {remote_file_path}")
         print(f"📁 Saving to local file: {output_path}")
 
-        chunk_index = 0
-        total_chunks = None
+        client = Client()
+        job_result = client.get_result(job_id)
 
-        while True:
-            # Get next chunk from remote file
-            f = ex.submit(stream_result_chunk_from_file, remote_file_path, chunk_index)
-            chunk_result = f.result()
+        # Handle result decoding if needed (results are stored as encoded data)
+        if isinstance(job_result, dict) and "raw_data" in job_result:
+            ex = EdithExecutor()  # Need this for decoding
+            file_content = ex.decode_result_data(job_result["raw_data"])
+        else:
+            file_content = job_result
 
-            # Handle result decoding if needed
-            if isinstance(chunk_result, dict) and "raw_data" in chunk_result:
-                chunk_result = ex.decode_result_data(chunk_result["raw_data"])
+        # Ensure we have string content
+        if not isinstance(file_content, str):
+            raise RuntimeError(f"Expected string content, got {type(file_content)}")
 
-            # Check for errors
-            if isinstance(chunk_result, dict) and "error" in chunk_result:
-                raise RuntimeError(
-                    f"Failed to download results: {chunk_result['error']}"
-                )
+        # Write entire file to local path
+        with open(output_path, "w") as f:
+            f.write(file_content)
 
-            # Extract chunk data
-            chunk_data = chunk_result["chunk_data"]
-            chunk_index = chunk_result["chunk_index"]
-            total_chunks = chunk_result["total_chunks"]
-            is_complete = chunk_result["is_complete"]
-
-            # Write chunk to local file (first chunk overwrites, rest append)
-            mode = "w" if chunk_index == 0 else "a"
-            with open(output_path, mode) as f:
-                f.write(chunk_data)
-
-            print(f"📦 Downloaded chunk {chunk_index + 1}/{total_chunks}")
-
-            # Check if we're done
-            if is_complete:
-                break
-
-            chunk_index += 1
-
-        print(f"✅ Successfully downloaded {total_chunks} chunks to {output_path}")
+        print(f"✅ Successfully saved results to {output_path}")
         return output_path
 
 
@@ -308,7 +242,9 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
     dtype = torch.float32
 
     # For single relaxation, use a simple MACE model loading
-    from mace.calculators.foundations_models import mace_mp  # type: ignore[import-not-found]
+    from mace.calculators.foundations_models import (
+        mace_mp,  # type: ignore[import-not-found]
+    )
     from torch_sim.models.mace import MaceModel  # type: ignore[import-not-found]
 
     print(f"🔧 Loading {model} model on {device}...")
@@ -349,30 +285,42 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
     return result_dicts[0] if len(result_dicts) == 1 else result_dicts
 
 
-def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
+def _run_batch_relaxation(
+    xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=10
+):
     """
     Run batch relaxation on multiple structures using torch-sim's autobatcher.
     Saves results incrementally to handle 30-minute time limit gracefully.
 
     Args:
-        xyz_filename: Path to xyz file containing structures on remote endpoint
+        xyz_content: String content of XYZ file containing structures
+        xyz_filename: Original filename (used for output naming)
         model: Model to use for relaxation (any torch-sim supported model)
         max_batch_size: Maximum structures to process at once (legacy parameter, autobatcher handles this)
 
     Returns:
         Path to results XYZ file on remote endpoint
     """
+    import tempfile
+    import uuid
+    from pathlib import Path
+
     import ase  # noqa:
     import numpy as np  # noqa:
     import torch
     import torch_sim as ts
     from ase.io import read, write  # type: ignore[import-not-found]
-    from pathlib import Path
-    import uuid
 
-    # Read structures from xyz file
+    # Write XYZ content to a temporary file on remote endpoint
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".xyz", delete=False
+    ) as temp_file:
+        temp_file.write(xyz_content)
+        temp_xyz_path = temp_file.name
+
+    # Read structures from temporary xyz file
     print(f"📖 Reading structures from {xyz_filename}...")
-    all_atoms = read(xyz_filename, index=":")
+    all_atoms = read(temp_xyz_path, index=":")
 
     # Create results file path
     input_path = Path(xyz_filename)
@@ -432,11 +380,15 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
         # Classical potentials
         elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
             if model_name == "soft-sphere":
-                from torch_sim.models.soft_sphere import SoftSphereModel  # type: ignore[import-not-found]
+                from torch_sim.models.soft_sphere import (
+                    SoftSphereModel,  # type: ignore[import-not-found]
+                )
 
                 return SoftSphereModel(device=device, dtype=dtype)
             elif model_name == "lennard-jones":
-                from torch_sim.models.lennard_jones import LennardJonesModel  # type: ignore[import-not-found]
+                from torch_sim.models.lennard_jones import (
+                    LennardJonesModel,  # type: ignore[import-not-found]
+                )
 
                 return LennardJonesModel(
                     sigma=2.0,  # Å, interaction distance
@@ -445,7 +397,9 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
                     dtype=dtype,
                 )
             elif model_name == "morse":
-                from torch_sim.models.morse import MorseModel  # type: ignore[import-not-found]
+                from torch_sim.models.morse import (
+                    MorseModel,  # type: ignore[import-not-found]
+                )
 
                 return MorseModel(device=device, dtype=dtype)
 
@@ -476,24 +430,6 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
     for i, atoms in enumerate(all_atoms):
         atoms.info["_original_index"] = i
 
-    def generate_force_convergence_fn(force_tol=0.05):
-        """Generate a convergence function based on force tolerance."""
-
-        def convergence_fn(state, last_energy):
-            forces = state.forces
-            # Calculate max force per batch (not global max)
-            force_norms = torch.norm(forces, dim=-1)  # Shape: [n_atoms]
-            # Reshape to [n_batches, atoms_per_batch] and get max per batch
-            n_batches = state.n_batches
-            atoms_per_batch = force_norms.shape[0] // n_batches
-            force_norms_batched = force_norms.view(n_batches, atoms_per_batch)
-            max_forces_per_batch = torch.max(force_norms_batched, dim=-1)[
-                0
-            ]  # Shape: [n_batches]
-            return max_forces_per_batch < force_tol
-
-        return convergence_fn
-
     # Initialize state for all structures at once
     initial_state = ts.initialize_state(all_atoms, device=device, dtype=dtype)
 
@@ -503,7 +439,6 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
         model=torch_sim_model,
         optimizer=ts.unit_cell_fire,
         max_steps=200,
-        convergence_fn=generate_force_convergence_fn(force_tol=0.05),
         autobatcher=True,  # This handles all memory management automatically
     )
 
@@ -524,7 +459,8 @@ def _run_batch_relaxation(xyz_filename, model="mace-mp-0", max_batch_size=10):
         # Write to XYZ file (append mode after first structure)
         write(results_path, atoms, append=(i > 0))
 
-    print(f"✅ Saved all {len(relaxed_atoms_list)} structures to XYZ file!")
-    print(f"📁 Results file: {results_path}")
+    # Read the results file and return its contents so globus-compute keeps them
+    with open(results_path, "r") as f:
+        results_content = f.read()
 
-    return str(results_path)
+    return results_content
