@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,17 @@ from garden_ai.hpc_executors.edith_executor import (
 from garden_ai.hpc_gardens.utils import generate_xyz_str_chunks
 from garden_ai.schemas.garden import GardenMetadata
 from globus_compute_sdk import Client
+
+
+@dataclass
+class JobStatus:
+    """Status information for a batch job."""
+
+    status: str  # "pending" | "running" | "completed" | "failed" | "unknown"
+    remote_output_file_path: str | None = None
+    error: str | None = None
+    stdout: str = ""
+    stderr: str = ""
 
 
 class MLIPGarden(Garden):
@@ -126,7 +138,7 @@ class MLIPGarden(Garden):
 
         return task_id
 
-    def get_job_status(self, job_id: str) -> dict:
+    def get_job_status(self, job_id: str) -> JobStatus:
         """
         Get comprehensive status information for a submitted batch job.
 
@@ -134,40 +146,26 @@ class MLIPGarden(Garden):
             job_id: Job ID returned by batch_relax
 
         Returns:
-            Dictionary with status info:
-            {
-                "status": "pending" | "running" | "completed" | "failed",
-                "remote_file_path": str,  # if completed successfully
-                "error": str,             # if failed
-                "stdout": str,            # job output
-                "stderr": str             # warnings/errors
-            }
+            JobStatus dataclass with status information
         """
         client = Client()
         task_info = client.get_task(job_id)
 
         # Extract basic status
         if task_info.get("pending", True):
-            return {
-                "status": "pending",
-                "remote_file_path": None,
-                "error": None,
-                "stdout": "",
-                "stderr": "",
-            }
+            return JobStatus(status="pending")
 
         # Get the actual result to determine if completed or failed
         try:
             job_result = client.get_result(job_id)
 
             if isinstance(job_result, dict) and "error" in job_result:
-                return {
-                    "status": "failed",
-                    "remote_file_path": None,
-                    "error": job_result["error"],
-                    "stdout": job_result.get("stdout", ""),
-                    "stderr": job_result.get("stderr", ""),
-                }
+                return JobStatus(
+                    status="failed",
+                    error=job_result["error"],
+                    stdout=job_result.get("stdout", ""),
+                    stderr=job_result.get("stderr", ""),
+                )
 
             # Successful completion - decode remote file path
             remote_file_path = None
@@ -175,26 +173,22 @@ class MLIPGarden(Garden):
                 ex = EdithExecutor()
                 remote_file_path = ex.decode_result_data(job_result["raw_data"])
 
-            return {
-                "status": "completed",
-                "remote_file_path": remote_file_path,
-                "error": None,
-                "stdout": (
+            return JobStatus(
+                status="completed",
+                remote_output_file_path=remote_file_path,
+                stdout=(
                     job_result.get("stdout", "") if isinstance(job_result, dict) else ""
                 ),
-                "stderr": (
+                stderr=(
                     job_result.get("stderr", "") if isinstance(job_result, dict) else ""
                 ),
-            }
+            )
 
         except Exception as e:
-            return {
-                "status": "unknown",
-                "remote_file_path": None,
-                "error": f"Failed to get job status: {str(e)}",
-                "stdout": "",
-                "stderr": "",
-            }
+            return JobStatus(
+                status="unknown",
+                error=f"Failed to get job status: {str(e)}",
+            )
 
     def get_results(
         self, job_id: str, output_path: str | Path = None, cluster_id: str | None = None
@@ -218,18 +212,16 @@ class MLIPGarden(Garden):
         # Check job status first
         status_info = self.get_job_status(job_id)
 
-        if status_info["status"] == "pending":
+        if status_info.status == "pending":
             raise RuntimeError(f"Job {job_id} is still pending")
-        elif status_info["status"] == "running":
+        elif status_info.status == "running":
             raise RuntimeError(f"Job {job_id} is still running")
-        elif status_info["status"] == "failed":
-            raise RuntimeError(f"Job {job_id} failed: {status_info['error']}")
-        elif status_info["status"] != "completed":
-            raise RuntimeError(
-                f"Job {job_id} has unknown status: {status_info['status']}"
-            )
+        elif status_info.status == "failed":
+            raise RuntimeError(f"Job {job_id} failed: {status_info.error}")
+        elif status_info.status != "completed":
+            raise RuntimeError(f"Job {job_id} has unknown status: {status_info.status}")
 
-        remote_file_path = status_info["remote_file_path"]
+        remote_file_path = status_info.remote_output_file_path
         if not remote_file_path:
             raise RuntimeError(f"No results file found for completed job {job_id}")
 
