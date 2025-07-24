@@ -40,11 +40,25 @@ class MLIPGarden(Garden):
         super().__init__(metadata=metadata)
 
     def relax(
+        self,
         xyz_file_path: str | Path | None = None,
         xyz_string: str | None = None,
-        model: str = "mace-mp-0",
+        model: str = "mace",
         options: dict = {},
     ):
+        cloud_mlip_garden = self.client.get_garden("10.26311/qs92-3t67")
+        models_to_class_name = {
+            "mace": "MACE",
+            "orb": "ORB",
+            "fairchem": "FAIRCHEM",
+            "mattersim": "MATTERSIM",
+            "sevennet": "SEVENNET",
+        }
+        class_name = models_to_class_name.get(model, None)
+        cls = getattr(cloud_mlip_garden, class_name, None)
+        if cls is None:
+            raise ValueError(f"Model {model} not found")
+        cls.relax(xyz_file_path, xyz_string, options)
         pass
 
     def run_relaxation(
