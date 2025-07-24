@@ -37,6 +37,40 @@ class MLIPGarden(Garden):
         )
         super().__init__(metadata=metadata)
 
+    def relax(
+        self,
+        xyz_file_path: str | Path | None = None,
+        xyz_string: str | None = None,
+        model: str = "mace",
+        options: dict = {},
+    ):
+        cloud_mlip_garden = self.client.get_garden("10.26311/qs92-3t67")
+        models_to_class_name = {
+            "mace": "MACE",
+            "orb": "ORB",
+            "fairchem": "FAIRCHEM",
+            "mattersim": "MATTERSIM",
+            "sevennet": "SEVENNET",
+        }
+        class_name = models_to_class_name.get(model, None)
+        cls = getattr(cloud_mlip_garden, class_name, None)
+        if cls is None:
+            raise ValueError(f"Model {model} not found")
+        # If we're given a file path, read the file into a string
+        if xyz_string is not None:
+            raw_input = xyz_string
+        elif xyz_file_path is not None:
+            try:
+                with open(xyz_file_path, "r") as f:
+                    raw_input = f.read()
+            except Exception as e:
+                raise ValueError(f"Could not read {xyz_file_path}: {e}")
+        else:
+            raise ValueError("No input provided")
+
+        raw_output = cls.relax(raw_input)
+        return raw_output
+
     def run_relaxation(
         self, atoms_dict, model: str = "mace-mp-0", cluster_id: str | None = None
     ):
