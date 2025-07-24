@@ -38,6 +38,7 @@ class GardenMetadata(BaseModel):
     language: str = "en"
     tags: UniqueList[str] = Field(default_factory=list)
     version: str = "0.0.1"
+    state: str | None = None
 
     # these are DB ids (unlike entrypoint_ids which are dois)
     modal_function_ids: UniqueList[int] = Field(default_factory=list)
