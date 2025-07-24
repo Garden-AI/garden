@@ -1,5 +1,6 @@
 import ast
 
+
 def extract_function_signature(code: str):
     lines = code.splitlines()
     signature_lines = []
