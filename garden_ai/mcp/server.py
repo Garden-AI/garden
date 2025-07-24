@@ -16,29 +16,6 @@ mcp = FastMCP("garden-mcp-server")
 
 
 @mcp.tool()
-def get_functions(doi: str):
-    """
-    Return a list of available modal function names for this Garden.
-    """
-    garden = GardenClient().get_garden(doi)
-    data = garden.metadata.model_dump(
-        exclude={"owner_identity_id", "id", "language", "publisher"}
-    )
-
-    if garden.modal_functions:
-        data["modal_functions"] = [
-            mf.metadata.model_dump() for mf in garden.modal_functions
-        ]
-    elif garden.modal_classes:
-        data["modal_functions"] = []
-        for modal_class in garden.modal_classes:
-            for method in modal_class._methods.values():
-                data["modal_functions"].append(method.metadata.model_dump())
-
-    return data["modal_functions"]
-
-
-@mcp.tool()
 def invoke_function(
     garden_doi: str,
     function_name: str,
@@ -199,7 +176,8 @@ def search_gardens(
 @mcp.tool()
 def get_garden_metadata(doi: str) -> str:
     """
-    Fully describe garden by doi
+    Fully describe garden by doi. In addition to other informative metadata,
+    this contains the list of functions callable from the garden.
     """
     try:
         response = GardenClient().backend_client.get_garden(doi)
@@ -223,7 +201,7 @@ def get_garden_metadata(doi: str) -> str:
 
 
 @mcp.tool()
-async def generate_script(doi: str, function_name: str):
+def generate_script(doi: str, function_name: str):
     """
     Generate a concise Python script for using a function from Garden
 
