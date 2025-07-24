@@ -220,16 +220,14 @@ async def generate_script(doi: str, function_name: str):
 
     response = {
         "response_type": "garden_client_code_generation",
-        "imports": ["from garden_ai import GardenClient"],
+        "imports": "from garden_ai import GardenClient",
+        "function_metadata": {
+            "function_signature": f"my_garden.{modal_fn.metadata.function_name}",
+            "doi": doi,
+            "description": modal_fn.metadata.description,
+            "function_text": modal_fn.metadata.function_text,
+        },
     }
-    function_metadata = {
-        "function_signature": f"my_garden.{modal_fn.metadata.function_name}",
-        "doi": doi,
-        "description": modal_fn.metadata.description,
-        "function_text": modal_fn.metadata.function_text,
-    }
-
-    response["function_metadata"] = function_metadata
 
     return response
 
