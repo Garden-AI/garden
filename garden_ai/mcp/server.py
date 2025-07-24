@@ -1,4 +1,5 @@
 import logging
+import json
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
@@ -33,7 +34,6 @@ def echo(message: str) -> str:
         return f"Garden auth failed: {e}"
 
 
-# copied from globus-labs/science-mpcs repo
 @mcp.tool()
 def get_functions(doi: str):
     """
@@ -43,11 +43,18 @@ def get_functions(doi: str):
     data = garden.metadata.model_dump(
         exclude={"owner_identity_id", "id", "language", "publisher"}
     )
-    data["entrypoints"] = [ep.metadata.model_dump() for ep in garden.entrypoints]
-    data["modal_functions"] = [
-        mf.metadata.model_dump() for mf in garden.modal_functions
-    ]
-    return [f["function_name"] for f in data["modal_functions"]]
+
+    if garden.modal_functions:
+        data["modal_functions"] = [
+            mf.metadata.model_dump() for mf in garden.modal_functions
+        ]
+    elif garden.modal_classes:
+        data["modal_functions"] = []
+        for modal_class in garden.modal_classes:
+            for method in modal_class._methods.values():
+                data["modal_functions"].append(method.metadata.model_dump())
+
+    return data["modal_functions"]
 
 
 @mcp.tool()
@@ -60,11 +67,18 @@ def run_function(
     Load the Garden by DOI, locate the named function, and invoke it with the provided args.
     """
     garden = GardenClient().get_garden(doi)
-    entrypoint = getattr(garden, func_name, None)
-    if entrypoint is None:
+
+    if garden.modal_functions:
+        function = getattr(garden, func_name, None)
+    if garden.modal_classes:
+        class_name, class_method = func_name.split(".")
+        modal_class = getattr(garden, class_name)
+        function = getattr(modal_class, class_method)
+
+    if function is None:
         raise ToolError(f"No such function '{func_name}' in garden '{doi}'")
     try:
-        result = entrypoint(func_args)
+        result = function(func_args)
     except Exception as e:
         raise ToolError(f"Error running '{func_name}(...)': {e}")
     return result
@@ -83,6 +97,81 @@ try:
 
 except ImportError:
     pass
+
+
+@mcp.tool()
+def search_gardens(
+    dois: list[str] | None = None,
+    tags: list[str] | None = None,
+    draft: bool | None = None,
+    authors: list[str] | None = None,
+    contributors: list[str] | None = None,
+    year: str | None = None,
+    owner_uuid: str | None = None,
+    limit: int = 20,
+) -> str:
+    """
+    Search for gardens based on inputs, returns at most limit gardens.
+    """
+    try:
+        response = GardenClient().backend_client.get_gardens(
+            dois=dois,
+            tags=tags,
+            draft=draft,
+            authors=authors,
+            contributors=contributors,
+            year=year,
+            owner_uuid=owner_uuid,
+            limit=limit,
+        )
+
+        result = []
+        for garden in response:
+            data = garden.metadata.model_dump(
+                mode="json", include={"doi", "title", "description", "tags"}
+            )
+
+            if garden.modal_functions:
+                data["modal_functions"] = [
+                    mf.metadata.function_name for mf in garden.modal_functions
+                ]
+            elif garden.modal_classes:
+                data["modal_functions"] = []
+                for modal_class in garden.modal_classes:
+                    for method in modal_class._methods.values():
+                        data["modal_functions"].append(method.metadata.function_name)
+
+            result.append(data)
+
+        return json.dumps(result)
+    except Exception as e:
+        raise ToolError(f"Error searching for garden: {e}")
+
+
+@mcp.tool()
+def get_garden_metadata(doi: str) -> str:
+    """
+    Fully describe garden by doi
+    """
+    try:
+        response = GardenClient().backend_client.get_garden(doi)
+        metadata = response.metadata.model_dump(mode="json")
+
+        if response.modal_functions:
+            metadata["modal_functions"] = [
+                mf.metadata.function_name for mf in response.modal_functions
+            ]
+        elif response.modal_classes:
+            metadata["modal_functions"] = []
+            for modal_class in response.modal_classes:
+                for method in modal_class._methods.values():
+                    metadata["modal_functions"].append(method.metadata.function_name)
+        else:
+            metadata["modal_functions"] = []
+
+        return json.dumps(metadata)
+    except Exception as e:
+        raise ToolError(f"Error getting garden metadata: {e}")
 
 
 def main():
