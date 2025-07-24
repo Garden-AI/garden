@@ -152,6 +152,8 @@ def search_gardens(
 
         result = []
         for garden in response:
+            if garden.metadata.state == "ARCHIVED":
+                continue
             data = garden.metadata.model_dump(
                 mode="json", include={"doi", "title", "description", "tags"}
             )
