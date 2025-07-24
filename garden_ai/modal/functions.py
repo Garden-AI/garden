@@ -20,6 +20,7 @@ from modal.exception import DeserializationError, ExecutionError, RemoteError
 from modal_proto import api_pb2  # type: ignore
 from synchronicity.exceptions import UserCodeException  # type: ignore
 
+
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
 else:
@@ -103,7 +104,11 @@ class _ModalFunction:
 
         return GardenClient()
 
-    async def __call__(self, *args, **kwargs) -> Any:
+    async def __call__(
+        self,
+        *args,
+        **kwargs,
+    ) -> Any:
         response: ModalInvocationResponse = await self._request_invocation(
             *args, **kwargs
         )

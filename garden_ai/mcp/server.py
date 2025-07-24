@@ -87,7 +87,6 @@ def run_function(
 # MLIP-specific tools
 
 try:
-    import ase  # noqa
     from .mlip import submit_relaxation_job, check_job_status, get_job_results
 
     # only include mlip tools if mlip extra is also installed
