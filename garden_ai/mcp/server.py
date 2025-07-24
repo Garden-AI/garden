@@ -16,28 +16,6 @@ mcp = FastMCP("garden-mcp-server")
 
 
 @mcp.tool()
-def echo(message: str) -> str:
-    """
-    Echo a message back, while sanity checking that GardenClient auth works.
-
-    Args:
-        message: The message to echo back
-
-    Returns:
-        The echoed message with authentication status
-    """
-    try:
-        client = GardenClient()
-        user_email = client.get_email()
-        logger.info(f"Garden authentication successful for user: {user_email}")
-
-        return f"Echo from Garden (logged in as {user_email}): {message}"
-    except Exception as e:
-        logger.error(f"Garden authentication failed: {e}")
-        return f"Garden auth failed: {e}"
-
-
-@mcp.tool()
 def get_functions(doi: str):
     """
     Return a list of available modal function names for this Garden.
@@ -66,6 +44,33 @@ def invoke_function(
     function_name: str,
     input_data_or_path: str,
 ):
+    """
+    Invoke a function from a Garden with flexible input handling.
+
+    This tool executes functions from Gardens (computational research artifacts) with intelligent
+    input processing and comprehensive error handling.
+
+    Args:
+        garden_doi: Digital Object Identifier of the garden (e.g., "10.23677/m0dr-jg09")
+        function_name: Name of the function to invoke. Can be either a direct function name
+                      (e.g., "my_function") or a class method (e.g., "ClassName.method_name")
+        input_data_or_path: Input data for the function. This parameter is highly flexible:
+                           - If it's a valid file path, the file contents will be read and used
+                           - If it's valid JSON, it will be parsed as structured data
+                           - Otherwise, it will be passed as a plain string
+
+    Returns:
+        The function's output, which must be JSON-serializable
+
+    Usage Examples:
+        - String input: invoke_function("10.23677/example", "process_text", "hello world")
+        - JSON input: invoke_function("10.23677/example", "analyze_data", '{"key": "value"}')
+        - File input: invoke_function("10.23677/example", "analyze_file_contents", "/path/to/data.txt")
+        - Class method: invoke_function("10.23677/example", "Model.predict", "input_data")
+
+    Note: If the function returns non-JSON-serializable objects, or requires non-JSON-serializable inputs,
+    use the generate_script tool to create code for the user to manually invoke.
+    """
     garden = get_garden(garden_doi)
     # verify function exists on this garden
     try:
@@ -107,7 +112,7 @@ def invoke_function(
         raise ToolError(
             "Function invocation failed. "
             "Try generating sample code with the "
-            "`generate_code` tool and invoking manually to troubleshoot. "
+            "`generate_script` tool and invoking manually to troubleshoot. "
             f"Error: {e}"
         ) from e
     # if the result object is not a jsonable type we need to handle it here or
@@ -122,7 +127,7 @@ def invoke_function(
             print(f"Error: could not serialize results to JSON: {e}", file=sys.stderr)
             raise ToolError(
                 f"Error: {e}\n"
-                "Try generating sample code with the `generate_code` tool and invoking the function manually. "
+                "Try generating sample code with the `generate_script` tool and invoking the function manually. "
             ) from e
         else:
             raise
