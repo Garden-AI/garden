@@ -79,7 +79,7 @@ class MLIPGarden(Garden):
             options: Additional options
 
         Returns:
-            Job ID for tracking
+            Future returned by globus-compute
         """
         from pathlib import Path
 
@@ -263,7 +263,7 @@ def _run_single_relaxation(atoms_dict, model: str = "mace-mp-0"):
 
     # Run relaxation
     final_state = ts.optimize(
-        system=atoms, model=torch_sim_model, optimizer=ts.unit_cell_fire
+        system=atoms, model=torch_sim_model, optimizer=ts.frechet_cell_fire
     )
 
     # Convert result back to dict
@@ -437,9 +437,12 @@ def _run_batch_relaxation(
     relaxed_state = ts.optimize(
         system=initial_state,
         model=torch_sim_model,
-        optimizer=ts.unit_cell_fire,
+        optimizer=ts.frechet_cell_fire,
         max_steps=200,
         autobatcher=True,  # This handles all memory management automatically
+        convergence_fn=ts.runners.generate_force_convergence_fn(
+            force_tol=0.05, include_cell_forces=False
+        ),
     )
 
     # Extract results from batch - autobatcher preserves original ordering

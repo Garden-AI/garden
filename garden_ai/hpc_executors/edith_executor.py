@@ -12,8 +12,8 @@ EDITH_EP_ID = "a01b9350-e57d-4c8e-ad95-b4cb3c4cd1bb"
 
 DEFAULT_CONFIG = {
     "worker_init": """
-        module load openmpi
-        export PATH=$PATH:/usr/sbin
+module load openmpi
+export PATH=$PATH:/usr/sbin
     """,
 }
 
