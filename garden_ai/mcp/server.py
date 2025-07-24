@@ -1,11 +1,12 @@
 import logging
 import json
 
+from typing import Any
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 
 from garden_ai import GardenClient
-from garden_ai.mcp.utils import extract_function_signature, parse_function_signature
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -190,7 +191,6 @@ async def generate_script(doi: str, function_name: str):
 
     Returns:
         dict: Function metadata including:
-                - Function signature and parameters
                 - Basic implementation pattern following:
                     '''python
                     from garden_ai import GardenClient
@@ -199,6 +199,7 @@ async def generate_script(doi: str, function_name: str):
                     my_garden.my_function(my_params)
                     '''
                 - Instructions for minimal usage examples only (no print statements, no error handling, no additional explanation)
+                - Function text for client to parse an get relevant information like function arguments and return type.
 
     The generated scripts are designed to be concise and focused on core functionality providing users with clean, executable code examples
 
@@ -223,9 +224,6 @@ async def generate_script(doi: str, function_name: str):
     }
     function_metadata = {
         "function_signature": f"my_garden.{modal_fn.metadata.function_name}",
-        "parameters": parse_function_signature(
-            extract_function_signature(modal_fn.metadata.function_text)
-        ),
         "doi": doi,
         "description": modal_fn.metadata.description,
         "function_text": modal_fn.metadata.function_text,
@@ -264,7 +262,7 @@ def run_script(script: str):
     Raises:
         ToolError: If script execution failes, if no 'result' variable is defined, or if the result is not JSON-serializable
     """
-    global_vars = {}
+    global_vars: dict[str, Any] = {}
 
     try:
         exec(script, global_vars)
