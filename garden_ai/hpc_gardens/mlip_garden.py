@@ -58,8 +58,20 @@ class MLIPGarden(Garden):
         cls = getattr(cloud_mlip_garden, class_name, None)
         if cls is None:
             raise ValueError(f"Model {model} not found")
-        cls.relax(xyz_file_path, xyz_string, options)
-        pass
+        # If we're given a file path, read the file into a string
+        if xyz_string is not None:
+            raw_input = xyz_string
+        elif xyz_file_path is not None:
+            try:
+                with open(xyz_file_path, "r") as f:
+                    raw_input = f.read()
+            except Exception as e:
+                raise ValueError(f"Could not read {xyz_file_path}: {e}")
+        else:
+            raise ValueError("No input provided")
+
+        raw_output = cls.relax(raw_input)
+        return raw_output
 
     def run_relaxation(
         self, atoms, model: str = "mace-mp-0", cluster_id: str | None = None
