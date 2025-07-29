@@ -47,8 +47,6 @@ class MLIPGarden(Garden):
         cloud_mlip_garden = self.client.get_garden("10.26311/qs92-3t67")
         models_to_class_name = {
             "mace": "MACE",
-            "orb": "ORB",
-            "fairchem": "FAIRCHEM",
             "mattersim": "MATTERSIM",
             "sevennet": "SEVENNET",
         }
