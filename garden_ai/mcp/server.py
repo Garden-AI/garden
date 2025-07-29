@@ -128,27 +128,28 @@ except ImportError:
 def search_gardens(
     dois: list[str] | None = None,
     tags: list[str] | None = None,
-    draft: bool | None = None,
-    authors: list[str] | None = None,
     contributors: list[str] | None = None,
-    year: str | None = None,
-    owner_uuid: str | None = None,
     limit: int = 20,
 ) -> str:
     """
-    Search for gardens based on inputs, returns at most limit gardens.
+    Search for gardens based on doi, tags, contributors, returns at most limit gardens.
+    Instructions for mcp client: If you are going to use tags to search first use get_valid_tags tool.
     """
     try:
         response = GardenClient().backend_client.get_gardens(
             dois=dois,
             tags=tags,
-            draft=draft,
-            authors=authors,
+            authors=contributors,
             contributors=contributors,
-            year=year,
-            owner_uuid=owner_uuid,
             limit=limit,
         )
+
+        if tags and not response:
+            response = GardenClient().backend_client.get_valid_tags()
+            raise ToolError(
+                f"Using invalid tags. These are all the valid tags: {response}",
+                "Retry again with valid tags.",
+            )
 
         result = []
         for garden in response:
@@ -173,6 +174,14 @@ def search_gardens(
         return json.dumps(result)
     except Exception as e:
         raise ToolError(f"Error searching for garden: {e}")
+
+
+@mcp.tool(
+    description="Resource to obtain list of valid tag values for the search_gardens tool"
+)
+def get_valid_tags() -> dict[str, Any]:
+    response = GardenClient().backend_client.get_valid_tags()
+    return {"valid_tags": response}
 
 
 @mcp.tool()

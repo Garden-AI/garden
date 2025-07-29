@@ -147,3 +147,8 @@ class BackendClient:
             "/modal-invocations/blob-uploads", payload.model_dump(mode="json")
         )
         return ModalBlobUploadURLResponse(**response)
+
+    def get_valid_tags(self) -> list[str]:
+        result = self._get("/gardens/tags")
+
+        return result
