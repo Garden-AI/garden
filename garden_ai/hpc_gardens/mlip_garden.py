@@ -224,17 +224,16 @@ def _run_batch_relaxation(
     xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=10
 ):
     """
-    Run batch relaxation on multiple structures using torch-sim's autobatcher.
-    Saves results incrementally to handle 30-minute time limit gracefully.
+    Run batch relaxation on multiple structures, saving results incrementally.
 
     Args:
-        xyz_content: String content of XYZ file containing structures
-        xyz_filename: Original filename (used for output naming)
-        model: Model to use for relaxation (any torch-sim supported model)
-        max_batch_size: Maximum structures to process at once (legacy parameter, autobatcher handles this)
+        xyz_content: String content of XYZ file containing structures.
+        xyz_filename: Original filename, used for output naming.
+        model: Model to use for relaxation (any torch-sim supported model).
+        max_batch_size: Number of structures to process in each batch.
 
     Returns:
-        Path to results XYZ file on remote endpoint
+        The content of the results XYZ file.
     """
     import tempfile
     import uuid
@@ -256,6 +255,7 @@ def _run_batch_relaxation(
     # Read structures from temporary xyz file
     print(f"📖 Reading structures from {xyz_filename}...")
     all_atoms = read(temp_xyz_path, index=":")
+    num_structures = len(all_atoms)
 
     # Create results file path
     input_path = Path(xyz_filename)
@@ -263,8 +263,6 @@ def _run_batch_relaxation(
     results_path = input_path.parent / results_filename
 
     print(f"📝 Results will be saved to: {results_path}")
-    print(f"🚀 Starting batch relaxation of {len(all_atoms)} structures...")
-
     # Set up device and model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float64  # Use float64 for better numerical stability
@@ -361,41 +359,47 @@ def _run_batch_relaxation(
 
     torch_sim_model = load_torch_sim_model(model, device, dtype)
 
-    # Add original index to track structure order
-    for i, atoms in enumerate(all_atoms):
-        atoms.info["_original_index"] = i
+    # Process structures in batches
+    has_written = False
+    for i in range(0, num_structures, max_batch_size):
+        batch_atoms = all_atoms[i : i + max_batch_size]
+        # Add original index to track structure order
+        for j, atoms in enumerate(batch_atoms):
+            atoms.info["_original_index"] = i + j
 
-    # Initialize state for all structures at once
-    initial_state = ts.initialize_state(all_atoms, device=device, dtype=dtype)
+        # Initialize state for the batch
+        initial_state = ts.initialize_state(batch_atoms, device=device, dtype=dtype)
 
-    # Optimize entire batch using autobatcher
-    relaxed_state = ts.optimize(
-        system=initial_state,
-        model=torch_sim_model,
-        optimizer=ts.frechet_cell_fire,
-        max_steps=200,
-        autobatcher=True,  # This handles all memory management automatically
-        convergence_fn=ts.runners.generate_force_convergence_fn(
-            force_tol=0.05, include_cell_forces=False
-        ),
-    )
+        # Optimize batch using autobatcher
+        relaxed_state = ts.optimize(
+            system=initial_state,
+            model=torch_sim_model,
+            optimizer=ts.frechet_cell_fire,
+            max_steps=200,
+            autobatcher=True,  # This handles all memory management automatically
+            convergence_fn=ts.runners.generate_force_convergence_fn(
+                force_tol=0.05, include_cell_forces=False
+            ),
+        )
 
-    # Extract results from batch - autobatcher preserves original ordering
-    relaxed_atoms_list = relaxed_state.to_atoms()
-    final_energies = relaxed_state.energy.cpu().tolist()
+        # Extract results from batch - autobatcher preserves original ordering
+        relaxed_atoms_list = relaxed_state.to_atoms()
+        final_energies = relaxed_state.energy.cpu().tolist()
 
-    # Save results incrementally to XYZ file
-    print(
-        f"💾 Saving {len(relaxed_atoms_list)} relaxed structures to {results_path}..."
-    )
-    for i, (atoms, energy) in enumerate(zip(relaxed_atoms_list, final_energies)):
-        # Store energy in atoms info for XYZ comment
-        atoms.info["energy"] = energy
-        atoms.info["model"] = model
-        atoms.info["relaxed"] = True
+        # Save results incrementally to XYZ file
+        print(
+            f"💾 Saving {len(relaxed_atoms_list)} relaxed structures to {results_path}..."
+        )
+        for atoms, energy in zip(relaxed_atoms_list, final_energies):
+            # Store energy in atoms info for XYZ comment
+            atoms.info["energy"] = energy
+            atoms.info["model"] = model
+            atoms.info["relaxed"] = True
 
-        # Write to XYZ file (append mode after first structure)
-        write(results_path, atoms, append=(i > 0))
+            # Write to XYZ file (append mode after first structure)
+            write(results_path, atoms, append=has_written)
+            if not has_written:
+                has_written = True
 
     # Read the results file and return its contents so globus-compute keeps them
     with open(results_path, "r") as f:
@@ -406,17 +410,16 @@ def _run_batch_relaxation(
 
 def _run_batch_md(xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=10):
     """
-    Run batch relaxation on multiple structures using torch-sim's autobatcher.
-    Saves results incrementally to handle 30-minute time limit gracefully.
+    Run batch MD on multiple structures, saving results incrementally.
 
     Args:
-        xyz_content: String content of XYZ file containing structures
-        xyz_filename: Original filename (used for output naming)
-        model: Model to use for relaxation (any torch-sim supported model)
-        max_batch_size: Maximum structures to process at once (legacy parameter, autobatcher handles this)
+        xyz_content: String content of XYZ file containing structures.
+        xyz_filename: Original filename, used for output naming.
+        model: Model to use for MD (any torch-sim supported model).
+        max_batch_size: Number of structures to process in each batch.
 
     Returns:
-        Path to results XYZ file on remote endpoint
+        The content of the results XYZ file.
     """
     import tempfile
     import uuid
@@ -436,12 +439,14 @@ def _run_batch_md(xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=1
         temp_xyz_path = temp_file.name
 
     all_atoms = read(temp_xyz_path, index=":")
+    num_structures = len(all_atoms)
 
     # Create results file path
     input_path = Path(xyz_filename)
-    results_filename = f"{input_path.stem}_relaxed_{uuid.uuid4().hex[:8]}.xyz"
+    results_filename = f"{input_path.stem}_md_{uuid.uuid4().hex[:8]}.xyz"
     results_path = input_path.parent / results_filename
 
+    print(f"📝 Results will be saved to: {results_path}")
     # Set up device and model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float64  # Use float64 for better numerical stability
@@ -538,36 +543,43 @@ def _run_batch_md(xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=1
 
     torch_sim_model = load_torch_sim_model(model, device, dtype)
 
-    # Add original index to track structure order
-    for i, atoms in enumerate(all_atoms):
-        atoms.info["_original_index"] = i
+    # Process structures in batches
+    has_written = False
+    for i in range(0, num_structures, max_batch_size):
+        batch_atoms = all_atoms[i : i + max_batch_size]
 
-    # Initialize state for all structures at once
-    initial_state = ts.initialize_state(all_atoms, device=device, dtype=dtype)
+        # Add original index to track structure order
+        for j, atoms in enumerate(batch_atoms):
+            atoms.info["_original_index"] = i + j
 
-    #  Run batched MD
-    sim_result = ts.integrate(
-        system=initial_state,
-        model=torch_sim_model,
-        integrator=ts.integrators.nvt_langevin,
-        n_steps=50,
-        timestep=0.002,
-        temperature=1000,
-        autobatcher=True,  # This handles all memory management automatically
-    )
+        # Initialize state for the batch
+        initial_state = ts.initialize_state(batch_atoms, device=device, dtype=dtype)
 
-    # Extract results from batch - autobatcher preserves original ordering
-    sim_result_atoms = sim_result.to_atoms()
-    final_energies = sim_result.energy.cpu().tolist()
+        #  Run batched MD
+        sim_result = ts.integrate(
+            system=initial_state,
+            model=torch_sim_model,
+            integrator=ts.integrators.nvt_langevin,
+            n_steps=50,
+            timestep=0.002,
+            temperature=1000,
+            autobatcher=True,  # This handles all memory management automatically
+        )
 
-    # Save results incrementally to XYZ file
-    for i, (atoms, energy) in enumerate(zip(sim_result_atoms, final_energies)):
-        # Store energy in atoms info for XYZ comment
-        atoms.info["energy"] = energy
-        atoms.info["model"] = model
+        # Extract results from batch - autobatcher preserves original ordering
+        sim_result_atoms = sim_result.to_atoms()
+        final_energies = sim_result.energy.cpu().tolist()
 
-        # Write to XYZ file (append mode after first structure)
-        write(results_path, atoms, append=(i > 0))
+        # Save results incrementally to XYZ file
+        for atoms, energy in zip(sim_result_atoms, final_energies):
+            # Store energy in atoms info for XYZ comment
+            atoms.info["energy"] = energy
+            atoms.info["model"] = model
+
+            # Write to XYZ file (append mode after first structure)
+            write(results_path, atoms, append=has_written)
+            if not has_written:
+                has_written = True
 
     # Read the results file and return its contents so globus-compute keeps them
     with open(results_path, "r") as f:
