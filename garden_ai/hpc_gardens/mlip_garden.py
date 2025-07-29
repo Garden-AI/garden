@@ -71,7 +71,12 @@ class MLIPGarden(Garden):
 
         # Pass file content and filename directly to the batch relaxation function
         future = ex.submit(
-            _run_batch_relaxation, file_content, xyz_path.name, model, max_batch_size
+            _run_batch_computation,
+            file_content,
+            xyz_path.name,
+            model,
+            max_batch_size,
+            "relaxation",
         )
         task_id = future.task_id
 
@@ -97,7 +102,12 @@ class MLIPGarden(Garden):
 
         ex = EdithExecutor(endpoint_id=cluster_id)
         future = ex.submit(
-            _run_batch_md, file_content, xyz_path.name, model, max_batch_size
+            _run_batch_computation,
+            file_content,
+            xyz_path.name,
+            model,
+            max_batch_size,
+            "md",
         )
 
         task_id = future.task_id
@@ -220,17 +230,23 @@ class MLIPGarden(Garden):
         return output_path
 
 
-def _run_batch_relaxation(
-    xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=10
+def _run_batch_computation(
+    xyz_content,
+    xyz_filename,
+    model,
+    max_batch_size,
+    computation_type,
 ):
     """
-    Run batch relaxation on multiple structures, saving results incrementally.
+    Generic function to run batch computations (relaxation or MD) on multiple
+    structures, saving results incrementally.
 
     Args:
-        xyz_content: String content of XYZ file containing structures.
-        xyz_filename: Original filename, used for output naming.
-        model: Model to use for relaxation (any torch-sim supported model).
-        max_batch_size: Number of structures to process in each batch.
+        xyz_content: String content of XYZ file.
+        xyz_filename: Original filename for output naming.
+        model: Model for the computation.
+        max_batch_size: Number of structures per batch.
+        computation_type: 'relaxation' or 'md'.
 
     Returns:
         The content of the results XYZ file.
@@ -253,35 +269,34 @@ def _run_batch_relaxation(
         temp_xyz_path = temp_file.name
 
     # Read structures from temporary xyz file
-    print(f"📖 Reading structures from {xyz_filename}...")
     all_atoms = read(temp_xyz_path, index=":")
     num_structures = len(all_atoms)
 
     # Create results file path
     input_path = Path(xyz_filename)
-    results_filename = f"{input_path.stem}_relaxed_{uuid.uuid4().hex[:8]}.xyz"
+    suffix = "relaxed" if computation_type == "relaxation" else "md"
+    results_filename = f"{input_path.stem}_{suffix}_{uuid.uuid4().hex[:8]}.xyz"
     results_path = input_path.parent / results_filename
 
     print(f"📝 Results will be saved to: {results_path}")
+    print(
+        f"🚀 Starting batch {computation_type} of {num_structures} structures in batches of {max_batch_size}..."
+    )
+
     # Set up device and model
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float64  # Use float64 for better numerical stability
+    dtype = torch.float64
 
-    # Load the specified model - inline function for remote execution
     def load_torch_sim_model(model_name: str, device: str = "cpu", dtype=None):
         """Load a torch-sim model by name."""
         if dtype is None:
             dtype = torch.float32
-
         print(f"🔧 Loading {model_name} model on {device}...")
-
-        # MACE models
         if model_name.startswith("mace"):
             from mace.calculators.foundations_models import mace_mp, mace_off
-            from torch_sim.models.mace import MaceModel, MaceUrls  # noqa:
+            from torch_sim.models.mace import MaceModel
 
             if "off" in model_name:
-                # MACE-OFF models for organic molecules
                 size = model_name.split("-")[-1] if "-" in model_name else "medium"
                 loaded_model = mace_off(
                     model=size,
@@ -290,18 +305,15 @@ def _run_batch_relaxation(
                     device=device,
                 )
             else:
-                # MACE-MP models
                 variant = model_name.replace("mace-", "").replace("mp-", "")
                 if variant == "0":
                     variant = "medium"
-
                 loaded_model = mace_mp(
                     model=variant if variant else "medium",
                     return_raw_model=True,
                     default_dtype=dtype,
                     device=device,
                 )
-
             return MaceModel(
                 model=loaded_model,
                 device=device,
@@ -309,279 +321,72 @@ def _run_batch_relaxation(
                 compute_stress=True,
                 dtype=dtype,
             )
-
-        # Classical potentials
         elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
             if model_name == "soft-sphere":
-                from torch_sim.models.soft_sphere import (
-                    SoftSphereModel,  # type: ignore[import-not-found]
-                )
+                from torch_sim.models.soft_sphere import SoftSphereModel
 
                 return SoftSphereModel(device=device, dtype=dtype)
             elif model_name == "lennard-jones":
-                from torch_sim.models.lennard_jones import (
-                    LennardJonesModel,  # type: ignore[import-not-found]
-                )
+                from torch_sim.models.lennard_jones import LennardJonesModel
 
                 return LennardJonesModel(
-                    sigma=2.0,  # Å, interaction distance
-                    epsilon=0.1,  # eV, interaction strength
-                    device=device,
-                    dtype=dtype,
+                    sigma=2.0, epsilon=0.1, device=device, dtype=dtype
                 )
             elif model_name == "morse":
-                from torch_sim.models.morse import (
-                    MorseModel,  # type: ignore[import-not-found]
-                )
+                from torch_sim.models.morse import MorseModel
 
                 return MorseModel(device=device, dtype=dtype)
-
-        # FairChem models (example - would need actual implementation)
-        elif model_name.startswith("fairchem"):
-            raise NotImplementedError(
-                f"FairChem models not yet implemented: {model_name}"
-            )
-
-        # SevenNet models (example - would need actual implementation)
-        elif model_name.startswith("sevennet"):
-            raise NotImplementedError(
-                f"SevenNet models not yet implemented: {model_name}"
-            )
-
-        # ORB models (example - would need actual implementation)
-        elif model_name.startswith("orb"):
-            raise NotImplementedError(f"ORB models not yet implemented: {model_name}")
-
         else:
-            raise ValueError(
-                f"Unknown model: {model_name}. Supported models: mace-*, mace-off-*, soft-sphere, lennard-jones, morse"
-            )
+            raise ValueError(f"Unknown model: {model_name}")
 
     torch_sim_model = load_torch_sim_model(model, device, dtype)
 
-    # Process structures in batches
     has_written = False
     for i in range(0, num_structures, max_batch_size):
         batch_atoms = all_atoms[i : i + max_batch_size]
-        # Add original index to track structure order
-        for j, atoms in enumerate(batch_atoms):
-            atoms.info["_original_index"] = i + j
-
-        # Initialize state for the batch
-        initial_state = ts.initialize_state(batch_atoms, device=device, dtype=dtype)
-
-        # Optimize batch using autobatcher
-        relaxed_state = ts.optimize(
-            system=initial_state,
-            model=torch_sim_model,
-            optimizer=ts.frechet_cell_fire,
-            max_steps=200,
-            autobatcher=True,  # This handles all memory management automatically
-            convergence_fn=ts.runners.generate_force_convergence_fn(
-                force_tol=0.05, include_cell_forces=False
-            ),
-        )
-
-        # Extract results from batch - autobatcher preserves original ordering
-        relaxed_atoms_list = relaxed_state.to_atoms()
-        final_energies = relaxed_state.energy.cpu().tolist()
-
-        # Save results incrementally to XYZ file
         print(
-            f"💾 Saving {len(relaxed_atoms_list)} relaxed structures to {results_path}..."
+            f"⚙️ Processing batch {i//max_batch_size + 1}/{(num_structures + max_batch_size - 1)//max_batch_size}..."
         )
-        for atoms, energy in zip(relaxed_atoms_list, final_energies):
-            # Store energy in atoms info for XYZ comment
-            atoms.info["energy"] = energy
-            atoms.info["model"] = model
-            atoms.info["relaxed"] = True
 
-            # Write to XYZ file (append mode after first structure)
-            write(results_path, atoms, append=has_written)
-            if not has_written:
-                has_written = True
-
-    # Read the results file and return its contents so globus-compute keeps them
-    with open(results_path, "r") as f:
-        results_content = f.read()
-
-    return results_content
-
-
-def _run_batch_md(xyz_content, xyz_filename, model="mace-mp-0", max_batch_size=10):
-    """
-    Run batch MD on multiple structures, saving results incrementally.
-
-    Args:
-        xyz_content: String content of XYZ file containing structures.
-        xyz_filename: Original filename, used for output naming.
-        model: Model to use for MD (any torch-sim supported model).
-        max_batch_size: Number of structures to process in each batch.
-
-    Returns:
-        The content of the results XYZ file.
-    """
-    import tempfile
-    import uuid
-    from pathlib import Path
-
-    import ase  # noqa:
-    import numpy as np  # noqa:
-    import torch
-    import torch_sim as ts
-    from ase.io import read, write  # type: ignore[import-not-found]
-
-    # Write XYZ content to a temporary file on remote endpoint
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".xyz", delete=False
-    ) as temp_file:
-        temp_file.write(xyz_content)
-        temp_xyz_path = temp_file.name
-
-    all_atoms = read(temp_xyz_path, index=":")
-    num_structures = len(all_atoms)
-
-    # Create results file path
-    input_path = Path(xyz_filename)
-    results_filename = f"{input_path.stem}_md_{uuid.uuid4().hex[:8]}.xyz"
-    results_path = input_path.parent / results_filename
-
-    print(f"📝 Results will be saved to: {results_path}")
-    # Set up device and model
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float64  # Use float64 for better numerical stability
-
-    # Load the specified model - inline function for remote execution
-    def load_torch_sim_model(model_name: str, device: str = "cpu", dtype=None):
-        """Load a torch-sim model by name."""
-        if dtype is None:
-            dtype = torch.float32
-
-        print(f"🔧 Loading {model_name} model on {device}...")
-
-        # MACE models
-        if model_name.startswith("mace"):
-            from mace.calculators.foundations_models import mace_mp, mace_off
-            from torch_sim.models.mace import MaceModel, MaceUrls  # noqa:
-
-            if "off" in model_name:
-                # MACE-OFF models for organic molecules
-                size = model_name.split("-")[-1] if "-" in model_name else "medium"
-                loaded_model = mace_off(
-                    model=size,
-                    return_raw_model=True,
-                    default_dtype=dtype,
-                    device=device,
-                )
-            else:
-                # MACE-MP models
-                variant = model_name.replace("mace-", "").replace("mp-", "")
-                if variant == "0":
-                    variant = "medium"
-
-                loaded_model = mace_mp(
-                    model=variant if variant else "medium",
-                    return_raw_model=True,
-                    default_dtype=dtype,
-                    device=device,
-                )
-
-            return MaceModel(
-                model=loaded_model,
-                device=device,
-                compute_forces=True,
-                compute_stress=True,
-                dtype=dtype,
-            )
-
-        # Classical potentials
-        elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
-            if model_name == "soft-sphere":
-                from torch_sim.models.soft_sphere import (
-                    SoftSphereModel,  # type: ignore[import-not-found]
-                )
-
-                return SoftSphereModel(device=device, dtype=dtype)
-            elif model_name == "lennard-jones":
-                from torch_sim.models.lennard_jones import (
-                    LennardJonesModel,  # type: ignore[import-not-found]
-                )
-
-                return LennardJonesModel(
-                    sigma=2.0,  # Å, interaction distance
-                    epsilon=0.1,  # eV, interaction strength
-                    device=device,
-                    dtype=dtype,
-                )
-            elif model_name == "morse":
-                from torch_sim.models.morse import (
-                    MorseModel,  # type: ignore[import-not-found]
-                )
-
-                return MorseModel(device=device, dtype=dtype)
-
-        # FairChem models (example - would need actual implementation)
-        elif model_name.startswith("fairchem"):
-            raise NotImplementedError(
-                f"FairChem models not yet implemented: {model_name}"
-            )
-
-        # SevenNet models (example - would need actual implementation)
-        elif model_name.startswith("sevennet"):
-            raise NotImplementedError(
-                f"SevenNet models not yet implemented: {model_name}"
-            )
-
-        # ORB models (example - would need actual implementation)
-        elif model_name.startswith("orb"):
-            raise NotImplementedError(f"ORB models not yet implemented: {model_name}")
-
-        else:
-            raise ValueError(
-                f"Unknown model: {model_name}. Supported models: mace-*, mace-off-*, soft-sphere, lennard-jones, morse"
-            )
-
-    torch_sim_model = load_torch_sim_model(model, device, dtype)
-
-    # Process structures in batches
-    has_written = False
-    for i in range(0, num_structures, max_batch_size):
-        batch_atoms = all_atoms[i : i + max_batch_size]
-
-        # Add original index to track structure order
-        for j, atoms in enumerate(batch_atoms):
-            atoms.info["_original_index"] = i + j
-
-        # Initialize state for the batch
         initial_state = ts.initialize_state(batch_atoms, device=device, dtype=dtype)
 
-        #  Run batched MD
-        sim_result = ts.integrate(
-            system=initial_state,
-            model=torch_sim_model,
-            integrator=ts.integrators.nvt_langevin,
-            n_steps=50,
-            timestep=0.002,
-            temperature=1000,
-            autobatcher=True,  # This handles all memory management automatically
-        )
+        if computation_type == "relaxation":
+            result_state = ts.optimize(
+                system=initial_state,
+                model=torch_sim_model,
+                optimizer=ts.frechet_cell_fire,
+                max_steps=200,
+                autobatcher=True,
+                convergence_fn=ts.runners.generate_force_convergence_fn(
+                    force_tol=0.05, include_cell_forces=False
+                ),
+            )
+        elif computation_type == "md":
+            result_state = ts.integrate(
+                system=initial_state,
+                model=torch_sim_model,
+                integrator=ts.integrators.nvt_langevin,
+                n_steps=50,
+                timestep=0.002,
+                temperature=1000,
+                autobatcher=True,
+            )
+        else:
+            raise ValueError(f"Unknown computation_type: {computation_type}")
 
-        # Extract results from batch - autobatcher preserves original ordering
-        sim_result_atoms = sim_result.to_atoms()
-        final_energies = sim_result.energy.cpu().tolist()
+        result_atoms_list = result_state.to_atoms()
+        final_energies = result_state.energy.cpu().tolist()
 
-        # Save results incrementally to XYZ file
-        for atoms, energy in zip(sim_result_atoms, final_energies):
-            # Store energy in atoms info for XYZ comment
+        print(f"💾 Saving {len(result_atoms_list)} structures to {results_path}...")
+        for atoms, energy in zip(result_atoms_list, final_energies):
             atoms.info["energy"] = energy
             atoms.info["model"] = model
-
-            # Write to XYZ file (append mode after first structure)
+            if computation_type == "relaxation":
+                atoms.info["relaxed"] = True
             write(results_path, atoms, append=has_written)
             if not has_written:
                 has_written = True
 
-    # Read the results file and return its contents so globus-compute keeps them
     with open(results_path, "r") as f:
         results_content = f.read()
 
