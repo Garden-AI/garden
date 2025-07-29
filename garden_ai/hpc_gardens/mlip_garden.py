@@ -6,7 +6,7 @@ from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
-from garden_ai.hpc_gardens.utils import check_file_size_and_read
+from garden_ai.hpc_gardens.utils import check_file_size_and_read, wait_for_task_id
 from garden_ai.schemas.garden import GardenMetadata
 
 
@@ -76,6 +76,7 @@ class MLIPGarden(Garden):
         max_batch_size: int = 10,
         cluster_id: str | None = None,
         options: dict[str, str] | None = None,
+        task_id_timeout: int = 60,
     ) -> str:
         """
         Simple batch relaxation that processes structures in small batches.
@@ -86,6 +87,7 @@ class MLIPGarden(Garden):
             max_batch_size: Maximum structures per batch
             cluster_id: HPC endpoint ID to use for computation
             options: Additional options
+            task_id_timeout: Timeout in seconds for getting the task ID.
 
         Returns:
             Future returned by globus-compute
@@ -109,13 +111,13 @@ class MLIPGarden(Garden):
             model,
             max_batch_size,
             "relaxation",
+            conda_env=(
+                "torch-sim-edith-mace"
+                if model.startswith("mace")
+                else "torch-sim-edith"
+            ),
         )
-        task_id = future.task_id
-
-        # TODO: this could be an infinite loop if we never get the task id
-        while task_id is None:
-            task_id = future.task_id
-
+        task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
 
     def batch_md(
@@ -125,7 +127,8 @@ class MLIPGarden(Garden):
         cluster_id: str = EDITH_EP_ID,
         max_batch_size: int = 10,
         options: dict[str, str] | None = None,
-    ):
+        task_id_timeout: int = 60,
+    ) -> str:
         xyz_path = Path(xyz_file_path)
         try:
             file_content = check_file_size_and_read(xyz_file_path)
@@ -140,12 +143,14 @@ class MLIPGarden(Garden):
             model,
             max_batch_size,
             "md",
+            conda_env=(
+                "torch-sim-edith-mace"
+                if model.startswith("mace")
+                else "torch-sim-edith"
+            ),
         )
 
-        task_id = future.task_id
-        while task_id is None:
-            task_id = future.task_id
-
+        task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
 
     def get_job_status(self, job_id: str) -> JobStatus:
@@ -368,6 +373,30 @@ def _run_batch_computation(
                 from torch_sim.models.morse import MorseModel
 
                 return MorseModel(device=device, dtype=dtype)
+        elif model_name == "sevennet":
+            from sevenn.calculator import SevenNetCalculator
+            from torch_sim.models.sevennet import SevenNetModel
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            modal = "mpa"
+
+            sevennet_calculator = SevenNetCalculator(
+                model="7net-mf-ompa", modal=modal, device=device
+            )
+
+            return SevenNetModel(
+                model=sevennet_calculator.model, modal=modal, device=device
+            )
+        elif model_name == "mattersim":
+            import torch  # noqa:
+            from mattersim.forcefield.potential import Potential
+            from torch_sim.models.mattersim import MatterSimModel
+
+            potential = Potential.from_checkpoint(
+                load_path="mattersim-v1.0.0-5m", device=str(device)
+            )
+            # Pass the loaded potential into the official torch-sim wrapper
+            return MatterSimModel(model=potential)
         else:
             raise ValueError(f"Unknown model: {model_name}")
 
