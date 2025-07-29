@@ -66,11 +66,15 @@ To include the bespoke `submit_relaxation_job`, `check_job_status` and `get_job_
       "command": "uv",
       "args": [
         "run",
+        "--no-cache",
         "--with",
         "/path/to/local/repo/garden[mcp]",
         "garden-ai",
         "mcp"
-      ]
+      ],
+      "env": {
+        "GARDEN_ENV":"dev"
+      }
     }
   }
 }
