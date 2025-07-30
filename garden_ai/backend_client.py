@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable
+from typing import Callable, Any
 
 import requests
 
@@ -148,7 +148,7 @@ class BackendClient:
         )
         return ModalBlobUploadURLResponse(**response)
 
-    def get_valid_tags(self) -> list[str]:
+    def get_valid_tags(self) -> dict[str, Any]:
         result = self._get("/gardens/tags")
 
         return result

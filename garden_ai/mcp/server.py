@@ -144,9 +144,9 @@ def search_gardens(
         )
 
         if tags and not response:
-            response = GardenClient().backend_client.get_valid_tags()
+            valid_tags = GardenClient().backend_client.get_valid_tags()
             raise ToolError(
-                f"Using invalid tags. These are all the valid tags: {response}",
+                f"Using invalid tags. These are all the valid tags: {valid_tags}",
                 "Retry again with valid tags.",
             )
 
