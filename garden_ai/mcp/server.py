@@ -133,7 +133,6 @@ def search_gardens(
 ) -> str:
     """
     Search for gardens based on doi, tags, contributors, returns at most limit gardens.
-    Instructions for mcp client: If you are going to use tags to search first use get_valid_tags tool.
     """
     try:
         response = GardenClient().backend_client.get_gardens(
@@ -174,14 +173,6 @@ def search_gardens(
         return json.dumps(result)
     except Exception as e:
         raise ToolError(f"Error searching for garden: {e}")
-
-
-@mcp.tool(
-    description="Resource to obtain list of valid tag values for the search_gardens tool"
-)
-def get_valid_tags() -> dict[str, Any]:
-    response = GardenClient().backend_client.get_valid_tags()
-    return {"valid_tags": response}
 
 
 @mcp.tool()
