@@ -11,10 +11,10 @@ from garden_ai.hpc_gardens.utils import subproc_wrapper  # noqa:
 EDITH_EP_ID = "a01b9350-e57d-4c8e-ad95-b4cb3c4cd1bb"
 
 DEFAULT_CONFIG = {
-    "worker_init": """
+    "worker_init": """true;
 module load openmpi
 export PATH=$PATH:/usr/sbin
-    """,
+""",
 }
 
 
@@ -48,6 +48,18 @@ class EdithExecutor(Executor):
         """
         # submit the function the to gcmu exector
         func_source = inspect.getsource(func)
+
+        # Determine conda environment based on model parameter (3rd positional arg)
+        model = args[2] if len(args) >= 3 else ""
+        conda_env = (
+            "torch-sim-edith-mace"
+            if str(model).startswith("mace")
+            else "torch-sim-edith"
+        )
+
+        # Add conda_env to kwargs for subproc_wrapper
+        kwargs["conda_env"] = conda_env
+
         fut = super().submit(subproc_wrapper, func_source, *args, **kwargs)
         return fut
 
