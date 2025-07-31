@@ -1,4 +1,7 @@
 from pathlib import Path
+import time
+
+from globus_compute_sdk.sdk.asynchronous.compute_future import ComputeFuture
 
 
 FIVE_MB = 5 * 1000 * 1000
@@ -53,6 +56,8 @@ def subproc_wrapper(func_source, *args, **kwargs):
         return {"error": "Could not extract function name from source"}
 
     func_name = func_name_match.group(1)
+    conda_env = kwargs.pop("conda_env", "torch-sim-edith-mace")
+    env_path_str = f"/home/hholb/.conda/envs/{conda_env}"
 
     # Function data to execute
     func_data = {
@@ -95,7 +100,7 @@ print("RESULT_DATA:", result_data)
             "conda",
             "run",
             "-p",
-            "/home/hholb/.conda/envs/torch-sim-edith",
+            env_path_str,
             "python",
             script_path,
         ]
@@ -127,3 +132,16 @@ print("RESULT_DATA:", result_data)
         "stdout": result.stdout,
         "stderr": result.stderr,
     }
+
+
+def wait_for_task_id(future: ComputeFuture, timeout: int = 60) -> str:
+    """Waits for a globus-compute task ID to become available, with a timeout."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        task_id = future.task_id
+        if task_id:
+            return task_id
+        time.sleep(0.5)
+    raise TimeoutError(
+        f"Could not get task ID from globus-compute within {timeout} seconds."
+    )

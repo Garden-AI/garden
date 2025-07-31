@@ -6,7 +6,7 @@ from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
-from garden_ai.hpc_gardens.utils import check_file_size_and_read
+from garden_ai.hpc_gardens.utils import check_file_size_and_read, wait_for_task_id
 from garden_ai.schemas.garden import GardenMetadata
 
 
@@ -72,10 +72,11 @@ class MLIPGarden(Garden):
     def batch_relax(
         self,
         xyz_file_path: str | Path,
-        model: str = "mace-mp-0",
+        model: str = "mace",
         max_batch_size: int = 10,
         cluster_id: str | None = None,
         options: dict[str, str] | None = None,
+        task_id_timeout: int = 60,
     ) -> str:
         """
         Simple batch relaxation that processes structures in small batches.
@@ -86,6 +87,7 @@ class MLIPGarden(Garden):
             max_batch_size: Maximum structures per batch
             cluster_id: HPC endpoint ID to use for computation
             options: Additional options
+            task_id_timeout: Timeout in seconds for getting the task ID.
 
         Returns:
             Future returned by globus-compute
@@ -110,22 +112,18 @@ class MLIPGarden(Garden):
             max_batch_size,
             "relaxation",
         )
-        task_id = future.task_id
-
-        # TODO: this could be an infinite loop if we never get the task id
-        while task_id is None:
-            task_id = future.task_id
-
+        task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
 
     def batch_md(
         self,
         xyz_file_path: str | Path,
-        model: str = "mace-mp-0",
+        model: str = "mace",
         cluster_id: str = EDITH_EP_ID,
         max_batch_size: int = 10,
         options: dict[str, str] | None = None,
-    ):
+        task_id_timeout: int = 60,
+    ) -> str:
         xyz_path = Path(xyz_file_path)
         try:
             file_content = check_file_size_and_read(xyz_file_path)
@@ -142,10 +140,7 @@ class MLIPGarden(Garden):
             "md",
         )
 
-        task_id = future.task_id
-        while task_id is None:
-            task_id = future.task_id
-
+        task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
 
     def get_job_status(self, job_id: str) -> JobStatus:
@@ -283,9 +278,13 @@ def _run_batch_computation(
     Returns:
         The content of the results XYZ file.
     """
+    import os
     import tempfile
     import uuid
     from pathlib import Path
+
+    # Fix NUMEXPR threading issue early, before any imports that might use it
+    os.environ["NUMEXPR_MAX_THREADS"] = "256"
 
     import ase  # noqa:
     import numpy as np  # noqa:
@@ -325,34 +324,18 @@ def _run_batch_computation(
             dtype = torch.float32
         print(f"🔧 Loading {model_name} model on {device}...")
         if model_name.startswith("mace"):
-            from mace.calculators.foundations_models import mace_mp, mace_off
+            from mace.calculators import mace_mp
             from torch_sim.models.mace import MaceModel
 
-            if "off" in model_name:
-                size = model_name.split("-")[-1] if "-" in model_name else "medium"
-                loaded_model = mace_off(
-                    model=size,
-                    return_raw_model=True,
-                    default_dtype=dtype,
-                    device=device,
-                )
-            else:
-                variant = model_name.replace("mace-", "").replace("mp-", "")
-                if variant == "0":
-                    variant = "medium"
-                loaded_model = mace_mp(
-                    model=variant if variant else "medium",
-                    return_raw_model=True,
-                    default_dtype=dtype,
-                    device=device,
-                )
-            return MaceModel(
-                model=loaded_model,
+            # Get the raw model directly with weights_only=False for checkpoint loading
+            raw_model = mace_mp(
+                model="medium-mpa-0",
                 device=device,
-                compute_forces=True,
-                compute_stress=True,
-                dtype=dtype,
+                enable_cueq=True,
+                default_dtype="float64",
+                return_raw_model=True,
             )
+            return MaceModel(model=raw_model, device=device)
         elif model_name in ["soft-sphere", "lennard-jones", "morse"]:
             if model_name == "soft-sphere":
                 from torch_sim.models.soft_sphere import SoftSphereModel
@@ -368,6 +351,29 @@ def _run_batch_computation(
                 from torch_sim.models.morse import MorseModel
 
                 return MorseModel(device=device, dtype=dtype)
+        elif model_name == "sevennet":
+            import torch  # noqa:
+            from sevenn.calculator import SevenNetCalculator
+            from torch_sim.models.sevennet import SevenNetModel
+
+            modal = "mpa"
+            sevennet_calculator = SevenNetCalculator(
+                model="7net-mf-ompa", modal=modal, device=device
+            )
+
+            return SevenNetModel(
+                model=sevennet_calculator.model, modal=modal, device=device
+            )
+        elif model_name == "mattersim":
+            import torch  # noqa:
+            from mattersim.forcefield.potential import Potential
+            from torch_sim.models.mattersim import MatterSimModel
+
+            potential = Potential.from_checkpoint(
+                load_path="mattersim-v1.0.0-5m", device=str(device)
+            )
+            # Pass the loaded potential into the official torch-sim wrapper
+            return MatterSimModel(model=potential)
         else:
             raise ValueError(f"Unknown model: {model_name}")
 
