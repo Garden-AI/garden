@@ -128,27 +128,27 @@ except ImportError:
 def search_gardens(
     dois: list[str] | None = None,
     tags: list[str] | None = None,
-    draft: bool | None = None,
-    authors: list[str] | None = None,
     contributors: list[str] | None = None,
-    year: str | None = None,
-    owner_uuid: str | None = None,
     limit: int = 20,
 ) -> str:
     """
-    Search for gardens based on inputs, returns at most limit gardens.
+    Search for gardens based on doi, tags, contributors, returns at most limit gardens.
     """
     try:
         response = GardenClient().backend_client.get_gardens(
             dois=dois,
             tags=tags,
-            draft=draft,
-            authors=authors,
+            authors=contributors,
             contributors=contributors,
-            year=year,
-            owner_uuid=owner_uuid,
             limit=limit,
         )
+
+        if tags and not response:
+            valid_tags = GardenClient().backend_client.get_valid_tags()
+            raise ToolError(
+                f"Using invalid tags. These are all the valid tags: {valid_tags}",
+                "Retry again with valid tags.",
+            )
 
         result = []
         for garden in response:
