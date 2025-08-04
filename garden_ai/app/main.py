@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Annotated
 
 import rich
 import typer
@@ -49,6 +49,10 @@ def logout():
     Path.unlink(Path(GardenConstants.GARDEN_KEY_STORE), missing_ok=True)
 
 
+mcp_app = typer.Typer(help="MCP server commands")
+app.add_typer(mcp_app, name="mcp")
+
+
 @app.command()
 def mcp():
     """Start the Garden MCP server."""
@@ -60,6 +64,49 @@ def mcp():
         rich.print("[red]Error:[/red] MCP extra not installed.")
         rich.print("Install with: [cyan]pip install garden-ai[mcp][/cyan]")
         raise typer.Exit(1)
+
+
+@mcp_app.command()
+def setup(
+    client: Annotated[
+        str,
+        typer.Option(help="'claude', 'claude code', 'gemini', 'cursor', 'windsurf'"),
+    ] = None,
+    path: Annotated[
+        str,
+        typer.Option(help="Path to initalize config file for any other mcp client"),
+    ] = None,
+):
+    """Add config file for client"""
+    from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
+
+    if client and path:
+        raise ValueError("Cannot specify both a client and a path")
+    elif not client and not path:
+        raise ValueError("Specify either a client or a path")
+
+    if path:
+        config_path = Init.custom(path)
+    else:
+        match client.lower():
+            case "claude":
+                config_path = Init.claude()
+            case "claude code":
+                config_path = Init.claude_code()
+            case "gemini":
+                config_path = Init.gemini()
+            case "cursor":
+                config_path = Init.cursor()
+            case "windsurf":
+                config_path = Init.windsurf()
+            case _:
+                print(
+                    "Not supported for config initialization",
+                    "Try 'claude', 'claude code', 'gemini', 'cursor', or 'windsurf'",
+                )
+                return
+
+    print(f"Config file set up at {config_path}")
 
 
 @app.callback()
