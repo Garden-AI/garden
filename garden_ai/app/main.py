@@ -87,7 +87,7 @@ def setup(
 
     if path:
         config_path = Init.custom(path)
-    else:
+    elif client:
         match client.lower():
             case "claude":
                 config_path = Init.claude()
