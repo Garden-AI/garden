@@ -42,9 +42,9 @@ class MLIPGarden(Garden):
         xyz_file_path: str | Path | None = None,
         xyz_string: str | None = None,
         model: str = "mace",
-        options: dict = {},
+        relax_params: dict = {},
     ):
-        cloud_mlip_garden = self.client.get_garden("10.26311/qs92-3t67")
+        cloud_mlip_garden = self.client.get_garden("10.26311/cexg-2349")
         models_to_class_name = {
             "mace": "MACE",
             "mattersim": "MATTERSIM",
@@ -66,7 +66,7 @@ class MLIPGarden(Garden):
         else:
             raise ValueError("No input provided")
 
-        raw_output = cls.relax(raw_input)
+        raw_output = cls.relax(raw_input, relax_params=relax_params)
         return raw_output
 
     def batch_relax(
