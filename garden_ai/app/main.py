@@ -100,13 +100,13 @@ def setup(
             case "windsurf":
                 config_path = Init.windsurf()
             case _:
-                print(
+                rich.print(
                     "Not supported for config initialization",
-                    "Try 'claude', 'claude code', 'gemini', 'cursor', or 'windsurf'",
+                    "Try 'claude', 'claude code', 'gemini', 'cursor', or 'windsurf' or specify a path to a config file",
                 )
                 return
 
-    print(f"Config file set up at {config_path}")
+    rich.print(f"Config file set up at {config_path}")
 
 
 @app.callback()
