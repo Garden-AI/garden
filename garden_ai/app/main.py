@@ -8,6 +8,7 @@ import typer
 
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
+from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
 
 logger = logging.getLogger()
 
@@ -53,8 +54,8 @@ mcp_app = typer.Typer(help="MCP server commands")
 app.add_typer(mcp_app, name="mcp")
 
 
-@app.command()
-def mcp():
+@mcp_app.command()
+def serve():
     """Start the Garden MCP server."""
     try:
         from garden_ai.mcp.server import main as mcp_main
@@ -78,27 +79,25 @@ def setup(
     ] = None,
 ):
     """Add config file for client"""
-    from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
-
     if client and path:
         raise ValueError("Cannot specify both a client and a path")
     elif not client and not path:
         raise ValueError("Specify either a client or a path")
 
     if path:
-        config_path = Init.custom(path)
+        config_path = Init.setup_custom(path)
     elif client:
         match client.lower():
             case "claude":
-                config_path = Init.claude()
-            case "claude code":
-                config_path = Init.claude_code()
+                config_path = Init.setup_claude()
+            case "claude-code":
+                config_path = Init.setup_claude_code()
             case "gemini":
-                config_path = Init.gemini()
+                config_path = Init.setup_gemini()
             case "cursor":
-                config_path = Init.cursor()
+                config_path = Init.setup_cursor()
             case "windsurf":
-                config_path = Init.windsurf()
+                config_path = Init.setup_windsurf()
             case _:
                 rich.print(
                     "Not supported for config initialization",
@@ -106,7 +105,7 @@ def setup(
                 )
                 return
 
-    rich.print(f"Config file set up at {config_path}")
+    rich.print(f"Garden MCP configuration file set up at {config_path}")
 
 
 @app.callback()
