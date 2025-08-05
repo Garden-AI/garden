@@ -51,10 +51,11 @@ pydantic-core = "^2.18.4"
 modal = "^1.0.0"
 mixpanel = "^4.10.1"
 mcp = { version = "^1.0.0", optional = true }
+uv = { version = "^0.8.0", optional = true}
 
 [tool.poetry.extras]
 mlip = ["ase"]
-mcp = ["mcp"]
+mcp = ["mcp", "uv"]
 
 [tool.poetry.scripts]
 garden-ai = "garden_ai.app.main:app"
