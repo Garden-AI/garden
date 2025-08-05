@@ -69,11 +69,11 @@ def mcp():
 @mcp_app.command()
 def setup(
     client: Annotated[
-        str,
+        str | None,
         typer.Option(help="'claude', 'claude code', 'gemini', 'cursor', 'windsurf'"),
     ] = None,
     path: Annotated[
-        str,
+        str | None,
         typer.Option(help="Path to initalize config file for any other mcp client"),
     ] = None,
 ):
