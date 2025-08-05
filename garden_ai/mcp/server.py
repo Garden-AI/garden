@@ -125,55 +125,96 @@ except ImportError:
 
 
 @mcp.tool()
-def search_gardens(
-    dois: list[str] | None = None,
-    tags: list[str] | None = None,
-    contributors: list[str] | None = None,
-    limit: int = 20,
+async def search_gardens(
+    query: str,
+    limit: int = 10,
+    offset: int = 0,
+    filters: list[dict] = None,
 ) -> str:
     """
-    Search for gardens based on doi, tags, contributors, returns at most limit gardens.
+    Search gardens using full-text search across titles, descriptions, and other metadata.
+    
+    Performs ranked full-text search using PostgreSQL's search capabilities to find relevant
+    computational research artifacts (Gardens) based on your query terms.
+    
+    Args:
+        query: Search terms to find in garden metadata. Searches across titles, descriptions,
+               authors, and other text fields. Use natural language or keywords.
+        limit: Maximum number of results to return (default: 10, max: 100)
+        offset: Number of results to skip for pagination (default: 0). Use with limit
+                to paginate through large result sets.
+        filters: Optional list of field-based filters to narrow results. Each filter
+                should be a dict with 'field_name' and 'values' keys. Example:
+                [{"field_name": "tags", "values": ["machine-learning", "nlp"]}]
+                Available filter fields: tags, authors, contributors, year
+    
+    Returns:
+        JSON string containing search results with pagination info:
+        - count: Number of results in this response
+        - total: Total number of matching gardens
+        - offset: Current pagination offset  
+        - gardens: List of matching gardens with doi, title, description, tags, and functions
+          Each garden includes a 'functions' array with objects containing:
+          - name: Function name that can be called
+          - description: Description of what the function does
+    
+    Example:
+        search_gardens("machine learning protein", limit=5, offset=0)
+        search_gardens("climate", filters=[{"field_name": "tags", "values": ["climate"]}])
     """
+
+    search_payload = {
+        "q": query,
+        "limit": limit,
+        "offset": offset,
+        "filters": filters or [],
+    }
+
     try:
-        response = GardenClient().backend_client.get_gardens(
-            dois=dois,
-            tags=tags,
-            authors=contributors,
-            contributors=contributors,
-            limit=limit,
-        )
-
-        if tags and not response:
-            valid_tags = GardenClient().backend_client.get_valid_tags()
-            raise ToolError(
-                f"Using invalid tags. These are all the valid tags: {valid_tags}",
-                "Retry again with valid tags.",
-            )
-
-        result = []
-        for garden in response:
-            if garden.metadata.state == "ARCHIVED":
+        client = GardenClient().backend_client
+        response = client._post("/gardens/search", search_payload)
+        
+        # Filter to only return specific metadata attributes
+        filtered_gardens = []
+        # filtered_response = {
+        #     "count": response.get("count"),
+        #     "total": response.get("total"),
+        #     "offset": response.get("offset"),
+        #     "gardens": response.get("garden_meta").model_dump(include={"doi", "title", "description", "tags"})
+        # } #TODO: Simplify this loop with model_dump
+        for garden in response.get("garden_meta", []):
+            # Skip archived gardens
+            if garden.get("is_archived", False):
+                #filtered_response["count"] -= 1
                 continue
-            data = garden.metadata.model_dump(
-                mode="json", include={"doi", "title", "description", "tags"}
-            )
-
-            if garden.modal_functions:
-                data["modal_functions"] = [
-                    mf.metadata.function_name for mf in garden.modal_functions
+                
+            filtered_garden = {}
+            for key in ["doi", "title", "description", "tags"]:
+                if key in garden:
+                    filtered_garden[key] = garden[key]
+            
+            # Add function information
+            modal_functions = garden.get("modal_functions", [])
+            if modal_functions:
+                filtered_garden["functions"] = [
+                    {
+                        "name": func.get("function_name"),
+                        "description": func.get("description")
+                    }
+                    for func in modal_functions
+                    if func.get("function_name") and func.get("description")
                 ]
-            elif garden.modal_classes:
-                data["modal_functions"] = []
-                for modal_class in garden.modal_classes:
-                    for method in modal_class._methods.values():
-                        data["modal_functions"].append(method.metadata.function_name)
+            else:
+                filtered_garden["functions"] = []
+                
+            filtered_gardens.append(filtered_garden)
+        
+        filtered_response["gardens"] = filtered_gardens
 
-            result.append(data)
+        return json.dumps(filtered_response, default=str)
 
-        return json.dumps(result)
     except Exception as e:
-        raise ToolError(f"Error searching for garden: {e}")
-
+        raise ToolError(f"Error searching gardens: {e}")
 
 @mcp.tool()
 def get_garden_metadata(doi: str) -> str:
