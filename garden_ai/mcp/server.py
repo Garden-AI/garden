@@ -132,30 +132,27 @@ def search_gardens(
 ) -> str:
     """
     Search gardens using full-text search across titles, descriptions, and other metadata.
-    
+
     Args:
         query: Search terms to find in garden metadata. Searches across titles, descriptions,
                authors, and other text fields. Use natural language or keywords.
         limit: Maximum number of results to return
         offset: Number of results to skip for pagination.
-    
+
     Returns:
         JSON string containing search results with pagination info:
         - count: Number of results in this response
         - total: Total number of matching gardens
-        - offset: Current pagination offset  
+        - offset: Current pagination offset
         - gardens: List of matching gardens with doi, title, description, tags, and functions
     """
-    archived_filter = {
-        "field_name": "is_archived",
-        "values": ["false"]
-    }
+    archived_filter = {"field_name": "is_archived", "values": ["false"]}
 
     search_payload = {
         "q": query,
         "limit": limit,
         "offset": offset,
-        "filters": [archived_filter]
+        "filters": [archived_filter],
     }
 
     try:
@@ -171,23 +168,19 @@ def search_gardens(
         filtered_gardens = []
         for garden in response["garden_meta"]:
             garden_md = {k: garden[k] for k in ["doi", "title", "description", "tags"]}
-            
+
             functions = garden["modal_functions"]
             function_metadata = [
-                {k: f[k] for k in ["function_name", "description"]} 
-                for f in functions
+                {k: f[k] for k in ["function_name", "description"]} for f in functions
             ]
-            
+
             # Combine garden metadata with function names
-            garden_with_functions = {
-                **garden_md,
-                "functions": function_metadata
-            }
-            
+            garden_with_functions = {**garden_md, "functions": function_metadata}
+
             filtered_gardens.append(garden_with_functions)
-        
+
         filtered_response["gardens"] = filtered_gardens
-            
+
         return json.dumps(filtered_response, default=str)
 
     except Exception as e:
