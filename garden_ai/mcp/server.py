@@ -126,7 +126,7 @@ except ImportError:
 
 @mcp.tool()
 def search_gardens(
-    query: str,
+    query: str = "",
     limit: int = 10,
     offset: int = 0,
 ) -> str:
