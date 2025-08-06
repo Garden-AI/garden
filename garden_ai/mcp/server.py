@@ -126,51 +126,70 @@ except ImportError:
 
 @mcp.tool()
 def search_gardens(
-    dois: list[str] | None = None,
-    tags: list[str] | None = None,
-    draft: bool | None = None,
-    authors: list[str] | None = None,
-    contributors: list[str] | None = None,
-    year: str | None = None,
-    owner_uuid: str | None = None,
-    limit: int = 20,
+    query: str,
+    limit: int = 10,
+    offset: int = 0,
 ) -> str:
     """
-    Search for gardens based on inputs, returns at most limit gardens.
+    Search gardens using full-text search across titles, descriptions, and other metadata.
+    
+    Args:
+        query: Search terms to find in garden metadata. Searches across titles, descriptions,
+               authors, and other text fields. Use natural language or keywords.
+        limit: Maximum number of results to return
+        offset: Number of results to skip for pagination.
+    
+    Returns:
+        JSON string containing search results with pagination info:
+        - count: Number of results in this response
+        - total: Total number of matching gardens
+        - offset: Current pagination offset  
+        - gardens: List of matching gardens with doi, title, description, tags, and functions
     """
+    archived_filter = {
+        "field_name": "is_archived",
+        "values": ["false"]
+    }
+
+    search_payload = {
+        "q": query,
+        "limit": limit,
+        "offset": offset,
+        "filters": [archived_filter]
+    }
+
     try:
-        response = GardenClient().backend_client.get_gardens(
-            dois=dois,
-            tags=tags,
-            draft=draft,
-            authors=authors,
-            contributors=contributors,
-            year=year,
-            owner_uuid=owner_uuid,
-            limit=limit,
-        )
+        client = GardenClient().backend_client
+        response = client.search_gardens(search_payload)
 
-        result = []
-        for garden in response:
-            if garden.metadata.state == "ARCHIVED":
-                continue
-            data = garden.metadata.model_dump(
-                mode="json", include={"doi", "title", "description", "tags"}
-            )
+        filtered_response = {
+            "count": response.get("count"),
+            "total": response.get("total"),
+            "offset": response.get("offset"),
+        }
 
-            if garden.modal_functions:
-                data["modal_functions"] = [
-                    mf.metadata.function_name for mf in garden.modal_functions
-                ]
-            elif garden.modal_classes:
-                data["modal_functions"] = []
-                for modal_class in garden.modal_classes:
-                    for method in modal_class._methods.values():
-                        data["modal_functions"].append(method.metadata.function_name)
+        filtered_gardens = []
+        for garden in response["garden_meta"]:
+            garden_md = {k: garden[k] for k in ["doi", "title", "description", "tags"]}
+            
+            functions = garden["modal_functions"]
+            function_metadata = [
+                {k: f[k] for k in ["function_name", "description"]} 
+                for f in functions
+            ]
+            
+            # Combine garden metadata with function names
+            garden_with_functions = {
+                **garden_md,
+                "functions": function_metadata
+            }
+            
+            filtered_gardens.append(garden_with_functions)
+        
+        filtered_response["gardens"] = filtered_gardens
+            
+        return json.dumps(filtered_response, default=str)
 
-            result.append(data)
-
-        return json.dumps(result)
     except Exception as e:
         raise ToolError(f"Error searching for garden: {e}")
 
