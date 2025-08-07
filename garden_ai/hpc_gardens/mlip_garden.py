@@ -6,7 +6,11 @@ from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
-from garden_ai.hpc_gardens.utils import check_file_size_and_read, wait_for_task_id
+from garden_ai.hpc_gardens.utils import (
+    check_file_size_and_read,
+    wait_for_task_id,
+    decode_if_base64,
+)
 from garden_ai.schemas.garden import GardenMetadata
 
 
@@ -287,18 +291,18 @@ class MLIPGarden(Garden):
                 return JobStatus(
                     status="failed",
                     error=job_result["error"],
-                    stdout=job_result.get("stdout", ""),
-                    stderr=job_result.get("stderr", ""),
+                    stdout=decode_if_base64(job_result.get("stdout", "")),
+                    stderr=decode_if_base64(job_result.get("stderr", "")),
                 )
 
             # Successful completion - results are stored in globus-compute
             return JobStatus(
                 status="completed",
                 results_available=True,
-                stdout=(
+                stdout=decode_if_base64(
                     job_result.get("stdout", "") if isinstance(job_result, dict) else ""
                 ),
-                stderr=(
+                stderr=decode_if_base64(
                     job_result.get("stderr", "") if isinstance(job_result, dict) else ""
                 ),
             )
