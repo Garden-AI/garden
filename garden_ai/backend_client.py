@@ -147,3 +147,8 @@ class BackendClient:
             "/modal-invocations/blob-uploads", payload.model_dump(mode="json")
         )
         return ModalBlobUploadURLResponse(**response)
+
+    def search_gardens(self, payload: dict) -> dict:
+        result = self._post("/gardens/search", payload=payload)
+
+        return result
