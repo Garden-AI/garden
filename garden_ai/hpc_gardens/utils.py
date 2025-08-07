@@ -1,5 +1,6 @@
 from pathlib import Path
 import time
+import base64
 
 from globus_compute_sdk.sdk.asynchronous.compute_future import ComputeFuture
 
@@ -145,3 +146,37 @@ def wait_for_task_id(future: ComputeFuture, timeout: int = 60) -> str:
     raise TimeoutError(
         f"Could not get task ID from globus-compute within {timeout} seconds."
     )
+
+
+def decode_if_base64(output_text: str) -> str:
+    """
+    Decode base64-encoded output text if it is base64, otherwise return as-is.
+    Also removes RESULT_DATA lines from the output.
+
+    Args:
+        output_text: Raw output text that may be base64-encoded
+
+    Returns:
+        Decoded text with RESULT_DATA lines removed
+    """
+    if not output_text:
+        return output_text
+
+    # Try to decode from base64, if it fails just use original
+    try:
+        decoded_bytes = base64.b64decode(output_text)
+        decoded_text = decoded_bytes.decode("utf-8")
+        output_text = decoded_text
+    except Exception:
+        # If any error occurs, just use the original text
+        pass
+
+    # Filter out RESULT_DATA lines
+    lines = output_text.split("\n")
+    cleaned_lines = [line for line in lines if not line.startswith("RESULT_DATA:")]
+
+    # Remove trailing empty lines
+    while cleaned_lines and not cleaned_lines[-1].strip():
+        cleaned_lines.pop()
+
+    return "\n".join(cleaned_lines)

@@ -6,7 +6,11 @@ from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
-from garden_ai.hpc_gardens.utils import check_file_size_and_read, wait_for_task_id
+from garden_ai.hpc_gardens.utils import (
+    check_file_size_and_read,
+    wait_for_task_id,
+    decode_if_base64,
+)
 from garden_ai.schemas.garden import GardenMetadata
 
 
@@ -69,13 +73,124 @@ class MLIPGarden(Garden):
         raw_output = cls.relax(raw_input, relax_params=relax_params)
         return raw_output
 
+    def validate_relaxation_params(
+        self, relax_params: dict | None, frechet_supported: bool = True
+    ) -> tuple[dict, str | None]:
+        """
+        Validate and normalize relaxation parameters.
+
+        Args:
+            relax_params: Dictionary of relaxation parameters from user
+            frechet_supported: Whether frechet_cell_fire optimizer is supported
+
+        Returns:
+            Tuple of (validated_params, error_message). If error_message is not None,
+            validated_params should be ignored.
+        """
+        if relax_params is None:
+            relax_params = {}
+
+        # Create a copy to avoid modifying the original
+        validated = {}
+
+        # Validate optimizer_type
+        optimizer_type = relax_params.get("optimizer_type", "frechet_cell_fire")
+        if optimizer_type not in ["frechet_cell_fire", "fire"]:
+            return (
+                {},
+                f"Invalid optimizer_type '{optimizer_type}'. Must be 'frechet_cell_fire' or 'fire'.",
+            )
+
+        if optimizer_type == "frechet_cell_fire" and not frechet_supported:
+            return (
+                {},
+                "The 'frechet_cell_fire' optimizer is not supported in this context. Use 'fire' instead.",
+            )
+
+        validated["optimizer_type"] = optimizer_type
+
+        # Validate md_flavor
+        md_flavor = relax_params.get("md_flavor", "ase_fire")
+        if md_flavor not in ["ase_fire", "vv_fire"]:
+            return (
+                {},
+                f"Invalid md_flavor '{md_flavor}'. Must be 'ase_fire' or 'vv_fire'.",
+            )
+        validated["md_flavor"] = md_flavor
+
+        # Validate frechet-specific parameters
+        frechet_only_bool_params = ["hydrostatic_strain", "constant_volume"]
+        frechet_only_float_params = ["scalar_pressure"]
+
+        # Handle boolean frechet params
+        for param_name in frechet_only_bool_params:
+            if param_name in relax_params:
+                param_value = relax_params[param_name]
+
+                # If user is using fire but passed frechet-specific params, error
+                if optimizer_type == "fire":
+                    return (
+                        {},
+                        f"Parameter '{param_name}' is only valid for 'frechet_cell_fire' optimizer, but 'fire' optimizer was specified.",
+                    )
+
+                # Validate boolean type
+                if not isinstance(param_value, bool):
+                    return (
+                        {},
+                        f"Parameter '{param_name}' must be a boolean (True/False), got {type(param_value).__name__}.",
+                    )
+                validated[param_name] = param_value
+            elif optimizer_type == "frechet_cell_fire":
+                # Set defaults for frechet_cell_fire
+                validated[param_name] = False
+
+        # Handle float frechet params
+        for param_name in frechet_only_float_params:
+            if param_name in relax_params:
+                param_value = relax_params[param_name]
+
+                # If user is using fire but passed frechet-specific params, error
+                if optimizer_type == "fire":
+                    return (
+                        {},
+                        f"Parameter '{param_name}' is only valid for 'frechet_cell_fire' optimizer, but 'fire' optimizer was specified.",
+                    )
+
+                # Validate float type (allow int too, will be converted)
+                if not isinstance(param_value, (float, int)):
+                    return (
+                        {},
+                        f"Parameter '{param_name}' must be a number, got {type(param_value).__name__}.",
+                    )
+                validated[param_name] = float(param_value)
+            elif optimizer_type == "frechet_cell_fire":
+                # Set defaults for frechet_cell_fire
+                if param_name == "scalar_pressure":
+                    validated[param_name] = 0.0
+
+        # Copy through other known parameters with their defaults
+        other_params = {
+            "fmax": 0.05,
+            "max_steps": 500,
+        }
+
+        for param_name, default_value in other_params.items():
+            if param_name in relax_params:
+                validated[param_name] = relax_params[param_name]
+            else:
+                validated[param_name] = default_value
+
+        return validated, None
+
     def batch_relax(
         self,
         xyz_file_path: str | Path,
         model: str = "mace",
-        max_batch_size: int = 10,
+        max_batch_size: int = 200,
         cluster_id: str | None = None,
-        options: dict[str, str] | None = None,
+        job_options: dict[str, str] | None = None,
+        relaxation_options: dict[str, str] | None = None,
         task_id_timeout: int = 60,
     ) -> str:
         """
@@ -86,8 +201,9 @@ class MLIPGarden(Garden):
             model: Model to use for relaxation (any torch-sim supported model)
             max_batch_size: Maximum structures per batch
             cluster_id: HPC endpoint ID to use for computation
-            options: Additional options
-            task_id_timeout: Timeout in seconds for getting the task ID.
+            job_options: Job configuration options passed to the globus-compute call
+            relaxation_options: Additional options passed through to the relaxation function
+            task_id_timeout: How long to wait for a task_id from globus-compute before assuming it failed
 
         Returns:
             Future returned by globus-compute
@@ -103,6 +219,12 @@ class MLIPGarden(Garden):
 
         ex = EdithExecutor(endpoint_id=cluster_id)
 
+        validated_params, validation_error = self.validate_relaxation_params(
+            relaxation_options
+        )
+        if validation_error:
+            raise ValueError(f"Invalid relaxation parameters: {validation_error}")
+
         # Pass file content and filename directly to the batch relaxation function
         future = ex.submit(
             _run_batch_computation,
@@ -111,6 +233,7 @@ class MLIPGarden(Garden):
             model,
             max_batch_size,
             "relaxation",
+            validated_params,
         )
         task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
@@ -168,18 +291,18 @@ class MLIPGarden(Garden):
                 return JobStatus(
                     status="failed",
                     error=job_result["error"],
-                    stdout=job_result.get("stdout", ""),
-                    stderr=job_result.get("stderr", ""),
+                    stdout=decode_if_base64(job_result.get("stdout", "")),
+                    stderr=decode_if_base64(job_result.get("stderr", "")),
                 )
 
             # Successful completion - results are stored in globus-compute
             return JobStatus(
                 status="completed",
                 results_available=True,
-                stdout=(
+                stdout=decode_if_base64(
                     job_result.get("stdout", "") if isinstance(job_result, dict) else ""
                 ),
-                stderr=(
+                stderr=decode_if_base64(
                     job_result.get("stderr", "") if isinstance(job_result, dict) else ""
                 ),
             )
@@ -263,7 +386,7 @@ def _run_batch_computation(
     model,
     max_batch_size,
     computation_type,
-    optimizer_str: str = "frechet_cell_fire",
+    relaxation_options,
     dtype_str: str = "float64",
 ):
     """
@@ -276,7 +399,7 @@ def _run_batch_computation(
         model: Model for the computation.
         max_batch_size: Maximum number of structures per batch (used as fallback).
         computation_type: 'relaxation' or 'md'.
-        optimizer_str: Optimizer to use for relaxation ('frechet_cell_fire' or 'fire').
+        relaxation_options: Validated relaxation parameters dict.
         dtype_str: Data type string ('float64' or 'float32').
 
     Returns:
@@ -287,7 +410,7 @@ def _run_batch_computation(
     from pathlib import Path
     from io import StringIO
 
-    # Fix NUMEXPR threading issue early, before any imports that might use it
+    # Fix NUMEXPR threading issue early
     os.environ["NUMEXPR_MAX_THREADS"] = "256"
 
     import ase  # noqa:
@@ -320,18 +443,38 @@ def _run_batch_computation(
     else:
         raise ValueError(f"Unsupported dtype string: {dtype_str}")
 
-    # Resolve optimizer for relaxation
+    # Extract relaxation parameters
     if computation_type == "relaxation":
-        if optimizer_str == "frechet_cell_fire":
+        optimizer_type = relaxation_options.get("optimizer_type", "frechet_cell_fire")
+        md_flavor = relaxation_options.get("md_flavor", "ase_fire")
+        fmax = relaxation_options.get("fmax", 0.05)
+        max_steps = relaxation_options.get("max_steps", 500)
+
+        if optimizer_type == "frechet_cell_fire":
             optimizer_builder = ts.frechet_cell_fire
             optimize_kwargs = {
-                "convergence_fn": generate_force_convergence_fn(force_tol=0.05)
+                "convergence_fn": generate_force_convergence_fn(force_tol=fmax)
             }
-        elif optimizer_str == "fire":
+            # Add frechet-specific options
+            frechet_kwargs = {}
+            if "hydrostatic_strain" in relaxation_options:
+                frechet_kwargs["hydrostatic_strain"] = relaxation_options[
+                    "hydrostatic_strain"
+                ]
+            if "constant_volume" in relaxation_options:
+                frechet_kwargs["constant_volume"] = relaxation_options[
+                    "constant_volume"
+                ]
+            if "scalar_pressure" in relaxation_options:
+                frechet_kwargs["scalar_pressure"] = relaxation_options[
+                    "scalar_pressure"
+                ]
+        elif optimizer_type == "fire":
             optimizer_builder = ts.optimizers.fire
             optimize_kwargs = {}
+            frechet_kwargs = {}
         else:
-            raise ValueError(f"Unsupported optimizer string: {optimizer_str}")
+            raise ValueError(f"Unsupported optimizer_type: {optimizer_type}")
 
     def load_torch_sim_model(model_name: str, device: str = "cpu", dtype=None):
         """Load a torch-sim model by name."""
@@ -431,7 +574,7 @@ def _run_batch_computation(
     print(f"  - Large (20+ atoms): {len(large_materials)} materials")
 
     # Define batch sizes for each category
-    batch_sizes = {"small": 80, "medium": 40, "large": 16}
+    batch_sizes = {"small": 400, "medium": 250, "large": 50}
 
     # Track results for proper ordering
     all_results = []
@@ -472,13 +615,18 @@ def _run_batch_computation(
             if computation_type == "relaxation":
 
                 def optimizer_callable(model, **_kwargs):
-                    return optimizer_builder(model, md_flavor="ase_fire")
+                    if optimizer_type == "frechet_cell_fire":
+                        return optimizer_builder(
+                            model, md_flavor=md_flavor, **frechet_kwargs
+                        )
+                    else:
+                        return optimizer_builder(model, md_flavor=md_flavor)
 
                 result_state = ts.optimize(
                     system=initial_state,
                     model=torch_sim_model,
                     optimizer=optimizer_callable,
-                    max_steps=500,
+                    max_steps=max_steps,
                     **optimize_kwargs,
                 )
             elif computation_type == "md":
