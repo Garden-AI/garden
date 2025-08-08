@@ -80,7 +80,6 @@ class MLIPGarden(Garden):
             with open(out_path, "w") as f:
                 f.write(raw_output if isinstance(raw_output, str) else str(raw_output))
 
-        # Preserve original behavior: always return string contents
         return raw_output
 
     def validate_relaxation_params(
