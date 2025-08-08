@@ -46,7 +46,8 @@ class MLIPGarden(Garden):
         xyz_file_path: str | Path | None = None,
         xyz_string: str | None = None,
         model: str = "mace",
-        relax_params: dict = {},
+        relaxation_options: dict = {},
+        output_path: str | Path | None = None,
     ):
         cloud_mlip_garden = self.client.get_garden("10.26311/cexg-2349")
         models_to_class_name = {
@@ -70,7 +71,16 @@ class MLIPGarden(Garden):
         else:
             raise ValueError("No input provided")
 
-        raw_output = cls.relax(raw_input, relax_params=relax_params)
+        raw_output = cls.relax(raw_input, relax_params=relaxation_options)
+
+        # If an output path is provided, write results to that file
+        if output_path is not None:
+            out_path = Path(output_path)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_path, "w") as f:
+                f.write(raw_output if isinstance(raw_output, str) else str(raw_output))
+
+        # Preserve original behavior: always return string contents
         return raw_output
 
     def validate_relaxation_params(
