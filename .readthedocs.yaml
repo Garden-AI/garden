@@ -15,8 +15,8 @@ build:
       - pip install uv
     post_install:
       - uv sync --extra develop
-    post_build:
-      - uv run mkdocs build --clean --site-dir $READTHEDOCS_OUTPUT/html --config-file mkdocs.yml
+      # Naively install requirements to docs environment
+      - pip install mkdocs-material mkdocs-callouts mkdocstrings[python]
 
 mkdocs:
   configuration: mkdocs.yml
