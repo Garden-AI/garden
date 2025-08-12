@@ -226,8 +226,6 @@ class MLIPGarden(Garden):
         except (FileNotFoundError, ValueError) as e:
             raise RuntimeError(f"Failed to read XYZ file: {e}")
 
-        ex = EdithExecutor(endpoint_id=cluster_id)
-
         validated_params, validation_error = self.validate_relaxation_params(
             relaxation_options
         )
@@ -235,15 +233,16 @@ class MLIPGarden(Garden):
             raise ValueError(f"Invalid relaxation parameters: {validation_error}")
 
         # Pass file content and filename directly to the batch relaxation function
-        future = ex.submit(
-            _run_batch_computation,
-            file_content,
-            xyz_path.name,
-            model,
-            max_batch_size,
-            "relaxation",
-            validated_params,
-        )
+        with EdithExecutor(endpoint_id=cluster_id) as ex:
+            future = ex.submit(
+                _run_batch_computation,
+                file_content,
+                xyz_path.name,
+                model,
+                max_batch_size,
+                "relaxation",
+                validated_params,
+            )
         task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
 
@@ -583,7 +582,7 @@ def _run_batch_computation(
     print(f"  - Large (20+ atoms): {len(large_materials)} materials")
 
     # Define batch sizes for each category
-    batch_sizes = {"small": 400, "medium": 250, "large": 50}
+    batch_sizes = {"small": 200, "medium": 100, "large": 25}
 
     # Track results for proper ordering
     all_results = []

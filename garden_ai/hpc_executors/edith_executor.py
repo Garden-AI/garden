@@ -11,7 +11,7 @@ from garden_ai.hpc_gardens.utils import subproc_wrapper  # noqa:
 EDITH_EP_ID = "a01b9350-e57d-4c8e-ad95-b4cb3c4cd1bb"
 
 DEFAULT_CONFIG = {
-    "worker_init": """true;
+    "worker_init": """
 module load openmpi
 export PATH=$PATH:/usr/sbin
 """,
@@ -26,6 +26,16 @@ class EdithExecutor(Executor):
         user_endpoint_config=DEFAULT_CONFIG,
         **kwargs,
     ):
+        # vary the user_endpoint_config to try to force separate PBS jobs
+        if "user_endpoint_config" in kwargs and kwargs["user_endpoint_config"]:
+            import time
+
+            config = kwargs["user_endpoint_config"].copy()
+            # Add a unique comment to make each job "different"
+            if "worker_init" in config:
+                config["worker_init"] += f"\n# Job timestamp: {time.time()}"
+            kwargs["user_endpoint_config"] = config
+
         super().__init__(
             *args,
             endpoint_id=endpoint_id,
