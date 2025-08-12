@@ -17,3 +17,6 @@ build:
       - uv sync --extra develop
     post_build:
       - uv run mkdocs build --clean --site-dir $READTHEDOCS_OUTPUT/html --config-file mkdocs.yml
+
+mkdocs:
+  configuration: mkdocs.yml
