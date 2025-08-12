@@ -8,8 +8,8 @@ from garden_ai.gardens import Garden
 from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
 from garden_ai.hpc_gardens.utils import (
     check_file_size_and_read,
-    wait_for_task_id,
     decode_if_base64,
+    wait_for_task_id,
 )
 from garden_ai.schemas.garden import GardenMetadata
 
@@ -322,7 +322,10 @@ class MLIPGarden(Garden):
             )
 
     def get_results(
-        self, job_id: str, output_path: str | Path = None, cluster_id: str | None = None  # type: ignore[assignment]
+        self,
+        job_id: str,
+        output_path: str | Path = None,
+        cluster_id: str | None = None,  # type: ignore[assignment]
     ) -> Path:
         """
         Download the results of a completed batch job to local machine.
@@ -415,14 +418,12 @@ def _run_batch_computation(
     """
     import os
     import uuid
-    from pathlib import Path
     from io import StringIO
+    from pathlib import Path
 
     # Fix NUMEXPR threading issue early
     os.environ["NUMEXPR_MAX_THREADS"] = "256"
 
-    import ase  # noqa:
-    import numpy as np  # noqa:
     import torch
     import torch_sim as ts
     from ase.io import read, write  # type: ignore[import-not-found]
@@ -518,7 +519,6 @@ def _run_batch_computation(
 
                 return MorseModel(device=device, dtype=dtype)
         elif model_name == "sevennet":
-            import torch  # noqa:
             from sevenn.calculator import SevenNetCalculator
             from torch_sim.models.sevennet import SevenNetModel
 
@@ -531,7 +531,6 @@ def _run_batch_computation(
                 model=sevennet_calculator.model, modal=modal, device=device
             )
         elif model_name == "mattersim":
-            import torch  # noqa:
             from mattersim.forcefield.potential import Potential
             from torch_sim.models.mattersim import MatterSimModel
 

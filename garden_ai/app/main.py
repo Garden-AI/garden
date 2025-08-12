@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Annotated
+from typing import Annotated, Optional
 
 import rich
 import typer

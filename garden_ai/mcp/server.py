@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -15,7 +16,7 @@ mcp = FastMCP("garden-mcp-server")
 
 # MLIP-specific tools
 try:
-    from .mlip import submit_relaxation_job, check_job_status, get_job_results
+    from .mlip import check_job_status, get_job_results, submit_relaxation_job
 
     # only include mlip tools if mlip extra is also installed
     mcp.tool()(submit_relaxation_job)

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, TypeVar
+
 from tabulate import tabulate
 
-from garden_ai.modal.functions import ModalFunction
 from garden_ai.modal.classes import ModalClassWrapper
+from garden_ai.modal.functions import ModalFunction
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.modal import ModalFunctionMetadata
 
