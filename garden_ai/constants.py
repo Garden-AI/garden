@@ -1,6 +1,7 @@
 import os
-from dotenv import load_dotenv
 import pathlib
+
+from dotenv import load_dotenv
 
 # get env file from project root
 dotenv_path = pathlib.Path(f"{__file__}/../..").resolve() / ".env.shared"
@@ -19,7 +20,9 @@ class GardenConstants:
     GARDEN_ENDPOINT = (
         _LOCAL_ENDPOINT
         if os.environ.get("GARDEN_ENV") == "local"
-        else _DEV_ENDPOINT if os.environ.get("GARDEN_ENV") == "dev" else _PROD_ENDPOINT
+        else _DEV_ENDPOINT
+        if os.environ.get("GARDEN_ENV") == "dev"
+        else _PROD_ENDPOINT
     )
 
     MIXPANEL_TOKEN = "db71da1b071c8acd33af84921ce88084"

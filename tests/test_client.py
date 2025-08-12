@@ -11,7 +11,7 @@ from globus_sdk import (
     OAuthTokenResponse,
 )
 
-from garden_ai import GardenClient, Garden
+from garden_ai import Garden, GardenClient
 from garden_ai.client import AuthException
 
 is_gha = os.getenv("GITHUB_ACTIONS")
