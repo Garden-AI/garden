@@ -12,7 +12,7 @@ from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
 
 logger = logging.getLogger()
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer()
 
 
 def show_version(show: bool):
@@ -108,8 +108,9 @@ def setup(
     rich.print(f"Garden MCP configuration file set up at {config_path}")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main_info(
+    ctx: typer.Context,
     version: Optional[bool] = typer.Option(
         None, "--version", callback=show_version, is_eager=True
     ),
@@ -117,4 +118,7 @@ def main_info(
     """
     🌱 Hello, Garden 🌱
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        # Manually print the help text if no subcommand is invoked, to get around
+        rich.print(ctx.get_help())
+        raise typer.Exit()
