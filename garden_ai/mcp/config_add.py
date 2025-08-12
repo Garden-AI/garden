@@ -1,12 +1,16 @@
-import os
 import json
-from pathlib import Path
-import subprocess
+import os
 import platform
 import shutil
-
+import subprocess
 from json import JSONDecodeError
-from uv import find_uv_bin
+from pathlib import Path
+
+try:
+    # Catch ImportError when mcp extra is not installed
+    from uv import find_uv_bin
+except ImportError:
+    pass
 
 
 class MCPConfigInitalizer:
