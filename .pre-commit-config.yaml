@@ -10,13 +10,16 @@ repos:
     # -   id: check-yaml # removed to ignore complaints about endpoint helm chart
     -   id: check-added-large-files
     -   id: no-commit-to-branch # don't commit to main
--   repo: https://github.com/psf/black
-    rev: 24.4.2
-    hooks:
-    - id: black
-      language_version: python3
-      args: [--exclude, 'fixtures']
--   repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
-    hooks:
-    - id: flake8
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.6.9
+  hooks:
+    # Run the linter.
+    - id: ruff
+      args: [--fix]
+      # Run the formatter.
+    - id: ruff-format
+# keep lockfile synced with pyproject.toml
+- repo: https://github.com/astral-sh/uv-pre-commit
+  rev: 0.5.24
+  hooks:
+    - id: uv-lock
