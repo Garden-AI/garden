@@ -26,7 +26,8 @@ It exposes the following tools (TODO):
         "--with",
         "garden-ai[mcp]",
         "garden-ai",
-        "mcp"
+        "mcp",
+        "serve"
       ]
     }
   }
@@ -49,7 +50,8 @@ To include the bespoke `submit_relaxation_job`, `check_job_status` and `get_job_
         "--with",
         "garden-ai[mlip]",
         "garden-ai",
-        "mcp"
+        "mcp",
+        "serve"
       ]
     }
   }
@@ -70,7 +72,8 @@ To include the bespoke `submit_relaxation_job`, `check_job_status` and `get_job_
         "--with",
         "/path/to/local/repo/garden[mcp]",
         "garden-ai",
-        "mcp"
+        "mcp",
+        "serve"
       ],
       "env": {
         "GARDEN_ENV":"dev"

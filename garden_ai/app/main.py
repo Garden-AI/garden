@@ -71,7 +71,7 @@ def serve():
 def setup(
     client: Annotated[
         str | None,
-        typer.Option(help="'claude', 'claude code', 'gemini', 'cursor', 'windsurf'"),
+        typer.Option(help="'claude', 'claude-code', 'gemini', 'cursor', 'windsurf'"),
     ] = None,
     path: Annotated[
         str | None,
