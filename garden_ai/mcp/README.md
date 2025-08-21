@@ -14,6 +14,26 @@ It exposes the following tools (TODO):
 - uv
 - `uvx garden-ai login` to set up auth
 
+## Quick Setup
+
+Use the automated setup command to configure your MCP client:
+
+```bash
+# For Claude Desktop
+garden-ai mcp setup --client claude
+
+# For Claude Code
+garden-ai mcp setup --client claude-code  
+
+# For other clients (cursor, windsurf, gemini)
+garden-ai mcp setup --client <client-name>
+
+# For custom config file
+garden-ai mcp setup --path /path/to/your/config.json
+```
+
+This command automatically adds the Garden MCP server configuration to your client's config file.
+
 ## claude desktop config
 
 ```
