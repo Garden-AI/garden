@@ -1,10 +1,11 @@
+from copy import deepcopy
+
 import pytest
 
 from garden_ai import Garden
 from garden_ai.gardens import GardenMetadata
-from garden_ai.modal.functions import ModalFunctionMetadata, ModalFunction
 from garden_ai.modal.classes import ModalClassWrapper
-from copy import deepcopy
+from garden_ai.modal.functions import ModalFunction, ModalFunctionMetadata
 
 
 def test_garden_init_raises_if_metadata_functions_dont_match(

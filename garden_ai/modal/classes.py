@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, Any
+from typing import TYPE_CHECKING, Any, TypeVar
+
 from garden_ai.modal.functions import ModalFunction
 
 from ..schemas.modal import ModalFunctionMetadata
-
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient

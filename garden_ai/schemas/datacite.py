@@ -17,7 +17,6 @@ from pydantic import (
     field_validator,
 )
 
-
 from .schema_utils import UniqueList, const_item_validator
 
 
