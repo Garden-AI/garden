@@ -5,7 +5,7 @@ import typer
 
 from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
 
-mcp_app = typer.Typer(help="MCP server commands")
+mcp_app = typer.Typer(help="MCP server commands", no_args_is_help=True)
 
 @mcp_app.callback()
 def mcp():
@@ -54,7 +54,7 @@ def setup(
 
     rich.print(f"Garden MCP configuration file set up at {config_path}")
 
-@mcp_app.command(no_args_is_help=True)
+@mcp_app.command(no_args_is_help=False)
 def serve():
     """Start the Garden MCP server."""
     try:

@@ -52,7 +52,7 @@ def logout():
     Path.unlink(Path(GardenConstants.GARDEN_KEY_STORE), missing_ok=True)
 
 
-@app.callback()
+@app.callback(no_args_is_help=True)
 def main_info(
     version: Optional[bool] = typer.Option(
         None, "--version", callback=show_version, is_eager=True
