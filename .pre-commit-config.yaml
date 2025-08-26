@@ -20,6 +20,6 @@ repos:
     - id: ruff-format
 # keep lockfile synced with pyproject.toml
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.5.24
+  rev: 0.8.9
   hooks:
     - id: uv-lock

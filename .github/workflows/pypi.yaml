@@ -21,6 +21,7 @@ jobs:
         run: |
           # Extract version from git tag (e.g., v1.2.3 -> 1.2.3)
           VERSION=${GITHUB_REF#refs/tags/v}
+          uv version ${GITHUB_REF#refs/*/}
       - name: Build package
         run: uv build
       - name: Publish to PyPI

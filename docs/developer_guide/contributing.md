@@ -10,10 +10,8 @@ The Garden project is hosted on GitHub, and we use the `uv` tool for package and
 ```bash
 git clone https://github.com/Garden-AI/garden.git
 cd garden
-uv sync --extra test --extra develop
+uv sync --group develop
 ```
-
-You also might encounter problems with the `uv.lock` file, which we keep under version control -- feel free to generate a new one with `uv lock` and include the changes in your PR, even if `pyproject.toml` doesn't change.
 
 ## Code of Conduct
 
@@ -37,7 +35,7 @@ We welcome contributions of all types and levels, whether you're fixing bugs, ad
 
 ## Coding Standards
 
-Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format and lint code with `ruff`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install) -- this should already be installed if you ran `uv sync --extra develop`, though `pre-commit` may not be on your path. Then run `pre-commit install` from the garden directory.
+Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format and lint code with `ruff`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install) -- this should already be installed if you ran `uv sync --extra develop`, though `pre-commit` may not be on your path. Then run `uv run pre-commit install` from the garden directory.
 
 ## Documentation
 We use [mkdocs](https://www.mkdocs.org/user-guide/configuration/) to build this documentation, which should have been installed as a dependency if you ran `uv sync --extra develop`. To preview the docs locally, `uv run mkdocs serve`. A documentation preview will also be linked automatically whenever you open a new PR.
@@ -70,10 +68,6 @@ in the commands/subcommands.
 To generate the docs run:
 
 ``` shell
-# if running in the uv environment
-typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
-
-# otherwise
 uv run typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
 ```
 

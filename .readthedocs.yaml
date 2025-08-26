@@ -14,9 +14,7 @@ build:
     post_create_environment:
       - pip install uv
     post_install:
-      - uv sync --extra develop
-      # Naively install requirements to docs environment
-      - pip install mkdocs-material mkdocs-callouts mkdocstrings[python]
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv sync --extra develop
 
 mkdocs:
   configuration: mkdocs.yml
