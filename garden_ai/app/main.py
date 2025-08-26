@@ -1,14 +1,13 @@
 import logging
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Optional
 
 import rich
 import typer
 
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
-from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
 from garden_ai.app.mcp import mcp_app
 
 logger = logging.getLogger()

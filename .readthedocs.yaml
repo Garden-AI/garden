@@ -14,7 +14,7 @@ build:
     post_create_environment:
       - pip install uv
     post_install:
-      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv sync --extra develop
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv sync --group develop
 
 mkdocs:
   configuration: mkdocs.yml
