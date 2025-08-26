@@ -5,14 +5,14 @@ from typing import Callable
 import requests
 
 from garden_ai.constants import GardenConstants
+from garden_ai.gardens import Garden
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.modal import (
-    ModalInvocationResponse,
-    ModalInvocationRequest,
     ModalBlobUploadURLRequest,
     ModalBlobUploadURLResponse,
+    ModalInvocationRequest,
+    ModalInvocationResponse,
 )
-from garden_ai.gardens import Garden
 
 logger = logging.getLogger()
 

@@ -5,15 +5,13 @@ We're excited you're interested in contributing to Garden! This project is all a
 
 ## Installation
 
-The Garden project is hosted on GitHub, and we use the `poetry` tool for package and dependency management. To get started, clone the repository and use `poetry` to install dependencies:
+The Garden project is hosted on GitHub, and we use the `uv` tool for package and dependency management. To get started, clone the repository and use `uv` to install dependencies:
 
 ```bash
 git clone https://github.com/Garden-AI/garden.git
 cd garden
-poetry install --with=test,develop
+uv sync --group develop
 ```
-
-You also might encounter problems with the `poetry.lock` file, which we keep under version control -- feel free to generate a new one with `poetry lock --no-update` and include the changes in your PR, even if `pyproject.toml` doesn't change.
 
 ## Code of Conduct
 
@@ -37,10 +35,10 @@ We welcome contributions of all types and levels, whether you're fixing bugs, ad
 
 ## Coding Standards
 
-Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format code with `black`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install) -- this should already be installed if you ran `poetry install --with=develop`, though `pre-commit` may not be on your path. Then run `pre-commit install` from the garden directory.
+Garden uses standard Python coding style and conventions. We use pre-commit hooks to automatically format and lint code with `ruff`. To set up the commit hooks locally, you'll need to have pre-commit [installed](https://pre-commit.com/#install) -- this should already be installed if you ran `uv sync --extra develop`, though `pre-commit` may not be on your path. Then run `uv run pre-commit install` from the garden directory.
 
 ## Documentation
-We use [mkdocs](https://www.mkdocs.org/user-guide/configuration/) to build this documentation, which should have been installed as a dependency if you ran `poetry install --with=develop`. To preview the docs locally, `poetry run mkdocs serve` (or just `mkdocs serve` in an active `poetry shell`). A documentation preview will also be linked automatically whenever you open a new PR.
+We use [mkdocs](https://www.mkdocs.org/user-guide/configuration/) to build this documentation, which should have been installed as a dependency if you ran `uv sync --extra develop`. To preview the docs locally, `uv run mkdocs serve`. A documentation preview will also be linked automatically whenever you open a new PR.
 
 ### Docstrings / API documentation
 We use the mkdocs extension `mkdocstrings` to parse google-style python docstrings and build some API docs automatically. The actual contents of the generated docs page is configured in the corresponding `.md` file.
@@ -70,11 +68,7 @@ in the commands/subcommands.
 To generate the docs run:
 
 ``` shell
-# if in a poetry shell
-typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
-
-# otherwise
-poetry run typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
+uv run typer garden_ai.app.main utils docs --output docs/garden-ai.md --name garden-ai
 ```
 
 ## Testing
@@ -82,7 +76,7 @@ poetry run typer garden_ai.app.main utils docs --output docs/garden-ai.md --name
 We use `pytest` for testing. After making changes, make sure all tests pass. You can run unit tests using the following command:
 
 ```bash
-poetry run pytest -m "not integration"
+uv run pytest -m "not integration"
 ```
 
 

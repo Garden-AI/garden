@@ -1,7 +1,8 @@
+from typing import Any, List, Optional
+
 from rich.console import Console
 from rich.table import Table
 
-from typing import List, Optional, Any
 from garden_ai.client import GardenClient
 
 console = Console()
