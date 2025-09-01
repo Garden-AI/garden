@@ -563,14 +563,14 @@ wheels = [
 
 [[package]]
 name = "click"
-version = "8.2.1"
+version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/60/6c/8ca2efa64cf75a977a0d7fac081354553ebe483345c734fb6b6515d96bbc/click-8.2.1.tar.gz", hash = "sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202", size = 286342, upload-time = "2025-05-20T23:19:49.832Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593, upload-time = "2024-12-21T18:38:44.339Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/32/10bb5764d90a8eee674e9dc6f4db6a0ab47c8c4d0d83c27f7c39ac415a4d/click-8.2.1-py3-none-any.whl", hash = "sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b", size = 102215, upload-time = "2025-05-20T23:19:47.796Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/d4/7ebdbd03970677812aac39c869717059dbb71a4cfc033ca6e5221787892c/click-8.1.8-py3-none-any.whl", hash = "sha256:63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2", size = 98188, upload-time = "2024-12-21T18:38:41.666Z" },
 ]
 
 [[package]]
@@ -1212,6 +1212,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "boto3-stubs" },
+    { name = "click" },
     { name = "cryptography" },
     { name = "gitpython" },
     { name = "globus-compute-sdk" },
@@ -1278,6 +1279,7 @@ requires-dist = [
     { name = "ase", marker = "extra == 'mlip'" },
     { name = "boto3", specifier = ">=1.29,<2.0" },
     { name = "boto3-stubs", specifier = ">=1.29,<2.0" },
+    { name = "click", specifier = ">=8.0.0,<8.2.0" },
     { name = "cryptography", specifier = ">=44.0.0,<45.0.0" },
     { name = "gitpython", specifier = ">=3.1.35,<4.0.0" },
     { name = "globus-compute-sdk", specifier = ">=3.9.0,<4.0.0" },
@@ -1298,7 +1300,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "requests", specifier = ">=2.20.0" },
     { name = "tabulate", specifier = ">=0.9.0,<1.0.0" },
-    { name = "typer", extras = ["all"], specifier = ">=0.12.3,<1.0.0" },
+    { name = "typer", extras = ["all"], specifier = ">=0.12.3" },
     { name = "types-tabulate", specifier = ">=0.9.0.3,<1.0.0.0" },
     { name = "urllib3", marker = "python_full_version < '3.10'", specifier = "<2" },
     { name = "urllib3", marker = "python_full_version >= '3.10'", specifier = ">=2.2.1" },
@@ -4430,7 +4432,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.16.0"
+version = "0.12.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -4438,9 +4440,9 @@ dependencies = [
     { name = "shellingham" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/8c/7d682431efca5fd290017663ea4588bf6f2c6aad085c7f108c5dbc316e70/typer-0.16.0.tar.gz", hash = "sha256:af377ffaee1dbe37ae9440cb4e8f11686ea5ce4e9bae01b84ae7c63b87f1dd3b", size = 102625, upload-time = "2025-05-26T14:30:31.824Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/58/a79003b91ac2c6890fc5d90145c662fd5771c6f11447f116b63300436bc9/typer-0.12.5.tar.gz", hash = "sha256:f592f089bedcc8ec1b974125d64851029c3b1af145f04aca64d69410f0c9b722", size = 98953, upload-time = "2024-08-24T21:17:57.346Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/42/3efaf858001d2c2913de7f354563e3a3a2f0decae3efe98427125a8f441e/typer-0.16.0-py3-none-any.whl", hash = "sha256:1f79bed11d4d02d4310e3c1b7ba594183bcedb0ac73b27a9e5f28f6fb5b98855", size = 46317, upload-time = "2025-05-26T14:30:30.523Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/2b/886d13e742e514f704c33c4caa7df0f3b89e5a25ef8db02aa9ca3d9535d5/typer-0.12.5-py3-none-any.whl", hash = "sha256:62fe4e471711b147e3365034133904df3e235698399bc4de2b36c8579298d52b", size = 47288, upload-time = "2024-08-24T21:17:55.451Z" },
 ]
 
 [[package]]
