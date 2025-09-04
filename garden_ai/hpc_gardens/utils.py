@@ -1,9 +1,8 @@
-from pathlib import Path
-import time
 import base64
+import time
+from pathlib import Path
 
 from globus_compute_sdk.sdk.asynchronous.compute_future import ComputeFuture
-
 
 FIVE_MB = 5 * 1000 * 1000
 

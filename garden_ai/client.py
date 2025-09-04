@@ -23,6 +23,7 @@ from globus_sdk import (
 from globus_sdk.authorizers import GlobusAuthorizer
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
+from modal.cli._traceback import setup_rich_traceback
 from rich import print
 from rich.prompt import Prompt
 
@@ -31,7 +32,6 @@ from garden_ai.constants import GardenConstants
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden
 from garden_ai.hpc_gardens.mlip_garden import MLIPGarden
-from modal.cli._traceback import setup_rich_traceback
 
 logger = logging.getLogger()
 # modal helper replacement for rich.traceback.install

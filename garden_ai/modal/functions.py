@@ -20,7 +20,6 @@ from modal.exception import DeserializationError, ExecutionError, RemoteError
 from modal_proto import api_pb2  # type: ignore
 from synchronicity.exceptions import UserCodeException  # type: ignore
 
-
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
 else:

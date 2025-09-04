@@ -1,10 +1,10 @@
-from copy import deepcopy
 import json
 import pathlib  # noqa
+from copy import deepcopy
 from unittest.mock import patch
 
-from globus_sdk import AuthLoginClient, OAuthTokenResponse
 import pytest
+from globus_sdk import AuthLoginClient, OAuthTokenResponse
 from typer.testing import CliRunner
 
 from garden_ai.backend_client import BackendClient
