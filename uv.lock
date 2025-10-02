@@ -1217,6 +1217,7 @@ dependencies = [
     { name = "gitpython" },
     { name = "globus-compute-sdk" },
     { name = "globus-sdk" },
+    { name = "h2" },
     { name = "huggingface-hub" },
     { name = "ipython" },
     { name = "ipywidgets" },
@@ -1284,6 +1285,7 @@ requires-dist = [
     { name = "gitpython", specifier = ">=3.1.35,<4.0.0" },
     { name = "globus-compute-sdk", specifier = ">=3.9.0,<4.0.0" },
     { name = "globus-sdk", specifier = ">=3.34.0,<4.0.0" },
+    { name = "h2", specifier = ">=4.3.0" },
     { name = "huggingface-hub", specifier = "==0.18.0" },
     { name = "ipython", specifier = "<8.13" },
     { name = "ipywidgets", specifier = ">=8.1.3,<9.0" },
@@ -1460,15 +1462,15 @@ wheels = [
 
 [[package]]
 name = "h2"
-version = "4.2.0"
+version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hpack" },
     { name = "hyperframe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/38/d7f80fd13e6582fb8e0df8c9a653dcc02b03ca34f4d72f34869298c5baf8/h2-4.2.0.tar.gz", hash = "sha256:c8a52129695e88b1a0578d8d2cc6842bbd79128ac685463b887ee278126ad01f", size = 2150682, upload-time = "2025-02-02T07:43:51.815Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/17/afa56379f94ad0fe8defd37d6eb3f89a25404ffc71d4d848893d270325fc/h2-4.3.0.tar.gz", hash = "sha256:6c59efe4323fa18b47a632221a1888bd7fde6249819beda254aeca909f221bf1", size = 2152026, upload-time = "2025-08-23T18:12:19.778Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/9e/984486f2d0a0bd2b024bf4bc1c62688fcafa9e61991f041fb0e2def4a982/h2-4.2.0-py3-none-any.whl", hash = "sha256:479a53ad425bb29af087f3458a61d30780bc818e4ebcf01f0b536ba916462ed0", size = 60957, upload-time = "2025-02-01T11:02:26.481Z" },
+    { url = "https://files.pythonhosted.org/packages/69/b2/119f6e6dcbd96f9069ce9a2665e0146588dc9f88f29549711853645e736a/h2-4.3.0-py3-none-any.whl", hash = "sha256:c438f029a25f7945c69e0ccf0fb951dc3f73a5f6412981daee861431b70e2bdd", size = 61779, upload-time = "2025-08-23T18:12:17.779Z" },
 ]
 
 [[package]]
@@ -2451,7 +2453,7 @@ wheels = [
 
 [[package]]
 name = "modal"
-version = "1.1.1"
+version = "1.1.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2468,9 +2470,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "watchfiles" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/26/68f143ce009b1f20c61edb6d8bbc18b505afd33c0f2b44830872269e46c9/modal-1.1.1.tar.gz", hash = "sha256:f353ca3b6151abec0b253c398198261859ceab79dbaa2238a58d068ce889b2c0", size = 569267, upload-time = "2025-08-01T13:32:50.337Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/96/6696e536e7d0063eab645c11330e2daa5b87dbccc12c719307079b362050/modal-1.1.4.tar.gz", hash = "sha256:67f612f41ef6091e24a92fb9bb158fabf5e8f6ff7351a2c7ae2140bb112b871b", size = 594653, upload-time = "2025-09-03T22:25:38.44Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/b1/26904e24dfde0420f12f963a7e35d50defb461edc6c9bbbbf3716789ffd4/modal-1.1.1-py3-none-any.whl", hash = "sha256:ec2e2f68848a29228b61a646d2af7ac239558c005b66ca996d7c6c5de587ae36", size = 657544, upload-time = "2025-08-01T13:32:48.037Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/cf/6b3988de454d65e6f5b6471400dbb1f28ad4784f24abd5d3f392a39df782/modal-1.1.4-py3-none-any.whl", hash = "sha256:fcacbc22c5db59b76239f54e16e35c5a4a24cda10b465f1e4750311418939212", size = 685859, upload-time = "2025-09-03T22:25:35.477Z" },
 ]
 
 [[package]]
