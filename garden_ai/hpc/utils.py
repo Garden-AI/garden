@@ -56,8 +56,10 @@ def subproc_wrapper(func_source, *args, **kwargs):
         return {"error": "Could not extract function name from source"}
 
     func_name = func_name_match.group(1)
-    conda_env = kwargs.pop("conda_env", "torch-sim-edith-mace")
-    env_path_str = f"/home/hholb/.conda/envs/{conda_env}"
+    conda_env_path = kwargs.pop("conda_env_path", None)
+
+    if conda_env_path is None:
+        return {"error": "conda_env_path is required but was not provided"}
 
     # Function data to execute
     func_data = {
@@ -100,7 +102,7 @@ print("RESULT_DATA:", result_data)
             "conda",
             "run",
             "-p",
-            env_path_str,
+            conda_env_path,
             "python",
             script_path,
         ]

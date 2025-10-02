@@ -6,8 +6,9 @@ from typing import Any
 from globus_compute_sdk import Executor
 from globus_compute_sdk.serialize import CombinedCode, ComputeSerializer
 
-from garden_ai.hpc_gardens.utils import subproc_wrapper  # noqa:
+from garden_ai.hpc.utils import subproc_wrapper  # noqa:
 
+# EDITH endpoint ID - kept for backwards compatibility
 EDITH_EP_ID = "a01b9350-e57d-4c8e-ad95-b4cb3c4cd1bb"
 
 DEFAULT_CONFIG = {
@@ -18,14 +19,29 @@ export PATH=$PATH:/usr/sbin
 }
 
 
-class EdithExecutor(Executor):
+class HpcExecutor(Executor):
+    """
+    Executor for running functions on HPC systems via Globus Compute.
+
+    This executor wraps functions to run in subprocess with specific conda environments,
+    handling Python version mismatches between the client and remote endpoint.
+    """
+
     def __init__(
         self,
         *args,
-        endpoint_id=EDITH_EP_ID,
-        user_endpoint_config=DEFAULT_CONFIG,
+        endpoint_id=None,
+        user_endpoint_config=None,
         **kwargs,
     ):
+        # Default to EDITH endpoint if none provided (backwards compatibility)
+        if endpoint_id is None:
+            endpoint_id = EDITH_EP_ID
+
+        # Default to standard config if none provided
+        if user_endpoint_config is None:
+            user_endpoint_config = DEFAULT_CONFIG
+
         # vary the user_endpoint_config to try to force separate PBS jobs
         if "user_endpoint_config" in kwargs and kwargs["user_endpoint_config"]:
             import time

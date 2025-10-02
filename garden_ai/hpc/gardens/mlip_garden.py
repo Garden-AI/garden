@@ -5,6 +5,7 @@ from typing import Any
 from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
+from garden_ai.hpc.functions import HpcFunction
 from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
 from garden_ai.hpc_gardens.utils import (
     check_file_size_and_read,
@@ -12,6 +13,7 @@ from garden_ai.hpc_gardens.utils import (
     wait_for_task_id,
 )
 from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.schemas.hpc import HpcFunctionMetadata
 
 
 @dataclass
@@ -39,7 +41,15 @@ class MLIPGarden(Garden):
             description="Machine Learning Interatomic Potentials for materials science, runs on HPCs via globus-compute.",
             doi_is_draft=False,
         )
-        super().__init__(metadata=metadata)
+        hpc_functions = [
+            HpcFunction(
+                metadata=HpcFunctionMetadata(
+                    function_name="batch_relax", function_text=""
+                ),
+                client=client,
+            ),
+        ]
+        super().__init__(metadata=metadata, hpc_functions=hpc_functions)
 
     def relax(
         self,
@@ -192,7 +202,7 @@ class MLIPGarden(Garden):
 
         return validated, None
 
-    def batch_relax(
+    def _batch_relax(
         self,
         xyz_file_path: str | Path,
         model: str = "mace",

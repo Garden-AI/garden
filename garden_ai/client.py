@@ -259,5 +259,5 @@ class GardenClient:
         Returns:
             The published Garden object. Any Modal functions in the garden can be called like methods on this object.
         """
-        garden = self.backend_client.get_garden(doi)
+        garden = self.backend_client.get_garden(doi, client=self)
         return garden

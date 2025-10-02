@@ -1,6 +1,6 @@
 from .client import GardenClient
 from .constants import GardenConstants
-from .gardens import Garden
+from .gardens import Garden, JobStatus
 from .schemas.entrypoint import (
     DatasetMetadata,
     PaperMetadata,
@@ -11,6 +11,7 @@ __all__ = [
     "GardenConstants",
     "GardenClient",
     "Garden",
+    "JobStatus",
     "DatasetMetadata",
     "PaperMetadata",
     "RepositoryMetadata",
