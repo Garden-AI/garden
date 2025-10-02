@@ -1,28 +1,18 @@
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
-from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
-from garden_ai.hpc_gardens.utils import (
+from garden_ai.hpc.executor import EDITH_EP_ID
+from garden_ai.hpc.executor import HpcExecutor as EdithExecutor
+from garden_ai.hpc.utils import (
+    JobStatus,
     check_file_size_and_read,
     decode_if_base64,
     wait_for_task_id,
 )
 from garden_ai.schemas.garden import GardenMetadata
-
-
-@dataclass
-class JobStatus:
-    """Status information for a batch job."""
-
-    status: str  # "pending" | "running" | "completed" | "failed" | "unknown"
-    results_available: bool = False
-    error: str | None = None
-    stdout: str = ""
-    stderr: str = ""
 
 
 class MLIPGarden(Garden):

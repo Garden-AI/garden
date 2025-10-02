@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from globus_compute_sdk import Client as GlobusComputeClient
 from tabulate import tabulate
 
 from garden_ai.hpc.functions import HpcFunction
@@ -223,7 +224,8 @@ class Garden:
             >>> if status.status == "completed":
             ...     results = garden.get_results(job_id)
         """
-        return get_job_status(job_id)
+        gc_client = GlobusComputeClient()
+        return get_job_status(job_id, gc_client)
 
     def get_results(
         self,
@@ -248,4 +250,5 @@ class Garden:
             >>> # Or save to file:
             >>> results = garden.get_results(job_id, output_path="./results.xyz")
         """
-        return get_results(job_id, output_path)
+        gc_client = GlobusComputeClient()
+        return get_results(job_id, gc_client, output_path)

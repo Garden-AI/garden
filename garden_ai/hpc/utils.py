@@ -164,23 +164,25 @@ def wait_for_task_id(future: ComputeFuture, timeout: int = 60) -> str:
     )
 
 
-def get_job_status(job_id: str) -> JobStatus:
+def get_job_status(job_id: str, gc_client: GlobusComputeClient) -> JobStatus:
     """
     Get status information for a submitted HPC job.
 
     Args:
         job_id: Globus Compute task ID returned by HpcFunction.submit()
+        gc_client: Globus Compute client instance
 
     Returns:
         JobStatus object with current status and outputs
 
     Example:
-        >>> status = get_job_status(job_id)
+        >>> from globus_compute_sdk import Client as GlobusComputeClient
+        >>> gc_client = GlobusComputeClient()
+        >>> status = get_job_status(job_id, gc_client)
         >>> print(status.status)  # "completed"
         >>> if status.status == "completed":
-        ...     results = get_results(job_id)
+        ...     results = get_results(job_id, gc_client)
     """
-    gc_client = GlobusComputeClient()
     task_info = gc_client.get_task(job_id)
 
     # Check if still pending
@@ -221,6 +223,7 @@ def get_job_status(job_id: str) -> JobStatus:
 
 def get_results(
     job_id: str,
+    gc_client: GlobusComputeClient,
     output_path: str | Path | None = None,
 ) -> Any:
     """
@@ -228,6 +231,7 @@ def get_results(
 
     Args:
         job_id: Globus Compute task ID
+        gc_client: Globus Compute client instance
         output_path: Optional local path to save results (for file-based results)
 
     Returns:
@@ -237,12 +241,14 @@ def get_results(
         RuntimeError: If job is not completed or failed
 
     Example:
-        >>> results = get_results(job_id)
+        >>> from globus_compute_sdk import Client as GlobusComputeClient
+        >>> gc_client = GlobusComputeClient()
+        >>> results = get_results(job_id, gc_client)
         >>> # Or save to file:
-        >>> results = get_results(job_id, output_path="./results.xyz")
+        >>> results = get_results(job_id, gc_client, output_path="./results.xyz")
     """
     # Check status first
-    status_info = get_job_status(job_id)
+    status_info = get_job_status(job_id, gc_client)
 
     if status_info.status == "pending":
         raise RuntimeError(f"Job {job_id} is still pending")
@@ -257,7 +263,6 @@ def get_results(
         raise RuntimeError(f"No results available for job {job_id}")
 
     # Get the actual result
-    gc_client = GlobusComputeClient()
     job_result = gc_client.get_result(job_id)
 
     # Handle encoded data if present (from subproc_wrapper)
