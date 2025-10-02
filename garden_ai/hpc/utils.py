@@ -1,10 +1,25 @@
 import base64
+import pickle
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
+from globus_compute_sdk import Client as GlobusComputeClient
 from globus_compute_sdk.sdk.asynchronous.compute_future import ComputeFuture
 
 FIVE_MB = 5 * 1000 * 1000
+
+
+@dataclass
+class JobStatus:
+    """Status information for an HPC batch job."""
+
+    status: str  # "pending" | "running" | "completed" | "failed" | "unknown"
+    results_available: bool = False
+    error: str | None = None
+    stdout: str = ""
+    stderr: str = ""
 
 
 def check_file_size_and_read(xyz_file, max_size_bytes=FIVE_MB):
@@ -147,6 +162,130 @@ def wait_for_task_id(future: ComputeFuture, timeout: int = 60) -> str:
     raise TimeoutError(
         f"Could not get task ID from globus-compute within {timeout} seconds."
     )
+
+
+def get_job_status(job_id: str) -> JobStatus:
+    """
+    Get status information for a submitted HPC job.
+
+    Args:
+        job_id: Globus Compute task ID returned by HpcFunction.submit()
+
+    Returns:
+        JobStatus object with current status and outputs
+
+    Example:
+        >>> status = get_job_status(job_id)
+        >>> print(status.status)  # "completed"
+        >>> if status.status == "completed":
+        ...     results = get_results(job_id)
+    """
+    gc_client = GlobusComputeClient()
+    task_info = gc_client.get_task(job_id)
+
+    # Check if still pending
+    if task_info.get("pending", True):
+        return JobStatus(status="pending")
+
+    # Try to get result
+    try:
+        job_result = gc_client.get_result(job_id)
+
+        # Check for error in result
+        if isinstance(job_result, dict) and "error" in job_result:
+            return JobStatus(
+                status="failed",
+                error=job_result["error"],
+                stdout=decode_if_base64(job_result.get("stdout", "")),
+                stderr=decode_if_base64(job_result.get("stderr", "")),
+            )
+
+        # Success - results available
+        return JobStatus(
+            status="completed",
+            results_available=True,
+            stdout=decode_if_base64(
+                job_result.get("stdout", "") if isinstance(job_result, dict) else ""
+            ),
+            stderr=decode_if_base64(
+                job_result.get("stderr", "") if isinstance(job_result, dict) else ""
+            ),
+        )
+
+    except Exception as e:
+        return JobStatus(
+            status="unknown",
+            error=f"Failed to get job status: {str(e)}",
+        )
+
+
+def get_results(
+    job_id: str,
+    output_path: str | Path | None = None,
+) -> Any:
+    """
+    Retrieve results from a completed HPC job.
+
+    Args:
+        job_id: Globus Compute task ID
+        output_path: Optional local path to save results (for file-based results)
+
+    Returns:
+        Job results (type depends on the function)
+
+    Raises:
+        RuntimeError: If job is not completed or failed
+
+    Example:
+        >>> results = get_results(job_id)
+        >>> # Or save to file:
+        >>> results = get_results(job_id, output_path="./results.xyz")
+    """
+    # Check status first
+    status_info = get_job_status(job_id)
+
+    if status_info.status == "pending":
+        raise RuntimeError(f"Job {job_id} is still pending")
+    elif status_info.status == "running":
+        raise RuntimeError(f"Job {job_id} is still running")
+    elif status_info.status == "failed":
+        raise RuntimeError(f"Job {job_id} failed: {status_info.error}")
+    elif status_info.status != "completed":
+        raise RuntimeError(f"Job {job_id} has unknown status")
+
+    if not status_info.results_available:
+        raise RuntimeError(f"No results available for job {job_id}")
+
+    # Get the actual result
+    gc_client = GlobusComputeClient()
+    job_result = gc_client.get_result(job_id)
+
+    # Handle encoded data if present (from subproc_wrapper)
+    if isinstance(job_result, dict) and "raw_data" in job_result:
+        actual_result = pickle.loads(base64.b64decode(job_result["raw_data"]))
+    else:
+        actual_result = job_result
+
+    # Save to file if requested
+    if output_path is not None:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if isinstance(actual_result, str):
+            with open(output_path, "w") as f:
+                f.write(actual_result)
+        else:
+            # For non-string results, try to pickle or stringify
+            try:
+                with open(output_path, "wb") as f:
+                    pickle.dump(actual_result, f)
+            except Exception:
+                with open(output_path, "w") as f:
+                    f.write(str(actual_result))
+
+        print(f"✅ Results saved to {output_path}")
+
+    return actual_result
 
 
 def decode_if_base64(output_text: str) -> str:
