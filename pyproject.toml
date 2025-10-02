@@ -106,6 +106,19 @@ exclude = [
     "garden_ai/hpc_gardens/",
 ]
 
+# Ignore missing imports for optional dependencies
+[[tool.mypy.overrides]]
+module = [
+    "uv",
+    "torch",
+    "torch_sim",
+    "torch_sim.*",
+    "mace.*",
+    "sevenn.*",
+    "mattersim.*",
+    "mcp.*",
+]
+
 
 [tool.pytest.ini_options]
 markers = [
