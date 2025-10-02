@@ -46,7 +46,7 @@ class MLIPGarden(Garden):
             "sevennet": "SEVENNET",
         }
         class_name = models_to_class_name.get(model, None)
-        cls = getattr(cloud_mlip_garden, class_name, None)
+        cls = getattr(cloud_mlip_garden, class_name, None) if class_name else None
         if cls is None:
             raise ValueError(f"Model {model} not found")
         # If we're given a file path, read the file into a string
@@ -314,9 +314,9 @@ class MLIPGarden(Garden):
     def get_results(
         self,
         job_id: str,
-        output_path: str | Path = None,
-        cluster_id: str | None = None,  # type: ignore[assignment]
-    ) -> Path:
+        output_path: str | Path | None = None,
+        cluster_id: str | None = None,
+    ) -> Path:  # type: ignore[override]
         """
         Download the results of a completed batch job to local machine.
 

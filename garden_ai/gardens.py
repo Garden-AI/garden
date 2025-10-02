@@ -202,9 +202,9 @@ class Garden:
         ]
 
         for hpc_function_data in data.get("hpc_functions", []):
-            fn_metadata = HpcFunctionMetadata(**hpc_function_data)
-            metadata.hpc_function_ids += [fn_metadata.id]
-            hpc_functions.append(HpcFunction(fn_metadata))
+            hpc_fn_metadata = HpcFunctionMetadata(**hpc_function_data)
+            metadata.hpc_function_ids += [hpc_fn_metadata.id]
+            hpc_functions.append(HpcFunction(hpc_fn_metadata))
 
         return cls(metadata, modal_functions, modal_classes, hpc_functions)
 
