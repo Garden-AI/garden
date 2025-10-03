@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, TypeVar
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeVar
 
+from globus_compute_sdk import Client as GlobusComputeClient
 from tabulate import tabulate
 
+from garden_ai.hpc.functions import HpcFunction
+from garden_ai.hpc.utils import JobStatus, get_job_status, get_results
 from garden_ai.modal.classes import ModalClassWrapper
 from garden_ai.modal.functions import ModalFunction
 from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.schemas.hpc import HpcFunctionMetadata
 from garden_ai.schemas.modal import ModalFunctionMetadata
 
 logger = logging.getLogger()
+
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
@@ -42,9 +48,11 @@ class Garden:
         metadata: GardenMetadata,
         modal_functions: list[ModalFunction] | None = None,
         modal_classes: list[ModalClassWrapper] | None = None,
+        hpc_functions: list[HpcFunction] | None = None,
     ):
         modal_functions = modal_functions or []
         modal_classes = modal_classes or []
+        hpc_functions = hpc_functions or []
 
         expected_modal_ids = set(metadata.modal_function_ids)
         actual_modal_ids = set(mf.metadata.id for mf in modal_functions)
@@ -62,6 +70,7 @@ class Garden:
         self.metadata = metadata
         self.modal_functions = modal_functions
         self.modal_classes = modal_classes
+        self.hpc_functions = hpc_functions
 
     def __getattr__(self, name):
         # enables method-like syntax for calling Modal functions from this garden.
@@ -77,6 +86,10 @@ class Garden:
             if name == modal_class.class_name:
                 return modal_class
 
+        for hpc_function in self.hpc_functions:
+            if name == hpc_function.metadata.function_name:
+                return hpc_function
+
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'."
             + message_extra
@@ -90,7 +103,16 @@ class Garden:
 
         modal_class_names = [mc.class_name for mc in self.modal_classes]
 
-        return list(super().__dir__()) + modal_function_names + modal_class_names
+        hpc_function_names = [
+            hpcf.metadata.function_name for hpcf in self.hpc_functions
+        ]
+
+        return (
+            list(super().__dir__())
+            + modal_function_names
+            + modal_class_names
+            + hpc_function_names
+        )
 
     def _repr_html_(self) -> str:
         data = self.metadata.model_dump(
@@ -157,6 +179,7 @@ class Garden:
         metadata = GardenMetadata(**data)
         modal_functions = []
         class_methods: dict[str, list[ModalFunctionMetadata]] = {}
+        hpc_functions: list[HpcFunction] = []
 
         # Process modal functions and organize into classes
         if "modal_functions" in data:
@@ -178,4 +201,54 @@ class Garden:
             for class_name, methods in class_methods.items()
         ]
 
-        return cls(metadata, modal_functions, modal_classes)
+        for hpc_function_data in data.get("hpc_functions", []):
+            hpc_fn_metadata = HpcFunctionMetadata(**hpc_function_data)
+            metadata.hpc_function_ids += [hpc_fn_metadata.id]
+            hpc_functions.append(HpcFunction(hpc_fn_metadata))
+
+        return cls(metadata, modal_functions, modal_classes, hpc_functions)
+
+    def get_job_status(self, job_id: str) -> JobStatus:
+        """
+        Get status information for a submitted HPC job.
+
+        Args:
+            job_id: Globus Compute task ID returned by HpcFunction.submit()
+
+        Returns:
+            JobStatus object with current status and outputs
+
+        Example:
+            >>> status = garden.get_job_status(job_id)
+            >>> print(status.status)  # "completed"
+            >>> if status.status == "completed":
+            ...     results = garden.get_results(job_id)
+        """
+        gc_client = GlobusComputeClient()
+        return get_job_status(job_id, gc_client)
+
+    def get_results(
+        self,
+        job_id: str,
+        output_path: str | Path | None = None,
+    ) -> Any:
+        """
+        Retrieve results from a completed HPC job.
+
+        Args:
+            job_id: Globus Compute task ID
+            output_path: Optional local path to save results (for file-based results)
+
+        Returns:
+            Job results (type depends on the function)
+
+        Raises:
+            RuntimeError: If job is not completed or failed
+
+        Example:
+            >>> results = garden.get_results(job_id)
+            >>> # Or save to file:
+            >>> results = garden.get_results(job_id, output_path="./results.xyz")
+        """
+        gc_client = GlobusComputeClient()
+        return get_results(job_id, gc_client, output_path)

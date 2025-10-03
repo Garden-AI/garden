@@ -43,6 +43,7 @@ class GardenMetadata(BaseModel):
 
     # these are DB ids (unlike entrypoint_ids which are dois)
     modal_function_ids: UniqueList[int] = Field(default_factory=list)
+    hpc_function_ids: UniqueList[int] = Field(default_factory=list)
 
     owner_identity_id: UUID | None = None
     id: int | None = None

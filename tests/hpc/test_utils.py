@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from garden_ai.hpc_gardens.utils import check_file_size_and_read
+from garden_ai.hpc.utils import check_file_size_and_read
 
 
 @pytest.fixture

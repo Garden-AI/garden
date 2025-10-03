@@ -31,7 +31,7 @@ from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
 from garden_ai.garden_file_adapter import GardenFileAdapter
 from garden_ai.gardens import Garden
-from garden_ai.hpc_gardens.mlip_garden import MLIPGarden
+from garden_ai.hpc.gardens.mlip_garden import MLIPGarden
 
 logger = logging.getLogger()
 # modal helper replacement for rich.traceback.install

@@ -1,28 +1,18 @@
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from globus_compute_sdk import Client
 
 from garden_ai.gardens import Garden
-from garden_ai.hpc_executors.edith_executor import EDITH_EP_ID, EdithExecutor
-from garden_ai.hpc_gardens.utils import (
+from garden_ai.hpc.executor import EDITH_EP_ID
+from garden_ai.hpc.executor import HpcExecutor as EdithExecutor
+from garden_ai.hpc.utils import (
+    JobStatus,
     check_file_size_and_read,
     decode_if_base64,
     wait_for_task_id,
 )
 from garden_ai.schemas.garden import GardenMetadata
-
-
-@dataclass
-class JobStatus:
-    """Status information for a batch job."""
-
-    status: str  # "pending" | "running" | "completed" | "failed" | "unknown"
-    results_available: bool = False
-    error: str | None = None
-    stdout: str = ""
-    stderr: str = ""
 
 
 class MLIPGarden(Garden):
@@ -56,7 +46,7 @@ class MLIPGarden(Garden):
             "sevennet": "SEVENNET",
         }
         class_name = models_to_class_name.get(model, None)
-        cls = getattr(cloud_mlip_garden, class_name, None)
+        cls = getattr(cloud_mlip_garden, class_name, None) if class_name else None
         if cls is None:
             raise ValueError(f"Model {model} not found")
         # If we're given a file path, read the file into a string
@@ -324,9 +314,9 @@ class MLIPGarden(Garden):
     def get_results(
         self,
         job_id: str,
-        output_path: str | Path = None,
-        cluster_id: str | None = None,  # type: ignore[assignment]
-    ) -> Path:
+        output_path: str | Path | None = None,
+        cluster_id: str | None = None,
+    ) -> Path:  # type: ignore[override]
         """
         Download the results of a completed batch job to local machine.
 
