@@ -262,5 +262,5 @@ class GardenClient:
         """
         if doi.lower() == "mlip-garden":
             return MLIPGarden(self, doi)
-        garden = self.backend_client.get_garden(doi, client=self)
+        garden = self.backend_client.get_garden(doi)
         return garden

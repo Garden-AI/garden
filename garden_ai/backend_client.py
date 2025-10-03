@@ -59,11 +59,11 @@ class BackendClient:
     def _get(self, resource: str, params: dict | None = None) -> dict:
         return self._call(requests.get, resource, None, params=params)
 
-    def get_garden(self, doi: str, client=None) -> Garden:
+    def get_garden(self, doi: str) -> Garden:
         response = self._get(f"/gardens/{doi}")
         if response.get("is_archived", True):
             raise Exception(f"Garden with DOI {doi} is archived.")
-        return Garden._from_nested_metadata(response, client=client)
+        return Garden._from_nested_metadata(response)
 
     def get_garden_metadata(self, doi: str) -> GardenMetadata:
         # like get_garden but returns metadata only
