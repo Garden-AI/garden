@@ -31,8 +31,8 @@ class HpcFunction:
         raise NotImplementedError(
             f"HPC functions must be submitted asynchronously.\n"
             f"Try:\n\tjob_id = {self.metadata.function_name}.submit("
-            f"endpoint_id='{self.endpoints[0]['id'] if self.endpoints else 'ENDPOINT_ID'}', "
-            f"*args, **kwargs)"
+            f"*args, endpoint_id='{self.endpoints[0]['id'] if self.endpoints else 'ENDPOINT_ID'}', "
+            "**kwargs)"
         )
 
     def submit(
