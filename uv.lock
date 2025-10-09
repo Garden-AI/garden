@@ -1285,7 +1285,7 @@ requires-dist = [
     { name = "gitpython", specifier = ">=3.1.35,<4.0.0" },
     { name = "globus-compute-sdk", specifier = ">=3.9.0,<4.0.0" },
     { name = "globus-sdk", specifier = ">=3.34.0,<4.0.0" },
-    { name = "groundhog-hpc", specifier = ">=0.2.1" },
+    { name = "groundhog-hpc", specifier = ">=0.2.3" },
     { name = "h2", specifier = ">=4.3.0" },
     { name = "huggingface-hub", specifier = "==0.18.0" },
     { name = "ipython", specifier = "<8.13" },
@@ -1302,7 +1302,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "requests", specifier = ">=2.20.0" },
     { name = "tabulate", specifier = ">=0.9.0,<1.0.0" },
-    { name = "typer", extras = ["all"], specifier = ">=0.12.3" },
+    { name = "typer", specifier = ">=0.12.3" },
     { name = "types-tabulate", specifier = ">=0.9.0.3,<1.0.0.0" },
     { name = "urllib3", marker = "python_full_version < '3.10'", specifier = "<2" },
     { name = "urllib3", marker = "python_full_version >= '3.10'", specifier = ">=2.2.1" },
@@ -1440,7 +1440,7 @@ wheels = [
 
 [[package]]
 name = "groundhog-hpc"
-version = "0.2.1"
+version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "globus-compute-sdk" },
@@ -1449,9 +1449,9 @@ dependencies = [
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/fe/a436fe205392e6e12380160a929b99e3016f5c86ce2f68de4fbb45596edc/groundhog_hpc-0.2.1.tar.gz", hash = "sha256:538b52b9abcdedf0979a4169cb12de7970f2362ed192c44ee37966f4ede571d8", size = 88885, upload-time = "2025-10-09T17:35:19.586Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/aa/c6261714c6a3c4e54af704b3a760fc4b74fa26e99a5a027f297442d09049/groundhog_hpc-0.2.3.tar.gz", hash = "sha256:a095ba8732ca7c89dfb0a98a7839087a95fd4f718bf1ce0253ebee9215bf4e7a", size = 90045, upload-time = "2025-10-09T23:31:17.841Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/20/3b02ebd8914e2c418f84125212bfdd2f9ea21cef844646425aaa77f9fb26/groundhog_hpc-0.2.1-py3-none-any.whl", hash = "sha256:51d967655a7daaeedee844cfb31bb307669bdbb4004d6b8341e931d2f6f6b166", size = 12648, upload-time = "2025-10-09T17:35:18.698Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/d1/cdba85c7721c2000dae9c05bf3f069e7b0409e3a8cc2b3effe8db21634fb/groundhog_hpc-0.2.3-py3-none-any.whl", hash = "sha256:12e3ac4715235dfbcb9acc830f5156d2b003b252441a7a52d0f2a76f913b870c", size = 12676, upload-time = "2025-10-09T23:31:17.142Z" },
 ]
 
 [[package]]
