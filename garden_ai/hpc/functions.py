@@ -1,17 +1,17 @@
 """HPC Function class for executing functions on HPC systems via Globus Compute."""
 
 import logging
-from typing import TYPE_CHECKING, TypeVar
-
-from globus_compute_sdk import Executor
-
-from garden_ai.hpc.utils import subproc_wrapper, wait_for_task_id
-from garden_ai.schemas.hpc import HpcInvocationCreateRequest
+from typing import TYPE_CHECKING, TypeVar, Any
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
 else:
     GardenClient = TypeVar("GardenClient")
+
+from concurrent.futures import Future
+
+from garden_ai.hpc.groundhog import groundhog_in_harness, load_function_from_source
+from garden_ai.schemas.hpc import HpcFunctionMetadata, HpcInvocationCreateRequest
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,13 @@ class HpcFunction:
         endpoints: List of available endpoint configurations with name and gcmu_id
     """
 
-    def __init__(self, metadata, client: GardenClient | None = None):
+    def __init__(self, metadata: HpcFunctionMetadata, client: GardenClient | None = None):
         self.metadata = metadata
         self._client = client
+
+        self._groundhog_function = load_function_from_source(
+            self.metadata.function_text, self.metadata.function_name
+        )
         # Build list of unique endpoints from available_deployments
         seen_endpoints = {}
         for dep_info in metadata.available_deployments:
@@ -38,6 +42,7 @@ class HpcFunction:
                     "id": endpoint_id,
                 }
         self.endpoints = list(seen_endpoints.values())
+
 
     @property
     def client(self) -> GardenClient:
@@ -50,99 +55,68 @@ class HpcFunction:
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError(
-            f"HPC functions must be submitted asynchronously.\n"
-            f"Try:\n\tjob_id = {self.metadata.function_name}.submit("
-            f"*args, endpoint_id='{self.endpoints[0]['id'] if self.endpoints else 'ENDPOINT_ID'}', "
+            f"HPC functions cannot be called directly. Use one of these methods instead:\n"
+            f"1. For asynchronous execution (returns a Future with globus compute task_id):\n"
+            f"\tjob = {self.metadata.function_name}.submit("
+            f"*args, endpoint='{self.endpoints[0]['id'] if self.endpoints else 'ENDPOINT_ID'}', "
+            "**kwargs)\n"
+            f"\tresult = job.result()  # blocks until completion\n"
+            f"2. For synchronous execution (blocks until completion):\n"
+            f"\tresult = {self.metadata.function_name}.remote("
+            f"*args, endpoint='{self.endpoints[0]['id'] if self.endpoints else 'ENDPOINT_ID'}', "
             "**kwargs)"
         )
 
+    def _create_invocation_logger(self):
+        """Create a callback that logs the invocation to the backend when the future completes."""
+        def log_invocation(future: Future):
+            try:
+                # Extract attributes from the groundhog future
+                endpoint_id = future.endpoint
+                task_id = future.task_id
+                config = future.user_endpoint_config or {}
+
+                invocation_request = HpcInvocationCreateRequest(
+                    function_id=self.metadata.id,
+                    endpoint_gcmu_id=endpoint_id,
+                    globus_task_id=task_id,
+                    user_endpoint_config=config,
+                )
+                self.client.backend_client.create_hpc_invocation(invocation_request)
+            except Exception as e:
+                # Don't fail the submission if logging fails
+                logger.warning(f"Failed to log HPC invocation: {e}")
+
+        return log_invocation
+
     def submit(
-        self,
-        *args,
-        endpoint_id: str | None = None,
-        worker_init: str | None = None,
-        user_endpoint_config: dict | None = None,
-        task_id_timeout: int = 60,
-        **kwargs,
-    ) -> str:
-        """
-        Submit the HPC function for asynchronous execution.
-
-        Args:
-            *args: Positional arguments for the function
-            endpoint_id: Globus Compute endpoint UUID (required)
-            worker_init: Custom worker initialization script
-            user_endpoint_config: Custom endpoint configuration dict
-            task_id_timeout: Seconds to wait for task_id from globus-compute
-            **kwargs: Keyword arguments for the function
-
-        Returns:
-            Globus Compute task ID (string UUID)
-
-        Example:
-            >>> garden = client.get_garden("10.26311/some-doi")
-            >>> job_id = garden.my_hpc_function.submit(
-            ...     endpoint_id=garden.my_hpc_function.endpoints[0]['id'],
-            ...     arg1="value1",
-            ...     arg2=42
-            ... )
-            >>> status = garden.get_job_status(job_id)
-            >>> results = garden.get_results(job_id)
-        """
-        if endpoint_id is None:
-            available = [e["name"] for e in self.endpoints] if self.endpoints else []
-            raise ValueError(
-                f"Must provide endpoint_id. Available endpoints: {available}"
+        self, *args, endpoint=None, walltime=None, user_endpoint_config=None, **kwargs
+    ) -> Future:
+        if endpoint is not None and endpoint not in self.endpoints:
+            logger.warning(
+                f"This function has not been deployed to {endpoint} before and may not work as expected."
             )
 
-        # Find the deployment info for this endpoint
-        deployment_info = next(
-            (
-                d
-                for d in self.metadata.available_deployments
-                if d.endpoint_gcmu_id == endpoint_id
-            ),
-            None,
+        with groundhog_in_harness():
+            future = self._groundhog_function.submit(
+                *args,
+                endpoint=endpoint,
+                walltime=walltime,
+                user_endpoint_config=user_endpoint_config,
+                **kwargs,
+            )
+            # Register callback to log invocation when the future completes
+            future.add_done_callback(self._create_invocation_logger())
+            return future
+
+    def remote(
+        self, *args, endpoint=None, walltime=None, user_endpoint_config=None, **kwargs
+    ) -> Any:
+        future = self.submit(
+            *args,
+            endpoint=endpoint,
+            walltime=walltime,
+            user_endpoint_config=user_endpoint_config,
+            **kwargs,
         )
-
-        if deployment_info is None:
-            raise ValueError(
-                f"No deployment found for endpoint {endpoint_id}. "
-                f"Available endpoints: {[e['name'] for e in self.endpoints]}"
-            )
-
-        # Build user_endpoint_config
-        config = user_endpoint_config or {}
-        if worker_init and "worker_init" not in config:
-            config["worker_init"] = worker_init
-
-        # Add conda_env_path to kwargs for subproc_wrapper
-        kwargs["conda_env_path"] = deployment_info.conda_env_path
-
-        # Submit via Globus Compute Executor with subproc_wrapper
-        with Executor(
-            endpoint_id=endpoint_id,
-            user_endpoint_config=config if config else None,
-        ) as executor:
-            # Submit function source text via subproc_wrapper
-            future = executor.submit(
-                subproc_wrapper, self.metadata.function_text, *args, **kwargs
-            )
-
-        # Wait for task_id and return
-        task_id = wait_for_task_id(future, task_id_timeout)
-
-        # Log the invocation to the backend
-        try:
-            invocation_request = HpcInvocationCreateRequest(
-                function_id=self.metadata.id,
-                endpoint_gcmu_id=endpoint_id,
-                globus_task_id=task_id,
-                user_endpoint_config=config if config else {},
-            )
-            self.client.backend_client.create_hpc_invocation(invocation_request)
-        except Exception as e:
-            # Don't fail the submission if logging fails
-            logger.warning(f"Failed to log HPC invocation: {e}")
-
-        return task_id
+        return future.result()
