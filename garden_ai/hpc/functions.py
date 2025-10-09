@@ -1,8 +1,19 @@
 """HPC Function class for executing functions on HPC systems via Globus Compute."""
 
+import logging
+from typing import TYPE_CHECKING, TypeVar
+
 from globus_compute_sdk import Executor
 
 from garden_ai.hpc.utils import subproc_wrapper, wait_for_task_id
+from garden_ai.schemas.hpc import HpcInvocationCreateRequest
+
+if TYPE_CHECKING:
+    from garden_ai.client import GardenClient
+else:
+    GardenClient = TypeVar("GardenClient")
+
+logger = logging.getLogger(__name__)
 
 
 class HpcFunction:
@@ -14,8 +25,9 @@ class HpcFunction:
         endpoints: List of available endpoint configurations with name and gcmu_id
     """
 
-    def __init__(self, metadata):
+    def __init__(self, metadata, client: GardenClient | None = None):
         self.metadata = metadata
+        self._client = client
         # Build list of unique endpoints from available_deployments
         seen_endpoints = {}
         for dep_info in metadata.available_deployments:
@@ -26,6 +38,15 @@ class HpcFunction:
                     "id": endpoint_id,
                 }
         self.endpoints = list(seen_endpoints.values())
+
+    @property
+    def client(self) -> GardenClient:
+        return self._client or self._get_garden_client()
+
+    def _get_garden_client(self) -> GardenClient:
+        from garden_ai import GardenClient
+
+        return GardenClient()
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError(
@@ -110,4 +131,18 @@ class HpcFunction:
 
         # Wait for task_id and return
         task_id = wait_for_task_id(future, task_id_timeout)
+
+        # Log the invocation to the backend
+        try:
+            invocation_request = HpcInvocationCreateRequest(
+                function_id=self.metadata.id,
+                endpoint_gcmu_id=endpoint_id,
+                globus_task_id=task_id,
+                user_endpoint_config=config if config else {},
+            )
+            self.client.backend_client.create_hpc_invocation(invocation_request)
+        except Exception as e:
+            # Don't fail the submission if logging fails
+            logger.warning(f"Failed to log HPC invocation: {e}")
+
         return task_id

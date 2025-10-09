@@ -29,3 +29,12 @@ class HpcFunctionMetadata(BaseModel):
     year: str | None = None
     authors: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+
+
+class HpcInvocationCreateRequest(BaseModel):
+    """Request schema for creating an HPC invocation log."""
+
+    function_id: int
+    endpoint_gcmu_id: str
+    globus_task_id: str
+    user_endpoint_config: dict = Field(default_factory=dict)

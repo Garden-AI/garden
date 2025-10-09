@@ -7,6 +7,7 @@ import requests
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
 from garden_ai.schemas.garden import GardenMetadata
+from garden_ai.schemas.hpc import HpcInvocationCreateRequest
 from garden_ai.schemas.modal import (
     ModalBlobUploadURLRequest,
     ModalBlobUploadURLResponse,
@@ -152,3 +153,7 @@ class BackendClient:
         result = self._post("/gardens/search", payload=payload)
 
         return result
+
+    def create_hpc_invocation(self, payload: HpcInvocationCreateRequest) -> dict:
+        response = self._post("/hpc/invocations", payload.model_dump(mode="json"))
+        return response
