@@ -222,6 +222,15 @@ class MLIPGarden(Garden):
         if validation_error:
             raise ValueError(f"Invalid relaxation parameters: {validation_error}")
 
+        # Determine conda environment based on model
+        conda_env = (
+            "torch-sim-edith-mace"
+            if str(model).startswith("mace")
+            else "torch-sim-edith"
+        )
+
+        env_path = "/home/hholb/.conda/envs/" + conda_env
+
         # Pass file content and filename directly to the batch relaxation function
         with EdithExecutor(endpoint_id=cluster_id) as ex:
             future = ex.submit(
@@ -232,6 +241,7 @@ class MLIPGarden(Garden):
                 max_batch_size,
                 "relaxation",
                 validated_params,
+                conda_env_path=env_path,
             )
         task_id = wait_for_task_id(future, task_id_timeout)
         return task_id
