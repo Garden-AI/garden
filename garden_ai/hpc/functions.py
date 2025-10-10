@@ -78,7 +78,9 @@ class HpcFunction:
             try:
                 endpoint_id = future.endpoint
                 config = future.user_endpoint_config or {}
-                task_id = future.task_id or wait_for_task_id(future)
+                task_id = future.task_id or wait_for_task_id(
+                    future._original_future, timeout=120
+                )
                 invocation_request = HpcInvocationCreateRequest(
                     function_id=self.metadata.id,
                     endpoint_gcmu_id=endpoint_id,

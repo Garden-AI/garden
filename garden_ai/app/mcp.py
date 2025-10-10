@@ -7,12 +7,14 @@ from garden_ai.mcp.config_add import MCPConfigInitalizer as Init
 
 mcp_app = typer.Typer(help="MCP server commands", no_args_is_help=True)
 
+
 @mcp_app.callback()
 def mcp():
     """
     sub-commands for local mcp server
     """
     pass
+
 
 @mcp_app.command(no_args_is_help=True)
 def setup(
@@ -53,6 +55,7 @@ def setup(
                 return
 
     rich.print(f"Garden MCP configuration file set up at {config_path}")
+
 
 @mcp_app.command(no_args_is_help=False)
 def serve():

@@ -144,9 +144,9 @@ class _ModalFunction:
 
         # perform upload using modal library helpers
         if response.upload_type == "multipart":
-            assert (
-                response.multipart is not None
-            ), "Failed to upload large input arguments."
+            assert response.multipart is not None, (
+                "Failed to upload large input arguments."
+            )
             await perform_multipart_upload(
                 data,
                 content_length=content_length,
