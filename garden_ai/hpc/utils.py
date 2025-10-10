@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from globus_compute_sdk import Client as GlobusComputeClient
-from globus_compute_sdk.sdk.asynchronous.compute_future import ComputeFuture
+from groundhog_hpc.future import GroundhogFuture
 
 FIVE_MB = 5 * 1000 * 1000
 
@@ -43,8 +43,8 @@ def check_file_size_and_read(xyz_file, max_size_bytes=FIVE_MB):
     file_size = xyz_path.stat().st_size
     if file_size > max_size_bytes:
         raise ValueError(
-            f"File size ({file_size / (1000*1000):.1f} MB) exceeds maximum allowed size "
-            f"({max_size_bytes / (1000*1000):.1f} MB). Please use a smaller file."
+            f"File size ({file_size / (1000 * 1000):.1f} MB) exceeds maximum allowed size "
+            f"({max_size_bytes / (1000 * 1000):.1f} MB). Please use a smaller file."
         )
 
     with open(xyz_path, "r") as f:
@@ -151,7 +151,7 @@ print("RESULT_DATA:", result_data)
     }
 
 
-def wait_for_task_id(future: ComputeFuture, timeout: int = 60) -> str:
+def wait_for_task_id(future: GroundhogFuture, timeout: int = 60) -> str:
     """Waits for a globus-compute task ID to become available, with a timeout."""
     start_time = time.time()
     while time.time() - start_time < timeout:

@@ -13,6 +13,7 @@ else:
 from concurrent.futures import Future
 
 from garden_ai.hpc.groundhog import groundhog_in_harness, load_function_from_source
+from garden_ai.hpc.utils import wait_for_task_id
 from garden_ai.schemas.hpc import HpcFunctionMetadata, HpcInvocationCreateRequest
 
 logger = logging.getLogger(__name__)
@@ -75,11 +76,9 @@ class HpcFunction:
 
         def log_invocation(future: GroundhogFuture):
             try:
-                # Extract attributes from the groundhog future
                 endpoint_id = future.endpoint
-                task_id = future.task_id
                 config = future.user_endpoint_config or {}
-
+                task_id = future.task_id or wait_for_task_id(future)
                 invocation_request = HpcInvocationCreateRequest(
                     function_id=self.metadata.id,
                     endpoint_gcmu_id=endpoint_id,
