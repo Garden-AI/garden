@@ -1,7 +1,9 @@
 """HPC Function class for executing functions on HPC systems via Globus Compute."""
 
 import logging
-from typing import TYPE_CHECKING, TypeVar, Any
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from groundhog_hpc.future import GroundhogFuture
 
 if TYPE_CHECKING:
     from garden_ai.client import GardenClient
@@ -25,7 +27,9 @@ class HpcFunction:
         endpoints: List of available endpoint configurations with name and gcmu_id
     """
 
-    def __init__(self, metadata: HpcFunctionMetadata, client: GardenClient | None = None):
+    def __init__(
+        self, metadata: HpcFunctionMetadata, client: GardenClient | None = None
+    ):
         self.metadata = metadata
         self._client = client
 
@@ -42,7 +46,6 @@ class HpcFunction:
                     "id": endpoint_id,
                 }
         self.endpoints = list(seen_endpoints.values())
-
 
     @property
     def client(self) -> GardenClient:
@@ -69,7 +72,8 @@ class HpcFunction:
 
     def _create_invocation_logger(self):
         """Create a callback that logs the invocation to the backend when the future completes."""
-        def log_invocation(future: Future):
+
+        def log_invocation(future: GroundhogFuture):
             try:
                 # Extract attributes from the groundhog future
                 endpoint_id = future.endpoint
@@ -112,7 +116,7 @@ class HpcFunction:
     def remote(
         self, *args, endpoint=None, walltime=None, user_endpoint_config=None, **kwargs
     ) -> Any:
-        future = self.submit(
+        future: GroundhogFuture = self.submit(
             *args,
             endpoint=endpoint,
             walltime=walltime,
