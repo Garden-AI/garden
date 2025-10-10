@@ -51,7 +51,7 @@ dependencies = [
     # used transitively by modal -> grpclib, force 4.3.0 to reslove CVE-2025-57804
     # Can remove once we upgrade to more current modal sdk version
     "h2>=4.3.0",
-    "groundhog-hpc>=0.2.3",
+    "groundhog-hpc>=0.2.5",
 ]
 
 [project.optional-dependencies]

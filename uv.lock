@@ -1285,7 +1285,7 @@ requires-dist = [
     { name = "gitpython", specifier = ">=3.1.35,<4.0.0" },
     { name = "globus-compute-sdk", specifier = ">=3.9.0,<4.0.0" },
     { name = "globus-sdk", specifier = ">=3.34.0,<4.0.0" },
-    { name = "groundhog-hpc", specifier = ">=0.2.3" },
+    { name = "groundhog-hpc", specifier = ">=0.2.5" },
     { name = "h2", specifier = ">=4.3.0" },
     { name = "huggingface-hub", specifier = "==0.18.0" },
     { name = "ipython", specifier = "<8.13" },
@@ -1440,7 +1440,7 @@ wheels = [
 
 [[package]]
 name = "groundhog-hpc"
-version = "0.2.3"
+version = "0.2.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "globus-compute-sdk" },
@@ -1449,9 +1449,9 @@ dependencies = [
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/aa/c6261714c6a3c4e54af704b3a760fc4b74fa26e99a5a027f297442d09049/groundhog_hpc-0.2.3.tar.gz", hash = "sha256:a095ba8732ca7c89dfb0a98a7839087a95fd4f718bf1ce0253ebee9215bf4e7a", size = 90045, upload-time = "2025-10-09T23:31:17.841Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/97/897d2b2f7d94c6dd55722e5d8420eac35303a03063cbb2982762b423ea39/groundhog_hpc-0.2.5.tar.gz", hash = "sha256:377ae3954678722ba783e59afcbcc69721bdf92a9dadb2ba8a6eac184c1fb8f3", size = 91851, upload-time = "2025-10-10T17:18:14.8Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/d1/cdba85c7721c2000dae9c05bf3f069e7b0409e3a8cc2b3effe8db21634fb/groundhog_hpc-0.2.3-py3-none-any.whl", hash = "sha256:12e3ac4715235dfbcb9acc830f5156d2b003b252441a7a52d0f2a76f913b870c", size = 12676, upload-time = "2025-10-09T23:31:17.142Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/cc/0f4f52f7dda4d6f7dbad235d04c4940a1b323b80e00ebffce59721694d87/groundhog_hpc-0.2.5-py3-none-any.whl", hash = "sha256:dced9c3477ea0fba07648f636ed939ce92a735fb459a7f656cab9574bdbe0e25", size = 14091, upload-time = "2025-10-10T17:18:13.754Z" },
 ]
 
 [[package]]
