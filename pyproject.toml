@@ -120,6 +120,8 @@ module = [
     "sevenn.*",
     "mattersim.*",
     "mcp.*",
+    "groundhog_hpc",
+    "groundhog_hpc.*",
 ]
 ignore_missing_imports = true
 
