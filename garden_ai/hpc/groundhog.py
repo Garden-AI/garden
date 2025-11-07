@@ -18,24 +18,15 @@ def load_function_from_source(contents: str, name) -> Function:
         The loaded groundhog Function instance
     """
     # Create a temporary file to write the script contents
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as temp_file:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", delete=False, delete_on_close=False
+    ) as temp_file:
         temp_file.write(contents)
         script_path = Path(temp_file.name)
-        with groundhog_script_path(script_path):
-            module = import_user_script(f"{name}_module", script_path)
-            obj = module.__dict__.get(name)
-            # import __main__
-            #
-            # # exec the script to init the Function instance
-            # exec(contents, __main__.__dict__)
-            #
-            # obj = __main__.__dict__.get(name)
-            # if obj is None:
-            #     raise ValueError(f"No groundhog function {name} found in script")
-            # elif not isinstance(obj, Function):
-            #     raise ValueError(
-            #         f"Expected {name} to be a groundhog function, got: {type(obj)}"
-            #     )
+
+    with groundhog_script_path(script_path):
+        module = import_user_script(f"_{name}_module", script_path)
+        obj = getattr(module, name)
     return obj
 
 
