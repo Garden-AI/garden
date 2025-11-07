@@ -940,26 +940,8 @@ wheels = [
 
 [[package]]
 name = "dill"
-version = "0.3.5.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/59/46/634d5316ee8984e7dac658fb2e297a19f50a1f4007b09acb9c7c4e15bd67/dill-0.3.5.1.tar.gz", hash = "sha256:d75e41f3eff1eee599d738e76ba8f4ad98ea229db8b085318aa2b3333a208c86", size = 167265, upload-time = "2022-05-20T11:21:15.133Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/ff/3b1a8f5d59600393506c64fa14d13afdfe6fe79ed65a18d64026fe9f8356/dill-0.3.5.1-py2.py3-none-any.whl", hash = "sha256:33501d03270bbe410c72639b350e941882a8b0fd55357580fbc873fba0c59302", size = 95827, upload-time = "2022-05-20T11:21:11.969Z" },
-]
-
-[[package]]
-name = "dill"
 version = "0.3.9"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/70/43/86fe3f9e130c4137b0f1b50784dd70a5087b911fe07fa81e53e0c4c47fea/dill-0.3.9.tar.gz", hash = "sha256:81aa267dddf68cbfe8029c42ca9ec6a4ab3b22371d1c450abc54422577b4512c", size = 187000, upload-time = "2024-09-29T00:03:20.958Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/46/d1/e73b6ad76f0b1fb7f23c35c6d95dbc506a9c8804f43dda8cb5b0fa6331fd/dill-0.3.9-py3-none-any.whl", hash = "sha256:468dff3b89520b474c0397703366b7b95eebe6303f108adf9b19da1f702be87a", size = 119418, upload-time = "2024-09-29T00:03:19.344Z" },
@@ -1283,7 +1265,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.0.0,<8.2.0" },
     { name = "cryptography", specifier = ">=44.0.0,<45.0.0" },
     { name = "gitpython", specifier = ">=3.1.35,<4.0.0" },
-    { name = "globus-compute-sdk", specifier = ">=3.9.0,<4.0.0" },
+    { name = "globus-compute-sdk", specifier = ">=4.0.0" },
     { name = "globus-sdk", specifier = ">=3.34.0,<4.0.0" },
     { name = "groundhog-hpc", specifier = ">=0.2.5" },
     { name = "h2", specifier = ">=4.3.0" },
@@ -1389,12 +1371,11 @@ wheels = [
 
 [[package]]
 name = "globus-compute-sdk"
-version = "3.16.0"
+version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama" },
-    { name = "dill", version = "0.3.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "dill", version = "0.3.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "dill" },
     { name = "exceptiongroup" },
     { name = "globus-compute-common" },
     { name = "globus-sdk" },
@@ -1406,9 +1387,9 @@ dependencies = [
     { name = "tblib" },
     { name = "texttable" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/55/7f1f5e06566efcf615d7d4941fdee8f8c9e158fc467d6ee7a3386b802fed/globus_compute_sdk-3.16.0.tar.gz", hash = "sha256:46436d08f4095d03d9d763dfafb2c5c3827070f229fb9743c25fef14b980a30a", size = 72615, upload-time = "2025-10-09T18:17:30.983Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a7/2c/fd0cd1db565152ff32ca44af3a7e1ed05561e4ae33771e4a5d99de1ca30a/globus_compute_sdk-4.1.0.tar.gz", hash = "sha256:abdad33beda32c88477e26c9bedeea1ba0a5d9af4b0399fda199b9dd47f8a9ef", size = 73977, upload-time = "2025-11-05T15:01:45.095Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/4c/2a7f5f08473f3c1763642de768934554e88e8ba4a58b8061a4af5b26afda/globus_compute_sdk-3.16.0-py3-none-any.whl", hash = "sha256:c12664c3f249c6ea0a929e84c11c84a2b5e27c6a334896b330ad46d35b593532", size = 85237, upload-time = "2025-10-09T18:17:29.124Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/c1/927e3e92094ab0dc74b332cee0bb1365b33a3630ac6a38c6e27ce56236d5/globus_compute_sdk-4.1.0-py3-none-any.whl", hash = "sha256:ace1d7aafc1eb38c29da10cbde9846849c0571aa1407ad34eb20d0aa10aee01c", size = 87225, upload-time = "2025-11-05T15:01:43.746Z" },
 ]
 
 [[package]]
