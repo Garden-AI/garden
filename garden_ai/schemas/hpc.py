@@ -21,7 +21,7 @@ class HpcFunctionMetadata(BaseModel):
     title: str | None = None
     description: str | None = None
     available_deployments: list[HpcDeploymentInfo] = Field(default_factory=list)
-    available_endpoints: list[str] = Field(default_factory=list)
+    available_endpoints: list[dict[str, str]] = Field(default_factory=list)
     num_invocations: int = 0
 
     # Additional metadata from CommonFunctionMetadata
