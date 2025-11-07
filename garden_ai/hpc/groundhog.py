@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from groundhog_hpc.function import Function
+from groundhog_hpc.utils import import_user_script
 
 
 def load_function_from_source(contents: str, name) -> Function:
@@ -21,18 +22,20 @@ def load_function_from_source(contents: str, name) -> Function:
         temp_file.write(contents)
         script_path = Path(temp_file.name)
         with groundhog_script_path(script_path):
-            import __main__
-
-            # exec the script to init the Function instance
-            exec(contents, __main__.__dict__)
-
-            obj = __main__.__dict__.get(name)
-            if obj is None:
-                raise ValueError(f"No groundhog function {name} found in script")
-            elif not isinstance(obj, Function):
-                raise ValueError(
-                    f"Expected {name} to be a groundhog function, got: {type(obj)}"
-                )
+            module = import_user_script(f"{name}_module", script_path)
+            obj = getattr(module, name)
+            # import __main__
+            #
+            # # exec the script to init the Function instance
+            # exec(contents, __main__.__dict__)
+            #
+            # obj = __main__.__dict__.get(name)
+            # if obj is None:
+            #     raise ValueError(f"No groundhog function {name} found in script")
+            # elif not isinstance(obj, Function):
+            #     raise ValueError(
+            #         f"Expected {name} to be a groundhog function, got: {type(obj)}"
+            #     )
     return obj
 
 

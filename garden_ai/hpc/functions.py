@@ -125,3 +125,6 @@ class HpcFunction:
             **kwargs,
         )
         return future.result()
+
+    def local(self, *args, **kwargs):
+        return self._groundhog_function.local(*args, **kwargs)
