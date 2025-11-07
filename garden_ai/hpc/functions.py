@@ -37,16 +37,7 @@ class HpcFunction:
         self._groundhog_function = load_function_from_source(
             self.metadata.function_text, self.metadata.function_name
         )
-        # Build list of unique endpoints from available_deployments
-        seen_endpoints = {}
-        for dep_info in metadata.available_deployments:
-            endpoint_id = dep_info.endpoint_gcmu_id
-            if endpoint_id not in seen_endpoints:
-                seen_endpoints[endpoint_id] = {
-                    "name": dep_info.endpoint_name,
-                    "id": endpoint_id,
-                }
-        self.endpoints = list(seen_endpoints.values())
+        self.endpoints = metadata.available_endpoints
 
     @property
     def client(self) -> GardenClient:
@@ -125,3 +116,6 @@ class HpcFunction:
             **kwargs,
         )
         return future.result()
+
+    def local(self, *args, **kwargs):
+        return self._groundhog_function.local(*args, **kwargs)
