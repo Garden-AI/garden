@@ -3,7 +3,7 @@
 import pytest
 
 from garden_ai.hpc.functions import HpcFunction
-from garden_ai.schemas.hpc import HpcDeploymentInfo, HpcFunctionMetadata
+from garden_ai.schemas.hpc import HpcFunctionMetadata
 
 sample_groundhog_source = """
 # /// script
@@ -38,19 +38,9 @@ def sample_metadata():
         function_name="my_hpc_function",
         function_text=sample_groundhog_source,
         title="My HPC Function",
-        available_deployments=[
-            HpcDeploymentInfo(
-                deployment_id=1,
-                endpoint_name="edith",
-                endpoint_gcmu_id="abc-123",
-                conda_env_path="/path/to/env1",
-            ),
-            HpcDeploymentInfo(
-                deployment_id=2,
-                endpoint_name="polaris",
-                endpoint_gcmu_id="def-456",
-                conda_env_path="/path/to/env2",
-            ),
+        available_endpoints=[
+            {"id": "abc-123", "name": "edith"},
+            {"id": "def-456", "name": "polaris"},
         ],
     )
 

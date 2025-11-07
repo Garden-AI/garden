@@ -23,7 +23,7 @@ def load_function_from_source(contents: str, name) -> Function:
         script_path = Path(temp_file.name)
         with groundhog_script_path(script_path):
             module = import_user_script(f"{name}_module", script_path)
-            obj = getattr(module, name)
+            obj = module.__dict__.get(name)
             # import __main__
             #
             # # exec the script to init the Function instance
