@@ -68,7 +68,6 @@ develop = [
     "pymdown-extensions>=10.0.1,<11.0.0",
     "mkdocs-material>=9.1.13,<10.0.0",
     "mkdocstrings[python]>=0.25.2,<0.26.0",
-    "jupyter>=1.0.0,<2.0.0",
     "pytest>=7.2.0,<8.0.0",
     "pytest-mock>=3.10.0,<4.0.0",
     "pytest-cov>=4.0.0,<5.0.0",
