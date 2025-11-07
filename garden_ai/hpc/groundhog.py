@@ -19,7 +19,9 @@ def load_function_from_source(contents: str, name) -> Function:
     """
     # Create a temporary file to write the script contents
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False, delete_on_close=False
+        mode="w",
+        suffix=".py",
+        delete=False,
     ) as temp_file:
         temp_file.write(contents)
         script_path = Path(temp_file.name)
