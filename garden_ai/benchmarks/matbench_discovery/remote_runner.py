@@ -55,12 +55,10 @@ def run_matbench_is2re(
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
         stream=sys.stdout,
         force=True,
+        format="%(asctime)s [%(levelname)s] %(message)s",
     )
-    # Ensure stdout is unbuffered
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(line_buffering=True)
 
@@ -77,13 +75,21 @@ import time
 import logging
 import os
 import concurrent.futures
+import importlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from zipfile import ZipFile
+from io import TextIOWrapper
+
+import torch
+from ase.io import read
+from ase.optimize import FIRE
+from matbench_discovery.data import DataFiles
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] [%(name)s] [PID:%(process)d] %(message)s',
+    format='%(asctime)s [%(levelname)s] [PID:%(process)d] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     stream=sys.stdout,
     force=True
@@ -92,74 +98,72 @@ logger = logging.getLogger("benchmark_runner")
 
 def setup_device(gpu_id: Optional[int] = None) -> str:
     """Setup compute device for this process."""
-    import torch
-
-    if gpu_id is not None and torch.cuda.is_available():
-        # Set visible devices to just this GPU to avoid contention
-        # and ensure model uses the correct device
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-        return "cuda:0"
-    elif torch.cuda.is_available():
-        return "cuda"
+    if torch.cuda.is_available():
+        return f"cuda:{gpu_id}" if gpu_id is not None else "cuda"
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return "mps"
-    else:
-        return "cpu"
+    return "cpu"
+
+def load_model(config: Dict[str, Any], device: str):
+    """Initialize the model from configuration."""
+    package_name = config["package"]
+    factory_name = config["factory"]
+    kwargs = config["kwargs"].copy()
+    checkpoint = config.get("checkpoint")
+
+    if "device" in kwargs:
+        kwargs["device"] = device
+
+    # Import factory function
+    module_parts = package_name.split(".")
+    try:
+        if len(module_parts) > 1:
+            module = importlib.import_module(package_name)
+        else:
+            # Try common patterns for model packages
+            base_module = module_parts[0].split("-")[0]
+            try:
+                module = importlib.import_module(f"{base_module}.calculators")
+            except ImportError:
+                module = importlib.import_module(base_module)
+
+        factory = getattr(module, factory_name)
+    except (ImportError, AttributeError) as e:
+        raise ImportError(f"Could not load model factory {factory_name} from {package_name}: {e}")
+
+    # Create model
+    model = factory(**kwargs)
+
+    # Load checkpoint if provided
+    if checkpoint and checkpoint != "None":
+        if hasattr(model, "load_checkpoint"):
+            model.load_checkpoint(checkpoint)
+        elif hasattr(model, "load_state_dict"):
+            model.load_state_dict(torch.load(checkpoint))
+
+    return model
 
 def process_batch(
     batch_id: int,
     structures: List[Any],
     start_idx: int,
-    model_config: Dict[str, Any]
+    model_config: Dict[str, Any],
+    num_threads: int
 ) -> Dict[str, Any]:
     """Process a batch of structures on a specific device."""
 
-    # Setup logging for this worker
-    worker_logger = logging.getLogger(f"worker_{batch_id}")
-    worker_logger.setLevel(logging.INFO)
+    # Configure thread limits to avoid contention
+    os.environ["OMP_NUM_THREADS"] = str(num_threads)
+    torch.set_num_threads(num_threads)
 
     gpu_id = model_config.get("gpu_id")
     device = setup_device(gpu_id)
-    worker_logger.info(f"Worker {batch_id} started on {device} with {len(structures)} structures")
 
-    # Initialize model
+    worker_logger = logging.getLogger(f"worker_{batch_id}")
+    worker_logger.info(f"Started on {device} with {len(structures)} structures. Threads: {num_threads}")
+
     try:
-        import importlib
-
-        package_name = model_config["package"]
-        factory_name = model_config["factory"]
-        kwargs = model_config["kwargs"].copy()
-        checkpoint = model_config.get("checkpoint")
-
-        # Update device in kwargs
-        if "device" in kwargs:
-            kwargs["device"] = device
-
-        # Import factory
-        module_parts = package_name.split(".")
-        if len(module_parts) > 1:
-            module = importlib.import_module(package_name)
-            factory = getattr(module, factory_name)
-        else:
-            base_module = module_parts[0].split("-")[0]
-            try:
-                module = importlib.import_module(f"{base_module}.calculators")
-                factory = getattr(module, factory_name)
-            except (ImportError, AttributeError):
-                module = importlib.import_module(base_module)
-                factory = getattr(module, factory_name)
-
-        # Create model
-        model = factory(**kwargs)
-
-        # Load checkpoint
-        if checkpoint and checkpoint != "None":
-            if hasattr(model, "load_checkpoint"):
-                model.load_checkpoint(checkpoint)
-            elif hasattr(model, "load_state_dict"):
-                import torch
-                model.load_state_dict(torch.load(checkpoint))
-
+        model = load_model(model_config, device)
     except Exception as e:
         worker_logger.error(f"Failed to initialize model: {e}")
         return {
@@ -169,13 +173,9 @@ def process_batch(
             "error": str(e)
         }
 
-    # Run relaxations
-    from ase.optimize import FIRE
-
     energies = []
     failed_indices = []
     num_converged = 0
-
     batch_start = time.time()
 
     for i, atoms in enumerate(structures):
@@ -185,19 +185,13 @@ def process_batch(
             opt = FIRE(atoms, logfile=None)
             opt.run(fmax=0.05, steps=500)
 
-            energy = atoms.get_potential_energy()
-            energies.append(energy)
+            energies.append(atoms.get_potential_energy())
             num_converged += 1
 
-            # Log progress occasionally
             if (i + 1) % 10 == 0:
                 elapsed = time.time() - batch_start
                 rate = (i + 1) / elapsed if elapsed > 0 else 0
-                eta = (len(structures) - i - 1) / rate if rate > 0 else 0
-                worker_logger.info(
-                    f"Progress: {i+1}/{len(structures)} "
-                    f"({rate:.2f} struct/s, ETA: {eta/60:.1f}m)"
-                )
+                worker_logger.info(f"Progress: {i+1}/{len(structures)} ({rate:.2f} struct/s)")
 
         except Exception as e:
             worker_logger.warning(f"Structure {global_idx} failed: {e}")
@@ -210,75 +204,69 @@ def process_batch(
         "failed_indices": failed_indices
     }
 
+def load_structures(num_structures: int) -> List[Any]:
+    """Load structures from the Matbench Discovery dataset."""
+    structures = []
+    zip_path = DataFiles.wbm_initial_atoms.path
+
+    with ZipFile(zip_path, 'r') as zf:
+        # Sort files numerically
+        file_list = sorted(
+            zf.namelist(),
+            key=lambda x: int(x.split('.')[0]) if x.split('.')[0].isdigit() else float('inf')
+        )
+        for filename in file_list[:num_structures]:
+            with zf.open(filename) as f:
+                text_stream = TextIOWrapper(f, encoding='utf-8')
+                structures.append(read(text_stream, format='extxyz'))
+    return structures
+
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python benchmark_runner.py <config_file>")
-        sys.exit(1)
+        sys.exit("Usage: python benchmark_runner.py <config_file>")
 
-    config_path = sys.argv[1]
-    with open(config_path) as f:
+    with open(sys.argv[1]) as f:
         config = json.load(f)
 
     logger.info("Starting benchmark runner...")
 
-    # Load structures
-    logger.info("Loading structures...")
     try:
-        from matbench_discovery.data import DataFiles
-        from zipfile import ZipFile
-        from ase.io import read
-        from io import TextIOWrapper
-
-        structures = []
-        zip_path = DataFiles.wbm_initial_atoms.path
-        num_structures = config["num_structures"]
-
-        with ZipFile(zip_path, 'r') as zf:
-            file_list = sorted(
-                zf.namelist(),
-                key=lambda x: int(x.split('.')[0]) if x.split('.')[0].isdigit() else float('inf')
-            )
-            for i, filename in enumerate(file_list[:num_structures]):
-                with zf.open(filename) as f:
-                    text_stream = TextIOWrapper(f, encoding='utf-8')
-                    atoms = read(text_stream, format='extxyz')
-                    structures.append(atoms)
-
+        structures = load_structures(config["num_structures"])
         logger.info(f"Loaded {len(structures)} structures")
-
     except Exception as e:
         logger.error(f"Failed to load structures: {e}")
         sys.exit(1)
 
-    # Determine parallelization strategy
-    import torch
+    # Shuffle for load balancing
+    import random
+    random.seed(42)
+    random.shuffle(structures)
+
+    # Resource detection
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
     use_multi_gpu = config.get("use_multi_gpu", True) and num_gpus > 1
 
-    results = {
-        "energies": [],
-        "num_converged": 0,
-        "failed_indices": []
-    }
+    total_cores = os.cpu_count() or 1
+    num_workers = num_gpus if use_multi_gpu else 1
+    # Reserve cores for overhead if possible
+    available_cores = max(1, total_cores - 2) if total_cores > 4 else total_cores
+    threads_per_worker = max(1, available_cores // num_workers)
 
+    logger.info(f"Resources: {num_gpus} GPUs, {total_cores} Cores. Using {num_workers} workers ({threads_per_worker} threads/worker)")
+
+    results = {"energies": [], "num_converged": 0, "failed_indices": []}
     start_time = time.time()
 
     if use_multi_gpu:
-        logger.info(f"Running on {num_gpus} GPUs in parallel")
-
-        # Split structures
+        logger.info(f"Parallel execution on {num_gpus} GPUs")
         batch_size = len(structures) // num_gpus
         futures = []
 
-        # Use 'spawn' start method for CUDA compatibility
-        import multiprocessing
         ctx = multiprocessing.get_context('spawn')
-
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_gpus, mp_context=ctx) as executor:
             for i in range(num_gpus):
                 start_idx = i * batch_size
                 end_idx = len(structures) if i == num_gpus - 1 else (i + 1) * batch_size
-                batch_structures = structures[start_idx:end_idx]
 
                 model_config = {
                     "package": config["model_package"],
@@ -288,17 +276,10 @@ def main():
                     "gpu_id": i
                 }
 
-                futures.append(
-                    executor.submit(
-                        process_batch,
-                        i,
-                        batch_structures,
-                        start_idx,
-                        model_config
-                    )
-                )
+                futures.append(executor.submit(
+                    process_batch, i, structures[start_idx:end_idx], start_idx, model_config, threads_per_worker
+                ))
 
-            # Collect results
             for future in concurrent.futures.as_completed(futures):
                 try:
                     batch_res = future.result()
@@ -307,29 +288,24 @@ def main():
                     results["failed_indices"].extend(batch_res["failed_indices"])
                 except Exception as e:
                     logger.error(f"Worker failed: {e}")
-
     else:
-        logger.info("Running in single process")
+        logger.info("Single process execution")
         model_config = {
             "package": config["model_package"],
             "factory": config["model_factory"],
             "kwargs": config["model_kwargs"],
-            "checkpoint": config["model_checkpoint"],
-            # No gpu_id means let model decide or use default
+            "checkpoint": config["model_checkpoint"]
         }
-
-        batch_res = process_batch(0, structures, 0, model_config)
-        results = batch_res
+        results = process_batch(0, structures, 0, model_config, threads_per_worker)
 
     elapsed = time.time() - start_time
-    logger.info(f"Benchmark complete in {elapsed:.1f}s")
-    logger.info(f"Converged: {results['num_converged']}/{len(structures)}")
+    logger.info(f"Benchmark complete in {elapsed:.1f}s. Converged: {results['num_converged']}/{len(structures)}")
 
-    # Save results
     with open("results.json", "w") as f:
         json.dump(results, f, indent=2)
 
 if __name__ == "__main__":
+    import multiprocessing
     main()
 '''
 
@@ -339,14 +315,10 @@ if __name__ == "__main__":
         # ----------------------------------------------------------------------
         logger.info("Step 1/4: Setting up environment...")
 
-        uv_bin = (
-            subprocess.run(
-                ["python", "-c", "import uv; print(uv.find_uv_bin())"],
-                capture_output=True,
-            )
-            .stdout.decode("utf-8")
-            .strip()
-        )
+        # Find UV binary
+        uv_bin = subprocess.check_output(
+            [sys.executable, "-c", "import uv; print(uv.find_uv_bin())"], text=True
+        ).strip()
 
         # Create UV virtual environment
         subprocess.run(
@@ -354,18 +326,16 @@ if __name__ == "__main__":
             cwd=work_dir,
             check=True,
             capture_output=True,
-            text=True,
         )
 
         venv_python = work_dir / ".venv/bin/python"
         if not venv_python.exists():
-            # Windows path
-            venv_python = work_dir / ".venv/Scripts/python.exe"
+            venv_python = work_dir / ".venv/Scripts/python.exe"  # Windows fallback
 
         if not venv_python.exists():
             raise RuntimeError(f"Virtual environment python not found at {venv_python}")
 
-        # Install matbench-discovery and model package
+        # Install dependencies
         logger.info("Installing dependencies...")
         subprocess.run(
             [
@@ -385,17 +355,15 @@ if __name__ == "__main__":
             check=True,
         )
 
-        # Set SSL cert file to certifi's CA bundle to fix HPC SSL verification issues
+        # Set SSL cert file for HPC
         env = dict(os.environ)
         env["MBD_AUTO_DOWNLOAD_FILES"] = "true"
 
         try:
-            certifi_path = subprocess.run(
+            certifi_path = subprocess.check_output(
                 [str(venv_python), "-c", "import certifi; print(certifi.where())"],
-                capture_output=True,
                 text=True,
-                check=True,
-            ).stdout.strip()
+            ).strip()
             env["SSL_CERT_FILE"] = certifi_path
         except Exception as e:
             logger.warning(f"Failed to set SSL_CERT_FILE: {e}")

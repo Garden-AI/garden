@@ -278,6 +278,8 @@ with open("{results_file_path}", "w") as f:
             results_file_path.unlink(missing_ok=True)
 
     def calculate_metrics(self, outputs: dict) -> dict[str, Any]:
+        # TODO: implement the full metrics calculation,
+        # this is just a placeholder for now
         """Calculate benchmark metrics from raw outputs.
 
         For MVP, this returns basic statistics. Future versions will compare
