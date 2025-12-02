@@ -4,89 +4,77 @@ This script demonstrates running the IS2RE benchmark with a subset of structures
 using multi-GPU parallelization on a Globus Compute endpoint.
 """
 
-from garden_ai.benchmarks import MatbenchDiscovery
+from garden_ai.benchmarks.matbench_discovery import DatasetSize, MatbenchDiscovery
 
-# ------------------------------------------------------------------------------
-# Configuration
-# ------------------------------------------------------------------------------
-
-# Globus Compute Endpoint ID (Anvil HPC)
+# Globus Compute endpoint
 ENDPOINT_ID = "5aafb4c1-27b2-40d8-a038-a0277611868f"
 
-# Job Configuration
-NUM_GPUS = 2
+# HPC endpoint configuration
 ENDPOINT_CONFIG = {
     "account": "cis250461-gpu",
+    "partition": "gpu-debug",
     "qos": "gpu",
-    "partition": "gpu",
-    "scheduler_options": f"#SBATCH --gpus-per-node={NUM_GPUS}\n#SBATCH --time=00:30:00\n",
-    "cores_per_node": 32,
-    "mem_per_node": 32,  # GB
-    "worker_init": "pip install --user uv",  # Ensure uv is available
+    "scheduler_options": "#SBATCH --gpus-per-node=2\n#SBATCH --cpus-per-task=8",
 }
 
-# Model Configuration
-MODEL_PACKAGE = "mace-torch"
-MODEL_FACTORY = "mace_mp"
-MODEL_KWARGS = {
-    "model": "medium",
-    "device": "cuda",
-    "default_dtype": "float64",
-}
 
-# Benchmark Configuration
-NUM_STRUCTURES = 500
+# Model factory function for MACE
+def create_mace_model(device):
+    from mace.calculators import mace_mp
+
+    return mace_mp(model="medium", device=device, default_dtype="float64")
+
+
+NUM_STRUCTURES = DatasetSize.RANDOM_100
 
 
 def main():
-    print("=" * 80)
-    print("Matbench Discovery IS2RE Benchmark")
-    print("=" * 80)
-    print(f"Endpoint:   {ENDPOINT_ID}")
-    print(f"Model:      {MODEL_PACKAGE} / {MODEL_FACTORY}")
-    print(f"Structures: {NUM_STRUCTURES}")
-    print(f"Resources:  {NUM_GPUS} GPUs (Multi-GPU Enabled)")
-    print("=" * 80)
+    """Run Matbench Discovery IS2RE benchmark with MACE."""
 
     with MatbenchDiscovery(
-        endpoint_id=ENDPOINT_ID,
-        user_endpoint_config=ENDPOINT_CONFIG,
+        endpoint_id=ENDPOINT_ID, user_endpoint_config=ENDPOINT_CONFIG
     ) as bench:
-        task = bench.tasks.IS2RE
-
-        print("\nSubmitting task to endpoint...")
-        future = task.submit(
-            model_package=MODEL_PACKAGE,
-            model_factory=MODEL_FACTORY,
-            model_kwargs=MODEL_KWARGS,
+        # Run IS2RE task (Initial Structure to Relaxed Energy)
+        future = bench.tasks.IS2RE.submit(
+            model_factory=create_mace_model,
+            model_packages="mace-torch",
             num_structures=NUM_STRUCTURES,
-            use_multi_gpu=True,
         )
 
         print("Job submitted! Waiting for results (this may take a while)...")
 
         try:
-            result = future.result()
-            metrics = task.calculate_metrics(result)
+            output = future.result()
+            metrics = output.get("metrics", {})
 
-            print("\n" + "=" * 80)
-            print("Benchmark Results")
-            print("=" * 80)
+            if "error" in metrics:
+                print(f"error               : {metrics['error']}")
+            else:
+                # Discovery metrics (stability classification)
+                if "F1" in metrics:
+                    print(f"F1                  : {metrics['F1']:.6f}")
+                    print(f"DAF                 : {metrics['DAF']:.2f}x")
+                    print(f"Precision           : {metrics['Precision']:.6f}")
+                    print(f"Recall              : {metrics['Recall']:.6f}")
+                    print(f"Accuracy            : {metrics['Accuracy']:.6f}")
 
-            # Print primary metrics
-            for key, value in metrics.items():
-                print(f"{key:<20}: {value}")
+                # Regression metrics
+                if "MAE" in metrics:
+                    print(f"MAE (eV/atom)       : {metrics['MAE']:.6f}")
+                    print(f"RMSE (eV/atom)      : {metrics['RMSE']:.6f}")
+                    print(f"R2                  : {metrics['R2']:.6f}")
 
-            print("-" * 80)
-            print(f"Converged: {result['num_converged']} / {NUM_STRUCTURES}")
-            print(f"Failed:    {len(result.get('failed_indices', []))}")
+                # Force metrics (if S2EFS task)
+                if "force_mae" in metrics:
+                    print(f"force_mae           : {metrics['force_mae']:.6f}")
+                    print(f"force_rmse          : {metrics['force_rmse']:.6f}")
+                    print(f"force_r2            : {metrics['force_r2']:.6f}")
+                    print(f"stress_mae          : {metrics['stress_mae']:.6f}")
+                    print(f"stress_rmse         : {metrics['stress_rmse']:.6f}")
+                    print(f"stress_r2           : {metrics['stress_r2']:.6f}")
 
-            if result.get("energies"):
-                valid_energies = [e for e in result["energies"] if e is not None]
-                if valid_energies:
-                    print(f"Sample energies:   {valid_energies[:3]} ...")
-
-            print("=" * 80)
+                if "num_evaluated" in metrics:
+                    print(f"num_evaluated       : {metrics['num_evaluated']}")
 
         except Exception as e:
             print(f"\n[ERROR] Benchmark failed: {e}")

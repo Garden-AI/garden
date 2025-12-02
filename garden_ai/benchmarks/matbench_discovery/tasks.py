@@ -1,26 +1,599 @@
 """Matbench Discovery benchmark task implementations."""
 
-from typing import TYPE_CHECKING, Any
+from __future__ import annotations
 
-from .remote_runner import run_matbench_is2re
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+from ..utils.remote_execution import run_remote_benchmark
+from ..utils.script_builder import BenchmarkScriptBuilder
+from ..utils.task import BaseBenchmarkTask
 
 if TYPE_CHECKING:
     from . import MatbenchDiscovery
+    from .enums import DatasetConfig, DatasetSize
+
+from .metrics import classify_stable, stable_metrics
+
+# ------------------------------------------------------------------------------
+# REMOTE FUNCTIONS
+# These functions are injected into the remote script.
+# They must be self-contained (imports inside or provided by builder).
+# ------------------------------------------------------------------------------
 
 
-class IS2RETask:
-    """Initial Structure to Relaxed Energy benchmark task.
+def load_model(device: str):
+    """Initialize the model using the user-provided factory function.
 
-    This task evaluates a model's ability to predict the relaxed energy
-    and geometry of crystal structures starting from unrelaxed initial
-    configurations.
-
-    The task:
-    1. Loads initial (unrelaxed) structures from the WBM test set
-    2. Uses the model to perform geometry optimization
-    3. Records final energies and relaxed structures
-    4. Calculates metrics comparing to DFT ground truth
+    The factory function is injected into this script by the benchmark framework.
     """
+    # Call the user's factory function (injected as load_model_user)
+    model = load_model_user(device)  # noqa: F821
+    return model
+
+
+def get_material_ids_for_subset(
+    subset_type: str, seed: int = 42
+) -> Optional[List[str]]:
+    """Get material IDs for a specific dataset subset.
+
+    Args:
+        subset_type: One of 'full', 'unique_protos', 'random_10k', 'random_100'
+        seed: Random seed for sampling (default: 42)
+
+    Returns:
+        List of material IDs, or None for 'full' (load all)
+    """
+    if subset_type == "full":
+        return None  # Load all materials
+
+    import pandas as pd
+    from matbench_discovery.data import DataFiles
+
+    # Load wbm_summary
+    df = pd.read_csv(DataFiles.wbm_summary.path)
+
+    if subset_type == "unique_protos":
+        # Filter to unique prototypes (removes duplicates and MP overlaps)
+        df_filtered = df.query("unique_prototype")
+        return df_filtered["material_id"].tolist()
+
+    elif subset_type == "random_10k":
+        # Random sample of 10k unique prototypes (fixed seed for reproducibility)
+        df_filtered = df.query("unique_prototype")
+        df_sampled = df_filtered.sample(n=10000, random_state=seed)
+        return df_sampled["material_id"].tolist()
+
+    elif subset_type == "random_100":
+        # Random sample of 100 unique prototypes (fixed seed for reproducibility)
+        # Useful for quick end-to-end testing
+        df_filtered = df.query("unique_prototype")
+        df_sampled = df_filtered.sample(n=100, random_state=seed)
+        return df_sampled["material_id"].tolist()
+
+    else:
+        raise ValueError(f"Unknown subset_type: {subset_type}")
+
+
+# --- Reusable Process Functions ---
+
+
+def process_batch_relaxation(
+    batch_id: int,
+    structures: List[Tuple[str, Any]],
+    model_config: Dict[str, Any],
+    num_threads: int,
+) -> Dict[str, Any]:
+    """Process a batch of structures for IS2RE (Relaxation)."""
+    import logging
+    import os
+    import time
+
+    import torch
+    from ase.optimize import FIRE
+
+    # Configure thread limits to avoid contention
+    os.environ["OMP_NUM_THREADS"] = str(num_threads)
+    torch.set_num_threads(num_threads)
+
+    gpu_id = model_config.get("gpu_id")
+    device = setup_device(gpu_id)  # noqa: F821
+
+    worker_logger = logging.getLogger(f"worker_{batch_id}")
+    worker_logger.info(
+        f"Started relaxation on {device} with {len(structures)} structures. Threads: {num_threads}"
+    )
+
+    global _MODEL_CACHE
+    try:
+        if _MODEL_CACHE is None:
+            model = load_model(device)
+            _MODEL_CACHE = model
+        else:
+            model = _MODEL_CACHE
+    except Exception as e:
+        worker_logger.error(f"Failed to initialize model: {e}")
+        worker_logger.error(
+            "Model initialization is critical - cannot continue benchmark"
+        )
+        raise RuntimeError(f"Model initialization failed: {e}") from e
+
+    results = {}
+    batch_start = time.time()
+
+    for i, (struct_id, atoms) in enumerate(structures):
+        try:
+            atoms.calc = model
+            opt = FIRE(atoms, logfile=None)
+            opt.run(fmax=0.05, steps=500)
+
+            energy = atoms.get_potential_energy()
+            results[struct_id] = {"energy": energy}
+
+            if (i + 1) % 10 == 0:
+                elapsed = time.time() - batch_start
+                rate = (i + 1) / elapsed if elapsed > 0 else 0
+                worker_logger.info(
+                    f"Progress: {i + 1}/{len(structures)} ({rate:.2f} struct/s)"
+                )
+
+        except Exception as e:
+            worker_logger.warning(f"Structure {struct_id} failed: {e}")
+            results[struct_id] = {"energy": None, "error": str(e)}
+
+    return results
+
+
+def load_dataset_wbm_initial(config: Dict[str, Any]) -> List[Tuple[str, Any]]:
+    """Load initial structures for IS2RE."""
+    from io import TextIOWrapper
+    from zipfile import ZipFile
+
+    from ase.io import read
+    from matbench_discovery.data import DataFiles
+
+    dataset_subset = config.get("dataset_subset", "full")
+    dataset_seed = config.get("dataset_seed", 42)
+    mat_ids = get_material_ids_for_subset(dataset_subset, seed=dataset_seed)
+
+    structures = []
+    zip_path = DataFiles.wbm_initial_atoms.path
+
+    with ZipFile(zip_path, "r") as zf:
+        if mat_ids is None:
+            # Load all files (full dataset)
+            file_list = sorted(
+                zf.namelist(),
+                key=lambda x: int(x.split(".")[0])
+                if x.split(".")[0].isdigit()
+                else float("inf"),
+            )
+            num_structures = config.get("num_structures", 100)
+            file_list = file_list[:num_structures]
+        else:
+            # Filter to specific material IDs
+            mat_id_set = set(mat_ids)
+            file_list = [
+                f for f in zf.namelist() if f.replace(".extxyz", "") in mat_id_set
+            ]
+
+        for filename in file_list:
+            with zf.open(filename) as f:
+                text_stream = TextIOWrapper(f, encoding="utf-8")
+                structures.append((filename, read(text_stream, format="extxyz")))
+    return structures
+
+
+def calculate_metrics_energy(
+    results: Dict[str, Any], config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Calculate energy metrics using matbench-discovery's stable_metrics algorithm.
+
+    Uses the injected stable_metrics function.
+    Returns: F1, DAF, Precision, Recall, Accuracy, TPR, FPR, TNR, FNR, TP, FP, TN, FN, MAE, RMSE, R2
+    """
+    import logging
+
+    import numpy as np
+
+    logger = logging.getLogger("metrics")
+
+    # Results format: {id: {"energy": float, "error": str}}
+    if len(results) == 0:
+        return {"error": "No results to evaluate"}
+
+    try:
+        # Import matbench-discovery data
+        from matbench_discovery.data import df_wbm
+    except Exception as e:
+        return {"error": f"Failed to import matbench-discovery: {e}"}
+
+    # Extract model energies
+    model_energies = {}
+    for sid, res in results.items():
+        if isinstance(res, dict) and res.get("energy") is not None:
+            mat_id = sid.replace(".extxyz", "")
+            model_energies[mat_id] = res["energy"]
+
+    if not model_energies:
+        return {"error": "No valid energies found in results"}
+
+    # Get common IDs between predictions and ground truth
+    # Use direct string column names instead of MbdKey enum to avoid issues
+    df_wbm_indexed = df_wbm.set_index("material_id")
+    common_ids = list(set(model_energies.keys()) & set(df_wbm_indexed.index))
+
+    if not common_ids:
+        return {"error": "No matching IDs between results and ground truth"}
+
+    # Get subset of data
+    df_subset = df_wbm_indexed.loc[common_ids]
+
+    # Calculate predicted formation energies
+    y_pred = np.array([model_energies[mid] for mid in common_ids])
+    y_true = df_subset["uncorrected_energy"].values  # Uncorrected total energy
+    n_atoms = df_subset["n_sites"].values
+
+    # Predicted formation energy ERROR per atom (from total energy difference)
+    # This is the ERROR: (E_pred - E_dft) / n_atoms
+    e_form_error = (y_pred - y_true) / n_atoms
+
+    # Get ground truth e_above_hull for stability classification
+    each_true = df_subset["e_above_hull_mp2020_corrected_ppd_mp"].values
+
+    # Calculate predicted e_above_hull
+    # Since e_form_error is already (E_pred - E_dft)/n_atoms, we just add it to each_true
+    each_pred = each_true + e_form_error
+
+    # Debug logging to understand the distribution
+    logger.info("Energy statistics:")
+    logger.info(
+        f"  each_true: min={each_true.min():.4f}, max={each_true.max():.4f}, mean={each_true.mean():.4f}"
+    )
+    logger.info(
+        f"  each_pred: min={each_pred.min():.4f}, max={each_pred.max():.4f}, mean={each_pred.mean():.4f}"
+    )
+
+    # Calculate global prevalence for DAF normalization (matches official leaderboard)
+    # Filter to unique prototypes
+    df_unique = df_wbm.query("unique_prototype")
+    # Calculate prevalence: (stable count) / (total count)
+    # Stability threshold is 0.0
+    stable_count = (df_unique["e_above_hull_mp2020_corrected_ppd_mp"] <= 0).sum()
+    global_prevalence = stable_count / len(df_unique)
+
+    logger.info(
+        f"Using global prevalence for DAF: {global_prevalence:.6f} ({stable_count}/{len(df_unique)})"
+    )
+
+    # Calculate metrics using the injected function
+    # stable_metrics is injected into the script scope
+    metrics = stable_metrics(each_true, each_pred, prevalence=global_prevalence)
+
+    # Add num_evaluated
+    metrics["num_evaluated"] = len(common_ids)
+
+    return metrics
+
+
+def process_batch_static(
+    batch_id: int,
+    structures: List[Tuple[str, Any]],
+    model_config: Dict[str, Any],
+    num_threads: int,
+) -> Dict[str, Any]:
+    """Process a batch of structures for RS2RE (Static Calculation)."""
+    import logging
+    import os
+    import time
+
+    import torch
+
+    os.environ["OMP_NUM_THREADS"] = str(num_threads)
+    torch.set_num_threads(num_threads)
+
+    gpu_id = model_config.get("gpu_id")
+    device = setup_device(gpu_id)  # noqa: F821
+
+    worker_logger = logging.getLogger(f"worker_{batch_id}")
+    worker_logger.info(
+        f"Started static calculation on {device} with {len(structures)} structures."
+    )
+
+    global _MODEL_CACHE
+    try:
+        if _MODEL_CACHE is None:
+            model = load_model(device)
+            _MODEL_CACHE = model
+        else:
+            model = _MODEL_CACHE
+    except Exception as e:
+        return {sid: {"energy": None, "error": str(e)} for sid, _ in structures}
+
+    results = {}
+    batch_start = time.time()
+
+    for i, (struct_id, atoms) in enumerate(structures):
+        try:
+            atoms.calc = model
+            # No relaxation, just static energy
+            energy = atoms.get_potential_energy()
+            results[struct_id] = {"energy": energy}
+
+            if (i + 1) % 50 == 0:
+                elapsed = time.time() - batch_start
+                rate = (i + 1) / elapsed if elapsed > 0 else 0
+                worker_logger.info(
+                    f"Progress: {i + 1}/{len(structures)} ({rate:.2f} struct/s)"
+                )
+
+        except Exception as e:
+            worker_logger.warning(f"Structure {struct_id} failed: {e}")
+            results[struct_id] = {"energy": None, "error": str(e)}
+
+    return results
+
+
+def load_dataset_wbm_relaxed(config: Dict[str, Any]) -> List[Tuple[str, Any]]:
+    """Load relaxed structures for RS2RE."""
+    from io import TextIOWrapper
+    from zipfile import ZipFile
+
+    from ase.io import read
+    from matbench_discovery.data import DataFiles
+
+    dataset_subset = config.get("dataset_subset", "full")
+    dataset_seed = config.get("dataset_seed", 42)
+    mat_ids = get_material_ids_for_subset(dataset_subset, seed=dataset_seed)
+
+    structures = []
+    # Use relaxed atoms
+    zip_path = DataFiles.wbm_relaxed_atoms.path
+
+    with ZipFile(zip_path, "r") as zf:
+        if mat_ids is None:
+            # Load all files (full dataset)
+            file_list = sorted(
+                zf.namelist(),
+                key=lambda x: int(x.split(".")[0])
+                if x.split(".")[0].isdigit()
+                else float("inf"),
+            )
+            num_structures = config.get("num_structures", 100)
+            file_list = file_list[:num_structures]
+        else:
+            # Filter to specific material IDs
+            mat_id_set = set(mat_ids)
+            file_list = [
+                f for f in zf.namelist() if f.replace(".extxyz", "") in mat_id_set
+            ]
+
+        for filename in file_list:
+            with zf.open(filename) as f:
+                text_stream = TextIOWrapper(f, encoding="utf-8")
+                structures.append((filename, read(text_stream, format="extxyz")))
+    return structures
+
+
+# Reuse calculate_metrics_energy for all energy-only tasks
+
+
+def process_batch_forces(
+    batch_id: int,
+    structures: List[Tuple[str, Any]],
+    model_config: Dict[str, Any],
+    num_threads: int,
+) -> Dict[str, Any]:
+    """Process a batch of structures for S2EFS (Energy, Forces, Stress)."""
+    import logging
+    import os
+    import time
+
+    import torch
+
+    os.environ["OMP_NUM_THREADS"] = str(num_threads)
+    torch.set_num_threads(num_threads)
+
+    gpu_id = model_config.get("gpu_id")
+    device = setup_device(gpu_id)  # noqa: F821
+
+    worker_logger = logging.getLogger(f"worker_{batch_id}")
+    worker_logger.info(
+        f"Started forces calculation on {device} with {len(structures)} structures."
+    )
+
+    global _MODEL_CACHE
+    try:
+        if _MODEL_CACHE is None:
+            model = load_model(device)
+            _MODEL_CACHE = model
+        else:
+            model = _MODEL_CACHE
+    except Exception as e:
+        return {sid: {"error": str(e)} for sid, _ in structures}
+
+    results = {}
+    batch_start = time.time()
+
+    for i, (struct_id, atoms) in enumerate(structures):
+        try:
+            atoms.calc = model
+
+            energy = atoms.get_potential_energy()
+            forces = atoms.get_forces().tolist()
+            stress = atoms.get_stress().tolist()
+
+            results[struct_id] = {"energy": energy, "forces": forces, "stress": stress}
+
+            if (i + 1) % 50 == 0:
+                elapsed = time.time() - batch_start
+                rate = (i + 1) / elapsed if elapsed > 0 else 0
+                worker_logger.info(
+                    f"Progress: {i + 1}/{len(structures)} ({rate:.2f} struct/s)"
+                )
+
+        except Exception as e:
+            worker_logger.warning(f"Structure {struct_id} failed: {e}")
+            results[struct_id] = {"error": str(e)}
+
+    return results
+
+
+def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Tuple[str, Any]]:
+    """Load MP trajectories for S2EFS."""
+    from io import TextIOWrapper
+    from zipfile import ZipFile
+
+    from ase.io import read
+    from matbench_discovery.data import DataFiles
+
+    num_structures = config.get("num_structures", 100)
+    structures = []
+    # Use MP trajectories
+    zip_path = DataFiles.mp_trj_extxyz.path
+
+    with ZipFile(zip_path, "r") as zf:
+        file_list = sorted(zf.namelist())
+        for filename in file_list[:num_structures]:
+            with zf.open(filename) as f:
+                text_stream = TextIOWrapper(f, encoding="utf-8")
+                # Read all frames? Or just one? Usually S2EFS is on frames.
+                # Let's assume we evaluate on the last frame or all frames.
+                # For simplicity, let's take the last frame (relaxed?) or random?
+                # Actually, MP trj contains relaxation steps.
+                # Let's read the last frame for now as a proxy for "a structure".
+                # Or better, read all frames and treat them as separate tasks?
+                # For this benchmark, let's just treat the file as containing one structure per file if possible,
+                # or just take the last one.
+                atoms_list = read(text_stream, format="extxyz", index=":")
+                if atoms_list:
+                    # Just take the last one for now
+                    structures.append((filename, atoms_list[-1]))
+    return structures
+
+
+def calculate_metrics_forces(
+    results: Dict[str, Any], config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Calculate comprehensive S2EFS metrics (Energy, Forces, Stress).
+
+    Returns MAE, RMSE, and R2 for each component.
+    """
+    from io import TextIOWrapper
+    from zipfile import ZipFile
+
+    import numpy as np
+    from ase.io import read
+    from matbench_discovery.data import DataFiles
+    from sklearn.metrics import r2_score
+
+    # We need to load ground truth from the dataset itself because MP trj has E/F/S in the extxyz
+    # This is expensive to re-read. Ideally we should have passed GT in results or loaded it efficiently.
+    # For now, let's re-read the GT for the processed IDs.
+
+    metrics = {
+        "energy_mae": [],
+        "energy_rmse": [],
+        "force_mae": [],
+        "force_rmse": [],
+        "stress_mae": [],
+        "stress_rmse": [],
+    }
+
+    # Collect all predictions and ground truth for R2 calculation
+    all_e_pred, all_e_true = [], []
+    all_f_pred, all_f_true = [], []
+    all_s_pred, all_s_true = [], []
+
+    zip_path = DataFiles.mp_trj_extxyz.path
+
+    with ZipFile(zip_path, "r") as zf:
+        for sid, res in results.items():
+            if "error" in res:
+                continue
+
+            try:
+                with zf.open(sid) as f:
+                    text_stream = TextIOWrapper(f, encoding="utf-8")
+                    atoms_list = read(text_stream, format="extxyz", index=":")
+                    gt_atoms = atoms_list[-1]  # Matching load_dataset logic
+
+                    # Energy (per atom)
+                    e_pred = res["energy"]
+                    e_true = gt_atoms.get_potential_energy()
+                    n_atoms = len(gt_atoms)
+
+                    energy_error = abs(e_pred - e_true) / n_atoms
+                    metrics["energy_mae"].append(energy_error)
+                    metrics["energy_rmse"].append(energy_error**2)
+
+                    all_e_pred.append(e_pred / n_atoms)
+                    all_e_true.append(e_true / n_atoms)
+
+                    # Forces
+                    f_pred = np.array(res["forces"])
+                    f_true = gt_atoms.get_forces()
+                    force_error = np.abs(f_pred - f_true)
+                    metrics["force_mae"].append(force_error.mean())
+                    metrics["force_rmse"].append((force_error**2).mean())
+
+                    all_f_pred.extend(f_pred.flatten())
+                    all_f_true.extend(f_true.flatten())
+
+                    # Stress
+                    s_pred = np.array(res["stress"])
+                    s_true = gt_atoms.get_stress()
+                    stress_error = np.abs(s_pred - s_true)
+                    metrics["stress_mae"].append(stress_error.mean())
+                    metrics["stress_rmse"].append((stress_error**2).mean())
+
+                    all_s_pred.extend(s_pred.flatten())
+                    all_s_true.extend(s_true.flatten())
+
+            except Exception:
+                pass
+
+    # Calculate final metrics
+    result_metrics = {}
+
+    if metrics["energy_mae"]:
+        result_metrics["energy_mae"] = float(np.mean(metrics["energy_mae"]))
+        result_metrics["energy_rmse"] = float(np.sqrt(np.mean(metrics["energy_rmse"])))
+        result_metrics["energy_r2"] = (
+            float(r2_score(all_e_true, all_e_pred))
+            if len(all_e_true) > 1
+            else float("nan")
+        )
+
+    if metrics["force_mae"]:
+        result_metrics["force_mae"] = float(np.mean(metrics["force_mae"]))
+        result_metrics["force_rmse"] = float(np.sqrt(np.mean(metrics["force_rmse"])))
+        result_metrics["force_r2"] = (
+            float(r2_score(all_f_true, all_f_pred))
+            if len(all_f_true) > 1
+            else float("nan")
+        )
+
+    if metrics["stress_mae"]:
+        result_metrics["stress_mae"] = float(np.mean(metrics["stress_mae"]))
+        result_metrics["stress_rmse"] = float(np.sqrt(np.mean(metrics["stress_rmse"])))
+        result_metrics["stress_r2"] = (
+            float(r2_score(all_s_true, all_s_pred))
+            if len(all_s_true) > 1
+            else float("nan")
+        )
+
+    result_metrics["num_evaluated"] = len(metrics["energy_mae"])
+
+    return result_metrics
+
+
+# ------------------------------------------------------------------------------
+# Task Classes
+# ------------------------------------------------------------------------------
+
+
+class MatbenchTask(BaseBenchmarkTask):
+    """Base class for Matbench Discovery tasks."""
 
     def __init__(
         self,
@@ -28,296 +601,321 @@ class IS2RETask:
         repo_url: str,
         repo_ref: str,
         model_package: str | None = None,
+        task_name: str = "unknown",
     ):
-        """Initialize IS2RE task.
+        super().__init__(adapter, repo_url, repo_ref, model_package)
+        self.name = task_name
+
+    def calculate_metrics(self, output: Dict[str, Any]) -> Dict[str, Any]:
+        """Retrieve metrics from the remote output."""
+        return output.get("metrics", {})
+
+    def _build_script(
+        self, process_fn, load_dataset_fn, calc_metrics_fn, model_factory
+    ) -> str:
+        """Build the remote execution script with specific functions.
 
         Args:
-            adapter: MatbenchDiscovery adapter instance
-            repo_url: Matbench Discovery repository URL
-            repo_ref: Git ref (branch/tag/commit) to use
-            model_package: Default model package to install (can override in submit)
+            process_fn: Task-specific process_batch function
+            load_dataset_fn: Task-specific load_dataset function
+            calc_metrics_fn: Task-specific calculate_metrics function
+            model_factory: User-provided function that creates the model
         """
-        self.adapter = adapter
-        self.repo_url = repo_url
-        self.repo_ref = repo_ref
-        self.model_package = model_package
-        self.name = "IS2RE"
+        builder = BenchmarkScriptBuilder()
+
+        # Add global model cache
+        builder.add_preamble("_MODEL_CACHE = None")
+
+        # Common imports
+        builder.add_import("from typing import List, Dict, Any, Tuple, Optional")
+        builder.add_import("import torch")
+        builder.add_import("from ase.optimize import FIRE")
+        builder.add_import("from ase.io import read")
+        builder.add_import("from matbench_discovery.data import DataFiles")
+        builder.add_import("from zipfile import ZipFile")
+        builder.add_import("from io import TextIOWrapper")
+        builder.add_import("import pandas as pd")
+        builder.add_import("import numpy as np")
+        builder.add_import("from collections.abc import Sequence")
+        builder.add_import("from sklearn.metrics import r2_score")
+
+        # Add user's model factory (renamed to load_model_user so load_model can call it)
+        builder.add_function(model_factory, name="load_model_user")
+
+        # Add our load_model wrapper that calls load_model_user
+        builder.add_function(load_model)
+
+        # Add helper function for dataset subset filtering
+        builder.add_function(get_material_ids_for_subset)
+
+        # Add task-specific functions with standard names expected by runner
+        builder.add_function(process_fn, name="process_batch")
+        builder.add_function(load_dataset_fn, name="load_dataset")
+        builder.add_function(calc_metrics_fn, name="calculate_metrics_remote")
+
+        # Inject metrics helper functions
+        builder.add_function(classify_stable)
+        builder.add_function(stable_metrics)
+
+        return builder.build()
 
     def submit(
         self,
-        model=None,
-        num_structures: int = 100,
-        model_package: str | None = None,
-        model_factory: str | None = None,
-        model_kwargs: dict | None = None,
-        use_multi_gpu: bool = True,
+        model_factory: callable,
+        model_packages: str | List[str],
+        num_structures: int | "DatasetSize" | "DatasetConfig" = 100,
+        checkpoint_name: str | None = None,
     ):
-        """Submit IS2RE benchmark job to remote executor.
-
-        You can specify the model in two ways:
-        1. Pass a local model instance (will introspect to get remote construction info)
-        2. Explicitly specify model_package and model_factory
+        """Submit benchmark job to remote executor.
 
         Args:
-            model: (Optional) Local model instance. If provided, will extract
-                   package, class, and checkpoint information from it.
-            num_structures: Number of test structures to evaluate (default: 100).
-                           Full test set has ~257k structures. Use smaller values
-                           for quick testing.
-            model_package: Python package name to install (e.g., "mace-torch").
-                          Required if model is None.
-            model_factory: How to instantiate the model on remote. Can be:
-                          - Function name: "mace_mp" (will call as function)
-                          - Class name: "MACE" (will instantiate as class)
-                          Required if model is None.
-            model_kwargs: Dictionary of kwargs to pass when creating model remotely.
-                         Example: {"model": "medium", "device": "cuda"}
-            use_multi_gpu: If True, automatically detect and use all available GPUs
-                          in parallel for faster processing. If False, use single
-                          GPU/CPU. (default: True)
-
-        Returns:
-            Future object that will contain benchmark results when complete.
-            Call .result() to block and wait for completion.
-
-        Examples:
-            Using local model instance:
-            >>> from mace.calculators import mace_mp
-            >>> model = mace_mp(model="medium")
-            >>> future = task.submit(model, num_structures=50)
-
-            Specifying remote construction explicitly:
-            >>> future = task.submit(
-            ...     model_package="mace-torch",
-            ...     model_factory="mace_mp",
-            ...     model_kwargs={"model": "medium", "device": "cuda"},
-            ...     num_structures=50,
-            ...     use_multi_gpu=True
-            ... )
+            model_factory: User-provided function that takes device and returns an ASE calculator.
+                          Example: lambda device: mace_mp(model="medium", device=device)
+            model_packages: Python package(s) to install. Can be a single package string
+                          (e.g., "mace-torch") or a list (e.g., ["torch", "mace-torch"])
+            num_structures: Number of structures to evaluate, or DatasetSize enum, or DatasetConfig
+                          (DatasetSize.FULL, DatasetSize.RANDOM_10K, DatasetSize.RANDOM_10K.seed(10))
+            checkpoint_name: Optional name for the checkpoint file (e.g. "my_checkpoint.json").
+                             If not provided, one will be generated.
         """
-        # Determine how to construct model remotely
-        if model is not None:
-            # Extract info from local model instance
-            if model_package is None:
-                if self.model_package is not None:
-                    model_package = self.model_package
-                else:
-                    # Infer from model's module
-                    model_package = model.__class__.__module__.split(".")[0]
+        import time
+        import uuid
 
-            if model_factory is None:
-                model_factory = model.__class__.__name__
+        from .enums import DatasetConfig, DatasetSize
 
-            # Get checkpoint path if model has one
-            model_checkpoint = None
-            if hasattr(model, "checkpoint_path"):
-                model_checkpoint = model.checkpoint_path
-            elif hasattr(model, "checkpoint"):
-                model_checkpoint = model.checkpoint
+        # Build script with task-specific functions AND user's factory
+        script_content = self._build_script(
+            self.process_fn,
+            self.load_dataset_fn,
+            self.calc_metrics_fn,
+            model_factory,  # Inject user's factory function
+        )
 
-            # Try to extract initialization kwargs if available
-            if model_kwargs is None and hasattr(model, "_init_kwargs"):
-                model_kwargs = model._init_kwargs
+        # Handle single package string or list of packages
+        packages = (
+            [model_packages] if isinstance(model_packages, str) else model_packages
+        )
+        dependencies = ["matbench-discovery>=1.3.0"] + packages
 
+        # Handle DatasetSize enum, DatasetConfig, or integer
+        if isinstance(num_structures, DatasetSize):
+            runner_config = {
+                "repo_url": self.repo_url,
+                "repo_ref": self.repo_ref,
+                "dataset_subset": num_structures.value,
+                "dataset_seed": 42,  # Default seed
+            }
+        elif isinstance(num_structures, DatasetConfig):
+            runner_config = {
+                "repo_url": self.repo_url,
+                "repo_ref": self.repo_ref,
+                "dataset_subset": num_structures.subset.value,
+                "dataset_seed": num_structures.seed,
+            }
         else:
-            # Must provide explicit construction info
-            if model_package is None or model_factory is None:
-                raise ValueError(
-                    "If model is not provided, must specify both "
-                    "model_package and model_factory"
-                )
-            model_checkpoint = None
+            # Integer - use traditional num_structures approach
+            runner_config = {
+                "repo_url": self.repo_url,
+                "repo_ref": self.repo_ref,
+                "num_structures": num_structures,
+                "dataset_subset": "full",
+            }
 
-        if model_kwargs is None:
-            model_kwargs = {}
+        # Generate checkpoint name if not provided
+        if not checkpoint_name:
+            # Format: matbench_{model}_{subset}_{timestamp}_{uuid}.json
+            # Clean up model name for filename
+            model_str = (
+                str(model_packages)
+                .replace("[", "")
+                .replace("]", "")
+                .replace("'", "")
+                .replace('"', "")
+                .replace(",", "_")
+                .replace(" ", "")
+            )
+            subset_str = runner_config.get("dataset_subset", "custom")
+            timestamp = int(time.time())
+            short_uuid = str(uuid.uuid4())[:8]
+            checkpoint_name = (
+                f"matbench_{model_str}_{subset_str}_{timestamp}_{short_uuid}.json"
+            )
 
-        # Get executor (will create if needed) and submit remote execution
+        print(f"Checkpoint will be saved to: ~/.garden/benchmarks/{checkpoint_name}")
+
         executor = self.adapter._get_executor()
         future = executor.submit(
-            run_matbench_is2re,
-            repo_url=self.repo_url,
-            repo_ref=self.repo_ref,
-            model_package=model_package,
-            model_factory=model_factory,
-            model_kwargs=model_kwargs,
-            model_checkpoint=model_checkpoint,
-            num_structures=num_structures,
-            use_multi_gpu=use_multi_gpu,
+            run_remote_benchmark,
+            script_content=script_content,
+            dependencies=dependencies,
+            config=runner_config,
+            checkpoint_name=checkpoint_name,
         )
+
+        # Attach checkpoint path to future for programmatic access
+        future.checkpoint_path = f"~/.garden/benchmarks/{checkpoint_name}"
 
         return future
 
     def local(
         self,
-        model=None,
-        num_structures: int = 100,
-        model_package: str | None = None,
-        model_factory: str | None = None,
-        model_kwargs: dict | None = None,
-        use_multi_gpu: bool = True,
+        model_factory: callable,
+        model_packages: str | List[str],
+        num_structures: int | "DatasetSize" | "DatasetConfig" = 100,
+        checkpoint_path: str | None = None,
     ) -> dict:
-        """Run benchmark locally in ephemeral UV environment.
-
-        This executes the same benchmark workflow locally instead of submitting
-        to a remote Globus Compute endpoint. Useful for testing and development.
+        """Run benchmark locally.
 
         Args:
-            model: Optional local model instance to extract metadata from
-            num_structures: Number of test structures to evaluate
-            model_package: Python package name to install (e.g., "mace-torch")
-            model_factory: Function or class name to create model
-            model_kwargs: Dictionary of kwargs for model creation
-            use_multi_gpu: If True, automatically detect and use all available GPUs
-                          in parallel. If False, use single GPU/CPU. (default: True)
-
-        Returns:
-            Dictionary with benchmark results (same format as remote execution)
-
-        Example:
-            >>> results = task.local(
-            ...     model_package="mace-torch",
-            ...     model_factory="mace_mp",
-            ...     model_kwargs={"model": "medium", "device": "cpu"},
-            ...     num_structures=10,
-            ...     use_multi_gpu=False
-            ... )
+            model_factory: User-provided function that takes device and returns an ASE calculator
+            model_packages: Python package(s) to install. Can be a single package string
+                          (e.g., "mace-torch") or a list (e.g., ["torch", "mace-torch"])
+            num_structures: Number of structures to evaluate, or DatasetSize enum, or DatasetConfig
+                          (DatasetSize.FULL, DatasetSize.RANDOM_10K, DatasetSize.RANDOM_10K.seed(10))
+            checkpoint_path: Optional path to resume from checkpoint
         """
-        import json
-        import subprocess
-        import tempfile
-        from pathlib import Path
+        from ..utils.remote_execution import run_remote_benchmark
+        from .enums import DatasetConfig, DatasetSize
 
-        # Extract model metadata if model instance provided
-        if model is not None:
-            if model_package is None:
-                if self.model_package is not None:
-                    model_package = self.model_package
-                else:
-                    model_package = model.__class__.__module__.split(".")[0]
-
-            if model_factory is None:
-                model_factory = model.__class__.__name__
-
-            model_checkpoint = None
-            if hasattr(model, "checkpoint_path"):
-                model_checkpoint = model.checkpoint_path
-            elif hasattr(model, "checkpoint"):
-                model_checkpoint = model.checkpoint
-
-            if model_kwargs is None and hasattr(model, "_init_kwargs"):
-                model_kwargs = model._init_kwargs
-        else:
-            if model_package is None or model_factory is None:
-                raise ValueError(
-                    "If model is not provided, must specify both "
-                    "model_package and model_factory"
-                )
-            model_checkpoint = None
-
-        if model_kwargs is None:
-            model_kwargs = {}
-
-        # Run benchmark in subprocess with isolated environment
-        import sys
-
-        config = {
-            "repo_url": self.repo_url,
-            "repo_ref": self.repo_ref,
-            "model_package": model_package,
-            "model_factory": model_factory,
-            "model_kwargs": model_kwargs,
-            "model_checkpoint": model_checkpoint,
-            "num_structures": num_structures,
-            "use_multi_gpu": use_multi_gpu,
-        }
-
-        results_file_path = (
-            Path(tempfile.gettempdir()) / f"benchmark_results_{id(config)}.json"
+        # Build script with task-specific functions AND user's factory
+        script_content = self._build_script(
+            self.process_fn, self.load_dataset_fn, self.calc_metrics_fn, model_factory
         )
 
-        wrapper_script = f'''
-import json
-from garden_ai.benchmarks.matbench_discovery.remote_runner import run_matbench_is2re
+        # Handle single package string or list of packages
+        packages = (
+            [model_packages] if isinstance(model_packages, str) else model_packages
+        )
+        dependencies = ["matbench-discovery>=1.3.0"] + packages
 
-config = {repr(config)}
-results = run_matbench_is2re(**config)
+        # Handle DatasetSize enum, DatasetConfig, or integer
+        if isinstance(num_structures, DatasetSize):
+            runner_config = {
+                "repo_url": self.repo_url,
+                "repo_ref": self.repo_ref,
+                "dataset_subset": num_structures.value,
+                "dataset_seed": 42,  # Default seed
+            }
+        elif isinstance(num_structures, DatasetConfig):
+            runner_config = {
+                "repo_url": self.repo_url,
+                "repo_ref": self.repo_ref,
+                "dataset_subset": num_structures.subset.value,
+                "dataset_seed": num_structures.seed,
+            }
+        else:
+            # Integer - use traditional num_structures approach
+            runner_config = {
+                "repo_url": self.repo_url,
+                "repo_ref": self.repo_ref,
+                "num_structures": num_structures,
+                "dataset_subset": "full",
+            }
 
-with open("{results_file_path}", "w") as f:
-    json.dump(results, f, indent=2)
-'''
+        # Run locally (no Globus Compute)
+        return run_remote_benchmark(
+            script_content=script_content,
+            dependencies=dependencies,
+            config=runner_config,
+            checkpoint_path=checkpoint_path,
+        )
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write(wrapper_script)
-            wrapper_path = f.name
 
-        try:
-            # Run without capturing output so logs stream to console in real-time
-            result = subprocess.run(
-                [sys.executable, wrapper_path],
-                timeout=3600,
-                # Don't capture output - let it stream to console
-                stdout=None,
-                stderr=None,
-            )
+class IS2RETask(MatbenchTask):
+    """Initial Structure to Relaxed Energy."""
 
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Local benchmark failed with return code {result.returncode}"
-                )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="IS2RE", **kwargs)
+        self.process_fn = process_batch_relaxation
+        self.load_dataset_fn = load_dataset_wbm_initial
+        self.calc_metrics_fn = calculate_metrics_energy
 
-            if not results_file_path.exists():
-                raise RuntimeError(
-                    f"Benchmark results file not found at {results_file_path}"
-                )
 
-            with open(results_file_path) as f:
-                return json.load(f)
+class RS2RETask(MatbenchTask):
+    """Relaxed Structure to Relaxed Energy."""
 
-        finally:
-            Path(wrapper_path).unlink(missing_ok=True)
-            results_file_path.unlink(missing_ok=True)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="RS2RE", **kwargs)
+        self.process_fn = process_batch_static
+        self.load_dataset_fn = load_dataset_wbm_relaxed
+        self.calc_metrics_fn = calculate_metrics_energy
 
-    def calculate_metrics(self, outputs: dict) -> dict[str, Any]:
-        # TODO: implement the full metrics calculation,
-        # this is just a placeholder for now
-        """Calculate benchmark metrics from raw outputs.
 
-        For MVP, this returns basic statistics. Future versions will compare
-        against DFT ground truth and calculate proper benchmark metrics like
-        F1 score, discovery yield, etc.
+class S2EFSTask(MatbenchTask):
+    """Structure to Energy, Forces, Stress."""
 
-        Args:
-            outputs: Dictionary from remote execution containing:
-                - energies: List of relaxed energies
-                - num_converged: Number of successful relaxations
-                - failed_indices: Indices of failed structures
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="S2EFS", **kwargs)
+        self.process_fn = process_batch_forces
+        self.load_dataset_fn = load_dataset_mp_trj
+        self.calc_metrics_fn = calculate_metrics_forces
 
-        Returns:
-            Dictionary of calculated metrics:
-                - num_attempted: Total structures attempted
-                - num_converged: Number of successful relaxations
-                - success_rate: Fraction of successful relaxations
-                - mean_energy: Average final energy (eV/atom, if available)
-                - num_failed: Count of failed relaxations
-        """
-        energies = outputs.get("energies", [])
-        num_converged = outputs.get("num_converged", 0)
-        failed_indices = outputs.get("failed_indices", [])
 
-        # Filter out None values (failed relaxations)
-        valid_energies = [e for e in energies if e is not None]
+class S2EFTask(MatbenchTask):
+    """Structure to Energy, Force."""
 
-        metrics = {
-            "num_attempted": len(energies),
-            "num_converged": num_converged,
-            "num_failed": len(failed_indices),
-            "success_rate": num_converged / len(energies) if energies else 0.0,
-        }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="S2EF", **kwargs)
+        self.process_fn = process_batch_forces
+        self.load_dataset_fn = load_dataset_mp_trj
+        self.calc_metrics_fn = calculate_metrics_forces
 
-        # Calculate energy statistics if we have valid results
-        if valid_energies:
-            metrics["mean_energy"] = sum(valid_energies) / len(valid_energies)
-            metrics["min_energy"] = min(valid_energies)
-            metrics["max_energy"] = max(valid_energies)
 
-        return metrics
+class S2EFSMTask(MatbenchTask):
+    """Structure to Energy, Force, Stress, Magmoms."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="S2EFSM", **kwargs)
+        self.process_fn = process_batch_forces
+        self.load_dataset_fn = load_dataset_mp_trj
+        self.calc_metrics_fn = calculate_metrics_forces
+
+
+class IS2ETask(MatbenchTask):
+    """Initial Structure to Energy."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="IS2E", **kwargs)
+        self.process_fn = process_batch_static
+        self.load_dataset_fn = load_dataset_wbm_initial
+        self.calc_metrics_fn = calculate_metrics_energy
+
+
+class S2ETask(MatbenchTask):
+    """Structure to Energy."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="S2E", **kwargs)
+        self.process_fn = process_batch_static
+        self.load_dataset_fn = load_dataset_wbm_relaxed
+        self.calc_metrics_fn = calculate_metrics_energy
+
+
+class S2RETask(MatbenchTask):
+    """Structure to Relaxed Energy."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="S2RE", **kwargs)
+        self.process_fn = process_batch_relaxation
+        self.load_dataset_fn = load_dataset_wbm_initial
+        self.calc_metrics_fn = calculate_metrics_energy
+
+
+class RP2RETask(MatbenchTask):
+    """Relaxed Prototype to Relaxed Energy."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="RP2RE", **kwargs)
+        self.process_fn = process_batch_relaxation
+        self.load_dataset_fn = load_dataset_wbm_initial  # Placeholder
+        self.calc_metrics_fn = calculate_metrics_energy
+
+
+class IP2ETask(MatbenchTask):
+    """Initial Prototype to Energy."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, task_name="IP2E", **kwargs)
+        self.process_fn = process_batch_static
+        self.load_dataset_fn = load_dataset_wbm_initial  # Placeholder
+        self.calc_metrics_fn = calculate_metrics_energy

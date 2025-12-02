@@ -31,13 +31,34 @@ from typing import Any
 from globus_compute_sdk import Executor
 from globus_compute_sdk.serialize import CombinedCode, ComputeSerializer
 
-from .enums import MatbenchTask
-from .tasks import IS2RETask
+from .enums import DatasetSize, MatbenchTask
+from .tasks import (
+    IP2ETask,
+    IS2ETask,
+    IS2RETask,
+    RP2RETask,
+    RS2RETask,
+    S2EFSMTask,
+    S2EFSTask,
+    S2EFTask,
+    S2ETask,
+    S2RETask,
+)
 
 __all__ = [
     "MatbenchDiscovery",
     "MatbenchTask",
+    "DatasetSize",
     "IS2RETask",
+    "RS2RETask",
+    "S2EFSTask",
+    "S2EFTask",
+    "S2EFSMTask",
+    "IS2ETask",
+    "S2ETask",
+    "S2RETask",
+    "RP2RETask",
+    "IP2ETask",
 ]
 
 
@@ -92,7 +113,12 @@ class MatbenchDiscovery:
                           (can be overridden per task)
         """
         self.endpoint_id = endpoint_id
-        self.user_endpoint_config = user_endpoint_config
+        self.user_endpoint_config = user_endpoint_config or {}
+
+        # Ensure 'requirements' is present to avoid endpoint template errors
+        if "requirements" not in self.user_endpoint_config:
+            self.user_endpoint_config["requirements"] = ""
+
         self.repo_ref = repo_ref or self.REPO_REF
         self.model_package = model_package
 
@@ -139,11 +165,65 @@ class MatbenchDiscovery:
             (),
             {
                 "IS2RE": IS2RETask(
-                    adapter=self,  # Pass adapter instead of executor
+                    adapter=self,
                     repo_url=self.REPO_URL,
                     repo_ref=self.repo_ref,
                     model_package=self.model_package,
-                )
+                ),
+                "RS2RE": RS2RETask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "S2EFS": S2EFSTask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "S2EF": S2EFTask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "S2EFSM": S2EFSMTask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "IS2E": IS2ETask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "S2E": S2ETask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "S2RE": S2RETask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "RP2RE": RP2RETask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
+                "IP2E": IP2ETask(
+                    adapter=self,
+                    repo_url=self.REPO_URL,
+                    repo_ref=self.repo_ref,
+                    model_package=self.model_package,
+                ),
             },
         )()
 
