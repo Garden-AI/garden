@@ -55,7 +55,7 @@ def create_sevennet_model(device):
     """Create SevenNet model calculator."""
     from sevenn.calculator import SevenNetCalculator
 
-    return SevenNetCalculator(model="7net-0", device=device)
+    return SevenNetCalculator(model="7net-l3i5", device=device)
 
 
 # Model configurations
