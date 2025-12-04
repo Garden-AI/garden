@@ -7,12 +7,13 @@ Available benchmarks:
     - MatbenchDiscovery: Materials discovery benchmark suite
 """
 
-from .matbench_discovery import IS2RETask, MatbenchDiscovery, MatbenchTask
+from .matbench_discovery.enums import DatasetSize, MatbenchTask
+from .matbench_discovery.tasks import MatbenchDiscovery
 
 __all__ = [
     "MatbenchDiscovery",
     "MatbenchTask",
-    "IS2RETask",
+    "DatasetSize",
 ]
 
 

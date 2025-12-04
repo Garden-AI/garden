@@ -17,6 +17,8 @@ class BenchmarkScriptBuilder:
         self.imports = set()
         self.functions = []
         self.preamble = []
+        self.pep723_dependencies = []
+        self.pep723_requires_python = None
 
     def add_import(self, import_stmt: str):
         """Add an import statement (e.g. 'import numpy as np')."""
@@ -26,6 +28,14 @@ class BenchmarkScriptBuilder:
     def add_preamble(self, code: str):
         """Add arbitrary code to the top of the script (after imports)."""
         self.preamble.append(code)
+        return self
+
+    def add_pep723_metadata(
+        self, dependencies: list[str], requires_python: str = ">=3.10"
+    ):
+        """Add PEP 723 script metadata."""
+        self.pep723_dependencies.extend(dependencies)
+        self.pep723_requires_python = requires_python
         return self
 
     def add_function(self, func: Callable, name: str = None):
@@ -72,7 +82,18 @@ class BenchmarkScriptBuilder:
         # Let's just put imports at the top, then functions, then the template content.
         # But we need to be careful about imports in the template.
 
-        final_script = f"""
+        # Construct PEP 723 block
+        pep723_block = ""
+        if self.pep723_dependencies or self.pep723_requires_python:
+            pep723_block = "# /// script\n"
+            if self.pep723_requires_python:
+                pep723_block += f'# requires-python = "{self.pep723_requires_python}"\n'
+            if self.pep723_dependencies:
+                deps_list = '",\n#     "'.join(self.pep723_dependencies)
+                pep723_block += f'# dependencies = [\n#     "{deps_list}",\n# ]\n'
+            pep723_block += "# ///\n"
+
+        final_script = f"""{pep723_block}
 # ------------------------------------------------------------------------------
 # INJECTED IMPORTS
 # ------------------------------------------------------------------------------
