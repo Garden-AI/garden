@@ -16,16 +16,12 @@ from garden_ai.benchmarks.matbench_discovery import MatbenchDiscovery
 # Globus Compute endpoint
 ENDPOINT_ID = "5aafb4c1-27b2-40d8-a038-a0277611868f"
 
-# HPC endpoint configuration
-ENDPOINT_CONFIG = {
-    "account": "cis250461-gpu",
-    "partition": "gpu-debug",
-    "qos": "gpu",
-    "scheduler_options": "#SBATCH --gpus-per-node=2\n#SBATCH --cpus-per-task=8",
-}
+
+# =============================================================================
+# Model Factory
+# =============================================================================
 
 
-# Model factory function for MatterSim
 def create_mattersim_model(device):
     """Create MatterSim model calculator.
 
@@ -40,10 +36,6 @@ def create_mattersim_model(device):
     return MatterSimCalculator(device=device)
 
 
-# Benchmark parameters
-NUM_STRUCTURES = 1000
-USE_MULTI_GPU = True
-
 # =============================================================================
 # Run Benchmark
 # =============================================================================
@@ -53,55 +45,52 @@ def main():
     """Run Matbench Discovery IS2RE benchmark with MatterSim."""
 
     print("=" * 80)
-    print("Matbench Discovery IS2RE Benchmark")
+    print("Matbench Discovery IS2RE Benchmark - MatterSim")
     print("=" * 80)
-    print(f"Endpoint:   {ENDPOINT_ID}")
-    print("Model:      MatterSim")
-    print(f"Structures: {NUM_STRUCTURES}")
-    print(f"Resources:  {'Multi-GPU' if USE_MULTI_GPU else 'Single GPU'}")
-    print("=" * 80)
+
+    # Run IS2RE task using the new groundhog API
+    output = MatbenchDiscovery.IS2RE.remote(
+        endpoint=ENDPOINT_ID,
+        user_endpoint_config={
+            "scheduler_options": "#SBATCH --gpus-per-node=2\n#SBATCH --cpus-per-task=8\n",
+            "walltime": 7200,  # 2 hours in seconds
+            "qos": "gpu",
+            "partition": "gpu-debug",
+            "account": "cis250461-gpu",
+            "cores_per_node": 16,
+            "mem_per_node": 32,
+            "requirements": "",
+        },
+        model_factory=create_mattersim_model,
+        model_packages="mattersim",
+        num_structures="random_100",
+    )
+
+    # Display metrics
     print()
+    print("=" * 80)
+    print("Benchmark Results")
+    print("=" * 80)
 
-    with MatbenchDiscovery(
-        endpoint_id=ENDPOINT_ID, user_endpoint_config=ENDPOINT_CONFIG
-    ) as bench:
-        # Run IS2RE task
-        print("Submitting IS2RE task...")
-        future = bench.tasks.IS2RE.submit(
-            model_factory=create_mattersim_model,
-            model_package="mattersim",
-            num_structures=NUM_STRUCTURES,
-            use_multi_gpu=USE_MULTI_GPU,
-        )
-
-        print("Waiting for results (this may take a while)...")
-        output = future.result()
-
-        # Display metrics
+    metrics = output.get("metrics", {})
+    if "error" in metrics:
+        print(f"Error: {metrics['error']}")
+    else:
+        # Discovery metrics
+        print(f"F1 Score:       {metrics.get('F1', 'N/A'):.6f}")
+        print(f"DAF:            {metrics.get('DAF', 'N/A'):.2f}x")
+        print(f"Precision:      {metrics.get('Precision', 'N/A'):.6f}")
+        print(f"Recall:         {metrics.get('Recall', 'N/A'):.6f}")
+        print(f"Accuracy:       {metrics.get('Accuracy', 'N/A'):.6f}")
         print()
-        print("=" * 80)
-        print("Benchmark Results")
-        print("=" * 80)
+        # Regression metrics
+        print(f"MAE (eV/atom):  {metrics.get('MAE', 'N/A'):.6f}")
+        print(f"RMSE (eV/atom): {metrics.get('RMSE', 'N/A'):.6f}")
+        print(f"R²:             {metrics.get('R2', 'N/A'):.6f}")
+        print()
+        print(f"Structures:     {metrics.get('num_evaluated', 'N/A')}")
 
-        metrics = output.get("metrics", {})
-        if "error" in metrics:
-            print(f"Error: {metrics['error']}")
-        else:
-            # Discovery metrics
-            print(f"F1 Score:       {metrics.get('F1', 'N/A'):.6f}")
-            print(f"DAF:            {metrics.get('DAF', 'N/A'):.2f}x")
-            print(f"Precision:      {metrics.get('Precision', 'N/A'):.6f}")
-            print(f"Recall:         {metrics.get('Recall', 'N/A'):.6f}")
-            print(f"Accuracy:       {metrics.get('Accuracy', 'N/A'):.6f}")
-            print()
-            # Regression metrics
-            print(f"MAE (eV/atom):  {metrics.get('MAE', 'N/A'):.6f}")
-            print(f"RMSE (eV/atom): {metrics.get('RMSE', 'N/A'):.6f}")
-            print(f"R²:             {metrics.get('R2', 'N/A'):.6f}")
-            print()
-            print(f"Structures:     {metrics.get('num_evaluated', 'N/A')}")
-
-        print("=" * 80)
+    print("=" * 80)
 
 
 if __name__ == "__main__":

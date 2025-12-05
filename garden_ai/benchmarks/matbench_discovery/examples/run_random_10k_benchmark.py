@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Run Matbench Discovery benchmarks on 10k most stable structures.
+Run Matbench Discovery benchmarks on 10k random structures.
 
-This script benchmarks MACE, MatterSim, and SevenNet on the 10k most stable
-materials from the unique prototypes subset and saves comprehensive metrics to JSON.
+This script benchmarks MACE, MatterSim, and SevenNet on a random 10k
+sample from the unique prototypes subset and saves comprehensive metrics to JSON.
 """
 
 import json
 from datetime import datetime
 from pathlib import Path
 
-from garden_ai.benchmarks.matbench_discovery import DatasetSize, MatbenchDiscovery
+from garden_ai.benchmarks.matbench_discovery import MatbenchDiscovery
 
 # =============================================================================
 # Configuration
@@ -19,18 +19,21 @@ from garden_ai.benchmarks.matbench_discovery import DatasetSize, MatbenchDiscove
 # Globus Compute endpoint
 ENDPOINT_ID = "5aafb4c1-27b2-40d8-a038-a0277611868f"
 
-# HPC endpoint configuration
+# Common endpoint configuration
 ENDPOINT_CONFIG = {
-    "account": "cis250461-gpu",
-    "partition": "gpu",
-    "qos": "gpu",
     "scheduler_options": "#SBATCH --gpus-per-node=4\n",
-    "cores_per_node": 8,
-    "mem_per_node": 32,
+    "walltime": 14400,  # 4 hours in seconds
+    "qos": "gpu",
+    "partition": "gpu",
+    "account": "cis250461-gpu",
+    "cores_per_node": 16,
+    "mem_per_node": 64,
+    "requirements": "",
 }
 
 # Output file for metrics
-OUTPUT_FILE = "stable_10k_benchmark_results.json"
+OUTPUT_FILE = "random_10k_benchmark_results.json"
+
 
 # =============================================================================
 # Model Factory Functions
@@ -61,18 +64,24 @@ def create_sevennet_model(device):
 # Model configurations
 MODELS = {
     "MACE": {
-        "package": "mace-torch",
+        "packages": [
+            "mace-torch",
+            "cuequivariance",
+            "cuequivariance-torch",
+            "cuequivariance-ops-torch-cu12",
+        ],
         "factory": create_mace_model,
     },
     "MatterSim": {
-        "package": "mattersim",
+        "packages": ["mattersim"],
         "factory": create_mattersim_model,
     },
     "SevenNet": {
-        "package": "sevenn",
+        "packages": ["sevenn"],
         "factory": create_sevennet_model,
     },
 }
+
 
 # =============================================================================
 # Run Benchmarks
@@ -83,9 +92,9 @@ def main():
     """Run benchmarks on all models and save results."""
 
     print("=" * 80)
-    print("Matbench Discovery Benchmark - Stable 10k")
+    print("Matbench Discovery Benchmark - Random 10k")
     print("=" * 80)
-    print("Dataset: 10k Most Stable Structures")
+    print("Dataset: Random 10k from Unique Prototypes")
     print(f"Models: {', '.join(MODELS.keys())}")
     print(f"Endpoint: {ENDPOINT_ID}")
     print("=" * 80)
@@ -94,96 +103,54 @@ def main():
     results = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
-            "dataset": "stable_10k",
+            "dataset": "random_10k",
             "dataset_size": 10000,
             "endpoint_id": ENDPOINT_ID,
         },
         "models": {},
     }
 
-    with MatbenchDiscovery(
-        endpoint_id=ENDPOINT_ID, user_endpoint_config=ENDPOINT_CONFIG
-    ) as bench:
-        for model_name, config in MODELS.items():
-            print(f"\n{'=' * 80}")
-            print(f"Running {model_name}...")
-            print(f"{'=' * 80}\n")
+    for model_name, config in MODELS.items():
+        print(f"\n{'=' * 80}")
+        print(f"Running {model_name}...")
+        print(f"{'=' * 80}\n")
 
-            try:
-                # Submit job
-                future = bench.tasks.IS2RE.submit(
-                    model_factory=config["factory"],
-                    model_packages=[
-                        config["package"],
-                        "cuequivariance",
-                        "cuequivariance-torch",
-                        "cuequivariance-ops-torch-cu12",
-                    ],
-                    num_structures=DatasetSize.RANDOM_10K,
-                )
+        try:
+            # Run benchmark using the new groundhog API
+            output = MatbenchDiscovery.IS2RE.remote(
+                endpoint=ENDPOINT_ID,
+                user_endpoint_config=ENDPOINT_CONFIG,
+                model_factory=config["factory"],
+                model_packages=config["packages"],
+                num_structures="random_10k",
+            )
 
-                print(f"Job submitted for {model_name}. Waiting for results...")
+            # Store complete output (contains both metrics and per-structure results)
+            results["models"][model_name] = {
+                "status": "success",
+                **output,
+            }
 
-                try:
-                    output = future.result()
-                except Exception as e:
-                    print(f"⚠️ {model_name} failed first attempt: {e}")
-                    print(f"   Resuming from checkpoint: {future.checkpoint_path}")
+            # Display metrics
+            metrics = output.get("metrics", {})
+            if "error" in metrics:
+                print(f"❌ {model_name} failed: {metrics['error']}")
+                results["models"][model_name]["status"] = "failed"
+                results["models"][model_name]["error"] = metrics["error"]
+            else:
+                print(f"✅ {model_name} completed successfully!")
+                print(f"   F1 Score:       {metrics.get('F1', 'N/A'):.6f}")
+                print(f"   DAF:            {metrics.get('DAF', 'N/A'):.2f}x")
+                print(f"   MAE (eV/atom):  {metrics.get('MAE', 'N/A'):.6f}")
+                print(f"   RMSE (eV/atom): {metrics.get('RMSE', 'N/A'):.6f}")
+                print(f"   Structures:     {metrics.get('num_evaluated', 'N/A')}")
 
-                    # Extract checkpoint name from path
-                    checkpoint_name = Path(future.checkpoint_path).name
-
-                    # Resubmit with same checkpoint name to resume
-                    retry_future = bench.tasks.IS2RE.submit(
-                        model_factory=config["factory"],
-                        model_packages=[
-                            config["package"],
-                            "cuequivariance",
-                            "cuequivariance-torch",
-                            "cuequivariance-ops-torch-cu12",
-                        ],
-                        num_structures=DatasetSize.RANDOM_10K,
-                        checkpoint_name=checkpoint_name,
-                    )
-
-                    try:
-                        print("   Retry job submitted. Waiting for results...")
-                        output = retry_future.result()
-                        print("   ✅ Retry successful!")
-                    except Exception as retry_e:
-                        print(f"❌ {model_name} failed retry: {retry_e}")
-                        results["models"][model_name] = {
-                            "status": "error",
-                            "error": str(retry_e),
-                        }
-                        continue  # Skip to next model
-
-                # Store complete output (contains both metrics and per-structure results)
-                results["models"][model_name] = {
-                    "status": "success",
-                    **output,  # Unpack entire output dict (metrics + results)
-                }
-
-                # Display metrics
-                metrics = output.get("metrics", {})
-                if "error" in metrics:
-                    print(f"❌ {model_name} failed: {metrics['error']}")
-                    results["models"][model_name]["status"] = "failed"
-                    results["models"][model_name]["error"] = metrics["error"]
-                else:
-                    print(f"✅ {model_name} completed successfully!")
-                    print(f"   F1 Score:       {metrics.get('F1', 'N/A'):.6f}")
-                    print(f"   DAF:            {metrics.get('DAF', 'N/A'):.2f}x")
-                    print(f"   MAE (eV/atom):  {metrics.get('MAE', 'N/A'):.6f}")
-                    print(f"   RMSE (eV/atom): {metrics.get('RMSE', 'N/A'):.6f}")
-                    print(f"   Structures:     {metrics.get('num_evaluated', 'N/A')}")
-
-            except Exception as e:
-                print(f"❌ {model_name} error: {e}")
-                results["models"][model_name] = {
-                    "status": "error",
-                    "error": str(e),
-                }
+        except Exception as e:
+            print(f"❌ {model_name} error: {e}")
+            results["models"][model_name] = {
+                "status": "error",
+                "error": str(e),
+            }
 
     # Save results to JSON
     output_path = Path(OUTPUT_FILE)

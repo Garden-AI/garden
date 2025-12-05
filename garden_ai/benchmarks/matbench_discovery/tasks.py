@@ -214,10 +214,11 @@ def _process_batch_common(
     num_threads: int,
     compute_fn: Callable[[Any, Any], Dict[str, Any]],
     task_name: str,
-    model_factory: Callable[[str], Any],
+    model_factory_source: str,
 ) -> Dict[str, Any]:
     import logging
     import os
+    import re
     import time
 
     import torch
@@ -236,6 +237,19 @@ def _process_batch_common(
     global _MODEL_CACHE
     try:
         if _MODEL_CACHE is None:
+            # Reconstruct model_factory from source code
+            func_name_match = re.search(r"def\s+(\w+)\s*\(", model_factory_source)
+            if not func_name_match:
+                raise ValueError(
+                    "Could not extract function name from model_factory source"
+                )
+            func_name = func_name_match.group(1)
+
+            # Execute the source to define the function
+            local_namespace = {}
+            exec(model_factory_source, local_namespace)
+            model_factory = local_namespace[func_name]
+
             model = model_factory(device)
             _MODEL_CACHE = model
         else:
@@ -350,7 +364,7 @@ def process_batch_relaxation(
     structures: List[Any],
     model_config: Dict[str, Any],
     num_threads: int,
-    model_factory: Callable[[str], Any],
+    model_factory_source: str,
 ) -> Dict[str, Any]:
     from ase.optimize import FIRE
 
@@ -368,7 +382,7 @@ def process_batch_relaxation(
         num_threads,
         compute,
         "relaxation",
-        model_factory,
+        model_factory_source,
     )
 
 
@@ -377,7 +391,7 @@ def process_batch_static(
     structures: List[Any],
     model_config: Dict[str, Any],
     num_threads: int,
-    model_factory: Callable[[str], Any],
+    model_factory_source: str,
 ) -> Dict[str, Any]:
     def compute(model, atoms):
         atoms.calc = model
@@ -391,7 +405,7 @@ def process_batch_static(
         num_threads,
         compute,
         "static calculation",
-        model_factory,
+        model_factory_source,
     )
 
 
@@ -400,7 +414,7 @@ def process_batch_forces(
     structures: List[Any],
     model_config: Dict[str, Any],
     num_threads: int,
-    model_factory: Callable[[str], Any],
+    model_factory_source: str,
 ) -> Dict[str, Any]:
     def compute(model, atoms):
         atoms.calc = model
@@ -416,7 +430,7 @@ def process_batch_forces(
         num_threads,
         compute,
         "forces calculation",
-        model_factory,
+        model_factory_source,
     )
 
 
@@ -582,13 +596,62 @@ def calculate_metrics_forces(
 
 def run_benchmark_hog(
     config: Dict[str, Any],
-    model_factory: Any,
+    model_packages: str | List[str],
+    model_factory_source: str,
     load_dataset_fn: Any,
     process_fn: Any,
     calc_metrics_fn: Any,
 ) -> Dict[str, Any]:
     logger = setup_logging()
     logger.info("Starting benchmark runner...")
+
+    # Install model packages if specified
+    if model_packages:
+        import subprocess
+
+        packages = (
+            model_packages if isinstance(model_packages, list) else [model_packages]
+        )
+        logger.info(f"Installing model packages: {packages}")
+        try:
+            result = subprocess.run(
+                ["uv", "pip", "install"] + packages,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+            )
+            if result.returncode != 0:
+                error_msg = (
+                    f"Failed to install model packages: {packages}\n"
+                    f"stdout: {result.stdout}\n"
+                    f"stderr: {result.stderr}"
+                )
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+            logger.info("Model packages installed successfully")
+        except subprocess.TimeoutExpired:
+            error_msg = f"Model package installation timed out after 300s: {packages}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise  # Re-raise our own errors
+            error_msg = f"Could not install model packages: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+
+    # Fix SSL certificate issues on HPC nodes using certifi
+    try:
+        import ssl
+
+        import certifi
+
+        os.environ["SSL_CERT_FILE"] = certifi.where()
+        os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+        ssl._create_default_https_context = ssl.create_default_context
+        logger.info(f"SSL certificates configured: {certifi.where()}")
+    except ImportError:
+        logger.warning("certifi not available, SSL issues may occur")
 
     checkpoint_path = config.get("checkpoint_path")
     results = {}
@@ -679,7 +742,7 @@ def run_benchmark_hog(
                             batch,
                             worker_config,
                             threads_per_worker,
-                            model_factory,
+                            model_factory_source,
                         )
                     )
 
@@ -730,11 +793,65 @@ def run_benchmark_hog(
 
 
 # ------------------------------------------------------------------------------
+# BENCHMARK METHOD WRAPPER
+# ------------------------------------------------------------------------------
+
+
+class BenchmarkMethod:
+    """Wrapper around groundhog Method that handles model_factory source extraction.
+
+    This wrapper intercepts .remote(), .local(), and .submit() calls to automatically
+    extract source code from the model_factory callable before passing to groundhog.
+    This avoids pickle serialization issues with functions defined in __main__.
+    """
+
+    def __init__(self, hog_method):
+        """Initialize wrapper with the underlying groundhog Method."""
+        self._hog_method = hog_method
+
+    def _extract_factory_source(self, kwargs):
+        """Extract source code from model_factory if it's a callable."""
+        import inspect
+
+        if "model_factory" in kwargs:
+            factory = kwargs["model_factory"]
+            if callable(factory) and not isinstance(factory, str):
+                try:
+                    kwargs["model_factory"] = inspect.getsource(factory)
+                except (OSError, TypeError) as e:
+                    raise ValueError(
+                        f"Could not extract source code from model_factory. "
+                        f"Ensure the function is defined in a file (not interactive/lambda). "
+                        f"Error: {e}"
+                    )
+        return kwargs
+
+    def remote(self, *args, **kwargs):
+        """Execute remotely with automatic model_factory source extraction."""
+        kwargs = self._extract_factory_source(kwargs)
+        return self._hog_method.remote(*args, **kwargs)
+
+    def local(self, *args, **kwargs):
+        """Execute locally with automatic model_factory source extraction."""
+        kwargs = self._extract_factory_source(kwargs)
+        return self._hog_method.local(*args, **kwargs)
+
+    def submit(self, *args, **kwargs):
+        """Submit for async execution with automatic model_factory source extraction."""
+        kwargs = self._extract_factory_source(kwargs)
+        return self._hog_method.submit(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        """Direct call (for local execution within groundhog)."""
+        return self._hog_method(*args, **kwargs)
+
+
+# ------------------------------------------------------------------------------
 # CLASS DEFINITION
 # ------------------------------------------------------------------------------
 
 
-class MatbenchDiscovery:
+class _MatbenchDiscoveryBase:
     """Matbench Discovery tasks using Groundhog HPC."""
 
     REPO_URL = "https://github.com/janosh/matbench-discovery"
@@ -742,7 +859,7 @@ class MatbenchDiscovery:
 
     @staticmethod
     def _prepare_runner_config(
-        num_structures: int | "DatasetSize" | "DatasetConfig",
+        num_structures: int | "DatasetSize" | "DatasetConfig" | str,
         repo_url: str = REPO_URL,
         repo_ref: str = REPO_REF,
     ) -> Dict[str, Any]:
@@ -757,7 +874,10 @@ class MatbenchDiscovery:
         subset = "full"
         seed = 42
 
-        if hasattr(num_structures, "value"):  # Enum
+        if isinstance(num_structures, str):
+            # String value like "random_100" - use directly as subset
+            subset = num_structures
+        elif hasattr(num_structures, "value"):  # Enum
             subset = num_structures.value
             # Check for seed method/attr if it's our custom Config
             if hasattr(num_structures, "seed"):
@@ -818,6 +938,23 @@ class MatbenchDiscovery:
         calc_metrics_fn: Any,
         sys_path: List[str] | None = None,
     ) -> Dict[str, Any]:
+        import inspect
+
+        # Handle model_factory as either a callable or source string
+        # For remote execution, user should pass inspect.getsource(factory)
+        # For local execution, can pass the function directly
+        if isinstance(model_factory, str):
+            model_factory_source = model_factory
+        else:
+            try:
+                model_factory_source = inspect.getsource(model_factory)
+            except (OSError, TypeError) as e:
+                raise ValueError(
+                    f"Could not extract source code from model_factory. "
+                    f"For remote execution, use: inspect.getsource(your_factory). "
+                    f"Error: {e}"
+                )
+
         # Add custom sys.path if provided (useful for local execution/testing)
         if sys_path:
             import sys
@@ -850,7 +987,8 @@ class MatbenchDiscovery:
 
         return run_benchmark_hog(
             runner_config,
-            model_factory,
+            model_packages,
+            model_factory_source,
             load_dataset_fn,
             process_fn,
             calc_metrics_fn,
@@ -925,18 +1063,18 @@ class MatbenchDiscovery:
     # Aliases
     @hog.method()
     def S2EF(*args, **kwargs):
-        return MatbenchDiscovery.S2EFS(*args, **kwargs)
+        return _MatbenchDiscoveryBase.S2EFS(*args, **kwargs)
 
     @hog.method()
     def S2EFSM(*args, **kwargs):
-        return MatbenchDiscovery.S2EFS(*args, **kwargs)
+        return _MatbenchDiscoveryBase.S2EFS(*args, **kwargs)
 
     @hog.method()
     def IS2E(*args, **kwargs):
         # Same as IS2RE but static? No, IS2E is Initial Structure to Energy (Static).
         # IS2RE is Relaxation.
         # IS2E logic:
-        return MatbenchDiscovery._run_task(
+        return _MatbenchDiscoveryBase._run_task(
             *args,
             **kwargs,
             process_fn=process_batch_static,
@@ -947,17 +1085,65 @@ class MatbenchDiscovery:
     @hog.method()
     def S2E(*args, **kwargs):
         # Structure to Energy (Relaxed Structure to Energy) -> RS2RE
-        return MatbenchDiscovery.RS2RE(*args, **kwargs)
+        return _MatbenchDiscoveryBase.RS2RE(*args, **kwargs)
 
     @hog.method()
     def S2RE(*args, **kwargs):
         # Structure to Relaxed Energy -> IS2RE
-        return MatbenchDiscovery.IS2RE(*args, **kwargs)
+        return _MatbenchDiscoveryBase.IS2RE(*args, **kwargs)
 
     @hog.method()
     def RP2RE(*args, **kwargs):
-        return MatbenchDiscovery.IS2RE(*args, **kwargs)
+        return _MatbenchDiscoveryBase.IS2RE(*args, **kwargs)
 
     @hog.method()
     def IP2E(*args, **kwargs):
-        return MatbenchDiscovery.IS2E(*args, **kwargs)
+        return _MatbenchDiscoveryBase.IS2E(*args, **kwargs)
+
+
+# ------------------------------------------------------------------------------
+# PUBLIC API - Wrapped methods with automatic source extraction
+# ------------------------------------------------------------------------------
+
+
+class MatbenchDiscovery:
+    """Matbench Discovery benchmark tasks.
+
+    This class provides wrapped methods that automatically handle model_factory
+    source extraction for remote execution. Users can pass callable functions
+    directly without needing to call inspect.getsource() themselves.
+
+    Example:
+        def create_mace_model(device):
+            from mace.calculators import mace_mp
+            return mace_mp(model="medium", device=device)
+
+        # Just pass the function - source extraction is automatic
+        results = MatbenchDiscovery.IS2RE.remote(
+            endpoint="your-endpoint-id",
+            model_factory=create_mace_model,
+            model_packages="mace-torch",
+        )
+    """
+
+    REPO_URL = _MatbenchDiscoveryBase.REPO_URL
+    REPO_REF = _MatbenchDiscoveryBase.REPO_REF
+
+    # Internal methods (needed for remote execution compatibility)
+    _prepare_runner_config = _MatbenchDiscoveryBase._prepare_runner_config
+    _generate_checkpoint_name = _MatbenchDiscoveryBase._generate_checkpoint_name
+    _run_task = _MatbenchDiscoveryBase._run_task
+
+    # Main benchmark tasks - wrapped for automatic model_factory source extraction
+    IS2RE = BenchmarkMethod(_MatbenchDiscoveryBase.IS2RE)
+    RS2RE = BenchmarkMethod(_MatbenchDiscoveryBase.RS2RE)
+    S2EFS = BenchmarkMethod(_MatbenchDiscoveryBase.S2EFS)
+
+    # Aliases
+    S2EF = BenchmarkMethod(_MatbenchDiscoveryBase.S2EF)
+    S2EFSM = BenchmarkMethod(_MatbenchDiscoveryBase.S2EFSM)
+    IS2E = BenchmarkMethod(_MatbenchDiscoveryBase.IS2E)
+    S2E = BenchmarkMethod(_MatbenchDiscoveryBase.S2E)
+    S2RE = BenchmarkMethod(_MatbenchDiscoveryBase.S2RE)
+    RP2RE = BenchmarkMethod(_MatbenchDiscoveryBase.RP2RE)
+    IP2E = BenchmarkMethod(_MatbenchDiscoveryBase.IP2E)
