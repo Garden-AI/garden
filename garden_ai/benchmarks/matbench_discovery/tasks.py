@@ -11,7 +11,6 @@
 #     "matbench-discovery",
 # ]
 # ///
-"""Matbench Discovery benchmark task implementations using Groundhog HPC."""
 
 from __future__ import annotations
 
@@ -34,10 +33,6 @@ sys.path.append(os.getcwd())
 
 if TYPE_CHECKING:
     from .enums import DatasetConfig, DatasetSize
-
-# ------------------------------------------------------------------------------
-# BOILERPLATE: Logging & Device Setup
-# ------------------------------------------------------------------------------
 
 
 def setup_logging():
@@ -80,11 +75,33 @@ def convert_numpy_types(obj):
     return obj
 
 
-# ------------------------------------------------------------------------------
-# METRICS HELPERS (Inlined from metrics.py)
-# ------------------------------------------------------------------------------
+# Meta metrics functions - will be injected from source for remote execution
+get_hardware_info = None
+extract_model_info = None
+calculate_run_metadata = None
 
 
+def _inject_meta_metrics(source: str) -> None:
+    """Inject meta_metrics functions from source code for remote execution."""
+    global get_hardware_info, extract_model_info, calculate_run_metadata
+    namespace = {}
+    exec(source, namespace)
+    get_hardware_info = namespace["get_hardware_info"]
+    extract_model_info = namespace["extract_model_info"]
+    calculate_run_metadata = namespace["calculate_run_metadata"]
+
+
+def _get_meta_metrics_source() -> str:
+    """Get source code of meta_metrics module (called locally)."""
+    import inspect
+
+    from garden_ai.benchmarks.utils import meta_metrics
+
+    return inspect.getsource(meta_metrics)
+
+
+# Metrics calculations lifted from https://github.com/janosh/matbench-discovery/tree/main/matbench_discovery/metrics
+# Since they aren't setup to be easily imported, we just copy them here
 def classify_stable(
     each_true: Sequence[float] | pd.Series | np.ndarray,
     each_pred: Sequence[float] | pd.Series | np.ndarray,
@@ -125,6 +142,7 @@ def classify_stable(
     return true_pos, false_neg, false_pos, true_neg
 
 
+# This is also coptied from the matbench-discovery repo
 def stable_metrics(
     each_true: Sequence[float] | pd.Series | np.ndarray,
     each_pred: Sequence[float] | pd.Series | np.ndarray,
@@ -199,10 +217,6 @@ def stable_metrics(
         R2=r2_score(each_true, each_pred) if len(each_true) > 1 else float("nan"),
     )
 
-
-# ------------------------------------------------------------------------------
-# REMOTE HELPERS (Inlined from remote.py)
-# ------------------------------------------------------------------------------
 
 _MODEL_CACHE = None
 
@@ -589,21 +603,26 @@ def calculate_metrics_forces(
     return result_metrics
 
 
-# ------------------------------------------------------------------------------
-# MAIN RUNNER (Inlined from runners.py)
-# ------------------------------------------------------------------------------
-
-
 def run_benchmark_hog(
     config: Dict[str, Any],
     model_packages: str | List[str],
     model_factory_source: str,
+    meta_metrics_source: str,
     load_dataset_fn: Any,
     process_fn: Any,
     calc_metrics_fn: Any,
 ) -> Dict[str, Any]:
     logger = setup_logging()
     logger.info("Starting benchmark runner...")
+
+    # Inject meta_metrics functions from source
+    _inject_meta_metrics(meta_metrics_source)
+
+    # Collect hardware and model info
+    hardware_info = get_hardware_info()
+    model_info = extract_model_info(model_packages)
+    logger.info(f"Hardware: {hardware_info}")
+    logger.info(f"Model: {model_info}")
 
     # Install model packages if specified
     if model_packages:
@@ -681,7 +700,15 @@ def run_benchmark_hog(
 
     if not items_to_process:
         logger.info("All items already processed!")
-        return {"results": results, "metrics": {}}
+        run_metadata = calculate_run_metadata(
+            hardware_info=hardware_info,
+            model_info=model_info,
+            total_elapsed=0,
+            num_workers=0,
+            num_structures_total=len(all_items),
+            num_structures_processed=0,
+        )
+        return {"metrics": {}, "run_metadata": run_metadata}
 
     logger.info(f"Processing {len(items_to_process)} remaining items")
 
@@ -698,7 +725,12 @@ def run_benchmark_hog(
         num_gpus = 0
 
     use_multi_gpu = config.get("use_multi_gpu", True) and num_gpus > 1
-    total_cores = os.cpu_count() or 1
+    # Use sched_getaffinity to get cores available to this job, not total cores on node
+    try:
+        total_cores = len(os.sched_getaffinity(0))
+    except AttributeError:
+        # Fallback for systems without sched_getaffinity (e.g., macOS)
+        total_cores = os.cpu_count() or 1
     num_workers = num_gpus if use_multi_gpu else 1
     available_cores = max(1, total_cores - 2) if total_cores > 4 else total_cores
     threads_per_worker = max(1, available_cores // num_workers)
@@ -787,32 +819,34 @@ def run_benchmark_hog(
         traceback.print_exc()
         metrics = {"error": f"Metrics calculation failed: {e}"}
 
-    output = {"results": results, "metrics": metrics}
+    # Calculate run metadata
+    run_metadata = calculate_run_metadata(
+        hardware_info=hardware_info,
+        model_info=model_info,
+        total_elapsed=total_elapsed,
+        num_workers=num_workers,
+        num_structures_total=len(all_items),
+        num_structures_processed=len(items_to_process),
+    )
+    logger.info(f"Run metadata: {run_metadata}")
+
+    output = {"metrics": metrics, "run_metadata": run_metadata}
     output = convert_numpy_types(output)
     return output
 
 
-# ------------------------------------------------------------------------------
-# BENCHMARK METHOD WRAPPER
-# ------------------------------------------------------------------------------
-
-
 class BenchmarkMethod:
-    """Wrapper around groundhog Method that handles model_factory source extraction.
-
-    This wrapper intercepts .remote(), .local(), and .submit() calls to automatically
-    extract source code from the model_factory callable before passing to groundhog.
-    This avoids pickle serialization issues with functions defined in __main__.
-    """
+    """Wrapper around groundhog Method that handles source extraction for remote execution."""
 
     def __init__(self, hog_method):
         """Initialize wrapper with the underlying groundhog Method."""
         self._hog_method = hog_method
 
-    def _extract_factory_source(self, kwargs):
-        """Extract source code from model_factory if it's a callable."""
+    def _extract_sources(self, kwargs):
+        """Extract source code from model_factory and meta_metrics for remote execution."""
         import inspect
 
+        # Extract model_factory source
         if "model_factory" in kwargs:
             factory = kwargs["model_factory"]
             if callable(factory) and not isinstance(factory, str):
@@ -824,31 +858,93 @@ class BenchmarkMethod:
                         f"Ensure the function is defined in a file (not interactive/lambda). "
                         f"Error: {e}"
                     )
+
+        # Extract meta_metrics source (runs locally where garden_ai is available)
+        kwargs["meta_metrics_source"] = _get_meta_metrics_source()
+
         return kwargs
 
+    def _get_checkpoint_path_info(self, kwargs):
+        """Determine and return checkpoint path information from kwargs."""
+        checkpoint_path = kwargs.get("checkpoint_path")
+        checkpoint_name = kwargs.get("checkpoint_name")
+        model_packages = kwargs.get("model_packages", "")
+
+        if checkpoint_path:
+            return checkpoint_path, "resuming"
+        elif checkpoint_name:
+            final_path = os.path.expanduser(f"~/.garden/benchmarks/{checkpoint_name}")
+            return final_path, "new"
+        else:
+            # Generate checkpoint name using same logic as _run_task
+            num_structures = kwargs.get("num_structures", 100)
+
+            # Determine subset string for checkpoint name
+            subset = "full"
+            if isinstance(num_structures, str):
+                subset = num_structures
+            elif hasattr(num_structures, "value"):  # DatasetSize enum
+                subset = num_structures.value
+            elif hasattr(num_structures, "subset"):  # DatasetConfig
+                subset = num_structures.subset.value
+            elif isinstance(num_structures, int):
+                subset = "full" if num_structures >= 200000 else f"num_{num_structures}"
+
+            # Extract model name from packages
+            model_str = "unknown"
+            if isinstance(model_packages, list):
+                model_str = "_".join(
+                    pkg.split("/")[-1].split("@")[0] for pkg in model_packages[:2]
+                )
+            elif isinstance(model_packages, str):
+                model_str = model_packages.split("/")[-1].split("@")[0]
+
+            # Generate timestamp and uuid like in _generate_checkpoint_name
+            import time
+            import uuid
+
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            short_uuid = str(uuid.uuid4())[:8]
+            checkpoint_name = (
+                f"matbench_{model_str}_{subset}_{timestamp}_{short_uuid}.json"
+            )
+            final_path = os.path.expanduser(f"~/.garden/benchmarks/{checkpoint_name}")
+            return final_path, "new"
+
+    def _print_checkpoint_info(self, kwargs):
+        """Print checkpoint information before execution."""
+        checkpoint_path, checkpoint_type = self._get_checkpoint_path_info(kwargs)
+
+        print("=" * 80)
+        if checkpoint_type == "resuming":
+            print(f"📂 Resuming from checkpoint: {checkpoint_path}")
+        else:
+            print(f"💾 Checkpoint will be saved to: {checkpoint_path}")
+        print("   To resume this benchmark if it fails, use:")
+        print(f'   checkpoint_path="{checkpoint_path}"')
+        print("=" * 80)
+
     def remote(self, *args, **kwargs):
-        """Execute remotely with automatic model_factory source extraction."""
-        kwargs = self._extract_factory_source(kwargs)
+        """Execute remotely with automatic source extraction."""
+        kwargs = self._extract_sources(kwargs)
+        self._print_checkpoint_info(kwargs)
         return self._hog_method.remote(*args, **kwargs)
 
     def local(self, *args, **kwargs):
-        """Execute locally with automatic model_factory source extraction."""
-        kwargs = self._extract_factory_source(kwargs)
+        """Execute locally with automatic source extraction."""
+        kwargs = self._extract_sources(kwargs)
+        self._print_checkpoint_info(kwargs)
         return self._hog_method.local(*args, **kwargs)
 
     def submit(self, *args, **kwargs):
-        """Submit for async execution with automatic model_factory source extraction."""
-        kwargs = self._extract_factory_source(kwargs)
+        """Submit for async execution with automatic source extraction."""
+        kwargs = self._extract_sources(kwargs)
+        self._print_checkpoint_info(kwargs)
         return self._hog_method.submit(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):
         """Direct call (for local execution within groundhog)."""
         return self._hog_method(*args, **kwargs)
-
-
-# ------------------------------------------------------------------------------
-# CLASS DEFINITION
-# ------------------------------------------------------------------------------
 
 
 class _MatbenchDiscoveryBase:
@@ -937,12 +1033,11 @@ class _MatbenchDiscoveryBase:
         load_dataset_fn: Any,
         calc_metrics_fn: Any,
         sys_path: List[str] | None = None,
+        meta_metrics_source: str | None = None,
     ) -> Dict[str, Any]:
         import inspect
 
         # Handle model_factory as either a callable or source string
-        # For remote execution, user should pass inspect.getsource(factory)
-        # For local execution, can pass the function directly
         if isinstance(model_factory, str):
             model_factory_source = model_factory
         else:
@@ -955,7 +1050,7 @@ class _MatbenchDiscoveryBase:
                     f"Error: {e}"
                 )
 
-        # Add custom sys.path if provided (useful for local execution/testing)
+        # Add custom sys.path if provided
         if sys_path:
             import sys
 
@@ -980,15 +1075,19 @@ class _MatbenchDiscoveryBase:
             final_checkpoint_path = os.path.expanduser(
                 f"~/.garden/benchmarks/{checkpoint_name}"
             )
-            # Ensure directory exists
             os.makedirs(os.path.dirname(final_checkpoint_path), exist_ok=True)
 
         runner_config["checkpoint_path"] = final_checkpoint_path
+
+        # meta_metrics_source is injected by BenchmarkMethod wrapper
+        if meta_metrics_source is None:
+            raise ValueError("meta_metrics_source required for benchmark execution")
 
         return run_benchmark_hog(
             runner_config,
             model_packages,
             model_factory_source,
+            meta_metrics_source,
             load_dataset_fn,
             process_fn,
             calc_metrics_fn,
@@ -1002,6 +1101,7 @@ class _MatbenchDiscoveryBase:
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
+        meta_metrics_source: str | None = None,
     ) -> Dict[str, Any]:
         """Initial Structure to Relaxed Energy."""
         return MatbenchDiscovery._run_task(
@@ -1014,6 +1114,7 @@ class _MatbenchDiscoveryBase:
             load_dataset_wbm_initial,
             calculate_metrics_energy,
             sys_path=sys_path,
+            meta_metrics_source=meta_metrics_source,
         )
 
     @hog.method()
@@ -1024,6 +1125,7 @@ class _MatbenchDiscoveryBase:
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
+        meta_metrics_source: str | None = None,
     ) -> Dict[str, Any]:
         """Relaxed Structure to Relaxed Energy."""
         return MatbenchDiscovery._run_task(
@@ -1036,6 +1138,7 @@ class _MatbenchDiscoveryBase:
             load_dataset_wbm_relaxed,
             calculate_metrics_energy,
             sys_path=sys_path,
+            meta_metrics_source=meta_metrics_source,
         )
 
     @hog.method()
@@ -1046,6 +1149,7 @@ class _MatbenchDiscoveryBase:
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
+        meta_metrics_source: str | None = None,
     ) -> Dict[str, Any]:
         """Structure to Energy, Forces, Stress."""
         return MatbenchDiscovery._run_task(
@@ -1058,6 +1162,7 @@ class _MatbenchDiscoveryBase:
             load_dataset_mp_trj,
             calculate_metrics_forces,
             sys_path=sys_path,
+            meta_metrics_source=meta_metrics_source,
         )
 
     # Aliases
@@ -1101,11 +1206,6 @@ class _MatbenchDiscoveryBase:
         return _MatbenchDiscoveryBase.IS2E(*args, **kwargs)
 
 
-# ------------------------------------------------------------------------------
-# PUBLIC API - Wrapped methods with automatic source extraction
-# ------------------------------------------------------------------------------
-
-
 class MatbenchDiscovery:
     """Matbench Discovery benchmark tasks.
 
@@ -1118,7 +1218,6 @@ class MatbenchDiscovery:
             from mace.calculators import mace_mp
             return mace_mp(model="medium", device=device)
 
-        # Just pass the function - source extraction is automatic
         results = MatbenchDiscovery.IS2RE.remote(
             endpoint="your-endpoint-id",
             model_factory=create_mace_model,
