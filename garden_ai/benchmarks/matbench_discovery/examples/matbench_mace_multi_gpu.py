@@ -14,14 +14,14 @@ ANVIL = "5aafb4c1-27b2-40d8-a038-a0277611868f"
 def create_mace_model(device):
     from mace.calculators import mace_mp
 
-    return mace_mp(model="medium", device=device, default_dtype="float64")
+    return mace_mp(model="medium-mpa-0", device=device, default_dtype="float64")
 
 
 results = MatbenchDiscovery.IS2RE.remote(
     endpoint=ANVIL,
     user_endpoint_config={
         "scheduler_options": "#SBATCH --gpus-per-node=4\n",
-        "walltime": 3600,
+        "walltime": "05:00:00",
         "qos": "gpu",
         "partition": "gpu",
         "account": "cis250461-gpu",
@@ -35,7 +35,7 @@ results = MatbenchDiscovery.IS2RE.remote(
         "cuequivariance-torch",
         "cuequivariance-ops-torch-cu12",
     ],
-    num_structures=100,
+    checkpoint_path="~/.garden/benchmarks/matbench_mace-torch_cuequivariance_full_20251208_115719_ed2e47af.json",
 )
 
 print(results)

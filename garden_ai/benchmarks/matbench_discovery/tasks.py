@@ -2,7 +2,6 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #     "groundhog-hpc",
-#     "garden-ai",
 #     "ase",
 #     "numpy",
 #     "pandas",
@@ -348,9 +347,11 @@ def _load_dataset_common(
                 if x.split(".")[0].isdigit()
                 else float("inf"),
             )
-            num_structures = config.get("num_structures", 100)
-            if isinstance(num_structures, int):
-                file_list = file_list[:num_structures]
+            # Only limit structures if explicitly specified (not when using full dataset)
+            if "num_structures" in config:
+                num_structures = config["num_structures"]
+                if isinstance(num_structures, int):
+                    file_list = file_list[:num_structures]
         else:
             mat_id_set = set(mat_ids)
             file_list = [
@@ -864,20 +865,31 @@ class BenchmarkMethod:
 
         return kwargs
 
-    def _get_checkpoint_path_info(self, kwargs):
-        """Determine and return checkpoint path information from kwargs."""
+    def _get_checkpoint_info_for_display(self, kwargs, is_remote: bool):
+        """Get checkpoint information to display to the user.
+
+        Args:
+            kwargs: Method keyword arguments
+            is_remote: True if this is a remote/submit call, False for local
+
+        Returns:
+            Tuple of (display_message, checkpoint_identifier, is_resuming)
+        """
         checkpoint_path = kwargs.get("checkpoint_path")
         checkpoint_name = kwargs.get("checkpoint_name")
-        model_packages = kwargs.get("model_packages", "")
 
         if checkpoint_path:
-            return checkpoint_path, "resuming"
-        elif checkpoint_name:
-            final_path = os.path.expanduser(f"~/.garden/benchmarks/{checkpoint_name}")
-            return final_path, "new"
-        else:
-            # Generate checkpoint name using same logic as _run_task
-            num_structures = kwargs.get("num_structures", 100)
+            # User provided explicit path
+            if is_remote:
+                msg = f"Resuming from checkpoint on remote system: {checkpoint_path}"
+            else:
+                msg = f"Resuming from checkpoint: {checkpoint_path}"
+            return msg, checkpoint_path, True
+
+        # Generate checkpoint name
+        if not checkpoint_name:
+            model_packages = kwargs.get("model_packages", "")
+            num_structures = kwargs.get("num_structures", "full")
 
             # Determine subset string for checkpoint name
             subset = "full"
@@ -908,38 +920,60 @@ class BenchmarkMethod:
             checkpoint_name = (
                 f"matbench_{model_str}_{subset}_{timestamp}_{short_uuid}.json"
             )
-            final_path = os.path.expanduser(f"~/.garden/benchmarks/{checkpoint_name}")
-            return final_path, "new"
 
-    def _print_checkpoint_info(self, kwargs):
-        """Print checkpoint information before execution."""
-        checkpoint_path, checkpoint_type = self._get_checkpoint_path_info(kwargs)
+        # Construct display message
+        if is_remote:
+            msg = f"Checkpoint will be saved on remote system: ~/.garden/benchmarks/{checkpoint_name}"
+            identifier = f"~/.garden/benchmarks/{checkpoint_name}"
+        else:
+            local_path = os.path.expanduser(f"~/.garden/benchmarks/{checkpoint_name}")
+            msg = f"Checkpoint will be saved locally: {local_path}"
+            identifier = local_path
+
+        return msg, identifier, False
+
+    def _print_checkpoint_info(self, kwargs, is_remote: bool):
+        """Print checkpoint information before execution.
+
+        Args:
+            kwargs: Method keyword arguments
+            is_remote: True if this is a remote/submit call, False for local
+        """
+        msg, identifier, is_resuming = self._get_checkpoint_info_for_display(
+            kwargs, is_remote
+        )
 
         print("=" * 80)
-        if checkpoint_type == "resuming":
-            print(f"📂 Resuming from checkpoint: {checkpoint_path}")
+        if is_resuming:
+            print(f"📂 {msg}")
         else:
-            print(f"💾 Checkpoint will be saved to: {checkpoint_path}")
-        print("   To resume this benchmark if it fails, use:")
-        print(f'   checkpoint_path="{checkpoint_path}"')
+            print(f"💾 {msg}")
+
+        if is_remote:
+            print("   To resume this benchmark if it fails, use:")
+            print(f'   checkpoint_path="{identifier}"')
+            print("   Note: Checkpoint is on the remote system, not your local machine")
+        else:
+            print("   To resume this benchmark if it fails, use:")
+            print(f'   checkpoint_path="{identifier}"')
         print("=" * 80)
 
     def remote(self, *args, **kwargs):
         """Execute remotely with automatic source extraction."""
         kwargs = self._extract_sources(kwargs)
-        self._print_checkpoint_info(kwargs)
+        self._print_checkpoint_info(kwargs, is_remote=True)
         return self._hog_method.remote(*args, **kwargs)
 
     def local(self, *args, **kwargs):
         """Execute locally with automatic source extraction."""
         kwargs = self._extract_sources(kwargs)
-        self._print_checkpoint_info(kwargs)
+        self._print_checkpoint_info(kwargs, is_remote=False)
         return self._hog_method.local(*args, **kwargs)
 
     def submit(self, *args, **kwargs):
         """Submit for async execution with automatic source extraction."""
         kwargs = self._extract_sources(kwargs)
-        self._print_checkpoint_info(kwargs)
+        self._print_checkpoint_info(kwargs, is_remote=True)
         return self._hog_method.submit(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):
@@ -1097,7 +1131,7 @@ class _MatbenchDiscoveryBase:
     def IS2RE(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig" = 100,
+        num_structures: int | "DatasetSize" | "DatasetConfig" = "full",
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
@@ -1121,7 +1155,7 @@ class _MatbenchDiscoveryBase:
     def RS2RE(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig" = 100,
+        num_structures: int | "DatasetSize" | "DatasetConfig" = "full",
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
@@ -1145,7 +1179,7 @@ class _MatbenchDiscoveryBase:
     def S2EFS(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig" = 100,
+        num_structures: int | "DatasetSize" | "DatasetConfig" = "full",
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
