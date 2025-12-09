@@ -141,10 +141,8 @@ class BackendClient:
                 retry_count = 0
             except requests.HTTPError as e:
                 if (
-                    e.response.status_code == 502
-                    or e.response.status_code == 504
-                    and retry_count <= 3
-                ):
+                    e.response.status_code == 502 or e.response.status_code == 504
+                ) and retry_count <= 3:
                     retry_count += 1
                     # If we are in the fast polling phase (elapsed < 30),
                     # we want to wait a bit longer (e.g. 1s) before retrying/polling again.
