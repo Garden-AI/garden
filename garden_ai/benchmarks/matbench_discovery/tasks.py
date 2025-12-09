@@ -1,16 +1,3 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#     "groundhog-hpc",
-#     "ase",
-#     "numpy",
-#     "pandas",
-#     "scikit-learn",
-#     "torch",
-#     "matbench-discovery",
-# ]
-# ///
-
 from __future__ import annotations
 
 import concurrent.futures
@@ -20,15 +7,14 @@ import multiprocessing
 import os
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import groundhog_hpc as hog
 import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score
 
-# Ensure local modules can be imported during local execution
-sys.path.append(os.getcwd())
+from .metrics import stable_metrics
 
 if TYPE_CHECKING:
     from .enums import DatasetConfig, DatasetSize
@@ -61,7 +47,6 @@ def setup_device(gpu_id: Optional[int] = None) -> str:
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization."""
-    import numpy as np
 
     if isinstance(obj, (np.integer, np.floating)):
         return obj.item()
@@ -97,124 +82,6 @@ def _get_meta_metrics_source() -> str:
     from garden_ai.benchmarks.utils import meta_metrics
 
     return inspect.getsource(meta_metrics)
-
-
-# Metrics calculations lifted from https://github.com/janosh/matbench-discovery/tree/main/matbench_discovery/metrics
-# Since they aren't setup to be easily imported, we just copy them here
-def classify_stable(
-    each_true: Sequence[float] | pd.Series | np.ndarray,
-    each_pred: Sequence[float] | pd.Series | np.ndarray,
-    *,
-    stability_threshold: float = 0.0,
-    fillna: bool = True,
-) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
-    if len(each_true) != len(each_pred):
-        raise ValueError(f"{len(each_true)=} != {len(each_pred)=}")
-
-    each_true_arr, each_pred_arr = pd.Series(each_true), pd.Series(each_pred)
-
-    if stability_threshold is None or np.isnan(stability_threshold):
-        raise ValueError("stability_threshold must be a real number")
-    actual_pos = each_true_arr <= (stability_threshold or 0)
-    actual_neg = each_true_arr > (stability_threshold or 0)
-
-    model_pos = each_pred_arr <= (stability_threshold or 0)
-    model_neg = each_pred_arr > (stability_threshold or 0)
-
-    if fillna:
-        nan_mask = np.isnan(each_pred)
-        model_pos[nan_mask] = False
-        model_neg[nan_mask] = True
-
-        n_pos, n_neg, total = model_pos.sum(), model_neg.sum(), len(each_pred)
-        if n_pos + n_neg != total:
-            raise ValueError(
-                f"after filling NaNs, the sum of positive ({n_pos}) and negative "
-                f"({n_neg}) predictions should add up to {total=}"
-            )
-
-    true_pos = actual_pos & model_pos
-    false_neg = actual_pos & model_neg
-    false_pos = actual_neg & model_pos
-    true_neg = actual_neg & model_neg
-
-    return true_pos, false_neg, false_pos, true_neg
-
-
-# This is also coptied from the matbench-discovery repo
-def stable_metrics(
-    each_true: Sequence[float] | pd.Series | np.ndarray,
-    each_pred: Sequence[float] | pd.Series | np.ndarray,
-    *,
-    stability_threshold: float = 0.0,
-    fillna: bool = True,
-    prevalence: float | None = None,
-) -> dict[str, float]:
-    n_true_pos, n_false_neg, n_false_pos, n_true_neg = map(
-        sum,
-        classify_stable(
-            each_true, each_pred, stability_threshold=stability_threshold, fillna=fillna
-        ),
-    )
-
-    n_total_pos = n_true_pos + n_false_neg
-    n_total_neg = n_true_neg + n_false_pos
-    if prevalence is None:
-        prevalence = (
-            n_total_pos / (n_total_pos + n_total_neg)
-            if (n_total_pos + n_total_neg) > 0
-            else float("nan")
-        )
-    precision = (
-        n_true_pos / (n_true_pos + n_false_pos)
-        if (n_true_pos + n_false_pos) > 0
-        else float("nan")
-    )
-    recall = n_true_pos / n_total_pos if n_total_pos > 0 else float("nan")
-
-    TPR = recall
-    FPR = n_false_pos / n_total_neg if n_total_neg > 0 else float("nan")
-    TNR = n_true_neg / n_total_neg if n_total_neg > 0 else float("nan")
-    FNR = n_false_neg / n_total_pos if n_total_pos > 0 else float("nan")
-
-    if FPR > 0 and TNR > 0 and FPR + TNR != 1:
-        if abs(FPR + TNR - 1) > 1e-6:
-            raise ValueError(f"{FPR=} {TNR=} don't add up to 1")
-
-    if TPR > 0 and FNR > 0 and TPR + FNR != 1:
-        if abs(TPR + FNR - 1) > 1e-6:
-            raise ValueError(f"{TPR=} {FNR=} don't add up to 1")
-
-    is_nan = np.isnan(each_true) | np.isnan(each_pred)
-    each_true, each_pred = np.array(each_true)[~is_nan], np.array(each_pred)[~is_nan]
-
-    if precision + recall == 0:
-        f1_score = float("nan")
-    else:
-        f1_score = 2 * (precision * recall) / (precision + recall)
-
-    return dict(
-        F1=f1_score,
-        DAF=precision / prevalence if prevalence > 0 else float("nan"),
-        Precision=precision,
-        Recall=recall,
-        Accuracy=(
-            (n_true_pos + n_true_neg) / (n_total_pos + n_total_neg)
-            if (n_total_pos + n_total_neg > 0)
-            else float("nan")
-        ),
-        TPR=TPR,
-        FPR=FPR,
-        TNR=TNR,
-        FNR=FNR,
-        TP=n_true_pos,
-        FP=n_false_pos,
-        TN=n_true_neg,
-        FN=n_false_neg,
-        MAE=np.abs(each_true - each_pred).mean(),
-        RMSE=((each_true - each_pred) ** 2).mean() ** 0.5,
-        R2=r2_score(each_true, each_pred) if len(each_true) > 1 else float("nan"),
-    )
 
 
 _MODEL_CACHE = None
@@ -299,7 +166,6 @@ def get_material_ids_for_subset(
     if subset_type == "full":
         return None
 
-    import pandas as pd
     from matbench_discovery.data import DataFiles
 
     df = pd.read_csv(DataFiles.wbm_summary.path)
@@ -470,7 +336,6 @@ def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Any]:
 def calculate_metrics_energy(
     results: Dict[str, Any], config: Dict[str, Any]
 ) -> Dict[str, Any]:
-    import numpy as np
     from matbench_discovery.data import df_wbm
 
     if len(results) == 0:
@@ -515,10 +380,8 @@ def calculate_metrics_forces(
     from io import TextIOWrapper
     from zipfile import ZipFile
 
-    import numpy as np
     from ase.io import read
     from matbench_discovery.data import DataFiles
-    from sklearn.metrics import r2_score
 
     metrics = {
         "energy_mae": [],
