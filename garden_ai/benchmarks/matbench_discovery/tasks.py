@@ -1,3 +1,16 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "groundhog-hpc",
+#     "ase",
+#     "numpy",
+#     "pandas",
+#     "scikit-learn",
+#     "torch",
+#     "matbench-discovery",
+# ]
+# ///
+
 from __future__ import annotations
 
 import concurrent.futures
@@ -7,17 +20,48 @@ import multiprocessing
 import os
 import sys
 import time
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import groundhog_hpc as hog
 import numpy as np
 import pandas as pd
 from sklearn.metrics import r2_score
 
-from .metrics import stable_metrics
 
-if TYPE_CHECKING:
-    from .enums import DatasetConfig, DatasetSize
+class DatasetSize(str, Enum):
+    """Predefined dataset sizes for Matbench Discovery benchmarks.
+
+    These correspond to different subsets of the WBM test set that are commonly
+    used for evaluating materials discovery models.
+    """
+
+    FULL = "full"
+    """Full WBM test set (~257k structures)"""
+
+    UNIQUE_PROTOS = "unique_protos"
+    """Unique prototypes subset (~215k structures) - removes duplicate prototypes"""
+
+    RANDOM_10K = "random_10k"
+    """Random 10k structures from the unique prototypes subset (fixed seed)"""
+
+    RANDOM_100 = "random_100"
+    """Random 100 structures for quick testing (fixed seed)"""
+
+    def seed(self, seed: int) -> "DatasetConfig":
+        """Return a configuration with a custom random seed."""
+        return DatasetConfig(self, seed)
+
+
+class DatasetConfig:
+    """Configuration for a dataset subset with a specific random seed."""
+
+    def __init__(self, subset: DatasetSize, seed: int):
+        self.subset = subset
+        self.seed = seed
+
+    def __repr__(self):
+        return f"{self.subset.name}(seed={self.seed})"
 
 
 def setup_logging():
@@ -47,7 +91,6 @@ def setup_device(gpu_id: Optional[int] = None) -> str:
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization."""
-
     if isinstance(obj, (np.integer, np.floating)):
         return obj.item()
     elif isinstance(obj, np.ndarray):
@@ -85,6 +128,124 @@ def _get_meta_metrics_source() -> str:
 
 
 _MODEL_CACHE = None
+
+
+# Metrics calculations lifted from https://github.com/janosh/matbench-discovery/tree/main/matbench_discovery/metrics
+# Since they aren't setup to be easily imported, we just copy them here
+def classify_stable(
+    each_true: Sequence[float] | pd.Series | np.ndarray,
+    each_pred: Sequence[float] | pd.Series | np.ndarray,
+    *,
+    stability_threshold: float = 0.0,
+    fillna: bool = True,
+) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    if len(each_true) != len(each_pred):
+        raise ValueError(f"{len(each_true)=} != {len(each_pred)=}")
+
+    each_true_arr, each_pred_arr = pd.Series(each_true), pd.Series(each_pred)
+
+    if stability_threshold is None or np.isnan(stability_threshold):
+        raise ValueError("stability_threshold must be a real number")
+    actual_pos = each_true_arr <= (stability_threshold or 0)
+    actual_neg = each_true_arr > (stability_threshold or 0)
+
+    model_pos = each_pred_arr <= (stability_threshold or 0)
+    model_neg = each_pred_arr > (stability_threshold or 0)
+
+    if fillna:
+        nan_mask = np.isnan(each_pred)
+        model_pos[nan_mask] = False
+        model_neg[nan_mask] = True
+
+        n_pos, n_neg, total = model_pos.sum(), model_neg.sum(), len(each_pred)
+        if n_pos + n_neg != total:
+            raise ValueError(
+                f"after filling NaNs, the sum of positive ({n_pos}) and negative "
+                f"({n_neg}) predictions should add up to {total=}"
+            )
+
+    true_pos = actual_pos & model_pos
+    false_neg = actual_pos & model_neg
+    false_pos = actual_neg & model_pos
+    true_neg = actual_neg & model_neg
+
+    return true_pos, false_neg, false_pos, true_neg
+
+
+# This is also coptied from the matbench-discovery repo
+def stable_metrics(
+    each_true: Sequence[float] | pd.Series | np.ndarray,
+    each_pred: Sequence[float] | pd.Series | np.ndarray,
+    *,
+    stability_threshold: float = 0.0,
+    fillna: bool = True,
+    prevalence: float | None = None,
+) -> dict[str, float]:
+    n_true_pos, n_false_neg, n_false_pos, n_true_neg = map(
+        sum,
+        classify_stable(
+            each_true, each_pred, stability_threshold=stability_threshold, fillna=fillna
+        ),
+    )
+
+    n_total_pos = n_true_pos + n_false_neg
+    n_total_neg = n_true_neg + n_false_pos
+    if prevalence is None:
+        prevalence = (
+            n_total_pos / (n_total_pos + n_total_neg)
+            if (n_total_pos + n_total_neg) > 0
+            else float("nan")
+        )
+    precision = (
+        n_true_pos / (n_true_pos + n_false_pos)
+        if (n_true_pos + n_false_pos) > 0
+        else float("nan")
+    )
+    recall = n_true_pos / n_total_pos if n_total_pos > 0 else float("nan")
+
+    TPR = recall
+    FPR = n_false_pos / n_total_neg if n_total_neg > 0 else float("nan")
+    TNR = n_true_neg / n_total_neg if n_total_neg > 0 else float("nan")
+    FNR = n_false_neg / n_total_pos if n_total_pos > 0 else float("nan")
+
+    if FPR > 0 and TNR > 0 and FPR + TNR != 1:
+        if abs(FPR + TNR - 1) > 1e-6:
+            raise ValueError(f"{FPR=} {TNR=} don't add up to 1")
+
+    if TPR > 0 and FNR > 0 and TPR + FNR != 1:
+        if abs(TPR + FNR - 1) > 1e-6:
+            raise ValueError(f"{TPR=} {FNR=} don't add up to 1")
+
+    is_nan = np.isnan(each_true) | np.isnan(each_pred)
+    each_true, each_pred = np.array(each_true)[~is_nan], np.array(each_pred)[~is_nan]
+
+    if precision + recall == 0:
+        f1_score = float("nan")
+    else:
+        f1_score = 2 * (precision * recall) / (precision + recall)
+
+    return dict(
+        F1=f1_score,
+        DAF=precision / prevalence if prevalence > 0 else float("nan"),
+        Precision=precision,
+        Recall=recall,
+        Accuracy=(
+            (n_true_pos + n_true_neg) / (n_total_pos + n_total_neg)
+            if (n_total_pos + n_total_neg > 0)
+            else float("nan")
+        ),
+        TPR=TPR,
+        FPR=FPR,
+        TNR=TNR,
+        FNR=FNR,
+        TP=n_true_pos,
+        FP=n_false_pos,
+        TN=n_true_neg,
+        FN=n_false_neg,
+        MAE=np.abs(each_true - each_pred).mean(),
+        RMSE=((each_true - each_pred) ** 2).mean() ** 0.5,
+        R2=r2_score(each_true, each_pred) if len(each_true) > 1 else float("nan"),
+    )
 
 
 def _process_batch_common(
@@ -584,7 +745,12 @@ def run_benchmark_hog(
     try:
         import torch
 
-        num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        if torch.cuda.is_available():
+            num_gpus = torch.cuda.device_count()
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            num_gpus = 1
+        else:
+            num_gpus = 0
     except ImportError:
         num_gpus = 0
 
@@ -598,6 +764,10 @@ def run_benchmark_hog(
     num_workers = num_gpus if use_multi_gpu else 1
     available_cores = max(1, total_cores - 2) if total_cores > 4 else total_cores
     threads_per_worker = max(1, available_cores // num_workers)
+
+    # MPS (Apple Silicon) performance degrades with high thread counts due to contention
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        threads_per_worker = 1
 
     logger.info(
         f"Resources: {num_gpus} GPUs, {total_cores} Cores. Using {num_workers} workers ({threads_per_worker} threads/worker)"
@@ -665,6 +835,10 @@ def run_benchmark_hog(
                     logger.info(f"Checkpoint saved to {checkpoint_path}")
                 except Exception as e:
                     logger.error(f"Failed to save checkpoint: {e}")
+                    raise RuntimeError(
+                        f"Critical: Failed to save checkpoint to {checkpoint_path}. "
+                        f"Aborting to prevent loss of progress. Error: {e}"
+                    ) from e
 
             elapsed = time.time() - chunk_start
             logger.info(f"Chunk {chunk_idx + 1} complete in {elapsed:.1f}s")
@@ -963,8 +1137,17 @@ class _MatbenchDiscoveryBase:
             )
 
         if checkpoint_path:
-            print(f"Resuming from checkpoint: {checkpoint_path}")
-            final_checkpoint_path = checkpoint_path
+            # Always expand tilde to home directory
+            final_checkpoint_path = os.path.expanduser(checkpoint_path)
+            if os.path.exists(final_checkpoint_path):
+                print(f"Resuming from checkpoint: {final_checkpoint_path}")
+            else:
+                print(
+                    f"WARNING: Checkpoint file not found at {final_checkpoint_path}. "
+                    f"Starting fresh and will save checkpoints to this path."
+                )
+                # Ensure directory exists for new checkpoint
+                os.makedirs(os.path.dirname(final_checkpoint_path), exist_ok=True)
         else:
             print(
                 f"Checkpoint will be saved to: ~/.garden/benchmarks/{checkpoint_name}"
@@ -973,6 +1156,18 @@ class _MatbenchDiscoveryBase:
                 f"~/.garden/benchmarks/{checkpoint_name}"
             )
             os.makedirs(os.path.dirname(final_checkpoint_path), exist_ok=True)
+
+        # Validate we can write to the checkpoint path early to fail fast
+        try:
+            test_file = final_checkpoint_path + ".write_test"
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+        except Exception as e:
+            raise RuntimeError(
+                f"Cannot write to checkpoint path: {final_checkpoint_path}. "
+                f"Check permissions and disk space. Error: {e}"
+            ) from e
 
         runner_config["checkpoint_path"] = final_checkpoint_path
 

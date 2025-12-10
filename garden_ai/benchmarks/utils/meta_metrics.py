@@ -60,6 +60,8 @@ def get_hardware_info() -> Dict[str, Any]:
                 info["gpu_memory_gb"] = round(props.total_memory / (1024**3), 1)
         elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             info["device_type"] = "mps"
+            info["num_gpus"] = 1
+            info["gpu_names"] = ["Apple Metal Performance Shaders"]
     except ImportError:
         pass
     return info
