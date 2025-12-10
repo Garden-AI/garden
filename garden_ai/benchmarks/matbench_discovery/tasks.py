@@ -25,8 +25,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import groundhog_hpc as hog
 import numpy as np
-import pandas as pd  # type: ignore[import-untyped]
-from sklearn.metrics import r2_score  # type: ignore[import-untyped]
+import pandas as pd  # type: ignore
+from sklearn.metrics import r2_score  # type: ignore
 
 
 class DatasetSize(str, Enum):
@@ -327,7 +327,7 @@ def get_material_ids_for_subset(
     if subset_type == "full":
         return None
 
-    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
+    from matbench_discovery.data import DataFiles  # type: ignore
 
     df = pd.read_csv(DataFiles.wbm_summary.path)
 
@@ -479,19 +479,19 @@ def process_batch_forces(
 
 
 def load_dataset_wbm_initial(config: Dict[str, Any]) -> List[Any]:
-    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
+    from matbench_discovery.data import DataFiles  # type: ignore
 
     return _load_dataset_common(config, DataFiles.wbm_initial_atoms.path)
 
 
 def load_dataset_wbm_relaxed(config: Dict[str, Any]) -> List[Any]:
-    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
+    from matbench_discovery.data import DataFiles  # type: ignore
 
     return _load_dataset_common(config, DataFiles.wbm_relaxed_atoms.path)
 
 
 def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Any]:
-    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
+    from matbench_discovery.data import DataFiles  # type: ignore
 
     return _load_dataset_common(config, DataFiles.mp_trj_extxyz.path, read_index=":")
 
@@ -499,7 +499,7 @@ def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Any]:
 def calculate_metrics_energy(
     results: Dict[str, Any], config: Dict[str, Any]
 ) -> Dict[str, Any]:
-    from matbench_discovery.data import df_wbm  # type: ignore[import-untyped]
+    from matbench_discovery.data import df_wbm  # type: ignore
 
     if len(results) == 0:
         return {"error": "No results to evaluate"}
@@ -544,7 +544,7 @@ def calculate_metrics_forces(
     from zipfile import ZipFile
 
     from ase.io import read
-    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
+    from matbench_discovery.data import DataFiles  # type: ignore
 
     metrics: Dict[str, List[float]] = {
         "energy_mae": [],
