@@ -724,7 +724,21 @@ def run_benchmark_hog(
     ]
 
     if not items_to_process:
-        logger.info("All items already processed!")
+        logger.info(
+            "All items already processed! Calculating metrics from checkpoint..."
+        )
+
+        # Calculate metrics from checkpoint results
+        try:
+            metrics = calc_metrics_fn(results, config)
+            logger.info(f"Metrics calculated: {metrics}")
+        except Exception as e:
+            logger.error(f"Failed to calculate metrics: {e}")
+            import traceback
+
+            traceback.print_exc()
+            metrics = {"error": f"Metrics calculation failed: {e}"}
+
         run_metadata = calculate_run_metadata(
             hardware_info=hardware_info,
             model_info=model_info,
@@ -733,7 +747,7 @@ def run_benchmark_hog(
             num_structures_total=len(all_items),
             num_structures_processed=0,
         )
-        return {"metrics": {}, "run_metadata": run_metadata}
+        return {"metrics": metrics, "run_metadata": run_metadata}
 
     logger.info(f"Processing {len(items_to_process)} remaining items")
 
