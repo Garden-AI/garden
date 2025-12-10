@@ -899,9 +899,17 @@ def run_benchmark_hog(
 class BenchmarkMethod:
     """Wrapper around groundhog Method that handles source extraction for remote execution."""
 
-    def __init__(self, hog_method):
-        """Initialize wrapper with the underlying groundhog Method."""
+    BENCHMARK_NAME = "matbench_discovery"
+
+    def __init__(self, hog_method, task_name: str):
+        """Initialize wrapper with the underlying groundhog Method.
+
+        Args:
+            hog_method: The underlying groundhog method to wrap.
+            task_name: Name of the benchmark task (e.g., 'IS2RE', 'S2EFS').
+        """
         self._hog_method = hog_method
+        self._task_name = task_name
 
     def _extract_sources(self, kwargs):
         """Extract source code from model_factory and meta_metrics for remote execution."""
@@ -1018,17 +1026,28 @@ class BenchmarkMethod:
             print(f'   checkpoint_path="{identifier}"')
         print("=" * 80)
 
+    def _add_benchmark_info(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Add benchmark metadata to the result for publishing."""
+        if isinstance(result, dict):
+            result["_benchmark_info"] = {
+                "benchmark_name": self.BENCHMARK_NAME,
+                "task_name": self._task_name,
+            }
+        return result
+
     def remote(self, *args, **kwargs):
         """Execute remotely with automatic source extraction."""
         kwargs = self._extract_sources(kwargs)
         self._print_checkpoint_info(kwargs, is_remote=True)
-        return self._hog_method.remote(*args, **kwargs)
+        result = self._hog_method.remote(*args, **kwargs)
+        return self._add_benchmark_info(result)
 
     def local(self, *args, **kwargs):
         """Execute locally with automatic source extraction."""
         kwargs = self._extract_sources(kwargs)
         self._print_checkpoint_info(kwargs, is_remote=False)
-        return self._hog_method.local(*args, **kwargs)
+        result = self._hog_method.local(*args, **kwargs)
+        return self._add_benchmark_info(result)
 
     def submit(self, *args, **kwargs):
         """Submit for async execution with automatic source extraction."""
@@ -1349,15 +1368,15 @@ class MatbenchDiscovery:
     _run_task = _MatbenchDiscoveryBase._run_task
 
     # Main benchmark tasks - wrapped for automatic model_factory source extraction
-    IS2RE = BenchmarkMethod(_MatbenchDiscoveryBase.IS2RE)
-    RS2RE = BenchmarkMethod(_MatbenchDiscoveryBase.RS2RE)
-    S2EFS = BenchmarkMethod(_MatbenchDiscoveryBase.S2EFS)
+    IS2RE = BenchmarkMethod(_MatbenchDiscoveryBase.IS2RE, "IS2RE")
+    RS2RE = BenchmarkMethod(_MatbenchDiscoveryBase.RS2RE, "RS2RE")
+    S2EFS = BenchmarkMethod(_MatbenchDiscoveryBase.S2EFS, "S2EFS")
 
     # Aliases
-    S2EF = BenchmarkMethod(_MatbenchDiscoveryBase.S2EF)
-    S2EFSM = BenchmarkMethod(_MatbenchDiscoveryBase.S2EFSM)
-    IS2E = BenchmarkMethod(_MatbenchDiscoveryBase.IS2E)
-    S2E = BenchmarkMethod(_MatbenchDiscoveryBase.S2E)
-    S2RE = BenchmarkMethod(_MatbenchDiscoveryBase.S2RE)
-    RP2RE = BenchmarkMethod(_MatbenchDiscoveryBase.RP2RE)
-    IP2E = BenchmarkMethod(_MatbenchDiscoveryBase.IP2E)
+    S2EF = BenchmarkMethod(_MatbenchDiscoveryBase.S2EF, "S2EF")
+    S2EFSM = BenchmarkMethod(_MatbenchDiscoveryBase.S2EFSM, "S2EFSM")
+    IS2E = BenchmarkMethod(_MatbenchDiscoveryBase.IS2E, "IS2E")
+    S2E = BenchmarkMethod(_MatbenchDiscoveryBase.S2E, "S2E")
+    S2RE = BenchmarkMethod(_MatbenchDiscoveryBase.S2RE, "S2RE")
+    RP2RE = BenchmarkMethod(_MatbenchDiscoveryBase.RP2RE, "RP2RE")
+    IP2E = BenchmarkMethod(_MatbenchDiscoveryBase.IP2E, "IP2E")
