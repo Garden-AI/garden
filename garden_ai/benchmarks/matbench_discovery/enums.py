@@ -4,13 +4,7 @@ from enum import Enum
 
 
 class MatbenchTask(Enum):
-    """Available Matbench Discovery benchmark tasks.
-
-    Currently only IS2RE is implemented for the MVP.
-    Future tasks could include:
-    - RS2RE: Relaxed Structure to Relaxed Energy
-    - S2EFS: Structure to Energy, Forces, and Stress
-    """
+    """Available Matbench Discovery benchmark tasks."""
 
     IS2RE = "IS2RE"  # Initial Structure to Relaxed Energy
     RS2RE = "RS2RE"  # Relaxed Structure to Relaxed Energy
