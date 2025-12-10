@@ -8,7 +8,9 @@ ENDPOINT_ID = "5aafb4c1-27b2-40d8-a038-a0277611868f"
 
 
 def create_equiformerv2_model(device):
-    from fairchem.core.calculate.ase_calculator import Calculator
+    from fairchem.core.calculate.ase_calculator import (
+        Calculator,  # type: ignore[import-not-found]
+    )
 
     # Use pre-trained checkpoint - will auto-download from HuggingFace
     return Calculator(

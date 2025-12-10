@@ -51,11 +51,10 @@ def get_hardware_info() -> Dict[str, Any]:
 
         if torch.cuda.is_available():
             info["device_type"] = "cuda"
-            info["num_gpus"] = torch.cuda.device_count()
-            info["gpu_names"] = [
-                torch.cuda.get_device_name(i) for i in range(info["num_gpus"])
-            ]
-            if info["num_gpus"] > 0:
+            num_gpus = torch.cuda.device_count()
+            info["num_gpus"] = num_gpus
+            info["gpu_names"] = [torch.cuda.get_device_name(i) for i in range(num_gpus)]
+            if num_gpus > 0:
                 props = torch.cuda.get_device_properties(0)
                 info["gpu_memory_gb"] = round(props.total_memory / (1024**3), 1)
         elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():

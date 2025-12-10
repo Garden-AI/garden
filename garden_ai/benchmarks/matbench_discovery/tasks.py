@@ -25,8 +25,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import groundhog_hpc as hog
 import numpy as np
-import pandas as pd
-from sklearn.metrics import r2_score
+import pandas as pd  # type: ignore[import-untyped]
+from sklearn.metrics import r2_score  # type: ignore[import-untyped]
 
 
 class DatasetSize(str, Enum):
@@ -111,7 +111,7 @@ calculate_run_metadata = None
 def _inject_meta_metrics(source: str) -> None:
     """Inject meta_metrics functions from source code for remote execution."""
     global get_hardware_info, extract_model_info, calculate_run_metadata
-    namespace = {}
+    namespace: Dict[str, Any] = {}
     exec(source, namespace)
     get_hardware_info = namespace["get_hardware_info"]
     extract_model_info = namespace["extract_model_info"]
@@ -287,7 +287,7 @@ def _process_batch_common(
             func_name = func_name_match.group(1)
 
             # Execute the source to define the function
-            local_namespace = {}
+            local_namespace: Dict[str, Any] = {}
             exec(model_factory_source, local_namespace)
             model_factory = local_namespace[func_name]
 
@@ -327,7 +327,7 @@ def get_material_ids_for_subset(
     if subset_type == "full":
         return None
 
-    from matbench_discovery.data import DataFiles
+    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
 
     df = pd.read_csv(DataFiles.wbm_summary.path)
 
@@ -353,7 +353,7 @@ def _load_dataset_common(
     config: Dict[str, Any],
     zip_path: str,
     read_format: str = "extxyz",
-    read_index: str | slice = None,
+    read_index: Optional[str | slice] = None,
 ) -> List[Any]:
     from io import TextIOWrapper
     from zipfile import ZipFile
@@ -395,7 +395,9 @@ def _load_dataset_common(
                     elif not isinstance(atoms_list, list):
                         structures.append((filename, atoms_list))
                 else:
-                    structures.append((filename, read(text_stream, format=read_format)))
+                    structures.append(
+                        (filename, read(text_stream, format=read_format))  # type: ignore[arg-type]
+                    )
 
     return structures
 
@@ -477,19 +479,19 @@ def process_batch_forces(
 
 
 def load_dataset_wbm_initial(config: Dict[str, Any]) -> List[Any]:
-    from matbench_discovery.data import DataFiles
+    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
 
     return _load_dataset_common(config, DataFiles.wbm_initial_atoms.path)
 
 
 def load_dataset_wbm_relaxed(config: Dict[str, Any]) -> List[Any]:
-    from matbench_discovery.data import DataFiles
+    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
 
     return _load_dataset_common(config, DataFiles.wbm_relaxed_atoms.path)
 
 
 def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Any]:
-    from matbench_discovery.data import DataFiles
+    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
 
     return _load_dataset_common(config, DataFiles.mp_trj_extxyz.path, read_index=":")
 
@@ -497,7 +499,7 @@ def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Any]:
 def calculate_metrics_energy(
     results: Dict[str, Any], config: Dict[str, Any]
 ) -> Dict[str, Any]:
-    from matbench_discovery.data import df_wbm
+    from matbench_discovery.data import df_wbm  # type: ignore[import-untyped]
 
     if len(results) == 0:
         return {"error": "No results to evaluate"}
@@ -542,9 +544,9 @@ def calculate_metrics_forces(
     from zipfile import ZipFile
 
     from ase.io import read
-    from matbench_discovery.data import DataFiles
+    from matbench_discovery.data import DataFiles  # type: ignore[import-untyped]
 
-    metrics = {
+    metrics: Dict[str, List[float]] = {
         "energy_mae": [],
         "energy_rmse": [],
         "force_mae": [],
@@ -552,9 +554,12 @@ def calculate_metrics_forces(
         "stress_mae": [],
         "stress_rmse": [],
     }
-    all_e_pred, all_e_true = [], []
-    all_f_pred, all_f_true = [], []
-    all_s_pred, all_s_true = [], []
+    all_e_pred: List[float] = []
+    all_e_true: List[float] = []
+    all_f_pred: List[float] = []
+    all_f_true: List[float] = []
+    all_s_pred: List[float] = []
+    all_s_true: List[float] = []
 
     zip_path = DataFiles.mp_trj_extxyz.path
 
@@ -569,8 +574,8 @@ def calculate_metrics_forces(
                     gt_atoms = atoms_list[-1]
 
                     e_pred = res["energy"]
-                    e_true = gt_atoms.get_potential_energy()
-                    n_atoms = len(gt_atoms)
+                    e_true = gt_atoms.get_potential_energy()  # type: ignore[union-attr]
+                    n_atoms = len(gt_atoms)  # type: ignore[arg-type]
                     energy_error = abs(e_pred - e_true) / n_atoms
                     metrics["energy_mae"].append(energy_error)
                     metrics["energy_rmse"].append(energy_error**2)
@@ -578,7 +583,7 @@ def calculate_metrics_forces(
                     all_e_true.append(e_true / n_atoms)
 
                     f_pred = np.array(res["forces"])
-                    f_true = gt_atoms.get_forces()
+                    f_true = gt_atoms.get_forces()  # type: ignore[union-attr]
                     force_error = np.abs(f_pred - f_true)
                     metrics["force_mae"].append(force_error.mean())
                     metrics["force_rmse"].append((force_error**2).mean())
@@ -586,7 +591,7 @@ def calculate_metrics_forces(
                     all_f_true.extend(f_true.flatten())
 
                     s_pred = np.array(res["stress"])
-                    s_true = gt_atoms.get_stress()
+                    s_true = gt_atoms.get_stress()  # type: ignore[union-attr]
                     stress_error = np.abs(s_pred - s_true)
                     metrics["stress_mae"].append(stress_error.mean())
                     metrics["stress_rmse"].append((stress_error**2).mean())
@@ -644,6 +649,8 @@ def run_benchmark_hog(
     _inject_meta_metrics(meta_metrics_source)
 
     # Collect hardware and model info
+    assert get_hardware_info is not None, "meta_metrics not injected"
+    assert extract_model_info is not None, "meta_metrics not injected"
     hardware_info = get_hardware_info()
     model_info = extract_model_info(model_packages)
     logger.info(f"Hardware: {hardware_info}")
@@ -739,6 +746,7 @@ def run_benchmark_hog(
             traceback.print_exc()
             metrics = {"error": f"Metrics calculation failed: {e}"}
 
+        assert calculate_run_metadata is not None, "meta_metrics not injected"
         run_metadata = calculate_run_metadata(
             hardware_info=hardware_info,
             model_info=model_info,
@@ -771,7 +779,7 @@ def run_benchmark_hog(
     use_multi_gpu = config.get("use_multi_gpu", True) and num_gpus > 1
     # Use sched_getaffinity to get cores available to this job, not total cores on node
     try:
-        total_cores = len(os.sched_getaffinity(0))
+        total_cores = len(os.sched_getaffinity(0))  # type: ignore[attr-defined]
     except AttributeError:
         # Fallback for systems without sched_getaffinity (e.g., macOS)
         total_cores = os.cpu_count() or 1
@@ -872,6 +880,7 @@ def run_benchmark_hog(
         metrics = {"error": f"Metrics calculation failed: {e}"}
 
     # Calculate run metadata
+    assert calculate_run_metadata is not None, "meta_metrics not injected"
     run_metadata = calculate_run_metadata(
         hardware_info=hardware_info,
         model_info=model_info,
@@ -1067,8 +1076,8 @@ class _MatbenchDiscoveryBase:
                 else:
                     seed = num_structures.seed
         elif hasattr(num_structures, "subset"):  # DatasetConfig
-            subset = num_structures.subset.value
-            seed = num_structures.seed
+            subset = num_structures.subset.value  # type: ignore[union-attr]
+            seed = num_structures.seed  # type: ignore[union-attr]
         elif isinstance(num_structures, int):
             subset = "full"
             # We handle int as limit in load_dataset
@@ -1111,7 +1120,7 @@ class _MatbenchDiscoveryBase:
     def _run_task(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig",
+        num_structures: int | str | DatasetSize | DatasetConfig,
         checkpoint_name: str | None,
         checkpoint_path: str | None,
         process_fn: Any,
@@ -1203,7 +1212,7 @@ class _MatbenchDiscoveryBase:
     def IS2RE(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig" = "full",
+        num_structures: int | str | DatasetSize | DatasetConfig = "full",
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
@@ -1227,7 +1236,7 @@ class _MatbenchDiscoveryBase:
     def RS2RE(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig" = "full",
+        num_structures: int | str | DatasetSize | DatasetConfig = "full",
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
@@ -1251,7 +1260,7 @@ class _MatbenchDiscoveryBase:
     def S2EFS(
         model_factory: Any,
         model_packages: str | List[str],
-        num_structures: int | "DatasetSize" | "DatasetConfig" = "full",
+        num_structures: int | str | DatasetSize | DatasetConfig = "full",
         checkpoint_name: str | None = None,
         checkpoint_path: str | None = None,
         sys_path: List[str] | None = None,
