@@ -34,7 +34,6 @@ def main():
             "cuequivariance-ops-torch-cu12",
         ],
         checkpoint_path="~/.garden/benchmarks/matbench_mace-torch_cuequivariance_full_20251208_115719_ed2e47af.json",
-        num_structures="random_100",
     )
 
     if "error" in results.get("metrics", {}):
