@@ -127,11 +127,36 @@ class BackendClient:
         )
         output_response = self._get(f"/modal-invocations/{invocation_response['id']}")
 
+        start_time = time.time()
+        retry_count = 0
         while output_response["status"] == "pending":
-            time.sleep(GardenConstants.BACKEND_POLL_INTERVAL_SECONDS)
-            output_response = self._get(
-                f"/modal-invocations/{invocation_response['id']}"
-            )
+            elapsed = time.time() - start_time
+            if elapsed > 30:
+                poll_interval = 5.0
+            else:
+                poll_interval = GardenConstants.BACKEND_POLL_INTERVAL_SECONDS
+
+            time.sleep(poll_interval)
+
+            try:
+                output_response = self._get(
+                    f"/modal-invocations/{invocation_response['id']}"
+                )
+                retry_count = 0
+            except requests.HTTPError as e:
+                if (
+                    e.response.status_code == 502 or e.response.status_code == 504
+                ) and retry_count <= 3:
+                    retry_count += 1
+                    # If we are in the fast polling phase (elapsed < 30),
+                    # we want to wait a bit longer (e.g. 1s) before retrying/polling again.
+                    # If we are in the slow polling phase (elapsed > 30),
+                    # the next loop iteration will wait 5s anyway.
+                    if elapsed <= 30:
+                        time.sleep(1.0)
+                    continue
+                else:
+                    raise e
 
         match output_response["status"]:
             case "done":
