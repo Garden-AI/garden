@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Matbench Discovery Benchmark - MACE Multi-GPU Example"""
 
-from garden_ai.benchmarks.matbench_discovery import MatbenchDiscovery
+from rich import print
 
-ANVIL = "5aafb4c1-27b2-40d8-a038-a0277611868f"
+from garden_ai.benchmarks.matbench_discovery import MatbenchDiscovery
 
 
 def create_mace_model(device):
@@ -12,35 +12,22 @@ def create_mace_model(device):
     return mace_mp(model="medium-mpa-0", device=device, default_dtype="float64")
 
 
-def main():
-    print(f"Running MACE benchmark on endpoint {ANVIL}...")
+print("Running MACE benchmark on endpoint anvil...")
 
-    results = MatbenchDiscovery.IS2RE.remote(
-        endpoint=ANVIL,
-        user_endpoint_config={
-            "scheduler_options": "#SBATCH --gpus-per-node=4\n",
-            "walltime": "05:00:00",
-            "qos": "gpu",
-            "partition": "gpu",
-            "account": "cis250461-gpu",
-            "cores_per_node": 16,
-            "requirements": "",  # 'requirements' is required for Anvil endpoint
-        },
-        model_factory=create_mace_model,
-        model_packages=[
-            "mace-torch",
-            "cuequivariance",
-            "cuequivariance-torch",
-            "cuequivariance-ops-torch-cu12",
-        ],
-        checkpoint_path="~/.garden/benchmarks/matbench_mace-torch_cuequivariance_full_20251208_115719_ed2e47af.json",
-    )
+results = MatbenchDiscovery.IS2RE.remote(
+    endpoint="anvil",
+    account="cis250461-gpu",
+    model_factory=create_mace_model,
+    model_packages=[
+        "mace-torch",
+        "cuequivariance",
+        "cuequivariance-torch",
+        "cuequivariance-ops-torch-cu12",
+    ],
+    num_structures="random_100",
+)
 
-    if "error" in results.get("metrics", {}):
-        print(f"Error: {results['metrics']['error']}")
-    else:
-        print("Benchmark Results:", results.get("metrics"))
-
-
-if __name__ == "__main__":
-    main()
+if "error" in results.get("metrics", {}):
+    print(f"Error: {results['metrics']['error']}")
+else:
+    print("Benchmark Results:", results)

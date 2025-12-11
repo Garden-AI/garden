@@ -9,6 +9,15 @@
 #     "torch",
 #     "matbench-discovery",
 # ]
+#
+# [tool.hog.anvil]
+# endpoint = "5aafb4c1-27b2-40d8-a038-a0277611868f"
+# account = "replace with your account"
+# qos = "gpu"
+# partition = "gpu"
+# cores_per_node = 16
+# scheduler_options = "#SBATCH --gpus-per-node=4\n"
+# requirements = ""
 # ///
 
 from __future__ import annotations
@@ -706,13 +715,29 @@ def run_benchmark_hog(
 
     checkpoint_path = config.get("checkpoint_path")
     results = {}
+    prior_elapsed = 0.0  # Cumulative time from previous sessions
 
     if checkpoint_path and os.path.exists(checkpoint_path):
         logger.info(f"Loading checkpoint from {checkpoint_path}")
         try:
             with open(checkpoint_path) as f:
-                results = json.load(f)
-            logger.info(f"Found {len(results)} processed items in checkpoint")
+                checkpoint_data = json.load(f)
+
+            # Handle new format with metadata vs old format (plain results dict)
+            if "_checkpoint_meta" in checkpoint_data:
+                results = checkpoint_data.get("results", {})
+                meta = checkpoint_data["_checkpoint_meta"]
+                prior_elapsed = meta.get("elapsed_seconds", 0.0)
+                logger.info(
+                    f"Found {len(results)} processed items in checkpoint "
+                    f"(prior elapsed: {prior_elapsed:.1f}s)"
+                )
+            else:
+                # Backward compatibility: old format is plain results dict
+                results = checkpoint_data
+                logger.info(
+                    f"Found {len(results)} processed items in checkpoint (legacy format)"
+                )
         except Exception as e:
             logger.warning(f"Failed to load checkpoint: {e}. Starting fresh.")
 
@@ -746,14 +771,15 @@ def run_benchmark_hog(
             traceback.print_exc()
             metrics = {"error": f"Metrics calculation failed: {e}"}
 
+        # Use cumulative values from checkpoint metadata
         assert calculate_run_metadata is not None, "meta_metrics not injected"
         run_metadata = calculate_run_metadata(
             hardware_info=hardware_info,
             model_info=model_info,
-            total_elapsed=0,
+            total_elapsed=prior_elapsed,
             num_workers=0,
             num_structures_total=len(all_items),
-            num_structures_processed=0,
+            num_structures_processed=len(results),
         )
         return {"metrics": metrics, "run_metadata": run_metadata}
 
@@ -850,9 +876,20 @@ def run_benchmark_hog(
             if checkpoint_path:
                 try:
                     tmp_path = checkpoint_path + ".tmp"
+                    # Calculate cumulative elapsed time for checkpoint
+                    current_elapsed = time.time() - start_time
+                    cumulative_elapsed = prior_elapsed + current_elapsed
+
+                    # Save checkpoint with metadata for resume
+                    checkpoint_data = {
+                        "results": convert_numpy_types(results),
+                        "_checkpoint_meta": {
+                            "elapsed_seconds": cumulative_elapsed,
+                            "structures_processed": len(results),
+                        },
+                    }
                     with open(tmp_path, "w") as f:
-                        clean_results = convert_numpy_types(results)
-                        json.dump(clean_results, f, indent=2)
+                        json.dump(checkpoint_data, f, indent=2)
                     os.replace(tmp_path, checkpoint_path)
                     logger.info(f"Checkpoint saved to {checkpoint_path}")
                 except Exception as e:
@@ -865,8 +902,12 @@ def run_benchmark_hog(
             elapsed = time.time() - chunk_start
             logger.info(f"Chunk {chunk_idx + 1} complete in {elapsed:.1f}s")
 
-    total_elapsed = time.time() - start_time
-    logger.info(f"Benchmark complete in {total_elapsed:.1f}s.")
+    session_elapsed = time.time() - start_time
+    total_elapsed = prior_elapsed + session_elapsed
+    logger.info(
+        f"Session complete in {session_elapsed:.1f}s. "
+        f"Total elapsed: {total_elapsed:.1f}s."
+    )
 
     logger.info("Calculating metrics...")
     try:
@@ -879,7 +920,7 @@ def run_benchmark_hog(
         traceback.print_exc()
         metrics = {"error": f"Metrics calculation failed: {e}"}
 
-    # Calculate run metadata
+    # Calculate run metadata using cumulative values
     assert calculate_run_metadata is not None, "meta_metrics not injected"
     run_metadata = calculate_run_metadata(
         hardware_info=hardware_info,
@@ -887,7 +928,7 @@ def run_benchmark_hog(
         total_elapsed=total_elapsed,
         num_workers=num_workers,
         num_structures_total=len(all_items),
-        num_structures_processed=len(items_to_process),
+        num_structures_processed=len(results),
     )
     logger.info(f"Run metadata: {run_metadata}")
 
@@ -1310,9 +1351,7 @@ class _MatbenchDiscoveryBase:
 
     @hog.method()
     def IS2E(*args, **kwargs):
-        # Same as IS2RE but static? No, IS2E is Initial Structure to Energy (Static).
-        # IS2RE is Relaxation.
-        # IS2E logic:
+        # IS2E is Initial Structure to Energy (Static).
         return _MatbenchDiscoveryBase._run_task(
             *args,
             **kwargs,

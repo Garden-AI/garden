@@ -10,22 +10,17 @@ def create_mattersim_model(device):
     return MatterSimCalculator(device=device)
 
 
-def main():
-    print("Running MatterSim benchmark locally...")
+print("Running MatterSim benchmark locally...")
 
-    # Run IS2RE task locally
-    # Note: Requires a GPU or MPS if using MatterSim, or CPU if specified/supported
-    output = MatbenchDiscovery.IS2RE.local(
-        model_factory=create_mattersim_model,
-        model_packages="mattersim",
-        num_structures="random_100",
-    )
+# Run IS2RE task locally
+# Note: Requires a GPU or MPS if using MatterSim, or CPU if specified/supported
+output = MatbenchDiscovery.IS2RE.local(
+    model_factory=create_mattersim_model,
+    model_packages="mattersim",
+    num_structures="random_100",
+)
 
-    if "error" in output.get("metrics", {}):
-        print(f"Error: {output['metrics']['error']}")
-    else:
-        print("Benchmark Results:", output.get("metrics"))
-
-
-if __name__ == "__main__":
-    main()
+if "error" in output.get("metrics", {}):
+    print(f"Error: {output['metrics']['error']}")
+else:
+    print("Benchmark Results:", output.get("metrics"))
