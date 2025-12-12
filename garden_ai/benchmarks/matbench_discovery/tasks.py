@@ -30,12 +30,13 @@ import os
 import sys
 import time
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
 import groundhog_hpc as hog
 import numpy as np
-import pandas as pd  # type: ignore
-from sklearn.metrics import r2_score  # type: ignore
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class DatasetSize(str, Enum):
@@ -148,6 +149,8 @@ def classify_stable(
     stability_threshold: float = 0.0,
     fillna: bool = True,
 ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    import pandas as pd
+
     if len(each_true) != len(each_pred):
         raise ValueError(f"{len(each_true)=} != {len(each_pred)=}")
 
@@ -232,6 +235,8 @@ def stable_metrics(
         f1_score = float("nan")
     else:
         f1_score = 2 * (precision * recall) / (precision + recall)
+
+    from sklearn.metrics import r2_score  # type: ignore
 
     return dict(
         F1=f1_score,
@@ -336,6 +341,7 @@ def get_material_ids_for_subset(
     if subset_type == "full":
         return None
 
+    import pandas as pd
     from matbench_discovery.data import DataFiles  # type: ignore
 
     df = pd.read_csv(DataFiles.wbm_summary.path)
@@ -609,6 +615,8 @@ def calculate_metrics_forces(
 
             except Exception:
                 pass
+
+    from sklearn.metrics import r2_score  # type: ignore
 
     result_metrics = {}
     if metrics["energy_mae"]:
