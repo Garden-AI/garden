@@ -29,7 +29,7 @@ class BenchmarkResultCreateRequest(BaseModel):
 class BenchmarkResultResponse(BaseModel):
     """Response schema from the benchmark result creation endpoint."""
 
-    id: str = Field(..., description="Unique identifier for the benchmark result")
+    id: int = Field(..., description="Unique identifier for the benchmark result")
     benchmark_name: str
     benchmark_task_name: str
     metrics: Dict[str, Any]

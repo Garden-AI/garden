@@ -25,6 +25,8 @@ __all__ = [
 
 def publish_benchmark_result(
     result: Dict[str, Any],
+    model_name: str,
+    garden_doi: Optional[str] = None,
     benchmark_name: Optional[str] = None,
     task_name: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -38,6 +40,9 @@ def publish_benchmark_result(
             - 'metrics': Dictionary of benchmark metrics (F1, DAF, MAE, etc.)
             - 'run_metadata': Optional run metadata (hardware, timing, cost)
             - '_benchmark_info': Auto-injected benchmark/task info (if from wrapped method)
+        model_name: The specific name/variant of the model (e.g., "mace-mp-0-medium", "chgnet-v0.3.0").
+            This is required to identify the model on the leaderboard.
+        garden_doi: Optional DOI for the Garden publication associated with this benchmark result.
         benchmark_name: Override for benchmark name (defaults to auto-detected from result)
         task_name: Override for task name (defaults to auto-detected from result)
 
@@ -53,14 +58,10 @@ def publish_benchmark_result(
         from garden_ai.benchmarks import MatbenchDiscovery, publish_benchmark_result
 
         # Run a benchmark
-        output = MatbenchDiscovery.IS2RE.remote(
-            endpoint="your-endpoint-id",
-            model_factory=create_model,
-            model_packages="mace-torch",
-        )
+        output = MatbenchDiscovery.IS2RE.remote(...)
 
         # Publish the results
-        response = publish_benchmark_result(output)
+        response = publish_benchmark_result(output, model_name="mace-medium", garden_doi="10.26311/example.doi")
         print(f"Published with ID: {response['id']}")
         ```
     """
@@ -82,19 +83,25 @@ def publish_benchmark_result(
             "from a MatbenchDiscovery task method (e.g., MatbenchDiscovery.IS2RE.remote())."
         )
 
-    # Extract metrics and run_metadata
-    metrics = result.get("metrics", {})
-    run_metadata = result.get("run_metadata")
+    # Inject model name into run_metadata
+    if "run_metadata" not in result:
+        result["run_metadata"] = {}
+    if "model" not in result["run_metadata"]:
+        result["run_metadata"]["model"] = {}
 
-    if not metrics:
-        raise ValueError("Result must contain 'metrics' dictionary.")
+    result["run_metadata"]["model"]["variant"] = model_name
+
+    # Inject garden_doi if provided
+    if garden_doi:
+        result["run_metadata"]["garden_doi"] = garden_doi
 
     # Create the request payload
+    # Note: We pass the modified result (containing metrics and metadata) as 'metrics'
+    # This assumes the backend handles the unified blob or we rely on the schema field description.
     payload = BenchmarkResultCreateRequest(
         benchmark_name=final_benchmark_name,
         benchmark_task_name=final_task_name,
-        metrics=metrics,
-        run_metadata=run_metadata,
+        metrics=result,
     )
 
     # Get authenticated client and publish

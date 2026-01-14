@@ -23,9 +23,9 @@ from globus_sdk import (
 from globus_sdk.authorizers import GlobusAuthorizer
 from globus_sdk.scopes import ScopeBuilder
 from globus_sdk.tokenstorage import SimpleJSONFileAdapter
-from modal.cli._traceback import setup_rich_traceback
 from rich import print
 from rich.prompt import Prompt
+from rich.traceback import install
 
 from garden_ai.backend_client import BackendClient
 from garden_ai.constants import GardenConstants
@@ -34,8 +34,7 @@ from garden_ai.gardens import Garden
 from garden_ai.hpc.gardens.mlip_garden import MLIPGarden
 
 logger = logging.getLogger()
-# modal helper replacement for rich.traceback.install
-setup_rich_traceback()
+install()
 
 
 class AuthException(Exception):

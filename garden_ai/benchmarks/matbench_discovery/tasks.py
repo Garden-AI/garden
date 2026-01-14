@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.10"
+# requires-python = "==3.12"
 # dependencies = [
 #     "groundhog-hpc",
 #     "ase",
@@ -8,16 +8,22 @@
 #     "scikit-learn",
 #     "torch",
 #     "matbench-discovery",
+#     "bibtexparser<1.4.3",
 # ]
 #
 # [tool.hog.anvil]
 # endpoint = "5aafb4c1-27b2-40d8-a038-a0277611868f"
-# account = "replace with your account"
 # qos = "gpu"
 # partition = "gpu"
 # cores_per_node = 16
+# mem_per_mode = 32
 # scheduler_options = "#SBATCH --gpus-per-node=4\n"
 # requirements = ""
+#
+# [tool.hog.sophia]
+# endpoint = "8d07224c-ceaa-4b7f-946d-fae3f7423d5b"
+# account = "Garden-Ai"
+# queue = "by-gpu"
 # ///
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ import json
 import logging
 import multiprocessing
 import os
+import random
 import sys
 import time
 from enum import Enum
@@ -140,8 +147,20 @@ def _get_meta_metrics_source() -> str:
 _MODEL_CACHE = None
 
 
-# Metrics calculations lifted from https://github.com/janosh/matbench-discovery/tree/main/matbench_discovery/metrics
-# Since they aren't setup to be easily imported, we just copy them here
+# Helper functions from matbench-discovery/metrics/geo_opt.py and phonons.py
+
+
+def calc_rmsd(
+    coords_true: np.ndarray,
+    coords_pred: np.ndarray,
+) -> float:
+    """Calculate the Root Mean Square Deviation (RMSD) between two sets of coordinates.
+    Assumes atoms are in the same order.
+    """
+    return np.sqrt(((coords_true - coords_pred) ** 2).mean())
+
+
+# Metrics calculations lifted from https://github.com/janosh/matbench-discovery/blob/main/matbench_discovery/metrics/discovery.py
 def classify_stable(
     each_true: Sequence[float] | pd.Series | np.ndarray,
     each_pred: Sequence[float] | pd.Series | np.ndarray,
@@ -238,6 +257,7 @@ def stable_metrics(
 
     from sklearn.metrics import r2_score  # type: ignore
 
+    # Return the standard discovery metrics
     return dict(
         F1=f1_score,
         DAF=precision / prevalence if prevalence > 0 else float("nan"),
@@ -252,13 +272,13 @@ def stable_metrics(
         FPR=FPR,
         TNR=TNR,
         FNR=FNR,
-        TP=n_true_pos,
-        FP=n_false_pos,
-        TN=n_true_neg,
-        FN=n_false_neg,
         MAE=np.abs(each_true - each_pred).mean(),
         RMSE=((each_true - each_pred) ** 2).mean() ** 0.5,
-        R2=r2_score(each_true, each_pred) if len(each_true) > 1 else float("nan"),
+        **{
+            "R^2": r2_score(each_true, each_pred)
+            if len(each_true) > 1
+            else float("nan")
+        },
     )
 
 
@@ -514,12 +534,46 @@ def load_dataset_mp_trj(config: Dict[str, Any]) -> List[Any]:
 def calculate_metrics_energy(
     results: Dict[str, Any], config: Dict[str, Any]
 ) -> Dict[str, Any]:
-    from matbench_discovery.data import df_wbm  # type: ignore
+    from io import TextIOWrapper
+    from zipfile import ZipFile
+
+    from ase.io import read
+    from matbench_discovery.data import DataFiles, df_wbm  # type: ignore
 
     if len(results) == 0:
         return {"error": "No results to evaluate"}
 
     model_energies = {}
+    rmsd_list = []
+
+    # Calculate RMSD if positions are returned (e.g. for IS2RE)
+    try:
+        # Check if any result has positions
+        first_res = next(iter(results.values()))
+        if isinstance(first_res, dict) and "positions" in first_res:
+            with ZipFile(DataFiles.wbm_relaxed_atoms.path, "r") as zf:
+                for sid, res in results.items():
+                    if isinstance(res, dict) and "positions" in res:
+                        try:
+                            # Load GT structure
+                            # sid is the filename in the zip (e.g. "material_id.extxyz")
+                            with zf.open(sid) as f:
+                                text_stream = TextIOWrapper(f, encoding="utf-8")
+                                # Read first frame (should be only one for relaxed)
+                                gt_atoms = read(text_stream, format="extxyz")
+
+                                pred_pos = np.array(res["positions"])
+                                gt_pos = gt_atoms.get_positions()  # type: ignore
+
+                                if pred_pos.shape == gt_pos.shape:
+                                    # Use helper function
+                                    rmsd = calc_rmsd(gt_pos, pred_pos)
+                                    rmsd_list.append(rmsd)
+                        except Exception:
+                            pass
+    except Exception as e:
+        print(f"Warning: RMSD calculation failed: {e}")
+
     for sid, res in results.items():
         if isinstance(res, dict) and res.get("energy") is not None:
             mat_id = sid.replace(".extxyz", "")
@@ -549,6 +603,10 @@ def calculate_metrics_energy(
 
     metrics = stable_metrics(each_true, each_pred, prevalence=global_prevalence)
     metrics["num_evaluated"] = len(common_ids)
+
+    # Inject RMSD
+    metrics["RMSD"] = float(np.mean(rmsd_list)) if rmsd_list else float("nan")
+
     return metrics
 
 
@@ -561,20 +619,9 @@ def calculate_metrics_forces(
     from ase.io import read
     from matbench_discovery.data import DataFiles  # type: ignore
 
-    metrics: Dict[str, List[float]] = {
-        "energy_mae": [],
-        "energy_rmse": [],
-        "force_mae": [],
-        "force_rmse": [],
-        "stress_mae": [],
-        "stress_rmse": [],
-    }
+    # We will use the standard stable_metrics for energy predictions in the trajectory
     all_e_pred: List[float] = []
     all_e_true: List[float] = []
-    all_f_pred: List[float] = []
-    all_f_true: List[float] = []
-    all_s_pred: List[float] = []
-    all_s_true: List[float] = []
 
     zip_path = DataFiles.mp_trj_extxyz.path
 
@@ -583,71 +630,32 @@ def calculate_metrics_forces(
             if "error" in res:
                 continue
             try:
-                with zf.open(sid) as f:
-                    text_stream = TextIOWrapper(f, encoding="utf-8")
-                    atoms_list = read(text_stream, format="extxyz", index=":")
-                    gt_atoms = atoms_list[-1]
+                if isinstance(res, dict) and "energy" in res:
+                    with zf.open(sid) as f:
+                        text_stream = TextIOWrapper(f, encoding="utf-8")
+                        atoms_list = read(text_stream, format="extxyz", index=":")
+                        gt_atoms = atoms_list[-1]  # type: ignore
 
-                    e_pred = res["energy"]
-                    e_true = gt_atoms.get_potential_energy()  # type: ignore[union-attr]
-                    n_atoms = len(gt_atoms)  # type: ignore[arg-type]
-                    energy_error = abs(e_pred - e_true) / n_atoms
-                    metrics["energy_mae"].append(energy_error)
-                    metrics["energy_rmse"].append(energy_error**2)
-                    all_e_pred.append(e_pred / n_atoms)
-                    all_e_true.append(e_true / n_atoms)
+                        e_pred = res["energy"]
+                        e_true = gt_atoms.get_potential_energy()  # type: ignore
+                        n_atoms = len(gt_atoms)  # type: ignore
 
-                    f_pred = np.array(res["forces"])
-                    f_true = gt_atoms.get_forces()  # type: ignore[union-attr]
-                    force_error = np.abs(f_pred - f_true)
-                    metrics["force_mae"].append(force_error.mean())
-                    metrics["force_rmse"].append((force_error**2).mean())
-                    all_f_pred.extend(f_pred.flatten())
-                    all_f_true.extend(f_true.flatten())
-
-                    s_pred = np.array(res["stress"])
-                    s_true = gt_atoms.get_stress()  # type: ignore[union-attr]
-                    stress_error = np.abs(s_pred - s_true)
-                    metrics["stress_mae"].append(stress_error.mean())
-                    metrics["stress_rmse"].append((stress_error**2).mean())
-                    all_s_pred.extend(s_pred.flatten())
-                    all_s_true.extend(s_true.flatten())
-
+                        # Normalize per atom
+                        all_e_pred.append(e_pred / n_atoms)
+                        all_e_true.append(e_true / n_atoms)
             except Exception:
                 pass
 
-    from sklearn.metrics import r2_score  # type: ignore
+    if not all_e_true:
+        return {"error": "No valid energy comparisons found"}
 
-    result_metrics = {}
-    if metrics["energy_mae"]:
-        result_metrics["energy_mae"] = float(np.mean(metrics["energy_mae"]))
-        result_metrics["energy_rmse"] = float(np.sqrt(np.mean(metrics["energy_rmse"])))
-        result_metrics["energy_r2"] = (
-            float(r2_score(all_e_true, all_e_pred))
-            if len(all_e_true) > 1
-            else float("nan")
-        )
+    each_true = np.array(all_e_true)
+    each_pred = np.array(all_e_pred)
 
-    if metrics["force_mae"]:
-        result_metrics["force_mae"] = float(np.mean(metrics["force_mae"]))
-        result_metrics["force_rmse"] = float(np.sqrt(np.mean(metrics["force_rmse"])))
-        result_metrics["force_r2"] = (
-            float(r2_score(all_f_true, all_f_pred))
-            if len(all_f_true) > 1
-            else float("nan")
-        )
-
-    if metrics["stress_mae"]:
-        result_metrics["stress_mae"] = float(np.mean(metrics["stress_mae"]))
-        result_metrics["stress_rmse"] = float(np.sqrt(np.mean(metrics["stress_rmse"])))
-        result_metrics["stress_r2"] = (
-            float(r2_score(all_s_true, all_s_pred))
-            if len(all_s_true) > 1
-            else float("nan")
-        )
-
-    result_metrics["num_evaluated"] = len(metrics["energy_mae"])
-    return result_metrics
+    # Calculate standard discovery metrics on energies
+    metrics = stable_metrics(each_true, each_pred)
+    metrics["num_evaluated"] = len(all_e_true)
+    return metrics
 
 
 def run_benchmark_hog(
@@ -763,41 +771,6 @@ def run_benchmark_hog(
         (item_id, item) for item_id, item in all_items if str(item_id) not in results
     ]
 
-    if not items_to_process:
-        logger.info(
-            "All items already processed! Calculating metrics from checkpoint..."
-        )
-
-        # Calculate metrics from checkpoint results
-        try:
-            metrics = calc_metrics_fn(results, config)
-            logger.info(f"Metrics calculated: {metrics}")
-        except Exception as e:
-            logger.error(f"Failed to calculate metrics: {e}")
-            import traceback
-
-            traceback.print_exc()
-            metrics = {"error": f"Metrics calculation failed: {e}"}
-
-        # Use cumulative values from checkpoint metadata
-        assert calculate_run_metadata is not None, "meta_metrics not injected"
-        run_metadata = calculate_run_metadata(
-            hardware_info=hardware_info,
-            model_info=model_info,
-            total_elapsed=prior_elapsed,
-            num_workers=0,
-            num_structures_total=len(all_items),
-            num_structures_processed=len(results),
-        )
-        return {"metrics": metrics, "run_metadata": run_metadata}
-
-    logger.info(f"Processing {len(items_to_process)} remaining items")
-
-    import random
-
-    random.seed(42)
-    random.shuffle(items_to_process)
-
     try:
         import torch
 
@@ -828,6 +801,39 @@ def run_benchmark_hog(
     logger.info(
         f"Resources: {num_gpus} GPUs, {total_cores} Cores. Using {num_workers} workers ({threads_per_worker} threads/worker)"
     )
+
+    if not items_to_process:
+        logger.info(
+            "All items already processed! Calculating metrics from checkpoint..."
+        )
+
+        # Calculate metrics from checkpoint results
+        try:
+            metrics = calc_metrics_fn(results, config)
+            logger.info(f"Metrics calculated: {metrics}")
+        except Exception as e:
+            logger.error(f"Failed to calculate metrics: {e}")
+            import traceback
+
+            traceback.print_exc()
+            metrics = {"error": f"Metrics calculation failed: {e}"}
+
+        # Use cumulative values from checkpoint metadata
+        assert calculate_run_metadata is not None, "meta_metrics not injected"
+        run_metadata = calculate_run_metadata(
+            hardware_info=hardware_info,
+            model_info=model_info,
+            total_elapsed=prior_elapsed,
+            num_workers=num_workers,
+            num_structures_total=len(all_items),
+            num_structures_processed=len(results),
+        )
+        return {"metrics": metrics, "run_metadata": run_metadata}
+
+    logger.info(f"Processing {len(items_to_process)} remaining items")
+
+    random.seed(42)
+    random.shuffle(items_to_process)
 
     start_time = time.time()
     chunk_size = 1000 * num_workers
