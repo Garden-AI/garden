@@ -6,6 +6,10 @@ import requests
 
 from garden_ai.constants import GardenConstants
 from garden_ai.gardens import Garden
+from garden_ai.schemas.benchmark import (
+    BenchmarkResultCreateRequest,
+    BenchmarkResultResponse,
+)
 from garden_ai.schemas.garden import GardenMetadata
 from garden_ai.schemas.hpc import HpcInvocationCreateRequest
 from garden_ai.schemas.modal import (
@@ -182,3 +186,9 @@ class BackendClient:
     def create_hpc_invocation(self, payload: HpcInvocationCreateRequest) -> dict:
         response = self._post("/hpc/invocations", payload.model_dump(mode="json"))
         return response
+
+    def publish_benchmark_result(
+        self, payload: BenchmarkResultCreateRequest
+    ) -> BenchmarkResultResponse:
+        response = self._post("/benchmarks", payload.model_dump(mode="json"))
+        return BenchmarkResultResponse(**response)

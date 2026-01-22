@@ -1098,7 +1098,7 @@ requires-dist = [
     { name = "gitpython", specifier = ">=3.1.35,<4.0.0" },
     { name = "globus-compute-sdk", specifier = ">=4.0.0" },
     { name = "globus-sdk", specifier = ">=3.34.0,<4.0.0" },
-    { name = "groundhog-hpc", specifier = ">=0.5.0" },
+    { name = "groundhog-hpc", specifier = ">=0.5.6" },
     { name = "h2", specifier = ">=4.3.0" },
     { name = "huggingface-hub", specifier = "==0.18.0" },
     { name = "ipython", specifier = "<8.13" },
@@ -1251,7 +1251,7 @@ wheels = [
 
 [[package]]
 name = "groundhog-hpc"
-version = "0.5.4"
+version = "0.5.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "globus-compute-sdk" },
@@ -1265,9 +1265,9 @@ dependencies = [
     { name = "typer" },
     { name = "uv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/4a/79c3bef59e0e4e538875949cec290d26cf5cefd601135e190723f9fc89de/groundhog_hpc-0.5.4.tar.gz", hash = "sha256:1f9ef486a6b62a3f28168689425b9b838c1abe92d76291a392299c70a4f5a0ec", size = 31705, upload-time = "2025-11-06T23:31:08.795Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/e7/adf855aaded946d2cff12851320c7b53114fed40d4b833efaf0081bc3aea/groundhog_hpc-0.5.6.tar.gz", hash = "sha256:cc5a25c0dfc6a0ddc641e631cc7dae1466e81b8f24984f102eb8300cf6340b42", size = 32346, upload-time = "2025-12-09T18:49:49.554Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/c4/abece517b27357edc102891244233e68a12de57c0cee7bd4a404ad86bb74/groundhog_hpc-0.5.4-py3-none-any.whl", hash = "sha256:287c91211f2d64fb89b84b3be0cd26611cd3c1a29c76b83efe1219f3ad8fc53f", size = 44364, upload-time = "2025-11-06T23:31:07.512Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/13/702590a7f6064c01609379225c678b42e6c1a56e72e85a8d14a23ec9213a/groundhog_hpc-0.5.6-py3-none-any.whl", hash = "sha256:d6347031c1f779e24379fd9619ca59dc2dce8df521fcd0c6cb51b00a7e807eab", size = 45086, upload-time = "2025-12-09T18:49:50.346Z" },
 ]
 
 [[package]]
