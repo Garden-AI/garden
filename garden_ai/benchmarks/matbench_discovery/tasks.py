@@ -296,13 +296,17 @@ def _process_batch_common(
     import re
     import time
 
+    gpu_id = model_config.get("gpu_id")
+    if gpu_id is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+        device = "cuda"
+    else:
+        device = setup_device(gpu_id)
+
     import torch
 
     os.environ["OMP_NUM_THREADS"] = str(num_threads)
     torch.set_num_threads(num_threads)
-
-    gpu_id = model_config.get("gpu_id")
-    device = setup_device(gpu_id)
 
     worker_logger = logging.getLogger(f"worker_{batch_id}")
     worker_logger.info(
@@ -590,10 +594,28 @@ def calculate_metrics_energy(
 
     df_subset = df_wbm_indexed.loc[common_ids]
     y_pred = np.array([model_energies[mid] for mid in common_ids])
-    y_true = df_subset["uncorrected_energy"].values
     n_atoms = df_subset["n_sites"].values
 
-    e_form_error = (y_pred - y_true) / n_atoms
+    # CRITICAL FIX: Compute formation energy error, not total energy error
+    # Formation energy is defined as: E_formation = E_total - Σ(n_i × E_ref_i)
+    # where E_ref_i are elemental reference energies in their standard states
+
+    # Get ground truth formation energy per atom (uncorrected, matches model prediction level)
+    y_true_form = df_subset["e_form_per_atom_uncorrected"].values  # eV/atom
+
+    # Compute reference energy per atom from known DFT data
+    # E_ref_per_atom = E_total_per_atom - E_form_per_atom
+    y_true_total = df_subset["uncorrected_energy"].values
+    ref_energy_per_atom = (y_true_total / n_atoms) - y_true_form
+
+    # Compute model's predicted formation energy per atom
+    # E_form_pred = E_total_pred / n_atoms - E_ref_per_atom
+    y_pred_form = (y_pred / n_atoms) - ref_energy_per_atom
+
+    # Formation energy error (this is what affects stability predictions!)
+    e_form_error = y_pred_form - y_true_form
+
+    # Predict energy above hull by adding formation energy error to ground truth hull distance
     each_true = df_subset["e_above_hull_mp2020_corrected_ppd_mp"].values
     each_pred = each_true + e_form_error
 
