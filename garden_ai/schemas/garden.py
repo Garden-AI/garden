@@ -47,3 +47,57 @@ class GardenMetadata(BaseModel):
 
     owner_identity_id: UUID | None = None
     id: int | None = None
+
+
+class GardenCreateRequest(BaseModel):
+    """Request schema for creating a new Garden.
+
+    Attributes:
+        title: The title of the Garden.
+        authors: A list of authors of the Garden.
+        description: A brief description of the Garden.
+        contributors: A list of contributors to the Garden.
+        tags: A list of tags associated with the Garden.
+        year: The year of publication.
+        version: The version of the Garden.
+        language: The primary language of the Garden.
+        modal_function_ids: IDs of Modal functions to include.
+        hpc_function_ids: IDs of HPC/Groundhog functions to include.
+        owner_identity_id: Optional UUID to assign ownership to another user.
+    """
+
+    title: str
+    authors: UniqueList[str]
+    description: str | None = None
+
+    contributors: UniqueList[str] = Field(default_factory=list)
+    tags: UniqueList[str] = Field(default_factory=list)
+    year: str = Field(default_factory=lambda: str(datetime.now().year))
+    version: str = "0.0.1"
+    language: str = "en"
+    publisher: str = "Garden-AI"
+
+    modal_function_ids: UniqueList[int] = Field(default_factory=list)
+    hpc_function_ids: UniqueList[int] = Field(default_factory=list)
+
+    owner_identity_id: UUID | None = None
+
+
+class GardenPatchRequest(BaseModel):
+    """Request schema for updating an existing Garden.
+
+    All fields are optional. Only provided fields will be updated.
+    """
+
+    title: str | None = None
+    authors: UniqueList[str] | None = None
+    contributors: UniqueList[str] | None = None
+    description: str | None = None
+    publisher: str | None = None
+    year: str | None = None
+    language: str | None = None
+    tags: UniqueList[str] | None = None
+    version: str | None = None
+
+    modal_function_ids: UniqueList[int] | None = None
+    hpc_function_ids: UniqueList[int] | None = None

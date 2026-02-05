@@ -8,7 +8,7 @@ class HpcFunctionMetadata(BaseModel):
 
     id: int
     function_name: str
-    function_text: str
+    function_text: str | None = None
     title: str | None = None
     description: str | None = None
     available_endpoints: list[dict[str, str]] = Field(default_factory=list)

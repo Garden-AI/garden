@@ -85,3 +85,17 @@ class ModelMetadata(BaseModel, protected_namespaces=()):
     model_identifier: str
     model_repository: str
     model_version: str | None = None
+
+
+class NotebookMetadata(BaseModel):
+    """Metadata for a Jupyter notebook associated with a function.
+
+    Attributes:
+        title: The title of the notebook.
+        description: A brief description of the notebook.
+        url: The URL where the notebook can be accessed.
+    """
+
+    title: str
+    description: str | None = None
+    url: Url
