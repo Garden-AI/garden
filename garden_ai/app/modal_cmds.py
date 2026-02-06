@@ -203,10 +203,23 @@ def deploy_modal_app(
 
 
 @modal_app.command("list")
-def list_modal_apps():
+def list_modal_apps(
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
+):
     """List your Modal apps."""
     client = GardenClient()
     apps = client.backend_client.get_modal_apps()
+
+    if json_output:
+        data = [app.model_dump(mode="json") for app in apps]
+        if pretty:
+            rich.print(data)
+        else:
+            import json
+
+            print(json.dumps(data))
+        return
 
     if not apps:
         rich.print("[yellow]No Modal apps found.[/yellow]")

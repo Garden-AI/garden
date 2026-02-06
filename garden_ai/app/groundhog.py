@@ -88,10 +88,22 @@ def create_endpoint(
 @endpoint_app.command("list")
 def list_endpoints(
     limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
     """List available Groundhog endpoints."""
     client = GardenClient()
     endpoints = client.backend_client.get_hpc_endpoints(limit=limit)
+
+    if json_output:
+        data = [ep.model_dump(mode="json") for ep in endpoints]
+        if pretty:
+            rich.print(data)
+        else:
+            import json
+
+            print(json.dumps(data))
+        return
 
     if not endpoints:
         rich.print("[yellow]No endpoints found.[/yellow]")
@@ -244,10 +256,23 @@ def deploy_function(
 
 
 @groundhog_app.command("list")
-def list_functions():
+def list_functions(
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
+):
     """List your Groundhog functions."""
     client = GardenClient()
     functions = client.backend_client.get_hpc_functions()
+
+    if json_output:
+        data = [fn.model_dump(mode="json") for fn in functions]
+        if pretty:
+            rich.print(data)
+        else:
+            import json
+
+            print(json.dumps(data))
+        return
 
     if not functions:
         rich.print("[yellow]No Groundhog functions found.[/yellow]")

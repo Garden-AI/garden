@@ -74,7 +74,9 @@ def create_garden(
 
 @garden_app.command("list")
 def list_gardens(
-    mine: bool = typer.Option(False, "--mine", help="Show only your gardens"),
+    all_gardens: bool = typer.Option(
+        False, "--all", help="List all published gardens instead of just yours"
+    ),
     tags: Optional[str] = typer.Option(
         None, "--tags", help="Filter by comma-separated tags"
     ),
@@ -83,13 +85,15 @@ def list_gardens(
     ),
     year: Optional[str] = typer.Option(None, "--year", help="Filter by year"),
     limit: int = typer.Option(20, "--limit", "-n", help="Maximum results to show"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
     """List gardens."""
     client = GardenClient()
 
-    owner_uuid = None
-    if mine:
-        owner_uuid = str(client.get_user_identity_id())
+    owner_uuid = str(client.get_user_identity_id())
+    if all_gardens:
+        owner_uuid = None
 
     gardens = client.backend_client.get_gardens(
         tags=_parse_list(tags),
@@ -98,6 +102,16 @@ def list_gardens(
         owner_uuid=owner_uuid,
         limit=limit,
     )
+
+    if json_output:
+        data = [g.metadata.model_dump(mode="json") for g in gardens]
+        if pretty:
+            rich.print(data)
+        else:
+            import json
+
+            print(json.dumps(data))
+        return
 
     if not gardens:
         rich.print("[yellow]No gardens found.[/yellow]")
@@ -120,6 +134,65 @@ def list_gardens(
             ", ".join(g.metadata.authors[:2])
             + ("..." if len(g.metadata.authors) > 2 else ""),
             state,
+        )
+
+    rich.print(table)
+
+
+@garden_app.command("search")
+def search_garden(
+    query: str = typer.Argument(..., help="Search query"),
+    limit: int = typer.Option(10, "--limit", "-n", help="Maximum results to show"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
+):
+    """Search for gardens using full-text search."""
+    client = GardenClient()
+
+    payload = {
+        "q": query,
+        "limit": limit,
+        "offset": 0,
+        "filters": [{"field_name": "is_archived", "values": ["false"]}],
+    }
+
+    results = client.backend_client.search_gardens(payload)
+    gardens = results.get("garden_meta", [])
+
+    if json_output:
+        if pretty:
+            rich.print(gardens)
+        else:
+            import json
+
+            print(json.dumps(gardens))
+        return
+
+    if not gardens:
+        rich.print("[yellow]No gardens found.[/yellow]")
+        return
+
+    table = Table(title=f"Search Results for '{query}'")
+    table.add_column("DOI", style="cyan")
+    table.add_column("Title")
+    table.add_column("Authors")
+    table.add_column("Description")
+
+    for g in gardens:
+        title = g.get("title", "")
+        title_display = title[:40] + "..." if len(title) > 40 else title
+        authors = g.get("authors", [])
+        authors_display = ", ".join(authors[:2]) + ("..." if len(authors) > 2 else "")
+        description = g.get("description", "") or ""
+        desc_display = (
+            description[:50] + "..." if len(description) > 50 else description
+        )
+
+        table.add_row(
+            g.get("doi", "-"),
+            title_display,
+            authors_display,
+            desc_display,
         )
 
     rich.print(table)
