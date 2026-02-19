@@ -8,8 +8,12 @@ import typer
 from rich.table import Table
 
 from garden_ai import GardenClient
+from garden_ai.app.groundhog import groundhog_app
+from garden_ai.app.modal_cmds import modal_app
 
 functions_app = typer.Typer(help="Manage functions (Modal and HPC)")
+functions_app.add_typer(modal_app, name="modal")
+functions_app.add_typer(groundhog_app, name="hpc")
 
 
 class FunctionType(str, Enum):
