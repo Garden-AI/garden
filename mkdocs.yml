@@ -4,6 +4,7 @@ edit_uri: edit/main/docs/
 nav:
   - Overview: index.md
   - Publishing with Modal: user_guide/publishing/modal-publishing.md
+  - CLI Reference: CLI.md
   - API Reference: api-docs.md
   - Developer Guide: developer_guide/contributing.md
 theme:
