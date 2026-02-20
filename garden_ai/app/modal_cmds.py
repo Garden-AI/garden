@@ -1,6 +1,7 @@
-"""CLI commands for Modal App management."""
+"""CLI commands for Modal function and app management."""
 
 import ast
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -18,7 +19,9 @@ from garden_ai.schemas.modal_app import (
     ModalFunctionPatchRequest,
 )
 
-modal_app = typer.Typer(help="Manage Modal functions")
+modal_app = typer.Typer(help="Manage Modal functions and apps", no_args_is_help=True)
+modal_app_app = typer.Typer(help="Manage Modal apps", no_args_is_help=True)
+modal_app.add_typer(modal_app_app, name="app")
 
 
 def _parse_list(value: str | None) -> list[str]:
@@ -77,7 +80,142 @@ def _extract_app_name(file_path: Path) -> str | None:
     return None
 
 
-@modal_app.command("deploy")
+# =============================================================================
+# Modal Function Commands
+# =============================================================================
+
+
+@modal_app.command("list")
+def list_modal_functions(
+    limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
+):
+    """List your Modal functions."""
+    client = GardenClient()
+    functions = client.backend_client.get_modal_functions(limit=limit)
+
+    if json_output:
+        data = [fn.model_dump(mode="json") for fn in functions]
+        if pretty:
+            rich.print(data)
+        else:
+            print(json.dumps(data))
+        return
+
+    if not functions:
+        rich.print("[yellow]No Modal functions found.[/yellow]")
+        return
+
+    table = Table(title="Modal Functions")
+    table.add_column("ID", style="cyan")
+    table.add_column("Name")
+    table.add_column("Title")
+    table.add_column("App ID")
+    table.add_column("Authors")
+    table.add_column("Invocations", justify="right")
+
+    for fn in functions:
+        title = fn.title or "-"
+        title_display = (title[:25] + "...") if len(title) > 25 else title
+        authors = ", ".join(fn.authors[:2]) if fn.authors else "-"
+        if fn.authors and len(fn.authors) > 2:
+            authors += "..."
+
+        table.add_row(
+            str(fn.id),
+            fn.function_name or "-",
+            title_display,
+            str(fn.modal_app_id) if fn.modal_app_id else "-",
+            authors,
+            str(fn.num_invocations),
+        )
+
+    rich.print(table)
+
+
+@modal_app.command("show")
+def show_modal_function(
+    function_id: int = typer.Argument(..., help="Modal function ID"),
+    show_code: bool = typer.Option(False, "--code", "-c", help="Show function code"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
+):
+    """Show details of a Modal function."""
+    client = GardenClient()
+    fn = client.backend_client.get_modal_function(function_id)
+
+    if json_output:
+        data = fn.model_dump(mode="json")
+        if pretty:
+            rich.print(data)
+        else:
+            print(json.dumps(data))
+        return
+
+    rich.print(f"\n[bold]Modal Function: {fn.function_name}[/bold]")
+    rich.print(f"  ID: [cyan]{fn.id}[/cyan]")
+    rich.print(f"  App ID: {fn.modal_app_id}")
+    if fn.doi:
+        rich.print(f"  DOI: {fn.doi}")
+    rich.print(f"  Title: {fn.title}")
+    if fn.description:
+        rich.print(f"  Description: {fn.description}")
+    if fn.authors:
+        rich.print(f"  Authors: {', '.join(fn.authors)}")
+    if fn.tags:
+        rich.print(f"  Tags: {', '.join(fn.tags)}")
+    rich.print(f"  Year: {fn.year}")
+    rich.print(f"  Invocations: {fn.num_invocations}")
+    rich.print(f"  Archived: {fn.is_archived}")
+
+    if show_code and fn.function_text:
+        rich.print("\n  [bold]Function Code:[/bold]")
+        from rich.syntax import Syntax
+
+        syntax = Syntax(fn.function_text, "python", theme="monokai", line_numbers=True)
+        rich.print(syntax)
+
+
+@modal_app.command("update")
+def update_modal_function(
+    function_id: int = typer.Argument(..., help="Modal function ID"),
+    title: Optional[str] = typer.Option(None, "--title", "-t", help="New title"),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="New description"
+    ),
+    authors: Optional[str] = typer.Option(
+        None, "--authors", "-a", help="New comma-separated authors"
+    ),
+    tags: Optional[str] = typer.Option(None, "--tags", help="New comma-separated tags"),
+):
+    """Update a Modal function's metadata."""
+    client = GardenClient()
+
+    request = ModalFunctionPatchRequest(
+        title=title,
+        description=description,
+        authors=_parse_list(authors) if authors else None,
+        tags=_parse_list(tags) if tags else None,
+    )
+
+    if not any([request.title, request.description, request.authors, request.tags]):
+        rich.print("[yellow]No updates specified.[/yellow]")
+        raise typer.Exit(1)
+
+    fn = client.backend_client.patch_modal_function(function_id, request)
+
+    rich.print("[green]✓[/green] Function updated successfully!")
+    rich.print(f"  ID: {fn.id}")
+    rich.print(f"  Name: {fn.function_name}")
+
+
+# =============================================================================
+# Modal App Commands
+# =============================================================================
+
+
+@modal_app_app.command("deploy")
 def deploy_modal_app(
     file: Path = typer.Argument(..., help="Path to Modal Python file"),
     app_name: Optional[str] = typer.Option(
@@ -202,7 +340,7 @@ def deploy_modal_app(
             rich.print(f"    - {fn.function_name} (ID: {fn.id})")
 
 
-@modal_app.command("list")
+@modal_app_app.command("list")
 def list_modal_apps(
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
     pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
@@ -216,8 +354,6 @@ def list_modal_apps(
         if pretty:
             rich.print(data)
         else:
-            import json
-
             print(json.dumps(data))
         return
 
@@ -250,14 +386,27 @@ def list_modal_apps(
     rich.print(table)
 
 
-@modal_app.command("show")
+@modal_app_app.command("show")
 def show_modal_app(
     app_id: int = typer.Argument(..., help="Modal app ID"),
     show_code: bool = typer.Option(False, "--code", "-c", help="Show file contents"),
+    show_app_text: bool = typer.Option(
+        False, "--show-app-text", help="Show the app_text field (deployed code)"
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
     """Show details of a Modal app."""
     client = GardenClient()
     app = client.backend_client.get_modal_app(app_id)
+
+    if json_output:
+        data = app.model_dump(mode="json")
+        if pretty:
+            rich.print(data)
+        else:
+            print(json.dumps(data))
+        return
 
     status = app.deploy_status.value if app.deploy_status else "unknown"
     status_style = {"success": "green", "failed": "red"}.get(status, "yellow")
@@ -290,41 +439,15 @@ def show_modal_app(
         syntax = Syntax(app.file_contents, "python", theme="monokai", line_numbers=True)
         rich.print(syntax)
 
+    if show_app_text and hasattr(app, "app_text") and app.app_text:
+        rich.print("\n  [bold]App Text (Deployed Code):[/bold]")
+        from rich.syntax import Syntax
 
-@modal_app.command("update")
-def update_modal_function(
-    function_id: int = typer.Argument(..., help="Modal function ID"),
-    title: Optional[str] = typer.Option(None, "--title", "-t", help="New title"),
-    description: Optional[str] = typer.Option(
-        None, "--description", "-d", help="New description"
-    ),
-    authors: Optional[str] = typer.Option(
-        None, "--authors", "-a", help="New comma-separated authors"
-    ),
-    tags: Optional[str] = typer.Option(None, "--tags", help="New comma-separated tags"),
-):
-    """Update a Modal function's metadata."""
-    client = GardenClient()
-
-    request = ModalFunctionPatchRequest(
-        title=title,
-        description=description,
-        authors=_parse_list(authors) if authors else None,
-        tags=_parse_list(tags) if tags else None,
-    )
-
-    if not any([request.title, request.description, request.authors, request.tags]):
-        rich.print("[yellow]No updates specified.[/yellow]")
-        raise typer.Exit(1)
-
-    fn = client.backend_client.patch_modal_function(function_id, request)
-
-    rich.print("[green]✓[/green] Function updated successfully!")
-    rich.print(f"  ID: {fn.id}")
-    rich.print(f"  Name: {fn.function_name}")
+        syntax = Syntax(app.app_text, "python", theme="monokai", line_numbers=True)
+        rich.print(syntax)
 
 
-@modal_app.command("delete")
+@modal_app_app.command("delete")
 def delete_modal_app(
     app_id: int = typer.Argument(..., help="Modal app ID to delete"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),

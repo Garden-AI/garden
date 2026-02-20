@@ -1,6 +1,7 @@
-"""CLI commands for Groundhog (HPC) function management."""
+"""CLI commands for HPC (HPC) function management."""
 
 import ast
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -17,8 +18,8 @@ from garden_ai.schemas.groundhog import (
     HpcFunctionPatchRequest,
 )
 
-groundhog_app = typer.Typer(help="Manage Groundhog (HPC) functions")
-endpoint_app = typer.Typer(help="Manage Groundhog endpoints")
+groundhog_app = typer.Typer(help="Manage HPC functions", no_args_is_help=True)
+endpoint_app = typer.Typer(help="Manage HPC endpoints", no_args_is_help=True)
 groundhog_app.add_typer(endpoint_app, name="endpoint")
 
 
@@ -72,7 +73,7 @@ def create_endpoint(
         None, "--gcmu-id", "-g", help="Globus Compute endpoint UUID"
     ),
 ):
-    """Register a new Groundhog endpoint."""
+    """Register a new HPC endpoint."""
     client = GardenClient()
 
     request = HpcEndpointCreateRequest(name=name, gcmu_id=gcmu_id)
@@ -91,7 +92,7 @@ def list_endpoints(
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
     pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
-    """List available Groundhog endpoints."""
+    """List available HPC endpoints."""
     client = GardenClient()
     endpoints = client.backend_client.get_hpc_endpoints(limit=limit)
 
@@ -100,8 +101,6 @@ def list_endpoints(
         if pretty:
             rich.print(data)
         else:
-            import json
-
             print(json.dumps(data))
         return
 
@@ -109,7 +108,7 @@ def list_endpoints(
         rich.print("[yellow]No endpoints found.[/yellow]")
         return
 
-    table = Table(title="Groundhog Endpoints")
+    table = Table(title="HPC Endpoints")
     table.add_column("ID", style="cyan")
     table.add_column("Name")
     table.add_column("GCMU ID")
@@ -129,10 +128,20 @@ def list_endpoints(
 @endpoint_app.command("show")
 def show_endpoint(
     endpoint_id: int = typer.Argument(..., help="Endpoint ID"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
-    """Show details of a Groundhog endpoint."""
+    """Show details of a HPC endpoint."""
     client = GardenClient()
     endpoint = client.backend_client.get_hpc_endpoint(endpoint_id)
+
+    if json_output:
+        data = endpoint.model_dump(mode="json")
+        if pretty:
+            rich.print(data)
+        else:
+            print(json.dumps(data))
+        return
 
     rich.print(f"\n[bold]Endpoint: {endpoint.name}[/bold]")
     rich.print(f"  ID: [cyan]{endpoint.id}[/cyan]")
@@ -148,7 +157,7 @@ def update_endpoint(
     name: Optional[str] = typer.Option(None, "--name", "-n", help="New name"),
     gcmu_id: Optional[str] = typer.Option(None, "--gcmu-id", "-g", help="New GCMU ID"),
 ):
-    """Update a Groundhog endpoint."""
+    """Update a HPC endpoint."""
     client = GardenClient()
 
     request = HpcEndpointPatchRequest(name=name, gcmu_id=gcmu_id)
@@ -169,7 +178,7 @@ def delete_endpoint(
     endpoint_id: int = typer.Argument(..., help="Endpoint ID"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ):
-    """Delete a Groundhog endpoint."""
+    """Delete a HPC endpoint."""
     client = GardenClient()
 
     endpoint = client.backend_client.get_hpc_endpoint(endpoint_id)
@@ -209,7 +218,7 @@ def deploy_function(
         None, "--requirements", "-r", help="Comma-separated pip requirements"
     ),
 ):
-    """Deploy a Groundhog function from a Python file."""
+    """Deploy a HPC function from a Python file."""
     if not file.exists():
         rich.print(f"[red]Error:[/red] File not found: {file}")
         raise typer.Exit(1)
@@ -242,7 +251,7 @@ def deploy_function(
         requirements=_parse_list(requirements),
     )
 
-    rich.print(f"\n[bold]Deploying Groundhog function:[/bold] {function_name}")
+    rich.print(f"\n[bold]Deploying HPC function:[/bold] {function_name}")
 
     fn = client.backend_client.create_hpc_function(request)
 
@@ -260,7 +269,7 @@ def list_functions(
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
     pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
-    """List your Groundhog functions."""
+    """List your HPC functions."""
     client = GardenClient()
     functions = client.backend_client.get_hpc_functions()
 
@@ -269,16 +278,14 @@ def list_functions(
         if pretty:
             rich.print(data)
         else:
-            import json
-
             print(json.dumps(data))
         return
 
     if not functions:
-        rich.print("[yellow]No Groundhog functions found.[/yellow]")
+        rich.print("[yellow]No HPC functions found.[/yellow]")
         return
 
-    table = Table(title="Groundhog Functions")
+    table = Table(title="HPC Functions")
     table.add_column("ID", style="cyan")
     table.add_column("Name")
     table.add_column("Title")
@@ -304,12 +311,22 @@ def list_functions(
 def show_function(
     function_id: int = typer.Argument(..., help="Function ID"),
     show_code: bool = typer.Option(False, "--code", "-c", help="Show function code"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
-    """Show details of a Groundhog function."""
+    """Show details of a HPC function."""
     client = GardenClient()
     fn = client.backend_client.get_hpc_function(function_id)
 
-    rich.print(f"\n[bold]Groundhog Function: {fn.function_name}[/bold]")
+    if json_output:
+        data = fn.model_dump(mode="json")
+        if pretty:
+            rich.print(data)
+        else:
+            print(json.dumps(data))
+        return
+
+    rich.print(f"\n[bold]HPC Function: {fn.function_name}[/bold]")
     rich.print(f"  ID: [cyan]{fn.id}[/cyan]")
     if fn.title:
         rich.print(f"  Title: {fn.title}")
@@ -353,7 +370,7 @@ def update_function(
         None, "--endpoint-ids", "-e", help="New comma-separated endpoint IDs"
     ),
 ):
-    """Update a Groundhog function's metadata."""
+    """Update a HPC function's metadata."""
     client = GardenClient()
 
     request = HpcFunctionPatchRequest(
@@ -390,7 +407,7 @@ def delete_function(
     function_id: int = typer.Argument(..., help="Function ID"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ):
-    """Delete a Groundhog function."""
+    """Delete a HPC function."""
     client = GardenClient()
 
     fn = client.backend_client.get_hpc_function(function_id)

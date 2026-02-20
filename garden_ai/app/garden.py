@@ -1,5 +1,6 @@
 """CLI commands for Garden management."""
 
+import json
 from typing import Optional
 
 import rich
@@ -9,7 +10,7 @@ from rich.table import Table
 from garden_ai import GardenClient
 from garden_ai.schemas.garden import GardenCreateRequest, GardenPatchRequest
 
-garden_app = typer.Typer(help="Manage Gardens")
+garden_app = typer.Typer(help="Manage Gardens", no_args_is_help=True)
 
 
 def _parse_list(value: str | None) -> list[str]:
@@ -29,8 +30,14 @@ def _parse_int_list(value: str | None) -> list[int]:
 @garden_app.command("create")
 def create_garden(
     title: str = typer.Option(..., "--title", "-t", help="Title of the garden"),
-    authors: str = typer.Option(
-        ..., "--authors", "-a", help="Comma-separated list of authors"
+    authors: Optional[str] = typer.Option(
+        None,
+        "--authors",
+        "-a",
+        help="Comma-separated list of authors. If not provided, uses the current user.",
+    ),
+    contributors: Optional[str] = typer.Option(
+        None, "--contributors", "-c", help="Comma-separated list of contributors"
     ),
     description: Optional[str] = typer.Option(
         None, "--description", "-d", help="Description of the garden"
@@ -42,22 +49,26 @@ def create_garden(
         None, "--modal-function-ids", "-m", help="Comma-separated Modal function IDs"
     ),
     hpc_function_ids: Optional[str] = typer.Option(
-        None, "--hpc-function-ids", "-g", help="Comma-separated Groundhog function IDs"
+        None, "--hpc-function-ids", "-g", help="Comma-separated HPC function IDs"
     ),
-    year: Optional[str] = typer.Option(None, "--year", help="Publication year"),
+    year: str = typer.Option("2026", "--year", help="Publication year"),
     version: str = typer.Option("0.0.1", "--version", help="Garden version"),
 ):
     """Create a new garden."""
     client = GardenClient()
 
+    # If no authors provided, use the current user
+    author_list = _parse_list(authors) if authors else [client.get_email()]
+
     request = GardenCreateRequest(
         title=title,
-        authors=_parse_list(authors),
+        authors=author_list,
+        contributors=_parse_list(contributors),
         description=description,
         tags=_parse_list(tags),
         modal_function_ids=_parse_int_list(modal_function_ids),
         hpc_function_ids=_parse_int_list(hpc_function_ids),
-        year=year if year else None,
+        year=year,
         version=version,
     )
 
@@ -69,7 +80,7 @@ def create_garden(
     if garden.modal_function_ids:
         rich.print(f"  Modal Functions: {garden.modal_function_ids}")
     if garden.hpc_function_ids:
-        rich.print(f"  Groundhog Functions: {garden.hpc_function_ids}")
+        rich.print(f"  HPC Functions: {garden.hpc_function_ids}")
 
 
 @garden_app.command("list")
@@ -108,8 +119,6 @@ def list_gardens(
         if pretty:
             rich.print(data)
         else:
-            import json
-
             print(json.dumps(data))
         return
 
@@ -201,31 +210,72 @@ def search_garden(
 @garden_app.command("show")
 def show_garden(
     doi: str = typer.Argument(..., help="DOI of the garden to show"),
+    json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
+    pretty: bool = typer.Option(False, "--pretty", help="Pretty-print JSON output"),
 ):
     """Show details of a specific garden."""
     client = GardenClient()
 
-    garden = client.backend_client.get_garden_metadata(doi)
+    garden = client.backend_client.get_garden(doi)
+    meta = garden.metadata
 
-    rich.print(f"\n[bold]Garden: {garden.title}[/bold]")
-    rich.print(f"  DOI: [cyan]{garden.doi}[/cyan]")
+    if json_output:
+        data = meta.model_dump(mode="json")
+        # Add function names to the output
+        data["modal_functions"] = [
+            {"id": fn.metadata.id, "name": fn.metadata.function_name}
+            for fn in garden.modal_functions
+        ]
+        data["modal_classes"] = [
+            {
+                "class_name": cls.class_name,
+                "methods": [
+                    {"id": m.metadata.id, "name": m.metadata.function_name}
+                    for m in cls._methods.values()
+                ],
+            }
+            for cls in garden.modal_classes
+        ]
+        data["hpc_functions"] = [
+            {"id": fn.metadata.id, "name": fn.metadata.function_name}
+            for fn in garden.hpc_functions
+        ]
+        if pretty:
+            rich.print(data)
+        else:
+            print(json.dumps(data))
+        return
+
+    rich.print(f"\n[bold]Garden: {meta.title}[/bold]")
+    rich.print(f"  DOI: [cyan]{meta.doi}[/cyan]")
     rich.print(
-        f"  State: {garden.state or ('draft' if garden.doi_is_draft else 'published')}"
+        f"  State: {meta.state or ('draft' if meta.doi_is_draft else 'published')}"
     )
-    rich.print(f"  Authors: {', '.join(garden.authors)}")
-    if garden.contributors:
-        rich.print(f"  Contributors: {', '.join(garden.contributors)}")
-    if garden.description:
-        rich.print(f"  Description: {garden.description}")
-    if garden.tags:
-        rich.print(f"  Tags: {', '.join(garden.tags)}")
-    rich.print(f"  Year: {garden.year}")
-    rich.print(f"  Version: {garden.version}")
+    rich.print(f"  Authors: {', '.join(meta.authors)}")
+    if meta.contributors:
+        rich.print(f"  Contributors: {', '.join(meta.contributors)}")
+    if meta.description:
+        rich.print(f"  Description: {meta.description}")
+    if meta.tags:
+        rich.print(f"  Tags: {', '.join(meta.tags)}")
+    rich.print(f"  Year: {meta.year}")
+    rich.print(f"  Version: {meta.version}")
 
-    if garden.modal_function_ids:
-        rich.print(f"\n  [bold]Modal Functions:[/bold] {garden.modal_function_ids}")
-    if garden.hpc_function_ids:
-        rich.print(f"  [bold]Groundhog Functions:[/bold] {garden.hpc_function_ids}")
+    # Display Modal functions with names
+    if garden.modal_functions or garden.modal_classes:
+        rich.print("\n  [bold]Modal Functions:[/bold]")
+        for fn in garden.modal_functions:
+            rich.print(f"    - {fn.metadata.function_name} (ID: {fn.metadata.id})")
+        for cls in garden.modal_classes:
+            rich.print(
+                f"    - {cls.class_name} [class] (IDs: {[m.metadata.id for m in cls._methods.values()]})"
+            )
+
+    # Display HPC functions with names
+    if garden.hpc_functions:
+        rich.print("\n  [bold]HPC Functions:[/bold]")
+        for fn in garden.hpc_functions:
+            rich.print(f"    - {fn.metadata.function_name} (ID: {fn.metadata.id})")
 
 
 @garden_app.command("update")
@@ -233,25 +283,61 @@ def update_garden(
     doi: str = typer.Argument(..., help="DOI of the garden to update"),
     title: Optional[str] = typer.Option(None, "--title", "-t", help="New title"),
     authors: Optional[str] = typer.Option(
-        None, "--authors", "-a", help="New comma-separated list of authors"
+        None,
+        "--authors",
+        "-a",
+        help="Comma-separated list of authors. Replaces the entire authors list.",
+    ),
+    contributors: Optional[str] = typer.Option(
+        None,
+        "--contributors",
+        "-c",
+        help="Comma-separated list of contributors. Replaces the entire contributors list.",
     ),
     description: Optional[str] = typer.Option(
         None, "--description", "-d", help="New description"
     ),
     tags: Optional[str] = typer.Option(
-        None, "--tags", help="New comma-separated list of tags"
+        None,
+        "--tags",
+        help="Comma-separated list of tags. Replaces the entire tags list.",
     ),
     version: Optional[str] = typer.Option(None, "--version", help="New version"),
+    modal_function_ids: Optional[str] = typer.Option(
+        None,
+        "--modal-function-ids",
+        "-m",
+        help="Comma-separated Modal function IDs. Replaces the entire list.",
+    ),
+    hpc_function_ids: Optional[str] = typer.Option(
+        None,
+        "--hpc-function-ids",
+        "-g",
+        help="Comma-separated HPC function IDs. Replaces the entire list.",
+    ),
 ):
-    """Update a garden's metadata."""
+    """Update a garden's metadata.
+
+    Note: For list fields (authors, contributors, tags, function IDs), the provided
+    values will REPLACE the entire existing list. To add or remove individual items,
+    first retrieve the current values with 'garden show', modify as needed, then
+    provide the complete new list.
+    """
     client = GardenClient()
 
     request = GardenPatchRequest(
         title=title,
         authors=_parse_list(authors) if authors else None,
+        contributors=_parse_list(contributors) if contributors else None,
         description=description,
         tags=_parse_list(tags) if tags else None,
         version=version,
+        modal_function_ids=_parse_int_list(modal_function_ids)
+        if modal_function_ids
+        else None,
+        hpc_function_ids=_parse_int_list(hpc_function_ids)
+        if hpc_function_ids
+        else None,
     )
 
     # Only send if at least one field is set
@@ -259,9 +345,12 @@ def update_garden(
         [
             request.title,
             request.authors,
+            request.contributors,
             request.description,
             request.tags,
             request.version,
+            request.modal_function_ids,
+            request.hpc_function_ids,
         ]
     ):
         rich.print("[yellow]No updates specified.[/yellow]")
@@ -286,7 +375,7 @@ def add_functions(
         None,
         "--hpc-function-ids",
         "-g",
-        help="Comma-separated Groundhog function IDs to add",
+        help="Comma-separated HPC function IDs to add",
     ),
     replace: bool = typer.Option(
         False, "--replace", help="Replace existing functions instead of adding"
@@ -321,7 +410,7 @@ def add_functions(
         f"[green]✓[/green] Functions {'replaced' if replace else 'added'} successfully!"
     )
     rich.print(f"  Modal Functions: {garden.modal_function_ids}")
-    rich.print(f"  Groundhog Functions: {garden.hpc_function_ids}")
+    rich.print(f"  HPC Functions: {garden.hpc_function_ids}")
 
 
 @garden_app.command("delete")
