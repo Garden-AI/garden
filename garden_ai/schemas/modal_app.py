@@ -48,7 +48,7 @@ class ModalAppCreateRequest(BaseModel):
     modal_functions: list[ModalFunctionCreateMetadata] = Field(default_factory=list)
     owner_identity_id: str | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def modal_function_names(self) -> list[str]:
         return [mf.function_name for mf in self.modal_functions]
@@ -114,12 +114,12 @@ class ModalAppResponse(BaseModel):
     suggested_fix: str | None = None
     deployment_output: str | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def modal_function_ids(self) -> list[int]:
         return [mf.id for mf in self.modal_functions]
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def modal_function_names(self) -> list[str]:
         return [mf.function_name for mf in self.modal_functions]

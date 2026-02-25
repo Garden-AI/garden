@@ -102,7 +102,7 @@ def list_gardens(
     """List gardens."""
     client = GardenClient()
 
-    owner_uuid = str(client.get_user_identity_id())
+    owner_uuid: str | None = str(client.get_user_identity_id())
     if all_gardens:
         owner_uuid = None
 
@@ -274,8 +274,10 @@ def show_garden(
     # Display HPC functions with names
     if garden.hpc_functions:
         rich.print("\n  [bold]HPC Functions:[/bold]")
-        for fn in garden.hpc_functions:
-            rich.print(f"    - {fn.metadata.function_name} (ID: {fn.metadata.id})")
+        for hpc_fn in garden.hpc_functions:
+            rich.print(
+                f"    - {hpc_fn.metadata.function_name} (ID: {hpc_fn.metadata.id})"
+            )
 
 
 @garden_app.command("update")

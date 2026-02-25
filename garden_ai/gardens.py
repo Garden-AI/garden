@@ -145,7 +145,9 @@ class Garden:
                     classes_data.append(
                         {
                             "Class": cls.class_name,
-                            "Method": method.metadata.function_name.split(".")[-1],
+                            "Method": (method.metadata.function_name or "").split(".")[
+                                -1
+                            ],
                             "Title": str(method.metadata.title),
                             "Authors": ", ".join(method.metadata.authors),
                             "DOI": str(method.metadata.doi or ""),
