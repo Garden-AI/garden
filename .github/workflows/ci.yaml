@@ -36,8 +36,9 @@ jobs:
         run: |
           uv run mypy .
       - name: Check for vulnerable libraries with safety
-        run: |
-          uv run safety check
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}}
       - name: Test with pytest
         run: uv run pytest --cov=./ --cov-report=xml tests
       - name: Upload coverage
