@@ -30,6 +30,8 @@ from garden_ai.schemas.modal_app import (
     ModalAppCreateRequest,
     ModalAppPatchRequest,
     ModalAppResponse,
+    ModalFileMetadataRequest,
+    ModalFileMetadataResponse,
     ModalFunctionPatchRequest,
     ModalFunctionResponse,
 )
@@ -223,6 +225,16 @@ class BackendClient:
     # =========================================================================
     # Modal App CRUD Methods
     # =========================================================================
+
+    def parse_modal_file(self, file_contents: str) -> ModalFileMetadataResponse:
+        """Parse a Modal Python file and extract metadata.
+
+        Sends file contents to backend for parsing. Returns extracted app name,
+        function names, requirements, and other metadata.
+        """
+        request = ModalFileMetadataRequest(file_contents=file_contents)
+        response = self._post("/modal-file-metadata", request.model_dump(mode="json"))
+        return ModalFileMetadataResponse(**response)
 
     def create_modal_app(self, payload: ModalAppCreateRequest) -> ModalAppResponse:
         """Deploy a Modal app synchronously."""

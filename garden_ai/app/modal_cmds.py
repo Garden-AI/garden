@@ -1,8 +1,6 @@
 """CLI commands for Modal function and app management."""
 
-import ast
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -23,55 +21,6 @@ from garden_ai.schemas.modal_app import (
 modal_app = typer.Typer(help="Manage Modal functions and apps", no_args_is_help=True)
 modal_app_app = typer.Typer(help="Manage Modal apps", no_args_is_help=True)
 modal_app.add_typer(modal_app_app, name="app")
-
-
-def _extract_functions_from_file(file_path: Path) -> list[dict]:
-    """Extract function metadata from a Modal Python file.
-
-    This is a basic parser that looks for decorated functions.
-    In practice, the backend does more sophisticated parsing.
-    """
-    content = file_path.read_text()
-    tree = ast.parse(content)
-
-    functions = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
-            # Check if decorated with @app.function or similar
-            for decorator in node.decorator_list:
-                dec_str = ast.unparse(decorator) if hasattr(ast, "unparse") else ""
-                if "function" in dec_str.lower() or "method" in dec_str.lower():
-                    # Get docstring
-                    docstring = ast.get_docstring(node) or ""
-
-                    functions.append(
-                        {
-                            "function_name": node.name,
-                            "docstring": docstring,
-                            "lineno": node.lineno,
-                        }
-                    )
-                    break
-
-    return functions
-
-
-def _extract_app_name(file_path: Path) -> str | None:
-    """Try to extract the Modal app name from the file."""
-    content = file_path.read_text()
-    tree = ast.parse(content)
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "app":
-                    # Look for modal.App("name") pattern
-                    if isinstance(node.value, ast.Call):
-                        if node.value.args:
-                            arg = node.value.args[0]
-                            if isinstance(arg, ast.Constant):
-                                return arg.value
-    return None
 
 
 # =============================================================================
@@ -245,48 +194,48 @@ def deploy_modal_app(
     client = GardenClient()
     file_contents = file.read_text()
 
-    # Try to extract app name from file if not provided
+    # Parse file using backend
+    rich.print("[dim]Parsing Modal file...[/dim]")
+    try:
+        parsed = client.backend_client.parse_modal_file(file_contents)
+    except Exception as e:
+        rich.print(f"[red]Error parsing file:[/red] {e}")
+        raise typer.Exit(1)
+
+    # Use parsed app name if not provided by user
     if not app_name:
-        app_name = _extract_app_name(file) or file.stem
+        app_name = parsed.app_name or file.stem
         rich.print(f"[dim]Using app name: {app_name}[/dim]")
 
-    # Extract function info from file
-    functions_info = _extract_functions_from_file(file)
-    if not functions_info:
-        rich.print("[yellow]Warning:[/yellow] No decorated functions found in file.")
+    if not parsed.modal_functions:
+        rich.print("[yellow]Warning:[/yellow] No Modal functions found in file.")
         rich.print("Make sure your functions are decorated with @app.function()")
 
-    # Build function metadata
-    year = str(datetime.now().year)
+    # Build function metadata, augmenting parsed data with user-provided values
     author_list = parse_list(authors) or [client.get_email()]
     tag_list = parse_list(tags)
+    cli_requirements = parse_list(requirements)
 
     modal_functions = []
-    for fn_info in functions_info:
+    for fn in parsed.modal_functions:
         modal_functions.append(
             ModalFunctionCreateMetadata(
-                function_name=fn_info["function_name"],
-                title=title or fn_info["function_name"],
-                description=fn_info["docstring"] or None,
-                year=year,
-                authors=author_list,
-                tags=tag_list,
-                function_text=file_contents,  # Full file for now
+                function_name=fn.function_name,
+                title=title or fn.title or fn.function_name,
+                description=fn.description,
+                year=fn.year,
+                authors=author_list if authors else fn.authors or author_list,
+                tags=tag_list if tags else fn.tags,
+                function_text=fn.function_text,
+                requirements=cli_requirements if requirements else fn.requirements,
             )
-        )
-
-    if not modal_functions:
-        # If we couldn't parse functions, create a placeholder
-        rich.print(
-            "[yellow]Could not auto-detect functions. "
-            "Backend will parse the file.[/yellow]"
         )
 
     request = ModalAppCreateRequest(
         app_name=app_name,
         file_contents=file_contents,
         base_image_name=base_image,
-        requirements=parse_list(requirements),
+        requirements=cli_requirements or parsed.requirements,
         modal_functions=modal_functions,
     )
 

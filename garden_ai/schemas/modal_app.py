@@ -15,6 +15,43 @@ from .entrypoint import (
 from .schema_utils import UniqueList
 
 
+class ModalFileMetadataRequest(BaseModel):
+    """Request schema for parsing a Modal file."""
+
+    file_contents: str
+
+
+class ParsedModalFunctionMetadata(BaseModel):
+    """Parsed function metadata returned from backend file parsing."""
+
+    function_name: str
+    title: str
+    description: str | None = None
+    year: str
+    function_text: str
+    authors: UniqueList[str] = Field(default_factory=list)
+    tags: UniqueList[str] = Field(default_factory=list)
+    requirements: list[str] = Field(default_factory=list)
+    test_functions: list[str] = Field(default_factory=list)
+
+
+class ModalFileMetadataResponse(BaseModel):
+    """Response schema from parsing a Modal file."""
+
+    app_name: str
+    original_app_name: str | None = None
+    modal_functions: list[ParsedModalFunctionMetadata] = Field(default_factory=list)
+    file_contents: str
+    requirements: list[str] = Field(default_factory=list)
+    conda_requirements: list[str] = Field(default_factory=list)
+    base_image_name: str
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def modal_function_names(self) -> list[str]:
+        return [mf.function_name for mf in self.modal_functions]
+
+
 class ModalFunctionCreateMetadata(BaseModel):
     """Metadata for a Modal function when creating a Modal App."""
 
