@@ -11,6 +11,7 @@ import typer
 from rich.table import Table
 
 from garden_ai import GardenClient
+from garden_ai.app.utils import parse_int_list, parse_list
 from garden_ai.schemas.groundhog import (
     HpcEndpointCreateRequest,
     HpcEndpointPatchRequest,
@@ -21,20 +22,6 @@ from garden_ai.schemas.groundhog import (
 groundhog_app = typer.Typer(help="Manage HPC functions", no_args_is_help=True)
 endpoint_app = typer.Typer(help="Manage HPC endpoints", no_args_is_help=True)
 groundhog_app.add_typer(endpoint_app, name="endpoint")
-
-
-def _parse_list(value: str | None) -> list[str]:
-    """Parse a comma-separated string into a list."""
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
-def _parse_int_list(value: str | None) -> list[int]:
-    """Parse a comma-separated string of integers."""
-    if not value:
-        return []
-    return [int(item.strip()) for item in value.split(",") if item.strip()]
 
 
 def _extract_function_from_file(file_path: Path) -> dict:
@@ -226,7 +213,7 @@ def deploy_function(
     client = GardenClient()
 
     # Parse endpoint IDs
-    ep_ids = _parse_int_list(endpoint_ids)
+    ep_ids = parse_int_list(endpoint_ids)
     if not ep_ids:
         rich.print("[red]Error:[/red] At least one endpoint ID is required.")
         raise typer.Exit(1)
@@ -237,7 +224,7 @@ def deploy_function(
     function_title = title or function_name
 
     year = str(datetime.now().year)
-    author_list = _parse_list(authors) or [client.get_email()]
+    author_list = parse_list(authors) or [client.get_email()]
 
     request = HpcFunctionCreateRequest(
         function_name=function_name,
@@ -247,8 +234,8 @@ def deploy_function(
         description=description or fn_info["docstring"] or None,
         year=year,
         authors=author_list,
-        tags=_parse_list(tags),
-        requirements=_parse_list(requirements),
+        tags=parse_list(tags),
+        requirements=parse_list(requirements),
     )
 
     rich.print(f"\n[bold]Deploying HPC function:[/bold] {function_name}")
@@ -377,9 +364,9 @@ def update_function(
         function_name=name,
         title=title,
         description=description,
-        authors=_parse_list(authors) if authors else None,
-        tags=_parse_list(tags) if tags else None,
-        endpoint_ids=_parse_int_list(endpoint_ids) if endpoint_ids else None,
+        authors=parse_list(authors) if authors else None,
+        tags=parse_list(tags) if tags else None,
+        endpoint_ids=parse_int_list(endpoint_ids) if endpoint_ids else None,
     )
 
     if not any(

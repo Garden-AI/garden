@@ -8,23 +8,10 @@ import typer
 from rich.table import Table
 
 from garden_ai import GardenClient
+from garden_ai.app.utils import parse_int_list, parse_list
 from garden_ai.schemas.garden import GardenCreateRequest, GardenPatchRequest
 
 garden_app = typer.Typer(help="Manage Gardens", no_args_is_help=True)
-
-
-def _parse_list(value: str | None) -> list[str]:
-    """Parse a comma-separated string into a list."""
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
-def _parse_int_list(value: str | None) -> list[int]:
-    """Parse a comma-separated string of integers."""
-    if not value:
-        return []
-    return [int(item.strip()) for item in value.split(",") if item.strip()]
 
 
 @garden_app.command("create")
@@ -58,16 +45,16 @@ def create_garden(
     client = GardenClient()
 
     # If no authors provided, use the current user
-    author_list = _parse_list(authors) if authors else [client.get_email()]
+    author_list = parse_list(authors) if authors else [client.get_email()]
 
     request = GardenCreateRequest(
         title=title,
         authors=author_list,
-        contributors=_parse_list(contributors),
+        contributors=parse_list(contributors),
         description=description,
-        tags=_parse_list(tags),
-        modal_function_ids=_parse_int_list(modal_function_ids),
-        hpc_function_ids=_parse_int_list(hpc_function_ids),
+        tags=parse_list(tags),
+        modal_function_ids=parse_int_list(modal_function_ids),
+        hpc_function_ids=parse_int_list(hpc_function_ids),
         year=year,
         version=version,
     )
@@ -107,8 +94,8 @@ def list_gardens(
         owner_uuid = None
 
     gardens = client.backend_client.get_gardens(
-        tags=_parse_list(tags),
-        authors=_parse_list(authors),
+        tags=parse_list(tags),
+        authors=parse_list(authors),
         year=year,
         owner_uuid=owner_uuid,
         limit=limit,
@@ -329,17 +316,15 @@ def update_garden(
 
     request = GardenPatchRequest(
         title=title,
-        authors=_parse_list(authors) if authors else None,
-        contributors=_parse_list(contributors) if contributors else None,
+        authors=parse_list(authors) if authors else None,
+        contributors=parse_list(contributors) if contributors else None,
         description=description,
-        tags=_parse_list(tags) if tags else None,
+        tags=parse_list(tags) if tags else None,
         version=version,
-        modal_function_ids=_parse_int_list(modal_function_ids)
+        modal_function_ids=parse_int_list(modal_function_ids)
         if modal_function_ids
         else None,
-        hpc_function_ids=_parse_int_list(hpc_function_ids)
-        if hpc_function_ids
-        else None,
+        hpc_function_ids=parse_int_list(hpc_function_ids) if hpc_function_ids else None,
     )
 
     # Only send if at least one field is set
@@ -386,8 +371,8 @@ def add_functions(
     """Add functions to an existing garden."""
     client = GardenClient()
 
-    modal_ids = _parse_int_list(modal_function_ids)
-    hpc_ids = _parse_int_list(hpc_function_ids)
+    modal_ids = parse_int_list(modal_function_ids)
+    hpc_ids = parse_int_list(hpc_function_ids)
 
     if not modal_ids and not hpc_ids:
         rich.print("[yellow]No function IDs specified.[/yellow]")

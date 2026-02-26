@@ -12,6 +12,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from garden_ai import GardenClient
+from garden_ai.app.utils import parse_list
 from garden_ai.schemas.modal_app import (
     AsyncModalJobStatus,
     ModalAppCreateRequest,
@@ -22,13 +23,6 @@ from garden_ai.schemas.modal_app import (
 modal_app = typer.Typer(help="Manage Modal functions and apps", no_args_is_help=True)
 modal_app_app = typer.Typer(help="Manage Modal apps", no_args_is_help=True)
 modal_app.add_typer(modal_app_app, name="app")
-
-
-def _parse_list(value: str | None) -> list[str]:
-    """Parse a comma-separated string into a list."""
-    if not value:
-        return []
-    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def _extract_functions_from_file(file_path: Path) -> list[dict]:
@@ -195,8 +189,8 @@ def update_modal_function(
     request = ModalFunctionPatchRequest(
         title=title,
         description=description,
-        authors=_parse_list(authors) if authors else None,
-        tags=_parse_list(tags) if tags else None,
+        authors=parse_list(authors) if authors else None,
+        tags=parse_list(tags) if tags else None,
     )
 
     if not any([request.title, request.description, request.authors, request.tags]):
@@ -264,8 +258,8 @@ def deploy_modal_app(
 
     # Build function metadata
     year = str(datetime.now().year)
-    author_list = _parse_list(authors) or [client.get_email()]
-    tag_list = _parse_list(tags)
+    author_list = parse_list(authors) or [client.get_email()]
+    tag_list = parse_list(tags)
 
     modal_functions = []
     for fn_info in functions_info:
@@ -292,7 +286,7 @@ def deploy_modal_app(
         app_name=app_name,
         file_contents=file_contents,
         base_image_name=base_image,
-        requirements=_parse_list(requirements),
+        requirements=parse_list(requirements),
         modal_functions=modal_functions,
     )
 
