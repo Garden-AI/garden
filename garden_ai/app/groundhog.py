@@ -24,23 +24,64 @@ endpoint_app = typer.Typer(help="Manage HPC endpoints", no_args_is_help=True)
 groundhog_app.add_typer(endpoint_app, name="endpoint")
 
 
-def _extract_function_from_file(file_path: Path) -> dict:
-    """Extract function info from a Python file.
+def _has_hog_decorator(node: ast.FunctionDef) -> bool:
+    """Check if a function/method has @hog.function or @hog.method decorator."""
+    for decorator in node.decorator_list:
+        # Handle @hog.function() or @hog.method() with parens
+        if isinstance(decorator, ast.Call) and isinstance(
+            decorator.func, ast.Attribute
+        ):
+            if (
+                isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == "hog"
+                and decorator.func.attr in ("function", "method")
+            ):
+                return True
+        # Handle @hog.function or @hog.method without parens
+        if isinstance(decorator, ast.Attribute):
+            if (
+                isinstance(decorator.value, ast.Name)
+                and decorator.value.id == "hog"
+                and decorator.attr in ("function", "method")
+            ):
+                return True
+    return False
 
-    Looks for the main function (typically the first non-private function).
+
+def _extract_function_from_file(file_path: Path) -> dict:
+    """Extract function info from a groundhog HPC Python file.
+
+    Looks for functions/methods decorated with @hog.function or @hog.method.
+    For methods, returns the fully qualified name as ClassName.method_name.
+    Falls back to filename if no decorated function is found.
     """
     content = file_path.read_text()
     tree = ast.parse(content)
 
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
-            docstring = ast.get_docstring(node) or ""
+    # First, look for @hog.function decorated functions at module level
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef) and _has_hog_decorator(node):
             return {
                 "function_name": node.name,
-                "docstring": docstring,
+                "docstring": ast.get_docstring(node) or "",
                 "function_text": content,
             }
 
+    # Then, look for @hog.method decorated methods inside classes
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.ClassDef):
+            class_name = node.name
+            for class_node in ast.iter_child_nodes(node):
+                if isinstance(class_node, ast.FunctionDef) and _has_hog_decorator(
+                    class_node
+                ):
+                    return {
+                        "function_name": f"{class_name}.{class_node.name}",
+                        "docstring": ast.get_docstring(class_node) or "",
+                        "function_text": content,
+                    }
+
+    # Fallback to filename
     return {
         "function_name": file_path.stem,
         "docstring": "",
