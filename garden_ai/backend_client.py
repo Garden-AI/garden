@@ -204,10 +204,6 @@ class BackendClient:
         response = self._post("/hpc/invocations", payload.model_dump(mode="json"))
         return response
 
-    # =========================================================================
-    # Garden CRUD Methods
-    # =========================================================================
-
     def create_garden(self, payload: GardenCreateRequest) -> GardenMetadata:
         """Create a new garden."""
         response = self._post("/gardens", payload.model_dump(mode="json"))
@@ -221,10 +217,6 @@ class BackendClient:
             payload.model_dump(mode="json", exclude_none=True),
         )
         return GardenMetadata(**response)
-
-    # =========================================================================
-    # Modal App CRUD Methods
-    # =========================================================================
 
     def parse_modal_file(self, file_contents: str) -> ModalFileMetadataResponse:
         """Parse a Modal Python file and extract metadata.
@@ -289,10 +281,6 @@ class BackendClient:
                 )
             time.sleep(poll_interval)
 
-    # =========================================================================
-    # Modal Function Methods
-    # =========================================================================
-
     def get_modal_function(self, function_id: int) -> ModalFunctionResponse:
         """Get a Modal function by ID."""
         response = self._get(f"/modal-functions/{function_id}")
@@ -333,10 +321,6 @@ class BackendClient:
         )
         return ModalFunctionResponse(**response)
 
-    # =========================================================================
-    # HPC/Groundhog Endpoint Methods
-    # =========================================================================
-
     def create_hpc_endpoint(
         self, payload: HpcEndpointCreateRequest
     ) -> HpcEndpointResponse:
@@ -368,10 +352,6 @@ class BackendClient:
     def delete_hpc_endpoint(self, endpoint_id: int) -> dict:
         """Delete an HPC endpoint."""
         return self._delete(f"/hpc/endpoints/{endpoint_id}", {})
-
-    # =========================================================================
-    # HPC/Groundhog Function Methods
-    # =========================================================================
 
     def create_hpc_function(
         self, payload: HpcFunctionCreateRequest

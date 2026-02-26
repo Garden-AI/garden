@@ -50,21 +50,7 @@ class GardenMetadata(BaseModel):
 
 
 class GardenCreateRequest(BaseModel):
-    """Request schema for creating a new Garden.
-
-    Attributes:
-        title: The title of the Garden.
-        authors: A list of authors of the Garden.
-        description: A brief description of the Garden.
-        contributors: A list of contributors to the Garden.
-        tags: A list of tags associated with the Garden.
-        year: The year of publication.
-        version: The version of the Garden.
-        language: The primary language of the Garden.
-        modal_function_ids: IDs of Modal functions to include.
-        hpc_function_ids: IDs of HPC/Groundhog functions to include.
-        owner_identity_id: Optional UUID to assign ownership to another user.
-    """
+    """Request schema for creating a new Garden."""
 
     title: str
     authors: UniqueList[str]

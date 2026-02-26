@@ -13,10 +13,6 @@ from .entrypoint import (
 )
 from .schema_utils import UniqueList
 
-# ============================================================================
-# HPC Endpoint Schemas
-# ============================================================================
-
 
 class HpcEndpointCreateRequest(BaseModel):
     """Request schema for creating an HPC endpoint."""
@@ -40,11 +36,6 @@ class HpcEndpointPatchRequest(BaseModel):
 
     name: str | None = None
     gcmu_id: str | None = None
-
-
-# ============================================================================
-# HPC Function Schemas
-# ============================================================================
 
 
 class HpcEndpointInfo(BaseModel):
