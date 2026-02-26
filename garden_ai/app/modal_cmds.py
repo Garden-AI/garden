@@ -279,8 +279,8 @@ def deploy_modal_app(
 
     if app_response.modal_functions:
         rich.print("\n  [bold]Functions:[/bold]")
-        for fn in app_response.modal_functions:
-            rich.print(f"    - {fn.function_name} (ID: {fn.id})")
+        for modal_fn in app_response.modal_functions:
+            rich.print(f"    - {modal_fn.function_name} (ID: {modal_fn.id})")
 
 
 @modal_app_app.command("list")
