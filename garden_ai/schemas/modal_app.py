@@ -5,12 +5,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
 
-from .entrypoint import (
-    DatasetMetadata,
-    ModelMetadata,
-    NotebookMetadata,
-    PaperMetadata,
-    RepositoryMetadata,
+from .base import (
+    BaseFunctionCreateRequest,
+    BaseFunctionMetadata,
+    BaseFunctionPatchRequest,
+    RelatedMetadata,
 )
 from .schema_utils import UniqueList
 
@@ -21,18 +20,10 @@ class ModalFileMetadataRequest(BaseModel):
     file_contents: str
 
 
-class ParsedModalFunctionMetadata(BaseModel):
+class ParsedModalFunctionMetadata(BaseFunctionMetadata):
     """Parsed function metadata returned from backend file parsing."""
 
-    function_name: str
-    title: str
-    description: str | None = None
-    year: str
-    function_text: str
-    authors: UniqueList[str] = Field(default_factory=list)
-    tags: UniqueList[str] = Field(default_factory=list)
-    requirements: list[str] = Field(default_factory=list)
-    test_functions: list[str] = Field(default_factory=list)
+    pass
 
 
 class ModalFileMetadataResponse(BaseModel):
@@ -52,26 +43,10 @@ class ModalFileMetadataResponse(BaseModel):
         return [mf.function_name for mf in self.modal_functions]
 
 
-class ModalFunctionCreateMetadata(BaseModel):
+class ModalFunctionCreateMetadata(BaseFunctionCreateRequest):
     """Metadata for a Modal function when creating a Modal App."""
 
-    function_name: str
-    title: str
-    description: str | None = None
-    year: str
-    authors: UniqueList[str] = Field(default_factory=list)
-    tags: UniqueList[str] = Field(default_factory=list)
-    function_text: str
     example_usage: str = ""
-    requirements: list[str] = Field(default_factory=list)
-    test_functions: list[str] = Field(default_factory=list)
-
-    # Related metadata
-    models: list[ModelMetadata] = Field(default_factory=list)
-    repositories: list[RepositoryMetadata] = Field(default_factory=list)
-    papers: list[PaperMetadata] = Field(default_factory=list)
-    datasets: list[DatasetMetadata] = Field(default_factory=list)
-    notebooks: list[NotebookMetadata] = Field(default_factory=list)
 
 
 class ModalAppCreateRequest(BaseModel):
@@ -101,7 +76,7 @@ class AsyncModalJobStatus(str, Enum):
     DONE = "done"
 
 
-class ModalFunctionResponse(BaseModel):
+class ModalFunctionResponse(RelatedMetadata):
     """Response schema for a Modal function."""
 
     id: int
@@ -124,13 +99,6 @@ class ModalFunctionResponse(BaseModel):
 
     owner: str = ""
     owner_identity_id: UUID | None = None
-
-    # Related metadata
-    models: list[ModelMetadata] = Field(default_factory=list)
-    repositories: list[RepositoryMetadata] = Field(default_factory=list)
-    papers: list[PaperMetadata] = Field(default_factory=list)
-    datasets: list[DatasetMetadata] = Field(default_factory=list)
-    notebooks: list[NotebookMetadata] = Field(default_factory=list)
 
 
 class ModalAppResponse(BaseModel):
@@ -171,26 +139,9 @@ class ModalAppPatchRequest(BaseModel):
     file_contents: str | None = None
 
 
-class ModalFunctionPatchRequest(BaseModel):
+class ModalFunctionPatchRequest(BaseFunctionPatchRequest):
     """Request schema for patching a Modal function."""
 
     doi: str | None = None
-    function_name: str | None = None
     is_archived: bool | None = None
-
-    title: str | None = None
-    description: str | None = None
-    year: str | None = None
-    function_text: str | None = None
     example_usage: str | None = None
-
-    authors: UniqueList[str] | None = None
-    tags: UniqueList[str] | None = None
-    test_functions: list[str] | None = None
-    requirements: list[str] | None = None
-
-    models: list[ModelMetadata] | None = None
-    repositories: list[RepositoryMetadata] | None = None
-    papers: list[PaperMetadata] | None = None
-    datasets: list[DatasetMetadata] | None = None
-    notebooks: list[NotebookMetadata] | None = None
