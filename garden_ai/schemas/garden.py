@@ -47,3 +47,43 @@ class GardenMetadata(BaseModel):
 
     owner_identity_id: UUID | None = None
     id: int | None = None
+
+
+class GardenCreateRequest(BaseModel):
+    """Request schema for creating a new Garden."""
+
+    title: str
+    authors: UniqueList[str]
+    description: str | None = None
+
+    contributors: UniqueList[str] = Field(default_factory=list)
+    tags: UniqueList[str] = Field(default_factory=list)
+    year: str = Field(default_factory=lambda: str(datetime.now().year))
+    version: str = "0.0.1"
+    language: str = "en"
+    publisher: str = "Garden-AI"
+
+    modal_function_ids: UniqueList[int] = Field(default_factory=list)
+    hpc_function_ids: UniqueList[int] = Field(default_factory=list)
+
+    owner_identity_id: UUID | None = None
+
+
+class GardenPatchRequest(BaseModel):
+    """Request schema for updating an existing Garden.
+
+    All fields are optional. Only provided fields will be updated.
+    """
+
+    title: str | None = None
+    authors: UniqueList[str] | None = None
+    contributors: UniqueList[str] | None = None
+    description: str | None = None
+    publisher: str | None = None
+    year: str | None = None
+    language: str | None = None
+    tags: UniqueList[str] | None = None
+    version: str | None = None
+
+    modal_function_ids: UniqueList[int] | None = None
+    hpc_function_ids: UniqueList[int] | None = None

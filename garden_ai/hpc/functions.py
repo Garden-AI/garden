@@ -33,11 +33,27 @@ class HpcFunction:
     ):
         self.metadata = metadata
         self._client = client
-
-        self._groundhog_function = load_function_from_source(
-            self.metadata.function_text, self.metadata.function_name
-        )
+        self._groundhog_function_cached = None
         self.endpoints = metadata.available_endpoints
+
+    @property
+    def _groundhog_function(self):
+        """Lazily load the groundhog function from source when first accessed.
+
+        If function_text is not available (e.g., from a list response), fetches
+        the full function data from the backend first.
+        """
+        if self._groundhog_function_cached is None:
+            if self.metadata.function_text is None:
+                # Fetch full function data from backend
+                full_metadata = self.client.backend_client.get_hpc_function(
+                    self.metadata.id
+                )
+                self.metadata = HpcFunctionMetadata(**full_metadata.model_dump())
+            self._groundhog_function_cached = load_function_from_source(
+                self.metadata.function_text, self.metadata.function_name
+            )
+        return self._groundhog_function_cached
 
     @property
     def client(self) -> GardenClient:

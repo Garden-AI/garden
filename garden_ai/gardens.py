@@ -145,7 +145,9 @@ class Garden:
                     classes_data.append(
                         {
                             "Class": cls.class_name,
-                            "Method": method.metadata.function_name.split(".")[-1],
+                            "Method": (method.metadata.function_name or "").split(".")[
+                                -1
+                            ],
                             "Title": str(method.metadata.title),
                             "Authors": ", ".join(method.metadata.authors),
                             "DOI": str(method.metadata.doi or ""),
@@ -188,7 +190,7 @@ class Garden:
                 metadata.modal_function_ids += [fn_metadata.id]
 
                 # Check if this is a class method
-                if "." in fn_metadata.function_name:
+                if fn_metadata.function_name and "." in fn_metadata.function_name:
                     class_name, _ = fn_metadata.function_name.split(".", 1)
                     if class_name not in class_methods:
                         class_methods[class_name] = []
