@@ -60,7 +60,7 @@ mcp = ["mcp>=1.0.0", "uv>=0.8.0"]
 
 [dependency-groups]
 develop = [
-    "pre-commit>=3.1.1,<4.0.0",
+    "pre-commit>=4.0.0",
     "ruff>=0.6.9,<1.0.0",
     "mkdocs>=1.4.3,<2.0.0",
     "mkdocs-callouts>=1.9.0,<2.0.0",
@@ -77,10 +77,7 @@ develop = [
     "pandas==2.0.3; python_version<'3.9'",
     "pandas>=2.0.0,<3.0.0; python_version>='3.9'",
     "types-requests>=2.20.0,<3.0.0",
-    "safety>=2.3.1,<3.0.0",
-    # TODO: we can unpin this when/if we update safety to a higher version
-    # safety depends on setuptools, but needs an old version
-    "setuptools>=78.1.1,<=80.0.0",
+    "safety>=3.0.0",
     "types-pyyaml>=6.0.12.8,<7.0.0",
     "coverage[toml]>=7.2.3,<8.0.0",
     "faker>=26.1.0,<27.0.0",
