@@ -37,7 +37,7 @@ jobs:
           uv run mypy .
       - name: Check for vulnerable libraries with safety
         run: |
-          uv run safety check
+          uv run safety --key ${{ secrets.SAFETY_API_KEY }} scan
       - name: Test with pytest
         run: uv run pytest --cov=./ --cov-report=xml tests
       - name: Upload coverage
