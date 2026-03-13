@@ -11,7 +11,7 @@ build:
   tools:
     python: latest
   jobs:
-    install:
+    post_create_environment:
       - pip install uv
       - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH uv sync --active --group develop
     build:
