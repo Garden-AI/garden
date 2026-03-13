@@ -11,7 +11,7 @@ build:
   tools:
     python: latest
 jobs:
-  intsall:
+  install:
     - pip install uv
     - uv sync --active --group develop
   build:
