@@ -7,9 +7,9 @@ version: 2
 
 # Set the version of Python and other tools you might need
 build:
-os: ubuntu-24.04
-tools:
-  python: latest
+  os: ubuntu-24.04
+  tools:
+    python: latest
 jobs:
   intsall:
     - pip install uv
