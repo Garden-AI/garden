@@ -21,6 +21,8 @@ authors = [{name = "Garden Team", email = "labs@globus.org"}]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.10"
+site_name = "Garden-AI Documentation"
+site_url = "https://garden-ai.readthedocs.io/"
 
 dependencies = [
     "cryptography>=44.0.0,<45.0.0",
@@ -61,13 +63,10 @@ mcp = ["mcp>=1.0.0", "uv>=0.8.0"]
 [dependency-groups]
 develop = [
     "pre-commit>=4.0.0",
-    "ruff>=0.6.9,<1.0.0",
-    "mkdocs>=1.4.3,<2.0.0",
-    "mkdocs-callouts>=1.9.0,<2.0.0",
-    "mkdocs-extensions>=0.1.2,<0.2.0",
-    "pymdown-extensions>=10.0.1,<11.0.0",
-    "mkdocs-material>=9.1.13,<10.0.0",
-    "mkdocstrings[python]>=0.25.2,<0.26.0",
+    "ruff>=0.6.9",
+    "mkdocs-callouts>=1.9.0",
+    "mkdocs-extensions>=0.1.2",
+    "pymdown-extensions>=10.0.1",
     "pytest>=7.2.0,<8.0.0",
     "pytest-mock>=3.10.0,<4.0.0",
     "pytest-cov>=4.0.0,<5.0.0",
@@ -84,6 +83,9 @@ develop = [
     "pytest-random-order>=1.1.1,<2.0.0",
     "pexpect>=4.9.0,<5.0.0",
     "mixpanel>=4.10.1,<5.0.0",
+    "zensical>=0.0.26",
+    "mkdocstrings-python>=2.0.3",
+    "mkdocs-material>=9.7.5",
 ]
 
 
