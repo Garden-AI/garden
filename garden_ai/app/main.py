@@ -8,6 +8,8 @@ import typer
 
 from garden_ai import GardenClient, GardenConstants
 from garden_ai._version import __version__
+from garden_ai.app.functions import functions_app
+from garden_ai.app.garden import garden_app
 from garden_ai.app.mcp import mcp_app
 
 logger = logging.getLogger()
@@ -15,6 +17,8 @@ logger = logging.getLogger()
 app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(garden_app, name="garden")
+app.add_typer(functions_app, name="function")
 
 
 def show_version(show: bool):

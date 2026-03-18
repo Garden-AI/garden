@@ -25,7 +25,8 @@ class ModalClassWrapper:
         self.class_name = class_name
         # Create method lookup internally
         self._methods = {
-            method.metadata.function_name.split(".")[-1]: method for method in methods
+            (method.metadata.function_name or "").split(".")[-1]: method
+            for method in methods
         }
 
     def __getattr__(self, method_name: str) -> Any:

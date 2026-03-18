@@ -23,8 +23,8 @@ class ModalFunctionMetadata(BaseModel):
 
     # Function Metadata
     is_archived: bool = False
-    function_name: str
-    function_text: str
+    function_name: str | None = None
+    function_text: str | None = None
 
     authors: UniqueList[str] = Field(default_factory=list)
     tags: UniqueList[str] = Field(default_factory=list)

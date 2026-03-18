@@ -29,6 +29,7 @@ New to Garden? Here are some great places to begin:
 ## For Users
 
 - [Publishing with Modal](user_guide/publishing/modal-publishing.md) - Learn how to publish a Garden using [Modal](https://modal.com)
+- [CLI reference](CLI.md) - Learn how to use the `garden-ai` CLI.
 
 ## Additional Resources
 
