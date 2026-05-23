@@ -98,7 +98,7 @@ $ garden-ai mcp setup [OPTIONS]
 **Options**:
 
 * `--client TEXT`: &#x27;claude&#x27;, &#x27;claude code&#x27;, &#x27;gemini&#x27;, &#x27;cursor&#x27;, &#x27;windsurf&#x27;
-* `--path TEXT`: Path to initalize config file for any other mcp client
+* `--path TEXT`: Path to initialize config file for any other mcp client
 * `--help`: Show this message and exit.
 
 ### `garden-ai mcp serve`
